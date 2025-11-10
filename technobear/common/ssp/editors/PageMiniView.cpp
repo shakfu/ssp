@@ -12,8 +12,8 @@ void PageMiniView::drawView(Graphics &g) {
     g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), titleFH, Font::plain)));
 
     g.setColour(Colours::yellow);
-    g.drawSingleLineText(String(JucePlugin_Name) + ":" + String(JucePlugin_Desc) + String(" @ thetechnobear"), gap,
-                         gap * 2);
+    g.drawSingleLineText(String(JucePlugin_Name) + ":" + String(JucePlugin_Desc) + String(" @ ") + String(JucePlugin_Manufacturer), 
+        gap, gap * 2);
 
     g.setColour(Colours::grey);
     g.drawSingleLineText("v " + String(JucePlugin_VersionString), 270 * COMPACT_UI_SCALE, gap * 2);
