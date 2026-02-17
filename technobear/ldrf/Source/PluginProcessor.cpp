@@ -97,7 +97,7 @@ const String PluginProcessor::getOutputBusName(int channelIndex) {
     static String outBusName[O_MAX] = {
         "Out 1",
         "Out 2",
-        "Out 2",
+        "Out 3",
         "Out 4"
     };
     if (channelIndex < O_MAX) { return outBusName[channelIndex]; }
