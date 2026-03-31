@@ -16,3 +16,6 @@
 [submodule "ssp-sdk"]
 	path = ssp-sdk
 	url = https://github.com/TheTechnobear/ssp-sdk
+[submodule "juce"]
+	path = juce
+	url = https://github.com/TheTechnobear/juce

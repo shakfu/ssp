@@ -33,20 +33,18 @@ SystemEditor::SystemEditor(BaseProcessor *p)
 
       mode_(M_PARAM) {
 
-    ssp::log("SystemEditor::SystemEditor2");
-
     learnBtn_.setToggle(true);
     noteInputBtn_.setToggle(true);
 
+    // this is not currently working on ssp/linux
+    // mdlConnection_ = MidiDeviceListConnection::make ([] {
+    //     ssp::log("mdl callback");
+    //     auto in = MidiInput::getAvailableDevices();
+    //     for (int i = 0; i < in.size(); i++) {
+    //         ssp::log(("Midi Input : " + in[i].name).toStdString());
+    //     }
 
-    mdlConnection_ = MidiDeviceListConnection::make ([] {
-        ssp::log("mdl callback");
-        auto in = MidiInput::getAvailableDevices();
-        for (int i = 0; i < in.size(); i++) {
-            ssp::log(("Midi Input : " + in[i].name).toStdString());
-        }
-
-    });
+    // });
  
 
 
@@ -57,7 +55,7 @@ SystemEditor::SystemEditor(BaseProcessor *p)
     midiInStr_.push_back("NONE");
     int idx = 0;
     for (int i = 0; i < in.size(); i++) {
-        ssp::log(("Midi Input : " + in[i].name).toStdString());
+        // ssp::log(("Midi Input : " + in[i].name).toStdString());
         if (!isInternalMidi(in[i].name)) {
             inDevices_.push_back(in[i]);
             midiInStr_.push_back(std::to_string(idx) + ":" + in[i].name.toStdString());
@@ -72,7 +70,7 @@ SystemEditor::SystemEditor(BaseProcessor *p)
     auto out = MidiOutput::getAvailableDevices();
     midiOutStr_.push_back("NONE");
     for (int i = 0; i < out.size(); i++) {
-        ssp::log(("Midi Output : " + out[i].name).toStdString());
+        // ssp::log(("Midi Output : " + out[i].name).toStdString());
         if (!isInternalMidi(out[i].name)) {
             outDevices_.push_back(out[i]);
             midiOutStr_.push_back(std::to_string(idx) + ":" + out[i].name.toStdString());
