@@ -1,9 +1,8 @@
 #include "SystemEditor.h"
 
-#include <juce_audio_devices/juce_audio_devices.h>
-
 #include "BaseProcessor.h"
 
+#include "ssp/Log.h"
 // #include "SSP.h"
 
 namespace ssp {
@@ -33,8 +32,22 @@ SystemEditor::SystemEditor(BaseProcessor *p)
           "Param", [&](bool b) { if(!b) mode(M_PARAM); }, 12 * COMPACT_UI_SCALE, Colours::yellow),
 
       mode_(M_PARAM) {
+
+    ssp::log("SystemEditor::SystemEditor2");
+
     learnBtn_.setToggle(true);
     noteInputBtn_.setToggle(true);
+
+
+    mdlConnection_ = MidiDeviceListConnection::make ([] {
+        ssp::log("mdl callback");
+        auto in = MidiInput::getAvailableDevices();
+        for (int i = 0; i < in.size(); i++) {
+            ssp::log(("Midi Input : " + in[i].name).toStdString());
+        }
+
+    });
+ 
 
 
     baseProcessor_->midiLearn(false);
@@ -44,6 +57,7 @@ SystemEditor::SystemEditor(BaseProcessor *p)
     midiInStr_.push_back("NONE");
     int idx = 0;
     for (int i = 0; i < in.size(); i++) {
+        ssp::log(("Midi Input : " + in[i].name).toStdString());
         if (!isInternalMidi(in[i].name)) {
             inDevices_.push_back(in[i]);
             midiInStr_.push_back(std::to_string(idx) + ":" + in[i].name.toStdString());
@@ -58,6 +72,7 @@ SystemEditor::SystemEditor(BaseProcessor *p)
     auto out = MidiOutput::getAvailableDevices();
     midiOutStr_.push_back("NONE");
     for (int i = 0; i < out.size(); i++) {
+        ssp::log(("Midi Output : " + out[i].name).toStdString());
         if (!isInternalMidi(out[i].name)) {
             outDevices_.push_back(out[i]);
             midiOutStr_.push_back(std::to_string(idx) + ":" + out[i].name.toStdString());
