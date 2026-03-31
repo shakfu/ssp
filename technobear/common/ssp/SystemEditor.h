@@ -4,6 +4,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_gui_basics/juce_gui_basics.h>
 
+
 using namespace juce;
 
 #include "SSPActions.h"
@@ -84,6 +85,8 @@ private:
     std::vector<std::string> midiChStr_;
     std::vector<MidiDeviceInfo> inDevices_;
     std::vector<MidiDeviceInfo> outDevices_;
+
+    juce::MidiDeviceListConnection mdlConnection_;
 
 
 
