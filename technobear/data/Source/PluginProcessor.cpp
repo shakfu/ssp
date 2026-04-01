@@ -133,6 +133,7 @@ void PluginProcessor::prepareToPlay(double newSampleRate, int estimatedSamplesPe
 }
 
 void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
     if (params_.freeze.getValue() > 0.5f) return;
 
     unsigned n = buffer.getNumSamples();

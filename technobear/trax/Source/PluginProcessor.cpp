@@ -136,6 +136,7 @@ void PluginProcessor::prepareTrack(Track &track, double sampleRate, int samplesP
 
 
 void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
     if(shouldExit_) return;
 
     auto n = buffer.getNumSamples();

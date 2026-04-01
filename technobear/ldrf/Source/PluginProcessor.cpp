@@ -114,6 +114,7 @@ void PluginProcessor::prepareToPlay(double newSampleRate, int estimatedSamplesPe
 
 
 void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
     unsigned sz = buffer.getNumSamples();
 
 //    static constexpr float baseNote = 60.0f;

@@ -109,6 +109,7 @@ float PluginProcessor::processCV(float v, unsigned scale, unsigned root) {
 }
 
 void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
     unsigned n = buffer.getNumSamples();
 
     bool inTrigE[MAX_SIG];

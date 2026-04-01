@@ -110,6 +110,7 @@ int PluginProcessor::getCCNum(int idx) {
 
 
 void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
     if (midiOutDevice_ == nullptr || !(midiOutDevice_->isBackgroundThreadRunning())) {
         return;
     }

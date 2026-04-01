@@ -131,6 +131,7 @@ void PluginProcessor::prepareToPlay(double newSampleRate, int estimatedSamplesPe
 
 
 void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
     unsigned sz = buffer.getNumSamples();
     for (int vid = 0; vid < MAX_VCA; vid++) {
         // if (!isOutputEnabled(O_OUT_A + vid)) continue;

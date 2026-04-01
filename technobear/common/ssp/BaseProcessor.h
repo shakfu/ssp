@@ -43,6 +43,7 @@ public:
     void changeProgramName(int index, const juce::String &newName) override {}
 
     void prepareToPlay(double newSampleRate, int estimatedSamplesPerBlock) override;
+    void processBlock(juce::AudioSampleBuffer &, juce::MidiBuffer &) override;
     void releaseResources() override;
 
     void getStateInformation(juce::MemoryBlock &destData) override;
@@ -60,13 +61,17 @@ public:
 
     bool isInputEnabled(unsigned i) { return i < numIn && inputEnabled[i]; }
 
-    void setMidiIn(const std::string &name);
-    void setMidiOut(const std::string &name);
+    void connectMidiIn(const std::string &name);
+    void connectMidiOut(const std::string &name);
 
 
     bool isActiveMidiIn(const std::string &name) { return midiInDeviceName_ == name; }
+    bool isConnectedMidiIn(const std::string &name) { return midiInDevice_ != nullptr && isActiveMidiIn(name); }
+    std::string getMidiInName() { return midiInDeviceName_;}
 
     bool isActiveMidiOut(const std::string &name) { return midiOutDeviceName_ == name; }
+    bool isConnectedMidiOut(const std::string &name) { return midiOutDevice_ != nullptr && isActiveMidiOut(name); }
+    std::string getMidiOutName() { return midiOutDeviceName_;}
 
     void midiLearn(bool b);
 
@@ -81,9 +86,8 @@ public:
 
     void useCompactUI(bool b) { compactEditor_ = b; }
     bool useCompactUI() const { return compactEditor_; }
-
-
-
+    
+    void onAsyncThread();
 
     struct MidiAutomation {
         int paramIdx_ = -1;
@@ -156,6 +160,9 @@ protected:
     void handleMidi(const juce::MidiMessage &message);
 
     void automateParam(int idx, const MidiAutomation &a, const juce::MidiMessage &msg);
+    void midiOutStatusChange(bool connected) {;}
+    void midiInStatusChange(bool connected) {;}
+    void checkMidiDevices();
 
     std::map<int, MidiAutomation> midiAutomation_;
 
@@ -163,9 +170,13 @@ protected:
     std::string midiOutDeviceName_;
     std::unique_ptr<juce::MidiInput> midiInDevice_;
     std::unique_ptr<juce::MidiOutput> midiOutDevice_;
+    int midiCheckCounter_ = 0;
     int midiChannel_ = 0;
     bool midiLearn_ = false;
     bool noteInput_ = false;
+ 
+    std::unique_ptr<std::thread> asyncThread_;
+    bool asyncActive_ = true;
 
     MidiAutomation lastLearn_;
 

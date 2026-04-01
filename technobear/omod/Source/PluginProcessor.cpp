@@ -125,6 +125,7 @@ void PluginProcessor::prepareToPlay(double newSampleRate, int estimatedSamplesPe
 
 
 void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
     unsigned sz = buffer.getNumSamples();
     float freqmult = (params_.lfo.getValue() > 0.5f) ? 0.01f : 1.0f;
 

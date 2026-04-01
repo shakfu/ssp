@@ -207,6 +207,7 @@ void PluginProcessor::prepareToPlay(double newSampleRate, int estimatedSamplesPe
 }
 
 void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
     unsigned sz = buffer.getNumSamples();
     static constexpr float trigLevel = 0.2f;
     for (unsigned s = 0; s < sz; s++) {

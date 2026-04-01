@@ -339,6 +339,7 @@ void PluginProcessor::setExternalData(unsigned lidx, float *newData, float newSi
 
 
 void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
     size_t n = buffer.getNumSamples();
 
 

@@ -112,6 +112,7 @@ const String PluginProcessor::getOutputBusName(int channelIndex) {
 //TODO : could add buttons , which invert input?
 
 void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
     static constexpr unsigned N_PAIRS = I_MAX / 2;
     float trigLevel = normValue(params_.triglevel);
     const unsigned sz = buffer.getNumSamples();

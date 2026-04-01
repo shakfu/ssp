@@ -120,6 +120,7 @@ void PluginProcessor::prepareToPlay(double newSampleRate, int estimatedSamplesPe
 #define convertParamVal(pv) pv.convertFrom0to1(pv.getValue())
 
 void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
     unsigned sz = buffer.getNumSamples();
 
     bool slew = params_.slew.getValue() > 0.5f;
