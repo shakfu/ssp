@@ -100,6 +100,7 @@ void PluginProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
 }
 
 void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
     unsigned n = buffer.getNumSamples();
     unsigned n2 = n / 2;
     float cvInS = buffer.getSample(I_IN_SEL, 0);

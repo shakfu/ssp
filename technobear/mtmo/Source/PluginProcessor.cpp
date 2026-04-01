@@ -46,6 +46,7 @@ const String PluginProcessor::getOutputBusName(int channelIndex) {
 }
 
 void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
 }
 
 

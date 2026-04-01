@@ -165,6 +165,7 @@ float PluginProcessor::quantizeCv(unsigned scale, unsigned root, float voctIn) {
 
 
 void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
     unsigned sz = buffer.getNumSamples();
 
     static constexpr unsigned O_L_OFFSET = O_Y_CV - O_X_CV;

@@ -85,6 +85,7 @@ const String PluginProcessor::getOutputBusName(int channelIndex) {
 }
 
 void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
     unsigned sz = buffer.getNumSamples();
 
     static constexpr unsigned max_cc = O_CV_H - O_CV_A;

@@ -176,6 +176,7 @@ inline float normValue(RangedAudioParameter &p) {
 }
 
 void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
     unsigned n = buffer.getNumSamples();
     bool insoloed = false;
     bool outsoloed = false;

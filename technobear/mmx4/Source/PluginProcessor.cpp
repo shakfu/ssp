@@ -151,6 +151,7 @@ void PluginProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
 }
 
 void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
     int n = buffer.getNumSamples();
 
     for (unsigned i = 0; i < MAX_SIG_OUT * 2; i++) {

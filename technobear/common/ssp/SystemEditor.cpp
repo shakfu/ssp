@@ -50,37 +50,7 @@ SystemEditor::SystemEditor(BaseProcessor *p)
 
     baseProcessor_->midiLearn(false);
 
-    auto in = MidiInput::getAvailableDevices();
-    int selIdx = -1;
-    midiInStr_.push_back("NONE");
-    int idx = 0;
-    for (int i = 0; i < in.size(); i++) {
-        // ssp::log(("Midi Input : " + in[i].name).toStdString());
-        if (!isInternalMidi(in[i].name)) {
-            inDevices_.push_back(in[i]);
-            midiInStr_.push_back(std::to_string(idx) + ":" + in[i].name.toStdString());
-            if (baseProcessor_->isActiveMidiIn(in[i].name.toStdString())) selIdx = idx + 1;  // none
-            idx++;
-        }
-    }
-    midiInCtrl_.setValues(midiInStr_, selIdx);
-
-    selIdx = -1;
-    idx = 0;
-    auto out = MidiOutput::getAvailableDevices();
-    midiOutStr_.push_back("NONE");
-    for (int i = 0; i < out.size(); i++) {
-        // ssp::log(("Midi Output : " + out[i].name).toStdString());
-        if (!isInternalMidi(out[i].name)) {
-            outDevices_.push_back(out[i]);
-            midiOutStr_.push_back(std::to_string(idx) + ":" + out[i].name.toStdString());
-            if (baseProcessor_->isActiveMidiOut(out[i].name.toStdString())) selIdx = idx + 1;  // none
-            idx++;
-        }
-    }
-
-    midiOutCtrl_.setValues(midiOutStr_, selIdx);
-
+    populateMidiDevices();
 
     midiChStr_.push_back("OMNI");
     for (int i = 0; i < 16; i++) { midiChStr_.push_back(String(i + 1).toStdString()); }
@@ -104,6 +74,82 @@ SystemEditor::SystemEditor(BaseProcessor *p)
     idxOffset_ = 0;
 }
 
+void SystemEditor::populateMidiDevices() {
+    inDevices_.clear();
+    midiInStr_.clear();
+
+    outDevices_.clear();
+    midiOutStr_.clear();
+
+    auto in = MidiInput::getAvailableDevices();
+    int selIdx = -1;
+    midiInStr_.push_back("NONE");
+    int idx = 0;
+    for (int i = 0; i < in.size(); i++) {
+        auto name = in[i].name.toStdString();
+        // ssp::log(("Midi Input : " + name);
+        if (!isInternalMidi(name)) {
+            inDevices_.push_back(in[i]);
+            midiInStr_.push_back(std::to_string(idx) + ":" + name);
+            if (baseProcessor_->isActiveMidiIn(name)) {
+                selIdx = idx + 1;  // none
+                // selected is valid, but not connected, attempt reconnect
+                if (!baseProcessor_->isConnectedMidiIn(name)){
+                    baseProcessor_->connectMidiIn(name);
+                }
+            }
+            idx++;
+        }
+    }
+
+    if(selIdx==-1) {
+        auto name = baseProcessor_->getMidiInName();
+        if(!name.empty()) {
+            midiInStr_.push_back(std::to_string(idx) + ":" + name + " ! ");
+            selIdx = idx + 1;
+        }
+    }
+
+    midiInCtrl_.setValues(midiInStr_, selIdx);
+
+    selIdx = -1;
+    idx = 0;
+    auto out = MidiOutput::getAvailableDevices();
+    midiOutStr_.push_back("NONE");
+    for (int i = 0; i < out.size(); i++) {
+        auto name = out[i].name.toStdString();
+        // ssp::log(("Midi Output : " + mame);
+        if (!isInternalMidi(name)) {
+            outDevices_.push_back(out[i]);
+            midiOutStr_.push_back(std::to_string(idx) + ":" + name);
+            if (baseProcessor_->isActiveMidiOut(name)) {
+                selIdx = idx + 1;  // none
+                // selected is valid, but not connected, attempt reconnect
+                if (!baseProcessor_->isConnectedMidiOut(name)){
+                    baseProcessor_->connectMidiOut(name);
+                }
+            }
+            idx++;
+        }
+    }
+    if(selIdx==-1) {
+        auto name = baseProcessor_->getMidiOutName();
+        if(!name.empty()) {
+            midiOutStr_.push_back(std::to_string(idx) + ":" + name + " ! ");
+            selIdx = idx + 1;
+        }
+    }
+
+    midiOutCtrl_.setValues(midiOutStr_, selIdx);
+
+}
+
+void SystemEditor::visibilityChanged() {
+    populateMidiDevices();
+}
+
+
+
 void SystemEditor::mode(UI_Mode m) {
     mode_ = m;
     switch (mode_) {
@@ -124,28 +170,34 @@ void SystemEditor::mode(UI_Mode m) {
 void SystemEditor::midiInCallback(float idx, const std::string &dev) {
     //    Logger::writeToLog("midiInCallback -> " + String(idx) + " : " + dev);
     unsigned i = idx;
-    if (i > 0) {  // 0 ==  NONE
+    if (i > 0 && i < inDevices_.size() ) {  // 0 ==  NONE and available
         auto device = inDevices_[i - 1];
         if (!isInternalMidi(device.name)) {
-            baseProcessor_->setMidiIn(device.name.toStdString());
+            baseProcessor_->connectMidiIn(device.name.toStdString());
             return;
         }
+    } else {
+        // none, disconnect, unavailable leave 'as is', reconnect thread
+        if(i==0) baseProcessor_->connectMidiIn("");
     }
-    baseProcessor_->setMidiIn("");
 }
 
 void SystemEditor::midiOutCallback(float idx, const std::string &dev) {
     //    Logger::writeToLog("midiOutCallback -> " + String(idx) + " : " + dev);
     unsigned i = idx;
-    if (i > 0) {  // 0 ==  NONE
+    if (i > 0 && i < outDevices_.size() ) {  // 0 ==  NONE and available
         auto device = outDevices_[i - 1];
         if (!isInternalMidi(device.name)) {
-            baseProcessor_->setMidiOut(device.name.toStdString());
+            baseProcessor_->connectMidiOut(device.name.toStdString());
             return;
         }
+    } else {
+        // none, disconnect, unavailable leave 'as is', reconnect thread
+        if(i==0) baseProcessor_->connectMidiOut("");
     }
-    baseProcessor_->setMidiOut("");
 }
+
+ 
 
 void SystemEditor::midiChannelCallback(float idx, const std::string &ch) {
     baseProcessor_->midiChannel(idx);

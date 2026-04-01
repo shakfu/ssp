@@ -181,6 +181,7 @@ float PluginProcessor::getCurrentVolt(float layer, unsigned volt, bool morph) {
 
 
 void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
     unsigned sz = buffer.getNumSamples();
     bool morph = params_.morph.getValue() > 0.5f;
     bool slew = params_.slew.getValue() > 0.5f;

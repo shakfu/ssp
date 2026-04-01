@@ -112,6 +112,7 @@ const String PluginProcessor::getOutputBusName(int channelIndex) {
 
 
 void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
 
     if(activityCount_==0) {
         for(int i=0;i<I_MAX;i++) {

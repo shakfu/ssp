@@ -72,6 +72,9 @@ protected:
     void midiOutCallback(float idx, const std::string &dev);
     void midiChannelCallback(float idx, const std::string &ch);
 
+    void populateMidiDevices();
+    void visibilityChanged() override;
+
 
     static constexpr unsigned MAX_SHOWN = 12;
     int idxOffset_ = 0;

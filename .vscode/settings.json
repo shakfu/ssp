@@ -1,5 +1,7 @@
 {
     "cmake.parallelJobs" : 4,
+    "cmake.useCMakePresets": "always",
+    "cmake.configurePreset": "local build",
     "files.associations": {
         "*.svg": "xml",
         "__bit_reference": "cpp",
