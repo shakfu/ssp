@@ -77,5 +77,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -funwind-tables -fno-omit-frame-po
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DJUCE_CHECK_MEMORY_LEAKS=0")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I${BUILDROOT}/aarch64-rockchip-linux-gnu/include/c++/8.4.0 ")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I${BUILDROOT}/aarch64-rockchip-linux-gnu/include/c++/8.4.0/aarch64-rockchip-linux-gnu")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__PERCUSSA__XMX__ -D__PERCUSSA__")
 
 set(TARGET_XMX 1)
