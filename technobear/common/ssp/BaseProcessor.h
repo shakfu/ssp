@@ -77,12 +77,15 @@ public:
 
     virtual void midiNoteInput(unsigned note, unsigned velocity) { ; }
 
+    void midiChannel(unsigned ch) { midiChannel_ = ch; }
+    int midiChannel() const { return midiChannel_; }
+
     void noteInput(bool b) { noteInput_ = b; }
     bool noteInput() const { return noteInput_; }   
-
-    void midiChannel(unsigned ch) { midiChannel_ = ch; }
-
-    int midiChannel() const { return midiChannel_; }
+    void midiClockInput(bool b) { midiClockInput_ = b; }
+    bool midiClockInput() const { return midiClockInput_; }   
+    void midiTransportInput(bool b) { midiTransportInput_ = b; }
+    bool midiTransportInput() const { return midiTransportInput_; }   
 
     void useCompactUI(bool b) { compactEditor_ = b; }
     bool useCompactUI() const { return compactEditor_; }
@@ -164,6 +167,11 @@ protected:
     void midiInStatusChange(bool connected) {;}
     void checkMidiDevices();
 
+    virtual void onMidiStart(double ts) {;}
+    virtual void onMidiContinue(double ts) {;}
+    virtual void onMidiStop(double ts) {;}
+    virtual void onMidiClock(double ts) {;}
+
     std::map<int, MidiAutomation> midiAutomation_;
 
     std::string midiInDeviceName_;
@@ -174,6 +182,8 @@ protected:
     int midiChannel_ = 0;
     bool midiLearn_ = false;
     bool noteInput_ = false;
+    bool midiClockInput_ = true;
+    bool midiTransportInput_ = false;
  
     std::unique_ptr<std::thread> asyncThread_;
     bool asyncActive_ = true;
@@ -181,7 +191,6 @@ protected:
     MidiAutomation lastLearn_;
 
     bool compactEditor_ = false;
-
 
 //     struct MidiMsg {
 //     };

@@ -21,6 +21,8 @@ PARAMETER_ID (cv_h)
 
 PARAMETER_ID (slew)
 PARAMETER_ID (pb_range)
+PARAMETER_ID (clock)
+PARAMETER_ID (transport)
 
 #undef PARAMETER_ID
 }
@@ -34,6 +36,7 @@ public:
 
     const String getName() const override { return JucePlugin_Name; }
 
+    void prepareToPlay(double newSampleRate, int estimatedSamplesPerBlock) override;
     void processBlock(AudioSampleBuffer &, MidiBuffer &) override;
 
     AudioProcessorEditor *createEditor() override;
@@ -58,6 +61,8 @@ public:
 
         Parameter &slew;
         Parameter &pb_range;
+        Parameter &clock;
+        Parameter &transport;
     } params_;
 
     static BusesProperties getBusesProperties() {
@@ -91,8 +96,18 @@ protected:
         O_VOCT,
         O_GATE,
         O_VEL,
+        O_CLOCK,
+        O_START,
+        O_CONTINUE,
+        O_STOP,
         O_MAX
     };
+
+    void onMidiStart(double ts) override;
+    void onMidiContinue(double ts) override;
+    void onMidiStop(double ts) override;
+    void onMidiClock(double ts) override;
+
 
 private:
 
@@ -108,7 +123,17 @@ private:
     float lastCV_[O_MAX];
     int lastNote_ = 0;
     float pitchbend_ = 0.0f;
+    bool startTrig_ = false;
+    bool continueTrig_ = false;
+    bool stopTrig_ = false;
 
+    double clockPhase_=0.0f;
+    double clockPhaseInc_=0.0f;
+    double lastClockTs_ = 0.0f;
+    int midiClockCount_ = 0;
+    double accumulatedClockMs_ =0.0f;
+
+    double sampleRate_ = 48000;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginProcessor)
 };

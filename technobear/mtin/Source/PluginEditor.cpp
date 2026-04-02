@@ -37,8 +37,8 @@ PluginEditor::PluginEditor(PluginProcessor &p)
         nullptr,
         nullptr,
         nullptr,
-        nullptr,
-        nullptr,
+        std::make_shared<bcontrol_type>(processor_.params_.clock, 24, Colours::lightskyblue),
+        std::make_shared<bcontrol_type>(processor_.params_.transport, 24, Colours::lightskyblue),
         nullptr,
         nullptr
     );
