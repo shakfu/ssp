@@ -50,7 +50,7 @@ AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLa
     params.add(std::make_unique<ssp::BaseBoolParameter>(ID::slew, "Slew CC", false));
     params.add(std::make_unique<ssp::BaseFloatParameter>(ID::pb_range, "PB Range", 0.0f, 48.0f, 2.0f, 1.0f));
     params.add(std::make_unique<ssp::BaseBoolParameter>(ID::clock, "Clock", false));
-    params.add(std::make_unique<ssp::BaseBoolParameter>(ID::transport, "Transport", false));
+    params.add(std::make_unique<ssp::BaseBoolParameter>(ID::transport, "Trans", false));
     return params;
 }
 

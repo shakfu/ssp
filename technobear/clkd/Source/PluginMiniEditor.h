@@ -19,11 +19,13 @@ private:
     enum ButtonNum {
         BN_RUN = 0,
         BN_RESET = 1,
-        BN_USETRIGS = 4
+        BN_USETRIGS = 4,
+        BN_TRANS = 7
     };
 
 
     PluginProcessor &processor_;
     ssp::ValueButton runButton_, resetButton_, useTrigsButton_;
+    ssp::ParamButton transButton_;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginMiniEditor)
 };

@@ -37,6 +37,17 @@ PluginEditor::PluginEditor(PluginProcessor &p)
         std::make_shared<pcontrol_type>(processor_.params_.divisions_[d + 3]->val, 1, 0.25)
     );
 
+    addButtonPage(
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        std::make_shared<bcontrol_type>(processor_.params_.midiTransport,16, Colours::lightskyblue)
+    );
+
     // add some buttons
     setButtonBounds(runButton_, 0, 0);
     setButtonBounds(resetButton_, 0, 1);

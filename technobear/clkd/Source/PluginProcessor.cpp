@@ -2,6 +2,7 @@
 #include "PluginEditor.h"
 #include "PluginMiniEditor.h"
 #include "ssp/EditorHost.h"
+#include "ssp/Log.h"
 
 inline float constrain(float v, float vMin, float vMax) {
     return std::max<float>(vMin, std::min<float>(vMax, v));
@@ -49,7 +50,8 @@ PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState &apvt) 
     clkindiv(*apvt.getParameter(ID::clkindiv)),
     bpm(*apvt.getParameter(ID::bpm)),
     midippqn(*apvt.getParameter(ID::midippqn)),
-    usetrigs(*apvt.getParameter(ID::usetrigs)) {
+    usetrigs(*apvt.getParameter(ID::usetrigs)), 
+    midiTransport(*apvt.getParameter(ID::midiTransport)) {
     for (unsigned i = 0; i < MAX_CLK_OUT; i++) {
         divisions_.push_back(std::make_unique<DivParam>(apvt, ID::div, i));
     }
@@ -63,7 +65,8 @@ AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLa
     StringArray source;
     source.add("Internal");
     source.add("Clk In");
-    source.add("Midi");
+    source.add("Midi In");
+    source.add("Int Midi");
     jassert(source.size() == SRC_MAX);
 
     StringArray clkInDivs;
@@ -106,6 +109,7 @@ AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLa
     params.add(std::make_unique<ssp::BaseFloatParameter>(ID::bpm, "Int BPM", 1.0f, 360, 120.0f));
     params.add(std::make_unique<ssp::BaseChoiceParameter>(ID::midippqn, "Midi PPQN", midippqn, MPPQN_24));
     params.add(std::make_unique<ssp::BaseBoolParameter>(ID::usetrigs, "UseTrigs", false));
+    params.add(std::make_unique<ssp::BaseBoolParameter>(ID::midiTransport, "M Trans.", false));
 
     auto sg = std::make_unique<AudioProcessorParameterGroup>(ID::div, "Divisions", ID::separator);
     for (unsigned sn = 0; sn < MAX_CLK_OUT; sn++) {
@@ -165,9 +169,16 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
 
     auto src = Source(normValue(PluginProcessor::params_.source));
 
+    bool midiTransport = params_.midiTransport.getValue() > 0.5f;
+    if(midiTransport != midiTransport_) {
+        midiTransportInput(midiTransport);
+        midiTransport_= midiTransport;
+    }
+
     bool src_cv = src == SRC_CLKIN;
-    bool src_midi = src == SRC_MIDI;
+    bool src_midi_in = src == SRC_MIDI_IN;
     bool src_internal = src == SRC_INTERNAL;
+    bool src_interal_midi = src == SRC_MIDI_INT;
     bool forceUpdate = false;
     bool reset = false;
     bool runStateChange = false;
@@ -177,6 +188,8 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
     if (src != source_) {
         source_ = src;
         forceUpdate = true;
+
+        midiClockInput(src_interal_midi);
     }
 
     auto clockInDiv = ClkInDiv(normValue(params_.clkindiv));
@@ -205,25 +218,36 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
             setClockTargets(samples, trigs, useTrigs_);
             reset = true;
         }
-
-    } else if (src_midi) {
+    } else if (src_midi_in) {
         auto ppqn = MidiPPQN(normValue(params_.midippqn));
         if (forceUpdate || ppqn != ppqn_) {
             // todo: midi testing!
             useTrigs_ = params_.usetrigs.getValue() > 0.5f;
             ppqn_ = ppqn;
             float samples = 0.0f;
-            calcMidiSampleTarget(lastSampleCount_, clockInDiv_, ppqn_, samples);
+            calcMidiInSampleTarget(lastSampleCount_, clockInDiv_, ppqn_, samples);
             unsigned trigs = midiPPQNRate_[ppqn] * clockInDivMults_[clockInDiv_] * 4.0f;
             setClockTargets(samples, trigs, useTrigs_);
             reset = true;
+        }
+    } else if (src_interal_midi) {
+        auto ppqn = MidiPPQN(normValue(params_.midippqn));
+        if (forceUpdate || ppqn != ppqn_ || intMidiTrig_) {
+            useTrigs_ = false;
+            ppqn_ = ppqn;
+            unsigned trigs = 1;
+            float samples = 0.0f;
+            calcInternalMidiSampleTarget(intMidiSampleCount_, clockInDiv_, ppqn_, samples);
+            setClockTargets(samples, trigs, useTrigs_);
+            reset = forceUpdate;
+            intMidiTrig_ = false;
         }
     }
 
     if (toggleUseTrigs_) {
         toggleUseTrigs_ = false;
         auto src = Source(normValue(PluginProcessor::params_.source));
-        bool nut = !useTrigs_ && (src == SRC_CLKIN || src == SRC_MIDI);
+        bool nut = !useTrigs_ && (src == SRC_CLKIN || src == SRC_MIDI_IN);
         if (nut != useTrigs_) {
             useTrigs_ = nut;
             for (auto &clk: clocks_) {
@@ -301,7 +325,7 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
             if (runState_) {
                 bool trigFired = false, smpFired = false;
                 if (src_cv && trig[I_CLK]) trigFired = clk.trigTick();
-                if (src_midi && trig[I_MIDICLK]) trigFired = clk.trigTick();
+                if (src_midi_in && trig[I_MIDICLK]) trigFired = clk.trigTick();
                 smpFired = clk.sampleTick();
                 bool fired = clk.useTrigs() ? trigFired : smpFired;
                 if (fired) {
@@ -335,16 +359,59 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
             sampleCount_ = 0;
         }
 
-        if (src_midi && trig[I_MIDICLK]) {
+        if (src_midi_in && trig[I_MIDICLK]) {
             lastSampleCount_ = sampleCount_;
             float samples = 0.0f;
-            calcMidiSampleTarget(lastSampleCount_, clockInDiv_, ppqn_, samples);
+            calcMidiInSampleTarget(lastSampleCount_, clockInDiv_, ppqn_, samples);
             updateClockSampleTargets(samples);
             sampleCount_ = 0;
         }
         sampleCount_++;
     }
 }
+
+
+
+void PluginProcessor::onMidiClock(double ts) {
+    double deltaMs_ = (ts - lastClockTs_) * 1000.0f;
+    lastClockTs_ = ts;
+    intMidiTrig_ = true;
+    intMidiSampleCount_ =  (sampleRate_ * deltaMs_) / 1000.0f;
+    // ssp::log("intMidiSampleCount_" + std::to_string(intMidiSampleCount_));
+
+    // accumulatedClockMs_ += deltaMs;
+    // midiClockCount_++;
+    // int ppqn = midiPPQNRate_[ppqn_];
+    // if (midiClockCount_ >= midiPPQNRate_[ppqn]) {
+    //     double qtrIntervalMs = accumulatedClockMs_;
+    //     if (qtrIntervalMs > 50.0f && qtrIntervalMs < 2000.0) {
+    //         double samplesPerTick = (qtrIntervalMs * sampleRate_) / (ppqn * 1000.0f);
+    //         intMidiBpmNew_= 60000.f / qtrIntervalMs;
+    //         // clockPhaseInc_ = 1.0 / samplesPerTick;
+    //     }
+    //     accumulatedClockMs_ = 0.0;
+    //     midiClockCount_ = 0;
+    // }
+}
+
+void PluginProcessor::onMidiStart(double ts) {
+    if(!midiTransport_) return;
+
+    if(!runState_) toggleRunRequest_=true;
+}
+
+void PluginProcessor::onMidiContinue(double ts) {
+    if(!midiTransport_) return;
+    if(!runState_) toggleRunRequest_=true;
+}
+
+void PluginProcessor::onMidiStop(double ts) {
+    if(!midiTransport_) return;
+    if(runState_) toggleRunRequest_=true;
+}
+
+
+
 
 AudioProcessorEditor *PluginProcessor::createEditor() {
 #ifdef FORCE_COMPACT_UI
@@ -407,7 +474,25 @@ void PluginProcessor::calcInternalSampleTarget(const float &sampleRate,
     samples = ((sampleRate * 60.0f) / bpm) * clockInDivMults_[div] * 4.0f;
 }
 
-void PluginProcessor::calcMidiSampleTarget(const float &lastClock,
+void PluginProcessor::calcInternalMidiSampleTarget(const double &lastClock,
+                                           const ClkInDiv &div,
+                                           const MidiPPQN &ppqn,
+                                           float &samples) {
+    // when:
+    // every time we get a new midi trig (so new clk value)
+    // ppqn change
+    //
+    // how:
+    // ppqn = number of pulses per quarter note
+    // samples per quarter note = lastClock * ppqn
+
+    // currently same as calcMidiInSampleTarget, as I calc to be compatible in onMidiClock
+    // could be altered later
+    samples = (lastClock * midiPPQNRate_[ppqn]) * clockInDivMults_[div] * 4.0f;
+}
+
+
+void PluginProcessor::calcMidiInSampleTarget(const float &lastClock,
                                            const ClkInDiv &div,
                                            const MidiPPQN &ppqn,
                                            float &samples) {

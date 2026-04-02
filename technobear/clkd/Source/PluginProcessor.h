@@ -17,6 +17,7 @@ PARAMETER_ID (clkindiv)
 PARAMETER_ID (bpm)
 PARAMETER_ID (midippqn)
 PARAMETER_ID (usetrigs)
+PARAMETER_ID (midiTransport)
 
 // tree div:val
 PARAMETER_ID (div)
@@ -82,6 +83,8 @@ public:
         Parameter &midippqn;
         Parameter &usetrigs;
 
+        Parameter &midiTransport;
+
         std::vector<std::unique_ptr<DivParam>> divisions_;
     } params_;
 
@@ -111,11 +114,17 @@ public:
 protected:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
+    void onMidiStart(double ts) override;
+    void onMidiContinue(double ts) override;
+    void onMidiStop(double ts) override;
+    void onMidiClock(double ts) override;
+
 private:
     enum Source {
         SRC_INTERNAL,
         SRC_CLKIN,
-        SRC_MIDI,
+        SRC_MIDI_IN,
+        SRC_MIDI_INT,
         SRC_MAX
     };
 
@@ -167,8 +176,9 @@ private:
     void updateClockSampleTargets(unsigned samples);
 
     void calcInternalSampleTarget(const float &sampleRate, const ClkInDiv &div, const float &bpm, float &samples);
-    void calcMidiSampleTarget(const float &lastClock, const ClkInDiv &div, const MidiPPQN &ppqn, float &samples);
+    void calcMidiInSampleTarget(const float &lastClock, const ClkInDiv &div, const MidiPPQN &ppqn, float &samples);
     void calcClkInSampleTarget(const float &lastClock, const ClkInDiv &div, float &samples);
+    void calcInternalMidiSampleTarget(const double &lastClock, const ClkInDiv &div, const MidiPPQN &ppqn, float &samples);
 
     float sampleRate_ = 0.0f;
     bool useTrigs_ = false;
@@ -187,6 +197,12 @@ private:
     bool toggleUseTrigs_ = false;
 
     bool runState_ = true;
+
+
+    bool midiTransport_ = false;
+    double intMidiSampleCount_ =0.0f;
+    bool intMidiTrig_ = false;
+    double lastClockTs_ = 0.0f;
 
 
     Clock clocks_[MAX_CLK_OUT];
