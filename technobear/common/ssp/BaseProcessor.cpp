@@ -58,7 +58,9 @@ void BaseProcessor::prepareToPlay(double newSampleRate, int estimatedSamplesPerB
     ;
 }
 
-void BaseProcessor::processBlock(juce::AudioSampleBuffer &, juce::MidiBuffer &) { 
+// static double lastAudioBufTs = 0; //TEST
+void BaseProcessor::processBlock(juce::AudioSampleBuffer &, juce::MidiBuffer &) {
+    // lastAudioBufTs_ = juce::Time::getMillisecondCounterHiRes(); 
     ;
 }
 
@@ -446,42 +448,73 @@ void BaseProcessor::automateParam(int idx, const MidiAutomation &a, const juce::
 }
 
 void BaseProcessor::handleMidi(const juce::MidiMessage &msg) {
-    if (midiChannel_ == 0 || msg.getChannel() == midiChannel_) {
-        if (midiLearn_) {
-            if (lastLearn_.paramIdx_ >= 0) {
-                if (msg.isController()) {
-                    auto &m = lastLearn_.midi_;
-                    m.type_ = MidiAutomation::Midi::T_CC;
-                    m.num_ = msg.getControllerNumber();
-                    m.channel_ = msg.getChannel();
+    if(msg.isController()  || msg.isNoteOnOrOff()) {
+        if (midiChannel_ == 0 || msg.getChannel() == midiChannel_) {
+            if (midiLearn_) {
+                if (lastLearn_.paramIdx_ >= 0) {
+                    if (msg.isController()) {
+                        auto &m = lastLearn_.midi_;
+                        m.type_ = MidiAutomation::Midi::T_CC;
+                        m.num_ = msg.getControllerNumber();
+                        m.channel_ = msg.getChannel();
 
-                    midiAutomation_[lastLearn_.paramIdx_] = lastLearn_;
-                    lastLearn_.reset();
+                        midiAutomation_[lastLearn_.paramIdx_] = lastLearn_;
+                        lastLearn_.reset();
+                    }
+                }
+            }
+
+            for (auto &ap: midiAutomation_) {
+                auto &a = ap.second;
+                if ((msg.isController() && a.midi_.type_ == MidiAutomation::Midi::T_CC)
+                    && (msg.getControllerNumber() == a.midi_.num_)
+                    ) {
+                    automateParam(a.paramIdx_, a, msg);
+                } else if ((msg.isNoteOnOrOff() && a.midi_.type_ == MidiAutomation::Midi::T_NOTE)
+                        && (msg.getNoteNumber() == a.midi_.num_)) {
+                    automateParam(a.paramIdx_, a, msg);
+                }
+            }
+
+            if (noteInput_ && msg.isNoteOnOrOff()) {
+                if (msg.isNoteOn()) {
+                    midiNoteInput(msg.getNoteNumber(), msg.getVelocity());
+                } else {
+                    midiNoteInput(msg.getNoteNumber(), 0);
                 }
             }
         }
-
-        for (auto &ap: midiAutomation_) {
-            auto &a = ap.second;
-            if ((msg.isController() && a.midi_.type_ == MidiAutomation::Midi::T_CC)
-                && (msg.getControllerNumber() == a.midi_.num_)
-                ) {
-                automateParam(a.paramIdx_, a, msg);
-            } else if ((msg.isNoteOnOrOff() && a.midi_.type_ == MidiAutomation::Midi::T_NOTE)
-                       && (msg.getNoteNumber() == a.midi_.num_)) {
-                automateParam(a.paramIdx_, a, msg);
-            }
-        }
-
-        if (noteInput_ && msg.isNoteOnOrOff()) {
-            if (msg.isNoteOn()) {
-                midiNoteInput(msg.getNoteNumber(), msg.getVelocity());
-            } else {
-                midiNoteInput(msg.getNoteNumber(), 0);
-            }
-        }
     }
+    else if(msg.isMidiClock()) { if (midiClockInput_) onMidiClock(msg.getTimeStamp());}
+    else if(msg.isMidiStart()) { if (midiTransportInput_) onMidiStart(msg.getTimeStamp());}
+    else if(msg.isMidiContinue()) { if (midiTransportInput_) onMidiContinue(msg.getTimeStamp());}
+    else if(msg.isMidiStop()) { if (midiTransportInput_) onMidiStop(msg.getTimeStamp());}
 }
+
+
+// testing only, to look at timing data
+// void BaseProcessor::onMidiClock(double ts) {
+//     static double lastTs= 0;
+//     static double lastClockTs = 0;
+//     static int midiClockCount =0;
+
+//     double tsMs = ts * 1000.0f;
+//     if(midiClockCount==24){
+//         if(lastAudioBufTs>0) {
+//             {
+//             double bpm = 60000.f / (tsMs  - lastClockTs);
+//             ssp:log("clock interval = " +std::to_string(tsMs  - lastAudioBufTs) 
+//                     + " / " + std::to_string(tsMs  - lastClockTs) 
+//                     + " / " + std::to_string(tsMs - lastTs)
+//                     + " / " + std::to_string(bpm));
+//             lastClockTs = tsMs;
+//             midiClockCount = 0;
+//             }
+//         }
+//     }
+//     lastTs = tsMs;
+//     midiClockCount++;
+// }
 
 
 void BaseProcessor::handleIncomingMidiMessage(juce::MidiInput *source, const juce::MidiMessage &message) {

@@ -156,6 +156,25 @@
       "preLaunchTask": "build OMOD_VST3"
     },
     {
+      "name": "CLKD",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "/Users/kodiak/bin/AudioPluginHost.app",
+      "args": ["./clkd.filtergraph"],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}/resources/test",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "lldb",
+      "sourceFileMap": {
+        "${workspaceFolder}": {
+            "editorPath": "${workspaceFolder}",
+            "useForBreakpoints": "true"
+        }
+      },
+      "preLaunchTask": "build CLKD_VST3"
+    },
+    {
       "name": "CART",
       "type": "cppdbg",
       "request": "launch",

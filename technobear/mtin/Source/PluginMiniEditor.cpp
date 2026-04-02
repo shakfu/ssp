@@ -21,6 +21,10 @@ PluginMiniEditor::PluginMiniEditor(PluginProcessor &p) : base_type(&p), processo
 
     view->addButton(
         std::make_shared<bcontrol_type>(processor_.params_.slew, 12 * SSP_COMPACT_SCALE, Colours::lightskyblue));
+    view->addButton(
+        std::make_shared<bcontrol_type>(processor_.params_.clock, 12 * SSP_COMPACT_SCALE, Colours::lightskyblue));
+    view->addButton(
+        std::make_shared<bcontrol_type>(processor_.params_.transport, 12 * SSP_COMPACT_SCALE, Colours::lightskyblue));
 
     addView(view);
     setView(0);
