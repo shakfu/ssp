@@ -25,17 +25,16 @@ BaseProcessor::BaseProcessor(
     juce::AudioProcessorValueTreeState::ParameterLayout pl)
     : AudioProcessor(ioLayouts), apvts(*this, nullptr, "state", std::move(pl)) {
     addListener(this);
-    auto asyncLambada = [this]{
-        onAsyncThread();
-    };
-    asyncThread_ =  std::make_unique<std::thread>(asyncLambada);
 }
 
 BaseProcessor::~BaseProcessor() {
     midiCheckCounter_ = 10000 ; // ensure we don't accidentally reconnect
-    asyncThread_->detach();
-    asyncActive_= false;
-    std::this_thread::sleep_for(std::chrono::milliseconds(MIDI_CHECK_SLEEP_MS));
+
+    if(asyncThread_!=nullptr) {
+        asyncThread_->detach();
+        asyncActive_= false;
+        std::this_thread::sleep_for(std::chrono::milliseconds(MIDI_CHECK_SLEEP_MS));
+    }
  
     if (midiInDevice_) {
         midiInDevice_->stop();
@@ -45,6 +44,15 @@ BaseProcessor::~BaseProcessor() {
     }
     removeListener(this);
 }
+
+void BaseProcessor::createAsyncThreadIfNeeded() {
+    if(asyncThread_!=nullptr) return;
+    auto asyncLambada = [this]{
+        onAsyncThread();
+    };
+    asyncThread_ =  std::make_unique<std::thread>(asyncLambada);
+}
+
 
 void BaseProcessor::prepareToPlay(double newSampleRate, int estimatedSamplesPerBlock) {
     ;
@@ -289,7 +297,9 @@ void BaseProcessor::connectMidiIn(const std::string &name) {
     }
 
     if (!name.empty() && !isInternalMidi(name) ) {
+
         midiInDeviceName_ = name;
+        createAsyncThreadIfNeeded();
         std::string id = getMidiInputDeviceId(name);
         if (!id.empty()) {
             midiInDevice_ = juce::MidiInput::openDevice(id, this);
@@ -320,6 +330,7 @@ void BaseProcessor::connectMidiOut(const std::string &name) {
 
     if (!name.empty() && !isInternalMidi(name)) {
         midiOutDeviceName_ = name;
+        createAsyncThreadIfNeeded();
         std::string id = getMidiOutputDeviceId(name);
         if (!id.empty()) {
             midiOutDevice_ = juce::MidiOutput::openDevice(id);
@@ -342,6 +353,20 @@ void BaseProcessor::connectMidiOut(const std::string &name) {
 }
 
 void BaseProcessor::onAsyncThread() {
+#ifdef __APPLE__
+        ssp::log("BaseProcessor::onAsyncThread created");
+#else
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(0, &cpuset);
+        int rc = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+        if (rc == 0) {
+            ssp::log("BaseProcessor::onAsyncThread created on UI core");
+        } else {
+            ssp::log("BaseProcessor::onAsyncThread created, failed to push to UI core");
+        }           
+#endif
+
     while(asyncActive_) {
         midiCheckCounter_ -= 1;
         if(midiCheckCounter_ <= 0 ) {
@@ -350,12 +375,13 @@ void BaseProcessor::onAsyncThread() {
                 checkMidiDevices();
             });
 #else
-            checkMidiDevices();
+        checkMidiDevices();
 #endif            
             midiCheckCounter_ = MIDI_CHECK_FREQ;
         };
         std::this_thread::sleep_for(std::chrono::milliseconds(MIDI_CHECK_SLEEP_MS));
     }
+    ssp::log("BaseProcessor::onAsyncThread destroyed");
 }
 
 

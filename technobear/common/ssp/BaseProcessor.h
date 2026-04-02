@@ -182,10 +182,9 @@ protected:
 
     bool compactEditor_ = false;
 
-    struct MidiMsg {
 
-    };
-
+//     struct MidiMsg {
+//     };
 //    moodycamel::ReaderWriterQueue<MidiMsg> messageQueue_;
 
 public:
@@ -194,6 +193,7 @@ public:
 private:
     std::string getMidiInputDeviceId(const std::string &name);
     std::string getMidiOutputDeviceId(const std::string &name);
+    void createAsyncThreadIfNeeded();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BaseProcessor)
 };
