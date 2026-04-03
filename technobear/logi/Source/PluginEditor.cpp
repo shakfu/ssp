@@ -1,43 +1,34 @@
 
-#include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-#include "ssp/controls/ParamControl.h"
+#include "PluginProcessor.h"
 #include "ssp/controls/ParamButton.h"
+#include "ssp/controls/ParamControl.h"
 
 using pcontrol_type = ssp::BarParamControl;
 using bcontrol_type = ssp::ParamButton;
 
-PluginEditor::PluginEditor(PluginProcessor &p)
-    : base_type(&p),
-      processor_(p) {
-
+PluginEditor::PluginEditor(PluginProcessor& p) : base_type(&p), processor_(p) {
     upBtn_.setVisible(false);
     downBtn_.setVisible(false);
 
-    addParamPage(
-        std::make_shared<pcontrol_type>(processor_.params_.oper, 1.0f, 1.0f),
-        std::make_shared<pcontrol_type>(processor_.params_.triglevel, 0.1, 0.01f),
-        nullptr,
-        nullptr
-    );
+    addParamPage(std::make_shared<pcontrol_type>(processor_.params_.oper, 1.0f, 1.0f),
+                 std::make_shared<pcontrol_type>(processor_.params_.triglevel, 0.1, 0.01f), nullptr, nullptr);
 
-    addButtonPage(
-        std::make_shared<bcontrol_type>(processor_.params_.gateparams_[0]->inv, 24, Colours::lightskyblue),
-        std::make_shared<bcontrol_type>(processor_.params_.gateparams_[1]->inv, 24, Colours::lightskyblue),
-        std::make_shared<bcontrol_type>(processor_.params_.gateparams_[2]->inv, 24, Colours::lightskyblue),
-        std::make_shared<bcontrol_type>(processor_.params_.gateparams_[3]->inv, 24, Colours::lightskyblue),
-        std::make_shared<bcontrol_type>(processor_.params_.gateparams_[4]->inv, 24, Colours::lightskyblue),
-        std::make_shared<bcontrol_type>(processor_.params_.gateparams_[5]->inv, 24, Colours::lightskyblue),
-        std::make_shared<bcontrol_type>(processor_.params_.gateparams_[6]->inv, 24, Colours::lightskyblue),
-        std::make_shared<bcontrol_type>(processor_.params_.gateparams_[7]->inv, 24, Colours::lightskyblue)
-    );
+    addButtonPage(std::make_shared<bcontrol_type>(processor_.params_.gateparams_[0]->inv, 24, Colours::lightskyblue),
+                  std::make_shared<bcontrol_type>(processor_.params_.gateparams_[1]->inv, 24, Colours::lightskyblue),
+                  std::make_shared<bcontrol_type>(processor_.params_.gateparams_[2]->inv, 24, Colours::lightskyblue),
+                  std::make_shared<bcontrol_type>(processor_.params_.gateparams_[3]->inv, 24, Colours::lightskyblue),
+                  std::make_shared<bcontrol_type>(processor_.params_.gateparams_[4]->inv, 24, Colours::lightskyblue),
+                  std::make_shared<bcontrol_type>(processor_.params_.gateparams_[5]->inv, 24, Colours::lightskyblue),
+                  std::make_shared<bcontrol_type>(processor_.params_.gateparams_[6]->inv, 24, Colours::lightskyblue),
+                  std::make_shared<bcontrol_type>(processor_.params_.gateparams_[7]->inv, 24, Colours::lightskyblue));
 
     setSize(1600, 480);
 }
 
 
-void PluginEditor::drawView(Graphics &g) {
+void PluginEditor::drawView(Graphics& g) {
     base_type::drawView(g);
 
     float inputs[PluginProcessor::I_MAX];
@@ -68,7 +59,7 @@ void PluginEditor::drawView(Graphics &g) {
                 g.setColour(Colours::red);
             }
             g.fillRect(xb + 1, yb + 1, w, sp - 20 - 2);
-        } // inputs
+        }  // inputs
 
 
         if (i + 1 < PluginProcessor::O_MAX) {
@@ -81,7 +72,7 @@ void PluginEditor::drawView(Graphics &g) {
             } else {
                 g.drawRect(xb, yb, gw - 1, sp - 20);
             }
-        } // outputs
+        }  // outputs
     }
 
     {
@@ -94,5 +85,5 @@ void PluginEditor::drawView(Graphics &g) {
         } else {
             g.drawRect(xb, yb, gw - 1, sp - 20);
         }
-    } // main out
+    }  // main out
 }

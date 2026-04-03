@@ -10,7 +10,7 @@ class BaseParamControl : public juce::Component {
 public:
     using Parameter = juce::RangedAudioParameter;
 
-    BaseParamControl(Parameter &p, juce::Colour fg = juce::Colours::red);
+    BaseParamControl(Parameter& p, juce::Colour fg = juce::Colours::red);
     virtual ~BaseParamControl() = default;
 
     virtual void inc(bool coarse) = 0;
@@ -27,31 +27,31 @@ public:
 
     virtual juce::String getTextValue();
 
-    void mouseDoubleClick (const juce::MouseEvent &event) override;
-    void mouseDown (const juce::MouseEvent &event) override;
-    void mouseDrag (const juce::MouseEvent &event) override;
+    void mouseDoubleClick(const juce::MouseEvent& event) override;
+    void mouseDown(const juce::MouseEvent& event) override;
+    void mouseDrag(const juce::MouseEvent& event) override;
 
 protected:
-    Parameter &param_;
+    Parameter& param_;
     juce::ParameterAttachment attachment_;
-//    void paint(Graphics &g);
+    //    void paint(Graphics &g);
     bool active_;
     juce::Colour fg_ = juce::Colours::red;
 
-    int lastMouseX_= 0;
+    int lastMouseX_ = 0;
     juce_UseDebuggingNewOperator
 };
 
 
 class SimpleParamControl : public BaseParamControl {
 public:
-    SimpleParamControl(Parameter &p, float coarse = 1.0f, float fine = 0.01f,juce::Colour fg = juce::Colours::red);
+    SimpleParamControl(Parameter& p, float coarse = 1.0f, float fine = 0.01f, juce::Colour fg = juce::Colours::red);
     void inc(bool coarse) override;
     void dec(bool coarse) override;
     void reset() override;
 
 protected:
-    void paint(juce::Graphics &g) override;
+    void paint(juce::Graphics& g) override;
 
 private:
     float coarseInc_ = 0.0f;
@@ -61,20 +61,22 @@ private:
 
 class LineParamControl : public SimpleParamControl {
 public:
-    LineParamControl(Parameter &p, float coarse = 1.0f, float fine = 0.01f,juce::Colour fg = juce::Colours::red);
+    LineParamControl(Parameter& p, float coarse = 1.0f, float fine = 0.01f, juce::Colour fg = juce::Colours::red);
+
 protected:
-    void paint(juce::Graphics &g) override;
+    void paint(juce::Graphics& g) override;
     juce_UseDebuggingNewOperator
 };
 
 
 class BarParamControl : public SimpleParamControl {
 public:
-    BarParamControl(Parameter &p, float coarse = 1.0f, float fine = 0.01f,juce::Colour fg = juce::Colours::red);
+    BarParamControl(Parameter& p, float coarse = 1.0f, float fine = 0.01f, juce::Colour fg = juce::Colours::red);
+
 protected:
-    void paint(juce::Graphics &g) override;
+    void paint(juce::Graphics& g) override;
     juce_UseDebuggingNewOperator
 };
 
 
-} // namespace
+}  // namespace ssp

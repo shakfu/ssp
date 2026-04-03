@@ -1,41 +1,28 @@
 
-#include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-#include "ssp/controls/ParamControl.h"
+#include "PluginProcessor.h"
 #include "ssp/controls/ParamButton.h"
+#include "ssp/controls/ParamControl.h"
 
 using pcontrol_type = ssp::BarParamControl;
 using bcontrol_type = ssp::ParamButton;
 
-PluginEditor::PluginEditor(PluginProcessor &p)
-    : base_type(&p),
-      processor_(p) {
-
-    addParamPage(
-        std::make_shared<pcontrol_type>(processor_.params_.inSel, 0.25),
-        std::make_shared<pcontrol_type>(processor_.params_.outSel, 0.25),
-        nullptr,
-        nullptr
-    );
+PluginEditor::PluginEditor(PluginProcessor& p) : base_type(&p), processor_(p) {
+    addParamPage(std::make_shared<pcontrol_type>(processor_.params_.inSel, 0.25),
+                 std::make_shared<pcontrol_type>(processor_.params_.outSel, 0.25), nullptr, nullptr);
 
     addButtonPage(
         std::make_shared<bcontrol_type>(processor_.params_.active, 12 * COMPACT_UI_SCALE, Colours::lightskyblue),
-        std::make_shared<bcontrol_type>(processor_.params_.soft, 12 * COMPACT_UI_SCALE, Colours::orange),
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr
-    );
+        std::make_shared<bcontrol_type>(processor_.params_.soft, 12 * COMPACT_UI_SCALE, Colours::orange), nullptr,
+        nullptr, nullptr, nullptr, nullptr, nullptr);
 
     setSize(1600, 480);
 }
 
-void PluginEditor::drawGrid(Graphics &g) {
-//    int x = 40;
-//    int y = 40;
+void PluginEditor::drawGrid(Graphics& g) {
+    //    int x = 40;
+    //    int y = 40;
     int x = 275;
     int y = 50;
     int lx = 100;
@@ -48,7 +35,8 @@ void PluginEditor::drawGrid(Graphics &g) {
     Colour inclr = Colours::blue;
     Colour outclr = Colours::green;
 
-    g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), 12 * COMPACT_UI_SCALE, Font::plain)));
+    g.setFont(
+        juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), 12 * COMPACT_UI_SCALE, Font::plain)));
     g.setColour(outclr);
     g.drawText("Outputs", x + lx, y, (8 * sz) + (7 * sp), fh, Justification::centred);
     y += sp;
@@ -86,8 +74,7 @@ void PluginEditor::drawGrid(Graphics &g) {
     }
 }
 
-void PluginEditor::drawView(Graphics &g) {
+void PluginEditor::drawView(Graphics& g) {
     base_type::drawView(g);
     drawGrid(g);
 }
-

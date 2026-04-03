@@ -3,7 +3,7 @@
 #include "PluginProcessor.h"
 #include "ssp/editors/BaseMiniView.h"
 
-PluginMiniEditor::PluginMiniEditor(PluginProcessor &p) : base_type(&p,true), processor_(p) {
+PluginMiniEditor::PluginMiniEditor(PluginProcessor& p) : base_type(&p, true), processor_(p) {
 }
 
 
@@ -12,7 +12,7 @@ void PluginMiniEditor::onSSPTimer() {
     clock_ = false;
     MidiMessage msg;
     while (processor_.messageQueue().try_dequeue(msg)) {
-        auto &data = dataBuf_[wrPos_];
+        auto& data = dataBuf_[wrPos_];
 
         if (msg.isNoteOn(false)) {
             data.channel_ = String(msg.getChannel());
@@ -66,11 +66,12 @@ void PluginMiniEditor::onSSPTimer() {
     }
 }
 
-void PluginMiniEditor::drawView(Graphics &g) {
+void PluginMiniEditor::drawView(Graphics& g) {
     base_type::drawView(g);
 
     static constexpr unsigned gap = 5 * COMPACT_UI_SCALE;
-    g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), 10 * COMPACT_UI_SCALE, Font::plain)));
+    g.setFont(
+        juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), 10 * COMPACT_UI_SCALE, Font::plain)));
 
     g.setColour(Colours::yellow);
     g.drawSingleLineText(String(JucePlugin_Name) + ":" + String(JucePlugin_Desc) + String(" @ thetechnobear"), gap,

@@ -2,7 +2,6 @@
 
 #include "ModuleView.h"
 #include "SSP.h"
-
 #include "Track.h"
 
 static constexpr int pluginWidth = SSP_COMPACT_WIDTH;
@@ -10,18 +9,18 @@ static constexpr int pluginHeight = SSP_COMPACT_HEIGHT;
 
 /// DualView
 
-DualView::DualView(PluginProcessor &p) : ssp::BaseView(&p, false), processor_(p) {
+DualView::DualView(PluginProcessor& p) : ssp::BaseView(&p, false), processor_(p) {
 }
 
 DualView::~DualView() {
 }
 
-void DualView::drawView(Graphics &g) {
+void DualView::drawView(Graphics& g) {
     for (int i = 0; i < Track::M_MAX; i++) { drawModulePanel(g, i); }
 }
 
 
-void DualView::moduleIdx(int /*tidx*/,int m) {
+void DualView::moduleIdx(int /*tidx*/, int m) {
     refreshComponents();
     if (activeModule_ != m) {
         if (pComponent_[0]) pComponent_[0]->setAlpha(m == 0 ? 1.0f : 0.3f);
@@ -42,7 +41,7 @@ void DualView::refreshComponents() {
         if (pComponent_[panel] != nullptr) removeChildComponent(pComponent_[panel]);
 
         pComponent_[panel] = nullptr;
-        auto editor = processor_.getEditor(0,panel);
+        auto editor = processor_.getEditor(0, panel);
         if (editor) pComponent_[panel] = editor->editorComponent();
         if (pComponent_[panel] != nullptr) {
             addChildComponent(pComponent_[panel]);
@@ -60,7 +59,7 @@ void DualView::editorShown() {
     refreshComponents();
 }
 
-void DualView::drawModulePanel(Graphics &g, unsigned panel) {
+void DualView::drawModulePanel(Graphics& g, unsigned panel) {
     unsigned panelWidth = (SSP_FULL_WIDTH - 10) / Track::M_MAX;
     unsigned border = (panelWidth - SSP_COMPACT_WIDTH) / 2;
     unsigned moduleX = (panel * panelWidth) + border;
@@ -84,32 +83,32 @@ void DualView::drawModulePanel(Graphics &g, unsigned panel) {
 }
 
 void DualView::onEncoder(unsigned enc, float v) {
-    auto plugin = processor_.getPlugin(0,activeModule_);
+    auto plugin = processor_.getPlugin(0, activeModule_);
     if (!plugin) return;
     plugin->encoderTurned(enc, v);
 }
 
 void DualView::onEncoderSwitch(unsigned enc, bool v) {
-    auto plugin = processor_.getPlugin(0,activeModule_);
+    auto plugin = processor_.getPlugin(0, activeModule_);
     if (!plugin) return;
     plugin->encoderPressed(enc, v);
 }
 
 void DualView::onButton(unsigned btn, bool v) {
-    auto plugin = processor_.getPlugin(0,activeModule_);
+    auto plugin = processor_.getPlugin(0, activeModule_);
     if (!plugin) return;
     plugin->buttonPressed(btn, v);
 }
 
 
 void DualView::onUpButton(bool v) {
-    auto plugin = processor_.getPlugin(0,activeModule_);
+    auto plugin = processor_.getPlugin(0, activeModule_);
     if (!plugin) return;
     plugin->buttonPressed(SSP_Up, v);
 }
 
 void DualView::onDownButton(bool v) {
-    auto plugin = processor_.getPlugin(0,activeModule_);
+    auto plugin = processor_.getPlugin(0, activeModule_);
     if (!plugin) return;
     plugin->buttonPressed(SSP_Down, v);
 }

@@ -1,19 +1,19 @@
 #pragma once
 
-#include "PluginProcessor.h"
-#include "ssp/editors/MultiViewEditor.h"
-#include "ssp/controls/VuMeter.h"
 #include "MonoChannel.h"
+#include "PluginProcessor.h"
 #include "StereoChannel.h"
+#include "ssp/controls/VuMeter.h"
+#include "ssp/editors/MultiViewEditor.h"
 
 using namespace juce;
 
 class PluginEditor : public ssp::MultiViewEditor {
 public:
-    explicit PluginEditor(PluginProcessor &);
+    explicit PluginEditor(PluginProcessor&);
     ~PluginEditor() override = default;
 
-    void drawView(Graphics &) override;
+    void drawView(Graphics&) override;
     void resized() override;
     void onEncoder(unsigned enc, float v) override;
     void onEncoderSwitch(unsigned enc, bool v) override;
@@ -30,16 +30,14 @@ protected:
     using base_type = ssp::MultiViewEditor;
 
 private:
-
-    static constexpr unsigned POLL_TIME = 50; // mSec
-    static constexpr unsigned BUT_COUNTER = POLL_TIME * 10; // 0.5 sec
-    unsigned viewHeldCount_=0;
-    unsigned unheldView_=2;
+    static constexpr unsigned POLL_TIME = 50;                // mSec
+    static constexpr unsigned BUT_COUNTER = POLL_TIME * 10;  // 0.5 sec
+    unsigned viewHeldCount_ = 0;
+    unsigned unheldView_ = 2;
 
     MonoChannel inTracks_[PluginProcessor::IN_T_MAX];
     StereoChannel outTracks_[(PluginProcessor::OUT_T_MAX / 2)];
 
-    PluginProcessor &processor_;
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginEditor)
+    PluginProcessor& processor_;
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginEditor)
 };
-

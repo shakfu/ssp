@@ -5,7 +5,7 @@
 
 class PluginMiniEditor : public ssp::MiniParamView {
 public:
-    explicit PluginMiniEditor(PluginProcessor &);
+    explicit PluginMiniEditor(PluginProcessor&);
     ~PluginMiniEditor() override = default;
 
 protected:
@@ -16,8 +16,7 @@ protected:
     void resized() override;
 
 private:
-
-    PluginProcessor &processor_;
+    PluginProcessor& processor_;
     ssp::ValueButton resetButton_;
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginMiniEditor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginMiniEditor)
 };

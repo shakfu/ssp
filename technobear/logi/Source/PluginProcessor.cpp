@@ -1,15 +1,15 @@
 #include "PluginProcessor.h"
+
 #include "PluginEditor.h"
 #include "PluginMiniEditor.h"
 #include "ssp/EditorHost.h"
 
 
-PluginProcessor::PluginProcessor()
-    : PluginProcessor(getBusesProperties(), createParameterLayout()) {}
+PluginProcessor::PluginProcessor() : PluginProcessor(getBusesProperties(), createParameterLayout()) {
+}
 
-PluginProcessor::PluginProcessor(
-    const AudioProcessor::BusesProperties &ioLayouts,
-    AudioProcessorValueTreeState::ParameterLayout layout)
+PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
+                                 AudioProcessorValueTreeState::ParameterLayout layout)
     : BaseProcessor(ioLayouts, std::move(layout)), params_(vts()) {
     init();
 }
@@ -20,18 +20,14 @@ String getPID(StringRef pre, unsigned sn, StringRef id) {
 }
 
 
-PluginProcessor::GateParam::GateParam(AudioProcessorValueTreeState &apvt, StringRef pre, unsigned sn) :
-    inv(*apvt.getParameter(getPID(pre, sn, ID::inv))) {
-
+PluginProcessor::GateParam::GateParam(AudioProcessorValueTreeState& apvt, StringRef pre, unsigned sn)
+    : inv(*apvt.getParameter(getPID(pre, sn, ID::inv))) {
 }
 
 
-PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState &apvt) :
-    oper(*apvt.getParameter(ID::oper)),
-    triglevel(*apvt.getParameter(ID::triglevel)) {
-    for (unsigned i = 0; i < I_MAX; i++) {
-        gateparams_.push_back(std::make_unique<GateParam>(apvt, ID::gates, i));
-    }
+PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState& apvt)
+    : oper(*apvt.getParameter(ID::oper)), triglevel(*apvt.getParameter(ID::triglevel)) {
+    for (unsigned i = 0; i < I_MAX; i++) { gateparams_.push_back(std::make_unique<GateParam>(apvt, ID::gates, i)); }
 }
 
 AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLayout() {
@@ -69,22 +65,14 @@ AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLa
 
 const String PluginProcessor::getInputBusName(int channelIndex) {
     switch (channelIndex) {
-        case I_IN_A1:
-            return "In A1";
-        case I_IN_B1:
-            return "In B1";
-        case I_IN_A2:
-            return "In A2";
-        case I_IN_B2:
-            return "In B2";
-        case I_IN_A3:
-            return "In A3";
-        case I_IN_B3:
-            return "In B3";
-        case I_IN_A4:
-            return "In A4";
-        case I_IN_B4:
-            return "In B4";
+        case I_IN_A1: return "In A1";
+        case I_IN_B1: return "In B1";
+        case I_IN_A2: return "In A2";
+        case I_IN_B2: return "In B2";
+        case I_IN_A3: return "In A3";
+        case I_IN_B3: return "In B3";
+        case I_IN_A4: return "In A4";
+        case I_IN_B4: return "In B4";
         default:;
     }
 
@@ -94,24 +82,19 @@ const String PluginProcessor::getInputBusName(int channelIndex) {
 
 const String PluginProcessor::getOutputBusName(int channelIndex) {
     switch (channelIndex) {
-        case O_OUT_ALL:
-            return "Out ALL";
-        case O_OUT_1:
-            return "Out 1";
-        case O_OUT_2:
-            return "Out 2";
-        case O_OUT_3:
-            return "Out 3";
-        case O_OUT_4:
-            return "Out 4";
+        case O_OUT_ALL: return "Out ALL";
+        case O_OUT_1: return "Out 1";
+        case O_OUT_2: return "Out 2";
+        case O_OUT_3: return "Out 3";
+        case O_OUT_4: return "Out 4";
         default:;
     }
     return "ZZOut-" + String(channelIndex);
 }
 
-//TODO : could add buttons , which invert input?
+// TODO : could add buttons , which invert input?
 
-void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages) {
     BaseProcessor::processBlock(buffer, midiMessages);
     static constexpr unsigned N_PAIRS = I_MAX / 2;
     float trigLevel = normValue(params_.triglevel);
@@ -141,35 +124,16 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
                 bf = bf * -1.0f;
             }
             switch (op) {
-                case OT_AND :
-                    res = a && b;
-                    break;
-                case OT_OR :
-                    res = a || b;
-                    break;
-                case OT_XOR:
-                    res = a != b;
-                    break;
-                case OT_NAND :
-                    res = !(a && b);
-                    break;
-                case OT_NOR :
-                    res = a == b;
-                    break;
-                case OT_NOT_A :
-                    res = !a;
-                    break;
-                case OT_NOT_B :
-                    res = !b;
-                    break;
-                case OT_GT :
-                    res = af > bf;
-                    break;
-                case OT_LT :
-                    res = af < bf;
-                    break;
-                default:
-                    break;
+                case OT_AND: res = a && b; break;
+                case OT_OR: res = a || b; break;
+                case OT_XOR: res = a != b; break;
+                case OT_NAND: res = !(a && b); break;
+                case OT_NOR: res = a == b; break;
+                case OT_NOT_A: res = !a; break;
+                case OT_NOT_B: res = !b; break;
+                case OT_GT: res = af > bf; break;
+                case OT_LT: res = af < bf; break;
+                default: break;
             }
             buffer.setSample(gout, smp, res);
             if (smp == 0) {
@@ -178,7 +142,7 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
                 lastOut_[gout] = res;
             }
         }
-    } // pair
+    }  // pair
     // build up the main output by combining the pairs
 
 
@@ -193,50 +157,29 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
         bool c = buf3[smp] > trigLevel;
         bool d = buf4[smp] > trigLevel;
         switch (op) {
-            case OT_AND :
-                res = a && b && c && d;
-                break;
-            case OT_OR :
-                res = a || b || c || d;
-                break;
-            case OT_XOR:
-                res = (a != b) != (c != d);
-                break;
-            case OT_NAND :
-                res = !(a && b && c && d);
-                break;
-            case OT_NOR :
-                res = (a == b) == (c == d);
-                break;
-            case OT_NOT_A :
-            case OT_NOT_B :
-                res = a && b && c && d;
-                break;
-            case OT_GT:
-                res = (a + b) > (c + d);
-                break;
-            case OT_LT:
-                res = (a + b) < (c + d);
-                break;
-            default:
-                break;
+            case OT_AND: res = a && b && c && d; break;
+            case OT_OR: res = a || b || c || d; break;
+            case OT_XOR: res = (a != b) != (c != d); break;
+            case OT_NAND: res = !(a && b && c && d); break;
+            case OT_NOR: res = (a == b) == (c == d); break;
+            case OT_NOT_A:
+            case OT_NOT_B: res = a && b && c && d; break;
+            case OT_GT: res = (a + b) > (c + d); break;
+            case OT_LT: res = (a + b) < (c + d); break;
+            default: break;
         }
         buffer.setSample(O_OUT_ALL, smp, res);
         if (smp == 0) lastOut_[O_OUT_ALL] = res;
     }
 }
 
-void PluginProcessor::getValues(float *inputs, bool *outputs) {
-    for (unsigned i = 0; i < I_MAX; i++) {
-        inputs[i] = lastIn_[i];
-    }
-    for (unsigned i = 0; i < O_MAX; i++) {
-        outputs[i] = lastOut_[i];
-    }
+void PluginProcessor::getValues(float* inputs, bool* outputs) {
+    for (unsigned i = 0; i < I_MAX; i++) { inputs[i] = lastIn_[i]; }
+    for (unsigned i = 0; i < O_MAX; i++) { outputs[i] = lastOut_[i]; }
 }
 
 
-AudioProcessorEditor *PluginProcessor::createEditor() {
+AudioProcessorEditor* PluginProcessor::createEditor() {
 #ifdef FORCE_COMPACT_UI
     return new ssp::EditorHost(this, new PluginMiniEditor(*this), true);
 #else
@@ -248,8 +191,6 @@ AudioProcessorEditor *PluginProcessor::createEditor() {
     }
 #endif
 }
-AudioProcessor *JUCE_CALLTYPE createPluginFilter() {
+AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new PluginProcessor();
 }
-
-

@@ -4,7 +4,7 @@
 
 namespace ssp {
 
-BaseMiniView::BaseMiniView(BaseProcessor *p) : base_type(p, true) {
+BaseMiniView::BaseMiniView(BaseProcessor* p) : base_type(p, true) {
 }
 
 }  // namespace ssp

@@ -9,7 +9,7 @@ inline juce::String toString(float v) {
     return juce::String(v, 2, false);
 }
 
-PerfParamComponent::PerfParamComponent(PluginProcessor &p, PluginProcessor::PerformanceParam &param, juce::Colour fg)
+PerfParamComponent::PerfParamComponent(PluginProcessor& p, PluginProcessor::PerformanceParam& param, juce::Colour fg)
     : processor_(p), param_(param), fg_(fg) {
     if (param_.isDescrete()) {
         coarseInc_ = (param_.max() - param_.min()) / (param_.numSteps() - 1);
@@ -80,7 +80,7 @@ void PerfParamComponent::set(float v) {
 }
 
 
-void PerfParamComponent::paint(juce::Graphics &g) {
+void PerfParamComponent::paint(juce::Graphics& g) {
     static constexpr unsigned fh = 16 * COMPACT_UI_SCALE;
     int h = getHeight();
     int w = getWidth();

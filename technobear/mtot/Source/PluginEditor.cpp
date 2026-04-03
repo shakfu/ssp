@@ -8,7 +8,7 @@
 using pcontrol_type = ssp::BarParamControl;
 using bcontrol_type = ssp::ParamButton;
 
-PluginEditor::PluginEditor(PluginProcessor &p) : base_type(&p), processor_(p) {
+PluginEditor::PluginEditor(PluginProcessor& p) : base_type(&p), processor_(p) {
     addParamPage(std::make_shared<pcontrol_type>(processor_.params_.cv_a, 1.0f, 1.0f),
                  std::make_shared<pcontrol_type>(processor_.params_.cv_b, 1.0f, 1.0f),
                  std::make_shared<pcontrol_type>(processor_.params_.cv_c, 1.0f, 1.0f),

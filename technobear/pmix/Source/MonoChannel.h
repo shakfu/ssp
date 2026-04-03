@@ -2,6 +2,7 @@
 #pragma once
 
 #include <assert.h>
+
 #include "PluginProcessor.h"
 #include "ssp/controls/VuMeter.h"
 
@@ -11,7 +12,7 @@ class MonoChannel : public Component {
 public:
     MonoChannel();
 
-    void init(const String &label, TrackData *data) {
+    void init(const String& label, TrackData* data) {
         vuMeter_.init(label, true);
         data_ = data;
     }
@@ -25,11 +26,12 @@ public:
     bool enabled() { return vuMeter_.enabled(); }
 
 
-    void paint(Graphics &) override;
+    void paint(Graphics&) override;
     void resized() override;
+
 private:
     ssp::MonoVuMeter vuMeter_;
-    TrackData *data_;
+    TrackData* data_;
 
     juce_UseDebuggingNewOperator
 };

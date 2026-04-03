@@ -1,21 +1,21 @@
 #include "BaseMiniView.h"
-
 #include "ssp/BaseProcessor.h"
 
 namespace ssp {
 
 
-LineMiniEditor::LineMiniEditor(BaseProcessor *p) : base_type(p, true) {
+LineMiniEditor::LineMiniEditor(BaseProcessor* p) : base_type(p, true) {
     ;
 }
 
-void LineMiniEditor::drawView(Graphics &g) {
+void LineMiniEditor::drawView(Graphics& g) {
     base_type::drawView(g);
     g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), titleFH, Font::plain)));
 
     g.setColour(Colours::yellow);
-    g.drawSingleLineText(String(JucePlugin_Name) + ":" + String(JucePlugin_Desc) + String(" @ ") + String(JucePlugin_Manufacturer), 
-        gap, gap * 2);
+    g.drawSingleLineText(
+        String(JucePlugin_Name) + ":" + String(JucePlugin_Desc) + String(" @ ") + String(JucePlugin_Manufacturer), gap,
+        gap * 2);
 
     g.setColour(Colours::grey);
     g.drawSingleLineText("v " + String(JucePlugin_VersionString), 270 * COMPACT_UI_SCALE, gap * 2);
@@ -26,16 +26,16 @@ void LineMiniEditor::drawView(Graphics &g) {
 void LineMiniEditor::resized() {
     base_type::resized();
 
-    for (auto &btnPage : buttonPages_) {
+    for (auto& btnPage : buttonPages_) {
         int bidx = 0;
-        for (auto &b : btnPage->control_) {
+        for (auto& b : btnPage->control_) {
             if (b) setButtonBounds(bidx, b.get());
             bidx++;
         }
     }
 }
 
-void LineMiniEditor::drawButtonBox(Graphics &g) {
+void LineMiniEditor::drawButtonBox(Graphics& g) {
     g.setColour(Colours::darkgrey);
     unsigned singleButtonH = buttonBarH / 2;
     g.drawHorizontalLine(SSP_COMPACT_HEIGHT - buttonBarH - 1, gap, SSP_COMPACT_WIDTH - gap);
@@ -49,7 +49,7 @@ void LineMiniEditor::drawButtonBox(Graphics &g) {
 }
 
 
-void LineMiniEditor::setParamBounds(unsigned idx, juce::Component *p) {
+void LineMiniEditor::setParamBounds(unsigned idx, juce::Component* p) {
     if (p == nullptr) return;
 
     int offset = gap + (gap / 2);
@@ -61,7 +61,7 @@ void LineMiniEditor::setParamBounds(unsigned idx, juce::Component *p) {
     p->setBounds(x, y, w, h);
 }
 
-void LineMiniEditor::setButtonBounds(unsigned bidx, juce::Component *p) {
+void LineMiniEditor::setButtonBounds(unsigned bidx, juce::Component* p) {
     if (p == nullptr) return;
 
     int offset = gap + (gap / 2);
@@ -77,7 +77,7 @@ void LineMiniEditor::setButtonBounds(unsigned bidx, juce::Component *p) {
 
 void LineMiniEditor::addParamPage(std::shared_ptr<BaseParamControl> c1, std::shared_ptr<BaseParamControl> c2,
                                   std::shared_ptr<BaseParamControl> c3, std::shared_ptr<BaseParamControl> c4,
-                                  const juce::Colour &fg) {
+                                  const juce::Colour& fg) {
     auto page = std::make_shared<ControlPage>();
     page->control_[0] = c1;
     page->control_[1] = c2;
@@ -160,7 +160,7 @@ void LineMiniEditor::chgParamPage(int inc, bool changeVis) {
     if (newPage >= controlPages_.size()) newPage = 0;
 
     if (newPage != paramPage_ && changeVis) {
-        auto &opage = controlPages_[paramPage_];
+        auto& opage = controlPages_[paramPage_];
         for (auto i = 0; i < nParamsPerPage; i++) {
             auto c = opage->control_[i];
             if (c) {
@@ -260,9 +260,9 @@ void LineMiniEditor::onButton(unsigned int bidx, bool v) {
     base_type::onButton(bidx, v);
 
     int page = buttonPages_.size() > 1 ? paramPage_ : 0;
-    auto &btnPage = buttonPages_[page];
+    auto& btnPage = buttonPages_[page];
     if (btnPage) {
-        auto &btn = btnPage->control_[bidx];
+        auto& btn = btnPage->control_[bidx];
         if (btn) {
             if (v)
                 btn->onDown();
@@ -278,12 +278,12 @@ void LineMiniEditor::eventButton(unsigned int bidx, bool longPress) {
     if (longPress) return;
 
     int page = buttonPages_.size() > 1 ? paramPage_ : 0;
-    auto &btnPage = buttonPages_[page];
+    auto& btnPage = buttonPages_[page];
     if (btnPage) {
-        auto &btn = btnPage->control_[bidx];
+        auto& btn = btnPage->control_[bidx];
         if (btn) btn->onClick();
     }
 }
 
 
-} // namespace ssp
+}  // namespace ssp

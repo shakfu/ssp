@@ -14,19 +14,19 @@ using namespace juce;
 
 class LoadModuleView : public ssp::BaseView {
 public:
-    explicit LoadModuleView(PluginProcessor &p, bool compactUI);
+    explicit LoadModuleView(PluginProcessor& p, bool compactUI);
 
     void onEncoder(unsigned enc, float v) override;
     void onEncoderSwitch(unsigned enc, bool v) override;
 
     void eventButton(unsigned btn, bool v) override;
 
-    void drawView(Graphics &g) override;
+    void drawView(Graphics& g) override;
     void editorShown() override;
     void resized() override;
 
-    void setButtonBounds(ssp::ValueButton &btn, unsigned r, unsigned c);
-    void drawButtonBox(Graphics &g);
+    void setButtonBounds(ssp::ValueButton& btn, unsigned r, unsigned c);
+    void drawButtonBox(Graphics& g);
 
     void moduleIdx(unsigned t, unsigned m);
     unsigned trackIdx() { return trackIdx_; }
@@ -54,7 +54,7 @@ private:
     int moduleIdx_ = Track::M_MAX;
 
     bool moduleUpdated_ = false;
-    PluginProcessor &processor_;
+    PluginProcessor& processor_;
     std::string pluginDescripton_;
 
     ssp::ListControl<> categoryList_;

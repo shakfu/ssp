@@ -44,7 +44,7 @@ inline float panGain(bool left, float p) {
 PluginProcessor::PluginProcessor() : PluginProcessor(getBusesProperties(), createParameterLayout()) {
 }
 
-PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties &ioLayouts,
+PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
                                  AudioProcessorValueTreeState::ParameterLayout layout)
     : BaseProcessor(ioLayouts, std::move(layout)), params_(vts()) {
     init();
@@ -61,7 +61,7 @@ String getVcaParamId(unsigned vid, StringRef id) {
     return getVcaPid(vid) + String(ID::separator) + id;
 }
 
-PluginProcessor::VcaParams::VcaParams(AudioProcessorValueTreeState &apvt, unsigned id)
+PluginProcessor::VcaParams::VcaParams(AudioProcessorValueTreeState& apvt, unsigned id)
     : id_(id),
       pid_(getVcaPid(id)),
       gain(*apvt.getParameter(getVcaParamId(id, ID::gain))),
@@ -69,7 +69,7 @@ PluginProcessor::VcaParams::VcaParams(AudioProcessorValueTreeState &apvt, unsign
 }
 
 
-PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState &apvt) {
+PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState& apvt) {
     for (unsigned vid = 0; vid < MAX_VCA; vid++) {
         auto vca = std::make_unique<VcaParams>(apvt, vid);
         vcaParams_.push_back(std::move(vca));
@@ -130,14 +130,14 @@ void PluginProcessor::prepareToPlay(double newSampleRate, int estimatedSamplesPe
 }
 
 
-void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages) {
     BaseProcessor::processBlock(buffer, midiMessages);
     unsigned sz = buffer.getNumSamples();
     for (int vid = 0; vid < MAX_VCA; vid++) {
         // if (!isOutputEnabled(O_OUT_A + vid)) continue;
 
-        auto &vcaparams = params_.vcaParams_[vid];
-        auto &vca = vcas_[vid];
+        auto& vcaparams = params_.vcaParams_[vid];
+        auto& vca = vcas_[vid];
         float pGain = normValue(vcaparams->gain);
         float pPan = normValue(vcaparams->pan);
 
@@ -155,16 +155,16 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
             float inL = buffer.getSample(inLCh, i);
             float inR = buffer.getSample(inRBuf, i);
             float inPan = buffer.getSample(panCh, i);
-            float inGain= buffer.getSample(gainCh, i);
+            float inGain = buffer.getSample(gainCh, i);
 
             vcas_[vid].gain_ += gainInc;
-            vcas_[vid].pan_  += panInc;
+            vcas_[vid].pan_ += panInc;
 
             float panL = panGain(true, inPan + vcas_[vid].pan_);
             float panR = panGain(false, inPan + vcas_[vid].pan_);
 
             float gain = constrain(inGain + vcas_[vid].gain_, MIN_GAIN, MAX_GAIN);
-            
+
             float outL = inL * gain * panL;
             float outR = inR * gain * panR;
 
@@ -172,24 +172,23 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
             // for the first 4 channels we have to be careful to not overrite the input
             // e.g. ch 0-4, are vca 1 inL/R,pan,gain, but also main out L/R/vca 1 L/R
             // so its 4 in, and 4 out... and the sum in is 0,1... so we cannot just use vca in lr
-            // after than its 4 in and 2 out, so no danger of overwriting 
+            // after than its 4 in and 2 out, so no danger of overwriting
 
-            if(vid==0) {
+            if (vid == 0) {
                 buffer.setSample(O_SUM_L, i, outL);
                 buffer.setSample(O_SUM_R, i, outR);
             } else {
-                buffer.addSample(O_SUM_L, i, outL); 
+                buffer.addSample(O_SUM_L, i, outL);
                 buffer.addSample(O_SUM_R, i, outR);
             }
             buffer.setSample(O_VCA_1_L + vid, i, outL);
             buffer.setSample(O_VCA_1_R + vid, i, outR);
         }
-
     }
 }
 
 
-AudioProcessorEditor *PluginProcessor::createEditor() {
+AudioProcessorEditor* PluginProcessor::createEditor() {
 #ifdef FORCE_COMPACT_UI
     return new ssp::EditorHost(this, new PluginMiniEditor(*this), true);
 #else
@@ -202,6 +201,6 @@ AudioProcessorEditor *PluginProcessor::createEditor() {
 #endif
 }
 
-AudioProcessor *JUCE_CALLTYPE createPluginFilter() {
+AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new PluginProcessor();
 }

@@ -6,8 +6,8 @@
 Track::Track() {
 }
 
-bool Track::requestModuleChange(unsigned midx, const std::string &mn) {
-    auto &m = modules_[midx];
+bool Track::requestModuleChange(unsigned midx, const std::string& mn) {
+    auto& m = modules_[midx];
 
     if (!m.lock_.test_and_set()) {
         if (m.loadModule(mn)) { m.prepare(sampleRate_, blockSize_); }
@@ -21,7 +21,7 @@ bool Track::requestClearTrack() {
     if (!lock_.test_and_set()) {
         for (int midx = 0; midx < M_MAX; midx++) {
             if (midx == M_IN || midx == M_OUT) continue;
-            auto &m = modules_[midx];
+            auto& m = modules_[midx];
             while (!m.lock_.test_and_set()) {};
             modules_[midx].free();
             m.lock_.clear();
@@ -36,22 +36,22 @@ void Track::prepare(int sampleRate, int blockSize) {
     blockSize_ = blockSize;
     sampleRate_ = sampleRate;
 
-    for (auto &m : modules_) { m.prepare(sampleRate_, blockSize_); }
+    for (auto& m : modules_) { m.prepare(sampleRate_, blockSize_); }
 }
 
-void Track::process(juce::AudioSampleBuffer &ioBuffer) {
+void Track::process(juce::AudioSampleBuffer& ioBuffer) {
     if (!lock_.test_and_set()) {
         size_t n = ioBuffer.getNumSamples();
         bool processed[M_MAX] = { false, false };
         // prepare input & process audio
         int modIdx = 0;
-        for (auto &m : modules_) {
+        for (auto& m : modules_) {
             if (!m.plugin_ || !m.descriptor_) {
                 modIdx++;
                 continue;
             }
 
-            auto &moduleBuf = m.audioBuffer_;
+            auto& moduleBuf = m.audioBuffer_;
             int chOffset = modIdx * PluginProcessor::MAX_IN;
             int nCh = m.descriptor_->inputChannelNames.size();
             for (unsigned i = 0; i < nCh && i < PluginProcessor::MAX_IN; i++) {
@@ -69,7 +69,7 @@ void Track::process(juce::AudioSampleBuffer &ioBuffer) {
 
         // now write the audio back out
         modIdx = 0;
-        for (auto &m : modules_) {
+        for (auto& m : modules_) {
             if (processed[modIdx]) {
                 int chOffset = modIdx * PluginProcessor::MAX_OUT;
                 int nCh = m.descriptor_->outputChannelNames.size();
@@ -91,7 +91,7 @@ void Track::process(juce::AudioSampleBuffer &ioBuffer) {
 
 // form juce_AudioProcessor.cpp
 const juce::uint32 magicXmlNumber = 0x21324356;
-void copyXmlToBinary(const juce::XmlElement &xml, juce::MemoryBlock &destData) {
+void copyXmlToBinary(const juce::XmlElement& xml, juce::MemoryBlock& destData) {
     {
         juce::MemoryOutputStream out(destData, false);
         out.writeInt(magicXmlNumber);
@@ -101,34 +101,34 @@ void copyXmlToBinary(const juce::XmlElement &xml, juce::MemoryBlock &destData) {
     }
 
     // go back and write the string length..
-    static_cast<juce::uint32 *>(destData.getData())[1] =
+    static_cast<juce::uint32*>(destData.getData())[1] =
         juce::ByteOrder::swapIfBigEndian((juce::uint32)destData.getSize() - 9);
 }
 
-std::unique_ptr<juce::XmlElement> getXmlFromBinary(const void *data, const int sizeInBytes) {
+std::unique_ptr<juce::XmlElement> getXmlFromBinary(const void* data, const int sizeInBytes) {
     if (sizeInBytes > 8 && juce::ByteOrder::littleEndianInt(data) == magicXmlNumber) {
         auto stringLength = (int)juce::ByteOrder::littleEndianInt(juce::addBytesToPointer(data, 4));
 
         if (stringLength > 0)
-            return parseXML(juce::String::fromUTF8(static_cast<const char *>(data) + 8,
+            return parseXML(juce::String::fromUTF8(static_cast<const char*>(data) + 8,
                                                    juce::jmin((sizeInBytes - 8), stringLength)));
     }
     return {};
 }
 
 
-void Track::getStateInformation(juce::XmlElement &outStream) {
+void Track::getStateInformation(juce::XmlElement& outStream) {
     std::unique_ptr<juce::XmlElement> xmlModules = std::make_unique<juce::XmlElement>("Modules");
 
-    for (auto &m : modules_) {
+    for (auto& m : modules_) {
         std::unique_ptr<juce::XmlElement> xmlModule = std::make_unique<juce::XmlElement>("Module");
 
-        auto &plugin = m.plugin_;
+        auto& plugin = m.plugin_;
         if (!plugin) {
             xmlModule->setAttribute("pluginName", "");
             xmlModule->setAttribute("dataSz", (int)0);
         } else {
-            void *data;
+            void* data;
             size_t dataSz;
             plugin->getState(&data, &dataSz);
             xmlModule->setAttribute("pluginName", m.pluginName_.c_str());
@@ -149,7 +149,7 @@ void Track::getStateInformation(juce::XmlElement &outStream) {
     outStream.addChildElement(xmlModules.release());
 }
 
-void Track::setStateInformation(juce::XmlElement &inStream) {
+void Track::setStateInformation(juce::XmlElement& inStream) {
     auto xmlModules = inStream.getChildByName("Modules");
     if (xmlModules) {
         int midx = 0;
@@ -160,7 +160,7 @@ void Track::setStateInformation(juce::XmlElement &inStream) {
             if (!pluginName.isEmpty() && size > 0) {
                 while (!requestModuleChange(midx, pluginName.toStdString())) {}
 
-                auto &plugin = modules_[midx].plugin_;
+                auto& plugin = modules_[midx].plugin_;
                 if (plugin) {
                     auto xmlPlugData = xmlModule->getChildByName("data");
                     if (xmlPlugData) {

@@ -1,19 +1,19 @@
 #include "BaseMiniView.h"
-
 #include "ssp/BaseProcessor.h"
 
 namespace ssp {
 
 
-MiniParamView::MiniParamView(BaseProcessor *p, ioActivity cb) : base_type(p, true), ioCallback_(cb) {
+MiniParamView::MiniParamView(BaseProcessor* p, ioActivity cb) : base_type(p, true), ioCallback_(cb) {
 }
 
-void MiniParamView::drawView(Graphics &g) {
+void MiniParamView::drawView(Graphics& g) {
     g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), titleFH, Font::plain)));
 
     g.setColour(Colours::yellow);
-    g.drawSingleLineText(String(JucePlugin_Name) + ":" + String(JucePlugin_Desc) + String(" @ ") + String(JucePlugin_Manufacturer), 
-        gap, gap * 2);
+    g.drawSingleLineText(
+        String(JucePlugin_Name) + ":" + String(JucePlugin_Desc) + String(" @ ") + String(JucePlugin_Manufacturer), gap,
+        gap * 2);
 
     g.setColour(Colours::grey);
     g.drawSingleLineText("v " + String(JucePlugin_VersionString), 270 * COMPACT_UI_SCALE, gap * 2);
@@ -23,7 +23,7 @@ void MiniParamView::drawView(Graphics &g) {
 }
 
 
-void MiniParamView::addParam(const std::shared_ptr<BaseParamControl> &p, const juce::Colour &fg) {
+void MiniParamView::addParam(const std::shared_ptr<BaseParamControl>& p, const juce::Colour& fg) {
     p->fg(fg);
     params_.push_back(p);
     addChildComponent(p.get());
@@ -32,7 +32,7 @@ void MiniParamView::addParam(const std::shared_ptr<BaseParamControl> &p, const j
     p->active(act);
 }
 
-void MiniParamView::addButton(const std::shared_ptr<ParamButton> &p) {
+void MiniParamView::addButton(const std::shared_ptr<ParamButton>& p) {
     buttons_.push_back(p);
     jassert(buttons_.size() <= maxUserBtns);
     addAndMakeVisible(p.get());
@@ -75,7 +75,7 @@ void MiniParamView::onEncoderSwitch(unsigned enc, bool v) {
 void MiniParamView::onButton(unsigned int bidx, bool v) {
     base_type::onButton(bidx, v);
     if (bidx < buttons_.size()) {
-        auto &btn = buttons_[bidx];
+        auto& btn = buttons_[bidx];
         if (!btn) return;
         if (v)
             btn->onDown();
@@ -90,7 +90,7 @@ void MiniParamView::eventButton(unsigned int bidx, bool longPress) {
     if (longPress) return;
 
     if (bidx < buttons_.size()) {
-        auto &btn = buttons_[bidx];
+        auto& btn = buttons_[bidx];
         if (btn) btn->onClick();
     }
 }
@@ -150,7 +150,7 @@ void MiniParamView::nextPage() {
     }
 }
 
-void MiniParamView::setButtonBounds(unsigned bidx, juce::Component *btn) {
+void MiniParamView::setButtonBounds(unsigned bidx, juce::Component* btn) {
     if (!btn) return;
 
     int offset = gap + (gap / 2);
@@ -195,7 +195,7 @@ void MiniParamView::resized() {
     }
 }
 
-void MiniParamView::drawIO(Graphics &g) {
+void MiniParamView::drawIO(Graphics& g) {
     if (!ioCallback_) return;
 
     int box = COMPACT_UI_SCALE * 7;
@@ -256,7 +256,7 @@ void MiniParamView::drawIO(Graphics &g) {
 }
 
 
-void MiniParamView::drawButtonBox(Graphics &g) {
+void MiniParamView::drawButtonBox(Graphics& g) {
     g.setColour(Colours::darkgrey);
     unsigned singleButtonH = buttonBarH / 2;
     g.drawHorizontalLine(SSP_COMPACT_HEIGHT - buttonBarH - 1, gap, SSP_COMPACT_WIDTH - gap);
@@ -270,4 +270,4 @@ void MiniParamView::drawButtonBox(Graphics &g) {
 }
 
 
-} // namespace
+}  // namespace ssp

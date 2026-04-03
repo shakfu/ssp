@@ -2,7 +2,7 @@
 
 namespace ssp {
 
-BaseParamControl::BaseParamControl(Parameter &p, juce::Colour fg)
+BaseParamControl::BaseParamControl(Parameter& p, juce::Colour fg)
     : attachment_(p, [this](float f) { paramChanged(f); }), param_(p), active_(false), fg_(fg) {
 }
 
@@ -11,24 +11,24 @@ void BaseParamControl::paramChanged(float) {
 }
 
 juce::String BaseParamControl::getTextValue() {
-    auto &p = param_;
+    auto& p = param_;
     auto val = p.getCurrentValueAsText();
-    if (val == "-0.00") val = "0.00"; // juce bug?
+    if (val == "-0.00") val = "0.00";  // juce bug?
     if (p.getLabel().length()) { val = val + " " + p.getLabel(); }
     return val;
 }
 
 
-void BaseParamControl::mouseDoubleClick(const juce::MouseEvent &event) {
+void BaseParamControl::mouseDoubleClick(const juce::MouseEvent& event) {
     reset();
 }
 
-void BaseParamControl::mouseDown(const juce::MouseEvent &event) {
+void BaseParamControl::mouseDown(const juce::MouseEvent& event) {
     lastMouseX_ = event.getScreenX();
 }
 
 
-void BaseParamControl::mouseDrag(const juce::MouseEvent &event) {
+void BaseParamControl::mouseDrag(const juce::MouseEvent& event) {
     const int sen = 1;
     auto x = event.getScreenX();
     auto delta = x - lastMouseX_;
@@ -43,7 +43,7 @@ void BaseParamControl::mouseDrag(const juce::MouseEvent &event) {
 
 /// SimpleParamControl
 
-SimpleParamControl::SimpleParamControl(Parameter &p, float coarse, float fine, juce::Colour fg)
+SimpleParamControl::SimpleParamControl(Parameter& p, float coarse, float fine, juce::Colour fg)
     : BaseParamControl(p, fg) {
     coarseInc_ = p.convertTo0to1(p.getNormalisableRange().start + coarse);
     fineInc_ = p.convertTo0to1(p.getNormalisableRange().start + fine);
@@ -51,7 +51,7 @@ SimpleParamControl::SimpleParamControl(Parameter &p, float coarse, float fine, j
 
 
 void SimpleParamControl::inc(bool fine) {
-    auto &p = param_;
+    auto& p = param_;
     p.beginChangeGesture();
     float inc = fine ? fineInc_ : coarseInc_;
     float v = p.getValue();
@@ -62,7 +62,7 @@ void SimpleParamControl::inc(bool fine) {
 }
 
 void SimpleParamControl::dec(bool fine) {
-    auto &p = param_;
+    auto& p = param_;
     p.beginChangeGesture();
     float inc = fine ? fineInc_ : coarseInc_;
     float v = p.getValue();
@@ -73,19 +73,19 @@ void SimpleParamControl::dec(bool fine) {
 }
 
 void SimpleParamControl::reset() {
-    auto &p = param_;
+    auto& p = param_;
     p.beginChangeGesture();
     float v = p.getDefaultValue();
     p.setValueNotifyingHost(v);
     p.endChangeGesture();
 }
 
-void SimpleParamControl::paint(juce::Graphics &g) {
+void SimpleParamControl::paint(juce::Graphics& g) {
     static constexpr unsigned fh = 18 * COMPACT_UI_SCALE;
     int h = getHeight();
     int w = getWidth();
 
-    auto &p = param_;
+    auto& p = param_;
 
     g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), fh, juce::Font::plain)));
 
@@ -97,17 +97,17 @@ void SimpleParamControl::paint(juce::Graphics &g) {
     g.drawText(val, 0, h / 2, w, fh, juce::Justification::centred);
 }
 
-LineParamControl::LineParamControl(Parameter &p, float coarse, float fine, juce::Colour fg)
-    : SimpleParamControl(p, coarse, fine, fg){
+LineParamControl::LineParamControl(Parameter& p, float coarse, float fine, juce::Colour fg)
+    : SimpleParamControl(p, coarse, fine, fg) {
 
       };
 
-void LineParamControl::paint(juce::Graphics &g) {
+void LineParamControl::paint(juce::Graphics& g) {
     static constexpr unsigned fh = 16 * COMPACT_UI_SCALE;
     int h = getHeight();
     int w = getWidth();
 
-    auto &p = param_;
+    auto& p = param_;
 
     g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), fh, juce::Font::plain)));
 
@@ -120,19 +120,19 @@ void LineParamControl::paint(juce::Graphics &g) {
 }
 
 
-BarParamControl::BarParamControl(Parameter &p, float coarse, float fine, juce::Colour fg)
-    : SimpleParamControl(p, coarse, fine, fg){
+BarParamControl::BarParamControl(Parameter& p, float coarse, float fine, juce::Colour fg)
+    : SimpleParamControl(p, coarse, fine, fg) {
 
       };
 
-void BarParamControl::paint(juce::Graphics &g) {
+void BarParamControl::paint(juce::Graphics& g) {
     static constexpr unsigned fh = 14 * COMPACT_UI_SCALE;
     int h = getHeight();
     int w = getWidth();
 
-    auto &p = param_;
+    auto& p = param_;
 
-    g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(),  fh, juce::Font::plain)));
+    g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), fh, juce::Font::plain)));
 
     g.setColour(active() ? fg_ : juce::Colours::grey);
     g.drawText(p.getName(32), 0, 0, w, fh, juce::Justification::centred);

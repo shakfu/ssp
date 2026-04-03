@@ -19,9 +19,8 @@ class ParamButton;
 #include "ssp/SSPActions.h"
 
 class BaseEditor : public BaseView {
-
 public:
-    explicit BaseEditor(BaseProcessor *p);
+    explicit BaseEditor(BaseProcessor* p);
     ~BaseEditor() override;
 
 
@@ -38,31 +37,25 @@ public:
 protected:
     void setButtonBounds(unsigned idx, std::shared_ptr<ParamButton>);
     // temp
-    void setButtonBounds(ValueButton &btn, unsigned r, unsigned c);
+    void setButtonBounds(ValueButton& btn, unsigned r, unsigned c);
 
     struct ControlPage {
-        std::shared_ptr<BaseParamControl> control_[4] = {nullptr, nullptr, nullptr, nullptr};
+        std::shared_ptr<BaseParamControl> control_[4] = { nullptr, nullptr, nullptr, nullptr };
     };
 
     struct ButtonPage {
-        std::shared_ptr<ParamButton> control_[8] = {
-            nullptr, nullptr, nullptr, nullptr,
-            nullptr, nullptr, nullptr, nullptr
-        };
+        std::shared_ptr<ParamButton> control_[8] = { nullptr, nullptr, nullptr, nullptr,
+                                                     nullptr, nullptr, nullptr, nullptr };
     };
 
-    bool encoderState_[4] = {false, false, false, false};
+    bool encoderState_[4] = { false, false, false, false };
 
 
     ValueButton leftBtn_, rightBtn_, upBtn_, downBtn_;
     ValueButton leftShiftBtn_, rightShiftBtn_;
 
 private:
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BaseEditor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BaseEditor)
 };
 
-}
-
-
-
-
+}  // namespace ssp

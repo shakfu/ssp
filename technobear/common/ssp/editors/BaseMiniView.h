@@ -20,13 +20,13 @@ class MiniParamView : public BaseView {
 public:
     typedef std::function<float(bool io, unsigned ch)> ioActivity;
 
-    explicit MiniParamView(BaseProcessor *p, ioActivity callback = nullptr);
+    explicit MiniParamView(BaseProcessor* p, ioActivity callback = nullptr);
     ~MiniParamView() = default;
 
-    void addParam(const std::shared_ptr<BaseParamControl> &p, const juce::Colour& fg = juce::Colours::white);
-    void addButton(const std::shared_ptr<ParamButton> &p);
+    void addParam(const std::shared_ptr<BaseParamControl>& p, const juce::Colour& fg = juce::Colours::white);
+    void addButton(const std::shared_ptr<ParamButton>& p);
 
-    void setButtonBounds(unsigned idx, juce::Component *c);
+    void setButtonBounds(unsigned idx, juce::Component* c);
 
 protected:
     using base_type = BaseView;
@@ -40,7 +40,7 @@ protected:
     void eventUp(bool longPress) override;
     void eventDown(bool longPress) override;
 
-    void drawView(Graphics &) override;
+    void drawView(Graphics&) override;
 
     virtual int canvasHeight() { return canvasH; }
     virtual int canvasWidth() { return canvasW - ioW_; }
@@ -48,13 +48,13 @@ protected:
     virtual int canvasY() { return titleH; }
 
     void resized() override;
-    void drawButtonBox(Graphics &);
+    void drawButtonBox(Graphics&);
 
 
 private:
     void prevPage();
     void nextPage();
-    void drawIO(Graphics &);
+    void drawIO(Graphics&);
 
 
     bool encoderFine_[4] = { false, false, false, false };
@@ -91,10 +91,10 @@ class MiniBasicView : public BaseView {
 public:
     typedef std::function<float(bool io, unsigned ch)> ioActivity;
 
-    explicit MiniBasicView(BaseProcessor *p, ioActivity callback = nullptr);
+    explicit MiniBasicView(BaseProcessor* p, ioActivity callback = nullptr);
     ~MiniBasicView() = default;
 
-    void addButton(unsigned idx, const std::shared_ptr<ValueButton> &p);
+    void addButton(unsigned idx, const std::shared_ptr<ValueButton>& p);
     std::shared_ptr<ValueButton> getButton(unsigned idx);
     void resized() override;
 
@@ -137,7 +137,7 @@ private:
 // BaseMiniView is a multi-view
 class BaseMiniView : public MultiView<BaseView> {
 public:
-    explicit BaseMiniView(BaseProcessor *p);
+    explicit BaseMiniView(BaseProcessor* p);
     ~BaseMiniView() = default;
 
 private:
@@ -149,12 +149,13 @@ private:
 // LineMiniEditor is a mini editor that has buttons and display parameters on single line
 class LineMiniEditor : public BaseView {
 public:
-    LineMiniEditor(BaseProcessor *p);
+    LineMiniEditor(BaseProcessor* p);
 
     virtual int canvasHeight() { return canvasH - paramHeight; }
     virtual int canvasWidth() { return canvasW; }
     virtual int canvasX() { return gap; }
     virtual int canvasY() { return titleH; }
+
 protected:
     using base_type = BaseView;
 
@@ -168,25 +169,24 @@ protected:
     void eventUp(bool longPress) override;
     void eventDown(bool longPress) override;
 
-    void drawView(Graphics &) override;
+    void drawView(Graphics&) override;
 
     void addParamPage(std::shared_ptr<BaseParamControl> c1, std::shared_ptr<BaseParamControl> c2,
-                      std::shared_ptr<BaseParamControl> c3, std::shared_ptr<BaseParamControl> c4, 
-                      const juce::Colour& fg=juce::Colours::white);
+                      std::shared_ptr<BaseParamControl> c3, std::shared_ptr<BaseParamControl> c4,
+                      const juce::Colour& fg = juce::Colours::white);
 
     void addButtonPage(std::shared_ptr<ParamButton> c1, std::shared_ptr<ParamButton> c2,
-                      std::shared_ptr<ParamButton> c3, std::shared_ptr<ParamButton> c4,
-                      std::shared_ptr<ParamButton> c5, std::shared_ptr<ParamButton> c6,
-                      std::shared_ptr<ParamButton> c7, std::shared_ptr<ParamButton> c8
-                      );
+                       std::shared_ptr<ParamButton> c3, std::shared_ptr<ParamButton> c4,
+                       std::shared_ptr<ParamButton> c5, std::shared_ptr<ParamButton> c6,
+                       std::shared_ptr<ParamButton> c7, std::shared_ptr<ParamButton> c8);
 
 protected:
-    void setParamBounds(unsigned idx,  juce::Component* p);
-    void setButtonBounds(unsigned idx,  juce::Component* p);
+    void setParamBounds(unsigned idx, juce::Component* p);
+    void setButtonBounds(unsigned idx, juce::Component* p);
 
     void chgParamPage(int inc, bool changeVis);
 
-    void drawButtonBox(Graphics &);
+    void drawButtonBox(Graphics&);
 
 private:
     static constexpr unsigned gap = 5 * COMPACT_UI_SCALE;
@@ -211,7 +211,8 @@ private:
 
     static constexpr unsigned maxUserBtns = 8;
     struct ButtonPage {
-        std::shared_ptr<ParamButton> control_[maxUserBtns] = { nullptr, nullptr, nullptr, nullptr,nullptr, nullptr, nullptr, nullptr};
+        std::shared_ptr<ParamButton> control_[maxUserBtns] = { nullptr, nullptr, nullptr, nullptr,
+                                                               nullptr, nullptr, nullptr, nullptr };
     };
 
     std::vector<std::shared_ptr<ControlPage>> controlPages_;
@@ -223,18 +224,17 @@ private:
 
 class PageMiniView : public BaseView {
 public:
-    explicit PageMiniView(BaseProcessor *p);
+    explicit PageMiniView(BaseProcessor* p);
     ~PageMiniView() = default;
 
     void addParamPage(std::shared_ptr<BaseParamControl> c1, std::shared_ptr<BaseParamControl> c2,
-                      std::shared_ptr<BaseParamControl> c3, std::shared_ptr<BaseParamControl> c4, 
-                      const juce::Colour& fg=juce::Colours::white);
+                      std::shared_ptr<BaseParamControl> c3, std::shared_ptr<BaseParamControl> c4,
+                      const juce::Colour& fg = juce::Colours::white);
 
     void addButtonPage(std::shared_ptr<ParamButton> c1, std::shared_ptr<ParamButton> c2,
-                      std::shared_ptr<ParamButton> c3, std::shared_ptr<ParamButton> c4,
-                      std::shared_ptr<ParamButton> c5, std::shared_ptr<ParamButton> c6,
-                      std::shared_ptr<ParamButton> c7, std::shared_ptr<ParamButton> c8
-                      );
+                       std::shared_ptr<ParamButton> c3, std::shared_ptr<ParamButton> c4,
+                       std::shared_ptr<ParamButton> c5, std::shared_ptr<ParamButton> c6,
+                       std::shared_ptr<ParamButton> c7, std::shared_ptr<ParamButton> c8);
 
 
 protected:
@@ -249,24 +249,23 @@ protected:
     void eventUp(bool longPress) override;
     void eventDown(bool longPress) override;
 
-    void drawView(Graphics &) override;
+    void drawView(Graphics&) override;
 
     virtual int canvasHeight() { return canvasH; }
     virtual int canvasWidth() { return canvasW; }
     virtual int canvasX() { return gap; }
     virtual int canvasY() { return titleH; }
 
-    void setParamBounds(unsigned idx,  juce::Component* p);
-    void setButtonBounds(unsigned idx, juce::Component *c);
+    void setParamBounds(unsigned idx, juce::Component* p);
+    void setButtonBounds(unsigned idx, juce::Component* c);
 
 
     void resized() override;
-    void drawButtonBox(Graphics &);
+    void drawButtonBox(Graphics&);
     void chgParamPage(int inc, bool changeVis);
 
 
 private:
-
     bool encoderFine_[4] = { false, false, false, false };
     bool encoderState_[4] = { false, false, false, false };
 
@@ -289,7 +288,8 @@ private:
     };
 
     struct ButtonPage {
-        std::shared_ptr<ParamButton> control_[maxUserBtns] = { nullptr, nullptr, nullptr, nullptr,nullptr, nullptr, nullptr, nullptr};
+        std::shared_ptr<ParamButton> control_[maxUserBtns] = { nullptr, nullptr, nullptr, nullptr,
+                                                               nullptr, nullptr, nullptr, nullptr };
     };
     int paramPage_ = 0;
 

@@ -1,23 +1,22 @@
 
 #include "PluginProcessor.h"
+
 #include "PluginEditor.h"
 #include "PluginMiniEditor.h"
 #include "ssp/EditorHost.h"
 
 
-PluginProcessor::PluginProcessor()
-    : PluginProcessor(getBusesProperties(), createParameterLayout()) {}
+PluginProcessor::PluginProcessor() : PluginProcessor(getBusesProperties(), createParameterLayout()) {
+}
 
-PluginProcessor::PluginProcessor(
-    const AudioProcessor::BusesProperties &ioLayouts,
-    AudioProcessorValueTreeState::ParameterLayout layout)
+PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
+                                 AudioProcessorValueTreeState::ParameterLayout layout)
     : BaseProcessor(ioLayouts, std::move(layout)), params_(vts()) {
     init();
 }
 
 
-PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState &apvt) :
-    dummy(*apvt.getParameter(ID::dummy)) {
+PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState& apvt) : dummy(*apvt.getParameter(ID::dummy)) {
 }
 
 
@@ -36,43 +35,38 @@ const String PluginProcessor::getInputBusName(int channelIndex) {
 
 const String PluginProcessor::getOutputBusName(int channelIndex) {
     switch (channelIndex) {
-        case O_DUMMY_L:
-            return "DummyL";
-        case O_DUMMY_R:
-            return "DummyR";
+        case O_DUMMY_L: return "DummyL";
+        case O_DUMMY_R: return "DummyR";
         default:;
     }
     return "ZZOut-" + String(channelIndex);
 }
 
-void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages) {
     BaseProcessor::processBlock(buffer, midiMessages);
 }
 
 
-void PluginProcessor::handleIncomingMidiMessage(MidiInput *source, const MidiMessage &msg) {
+void PluginProcessor::handleIncomingMidiMessage(MidiInput* source, const MidiMessage& msg) {
     BaseProcessor::handleIncomingMidiMessage(source, msg);
 
     if (midiChannel() == 0 || msg.getChannel() == midiChannel()) {
-//        Logger::writeToLog("handleIncomingMidiMessage -> " + msg.getDescription());
-        if (msg.isNoteOnOrOff() || msg.isController() || msg.isPitchWheel()
-            || msg.isAftertouch() || msg.isChannelPressure()
-            ) {
-            if (!messageQueue_.try_enqueue(msg)) { ; } // queue full
+        //        Logger::writeToLog("handleIncomingMidiMessage -> " + msg.getDescription());
+        if (msg.isNoteOnOrOff() || msg.isController() || msg.isPitchWheel() || msg.isAftertouch() ||
+            msg.isChannelPressure()) {
+            if (!messageQueue_.try_enqueue(msg)) { ; }  // queue full
         } else if (msg.isMidiClock()) {
             auto diff = msg.getTimeStamp() - clockTs_;
-            if (diff > 0.025f) { // 25 millis (twice rate of ui)
-                if (messageQueue_.try_enqueue(msg)) {
-                    clockTs_ = msg.getTimeStamp();
-                }
+            if (diff > 0.025f) {  // 25 millis (twice rate of ui)
+                if (messageQueue_.try_enqueue(msg)) { clockTs_ = msg.getTimeStamp(); }
             }
         }
     }
 }
 
-AudioProcessorEditor *PluginProcessor::createEditor() {
+AudioProcessorEditor* PluginProcessor::createEditor() {
 #ifdef FORCE_COMPACT_UI
-    return new ssp::EditorHost(this, new PluginMiniEditor(*this),true);
+    return new ssp::EditorHost(this, new PluginMiniEditor(*this), true);
 #else
     if (useCompactUI()) {
         return new ssp::EditorHost(this, new PluginMiniEditor(*this), useCompactUI());
@@ -83,7 +77,6 @@ AudioProcessorEditor *PluginProcessor::createEditor() {
 #endif
 }
 
-AudioProcessor *JUCE_CALLTYPE createPluginFilter() {
+AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new PluginProcessor();
 }
-

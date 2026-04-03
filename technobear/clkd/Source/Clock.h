@@ -2,7 +2,6 @@
 
 class Clock {
 public:
-
     bool trigTick() {
         currentTrig_++;
         bool res = currentTrig_ >= targetTrig;
@@ -25,9 +24,7 @@ public:
 
     void useTrigs(bool b) { useTrigs_ = b; }
 
-    bool useTrigs() {
-        return useTrigs_ && targetTrig >= 1.0f;
-    }
+    bool useTrigs() { return useTrigs_ && targetTrig >= 1.0f; }
 
     void targetSamples(float samples) {
         baseSmp_ = samples;
@@ -49,13 +46,9 @@ public:
 
 
 private:
-    void resetSample() {
-        currentSmp_ = 0.0f;
-    }
+    void resetSample() { currentSmp_ = 0.0f; }
 
-    void resetTrig() {
-        currentTrig_ = 0.0f;
-    }
+    void resetTrig() { currentTrig_ = 0.0f; }
 
     float multiplier_ = 1.0f;
     bool useTrigs_ = false;

@@ -1,5 +1,6 @@
 
 #include "PluginProcessor.h"
+
 #include "PluginEditor.h"
 #include "PluginMiniEditor.h"
 #include "ssp/EditorHost.h"
@@ -9,69 +10,55 @@ inline float constrainFloat(float v, float vMin, float vMax) {
     return std::max<float>(vMin, std::min<float>(vMax, v));
 }
 
-inline float normValue(RangedAudioParameter &p) {
+inline float normValue(RangedAudioParameter& p) {
     return p.convertFrom0to1(p.getValue());
 }
 
 
-PluginProcessor::PluginProcessor()
-    : PluginProcessor(getBusesProperties(), createParameterLayout()) {}
+PluginProcessor::PluginProcessor() : PluginProcessor(getBusesProperties(), createParameterLayout()) {
+}
 
-PluginProcessor::PluginProcessor(
-    const AudioProcessor::BusesProperties &ioLayouts,
-    AudioProcessorValueTreeState::ParameterLayout layout)
+PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
+                                 AudioProcessorValueTreeState::ParameterLayout layout)
     : BaseProcessor(ioLayouts, std::move(layout)), params_(vts()) {
     init();
 
     rnbo_.nInputs_ = rnbo_.patch_.getNumInputChannels();
-    rnbo_.inputBuffers_ = new RNBO::number *[rnbo_.nInputs_];
-    for (int i = 0; i < rnbo_.nInputs_; i++) {
-        rnbo_.inputBuffers_[i] = new RNBO::number[bufferSize_];
-    }
+    rnbo_.inputBuffers_ = new RNBO::number*[rnbo_.nInputs_];
+    for (int i = 0; i < rnbo_.nInputs_; i++) { rnbo_.inputBuffers_[i] = new RNBO::number[bufferSize_]; }
     rnbo_.nOutputs_ = rnbo_.patch_.getNumOutputChannels();
-    rnbo_.outputBuffers_ = new RNBO::number *[rnbo_.nOutputs_];
-    for (int i = 0; i < rnbo_.nOutputs_; i++) {
-        rnbo_.outputBuffers_[i] = new RNBO::number[bufferSize_];
-    }
+    rnbo_.outputBuffers_ = new RNBO::number*[rnbo_.nOutputs_];
+    for (int i = 0; i < rnbo_.nOutputs_; i++) { rnbo_.outputBuffers_[i] = new RNBO::number[bufferSize_]; }
 
     rnbo_.nParams_ = params_.rnboParams_.size();
     rnbo_.lastParamVals_ = new float[rnbo_.nParams_];
-    for (int i = 0; i < rnbo_.nParams_; i++) {
-        rnbo_.lastParamVals_[i] = -1.0;
-    }
+    for (int i = 0; i < rnbo_.nParams_; i++) { rnbo_.lastParamVals_[i] = -1.0; }
 }
 
 PluginProcessor::~PluginProcessor() {
-    for (int i = 0; i < rnbo_.nInputs_; i++) {
-        delete rnbo_.inputBuffers_[i];
-    }
+    for (int i = 0; i < rnbo_.nInputs_; i++) { delete rnbo_.inputBuffers_[i]; }
     delete rnbo_.inputBuffers_;
-    for (int i = 0; i < rnbo_.nOutputs_; i++) {
-        delete rnbo_.outputBuffers_[i];
-    }
+    for (int i = 0; i < rnbo_.nOutputs_; i++) { delete rnbo_.outputBuffers_[i]; }
     delete rnbo_.outputBuffers_;
 }
 
-PluginProcessor::RnboParam::RnboParam(AudioProcessorValueTreeState &apvt, StringRef id, unsigned idx) :
-    id_(id), idx_(idx), val_(*apvt.getParameter(id)) {
-
+PluginProcessor::RnboParam::RnboParam(AudioProcessorValueTreeState& apvt, StringRef id, unsigned idx)
+    : id_(id), idx_(idx), val_(*apvt.getParameter(id)) {
     RNBO::CoreObject rnboObj_;
-//    unsigned idx = rnboObj_.getParameterIndexForID(id_.c_str());
+    //    unsigned idx = rnboObj_.getParameterIndexForID(id_.c_str());
     desc_ = rnboObj_.getParameterName(idx_);
     rnboObj_.getParameterInfo(idx_, &info_);
 }
 
 
-PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState &apvt) {
+PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState& apvt) {
     RNBO::CoreObject rnboObj_;
     unsigned nParams = rnboObj_.getNumParameters();
     for (unsigned i = 0; i < nParams; i++) {
         RNBO::ParameterInfo info;
         String id = rnboObj_.getParameterId(i);
         rnboObj_.getParameterInfo(i, &info);
-        if (info.visible) {
-            rnboParams_.push_back(std::make_unique<RnboParam>(apvt, id, i));
-        }
+        if (info.visible) { rnboParams_.push_back(std::make_unique<RnboParam>(apvt, id, i)); }
     }
 }
 
@@ -92,18 +79,18 @@ AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLa
 
             if (info.enumValues) {
                 juce::StringArray choices;
-                for (unsigned i = 0; i < info.steps; i++) {
-                    choices.add(info.enumValues[i]);
-                }
+                for (unsigned i = 0; i < info.steps; i++) { choices.add(info.enumValues[i]); }
                 params.add(std::make_unique<ssp::BaseChoiceParameter>(id, desc, choices, info.initialValue));
             } else {
                 if (info.steps < 2) {
-                    params.add(std::make_unique<ssp::BaseFloatParameter>(id, desc, info.min, info.max, info.initialValue));
+                    params.add(
+                        std::make_unique<ssp::BaseFloatParameter>(id, desc, info.min, info.max, info.initialValue));
                 } else if (info.steps == 2) {
                     params.add(std::make_unique<ssp::BaseBoolParameter>(id, desc, info.initialValue > 0.5f));
                 } else {
                     float inc = (info.max - info.min) / (info.steps - 1);
-                    params.add(std::make_unique<ssp::BaseFloatParameter>(id, desc, info.min, info.max, info.initialValue, inc));
+                    params.add(std::make_unique<ssp::BaseFloatParameter>(id, desc, info.min, info.max,
+                                                                         info.initialValue, inc));
                 }
             }
         }
@@ -112,11 +99,11 @@ AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLa
 }
 
 const String PluginProcessor::getInputBusName(int channelIndex) {
-    switch( channelIndex) {
-        case 0 : return "In";
-        default : {
-            unsigned f =  ((channelIndex - 1) / 2) + 1;
-            if(((channelIndex-1)  % 2) == 0) {
+    switch (channelIndex) {
+        case 0: return "In";
+        default: {
+            unsigned f = ((channelIndex - 1) / 2) + 1;
+            if (((channelIndex - 1) % 2) == 0) {
                 return "Bin " + String(f);
             } else {
                 return "Width " + String(f);
@@ -130,15 +117,11 @@ const String PluginProcessor::getInputBusName(int channelIndex) {
 const String PluginProcessor::getOutputBusName(int channelIndex) {
     RNBO::CoreObject rnboObj_;
     unsigned O_MAX = rnboObj_.getNumOutputChannels();
-    if(channelIndex < O_MAX) {
-        if(channelIndex == (O_MAX-2)) {
-            return "Sum";
-        }
-        if(channelIndex == (O_MAX-1)) {
-            return "Aux";
-        }
-        return "Out" + String(channelIndex +1);
-        return "Out" + String(channelIndex +1);
+    if (channelIndex < O_MAX) {
+        if (channelIndex == (O_MAX - 2)) { return "Sum"; }
+        if (channelIndex == (O_MAX - 1)) { return "Aux"; }
+        return "Out" + String(channelIndex + 1);
+        return "Out" + String(channelIndex + 1);
     }
     return "ZZOut-" + String(channelIndex);
 }
@@ -160,14 +143,14 @@ void PluginProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
     rnbo_.patch_.prepareToProcess(sampleRate, samplesPerBlock);
 }
 
-void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages) {
     BaseProcessor::processBlock(buffer, midiMessages);
     size_t n = buffer.getNumSamples();
 
 
     // set parameters up for patch, only set on change
     unsigned pi = 0;
-    for (auto &p: params_.rnboParams_) {
+    for (auto& p : params_.rnboParams_) {
         float val = p->val_.getValue();
         if (rnbo_.lastParamVals_[pi] != val) {
             rnbo_.patch_.setParameterValue(p->idx_, normValue(p->val_));
@@ -179,9 +162,7 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
     {
         // process input
         for (unsigned c = 0; c < rnbo_.nInputs_; c++) {
-            for (unsigned i = 0; i < n; i++) {
-                rnbo_.inputBuffers_[c][i] = buffer.getSample(c, i);
-            }
+            for (unsigned i = 0; i < n; i++) { rnbo_.inputBuffers_[c][i] = buffer.getSample(c, i); }
         }
     }
     rnbo_.patch_.process(rnbo_.inputBuffers_, rnbo_.nInputs_, rnbo_.outputBuffers_, rnbo_.nOutputs_, bufferSize_);
@@ -189,29 +170,25 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
     {
         // copy output
         for (unsigned c = 0; c < rnbo_.nOutputs_; c++) {
-            for (unsigned i = 0; i < n; i++) {
-                buffer.setSample(c, i, rnbo_.outputBuffers_[c][i]);
-            }
+            for (unsigned i = 0; i < n; i++) { buffer.setSample(c, i, rnbo_.outputBuffers_[c][i]); }
         }
     }
-
 }
 
-AudioProcessorEditor *PluginProcessor::createEditor() {
+AudioProcessorEditor* PluginProcessor::createEditor() {
 #ifdef FORCE_COMPACT_UI
-    return new ssp::EditorHost(this, new PluginMiniEditor(*this),true);
+    return new ssp::EditorHost(this, new PluginMiniEditor(*this), true);
 #else
     if (useCompactUI()) {
         return new ssp::EditorHost(this, new PluginMiniEditor(*this), useCompactUI());
 
     } else {
-        return new ssp::EditorHost(this, new PluginEditor(*this, (params_.rnboParams_.size() / 16) + 1),useCompactUI());
+        return new ssp::EditorHost(this, new PluginEditor(*this, (params_.rnboParams_.size() / 16) + 1),
+                                   useCompactUI());
     }
 #endif
 }
 
-AudioProcessor *JUCE_CALLTYPE createPluginFilter() {
+AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new PluginProcessor();
 }
-
-

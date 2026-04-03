@@ -1,11 +1,9 @@
 #include "BaseEditor.h"
 
-#include "ssp/BaseProcessor.h"
-
 #include "SSP.h"
-
-#include "ssp/controls/ParamControl.h"
+#include "ssp/BaseProcessor.h"
 #include "ssp/controls/ParamButton.h"
+#include "ssp/controls/ParamControl.h"
 
 namespace ssp {
 
@@ -14,12 +12,14 @@ static constexpr unsigned btnTopY = 380 - 1;
 static constexpr unsigned btnSpaceY = 50;
 
 
-BaseEditor::BaseEditor(BaseProcessor *p)  :
-    BaseView(p,false),
-    leftBtn_("PG-", nullptr, 32, Colours::red), rightBtn_("PG+", nullptr, 32, Colours::red),
-    upBtn_("EN-", nullptr, 32, Colours::red), downBtn_("EN+", nullptr, 32, Colours::red),
-    leftShiftBtn_("LS", nullptr, 32, Colours::grey, Colours::black), rightShiftBtn_("RS", nullptr, 32, Colours::grey, Colours::black) {
-
+BaseEditor::BaseEditor(BaseProcessor* p)
+    : BaseView(p, false),
+      leftBtn_("PG-", nullptr, 32, Colours::red),
+      rightBtn_("PG+", nullptr, 32, Colours::red),
+      upBtn_("EN-", nullptr, 32, Colours::red),
+      downBtn_("EN+", nullptr, 32, Colours::red),
+      leftShiftBtn_("LS", nullptr, 32, Colours::grey, Colours::black),
+      rightShiftBtn_("RS", nullptr, 32, Colours::grey, Colours::black) {
     setButtonBounds(leftShiftBtn_, 0, 4);
     setButtonBounds(upBtn_, 0, 5);
     setButtonBounds(rightShiftBtn_, 0, 6);
@@ -35,7 +35,7 @@ BaseEditor::BaseEditor(BaseProcessor *p)  :
 BaseEditor::~BaseEditor() {
 }
 
-void BaseEditor::setButtonBounds(ValueButton &btn, unsigned r, unsigned c) {
+void BaseEditor::setButtonBounds(ValueButton& btn, unsigned r, unsigned c) {
     const int w = 100;
     const int h = btnSpaceY;
     unsigned x = 900 + (c * w);
@@ -91,4 +91,4 @@ void BaseEditor::onRightShiftButton(bool v) {
     rightShiftBtn_.onButton(v);
 }
 
-}
+}  // namespace ssp

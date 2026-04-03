@@ -1,6 +1,6 @@
 #include "TrackView.h"
 
-TrackView::TrackView(PluginProcessor &p) : base_type(&p, nullptr), processor_(p) {
+TrackView::TrackView(PluginProcessor& p) : base_type(&p, nullptr), processor_(p) {
     for (int i = Track::M_IN + 1; i < Track::M_OUT; i++) {
         auto sbtn = std::make_shared<ssp::ValueButton>(
             "Mod " + std::to_string(i), [&](bool b) {}, 16 * COMPACT_UI_SCALE, Colours::yellow);
@@ -65,7 +65,7 @@ void TrackView::resized() {
 }
 
 
-void TrackView::drawView(Graphics &g) {
+void TrackView::drawView(Graphics& g) {
     base_type::drawView(g);
     int fh = 16 * COMPACT_UI_SCALE;
     int space = 40 * COMPACT_UI_SCALE;

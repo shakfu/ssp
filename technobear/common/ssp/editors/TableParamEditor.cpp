@@ -7,13 +7,12 @@ namespace ssp {
 static constexpr unsigned paramSpaceY = 36;
 
 
-TableParamEditor::TableParamEditor(BaseProcessor *p)
-    : base_type(p) {
+TableParamEditor::TableParamEditor(BaseProcessor* p) : base_type(p) {
     ;
 }
 
 
-void TableParamEditor::drawView(Graphics &g) {
+void TableParamEditor::drawView(Graphics& g) {
     base_type::drawView(g);
     int h = paramSpaceY;
     int w = int(900.0f / 4.0f);
@@ -23,7 +22,7 @@ void TableParamEditor::drawView(Graphics &g) {
     g.setColour(Colours::darkgrey);
     g.fillRect(x, y, w * 4, h);
 
-    static juce::Colour clrs[4] = {Colours::red, Colours::blue, Colours::yellow, Colours::green};
+    static juce::Colour clrs[4] = { Colours::red, Colours::blue, Colours::yellow, Colours::green };
     g.setColour(clrs[paramPage_ % 4]);
     g.fillRect(x, y, w * 4, h);
 }
@@ -42,12 +41,10 @@ void TableParamEditor::setParamBounds(unsigned page, unsigned idx, std::shared_p
 }
 
 
-BaseEditor::ControlPage TableParamEditor::addParamPage(
-    std::shared_ptr<BaseParamControl> c1,
-    std::shared_ptr<BaseParamControl> c2,
-    std::shared_ptr<BaseParamControl> c3,
-    std::shared_ptr<BaseParamControl> c4
-) {
+BaseEditor::ControlPage TableParamEditor::addParamPage(std::shared_ptr<BaseParamControl> c1,
+                                                       std::shared_ptr<BaseParamControl> c2,
+                                                       std::shared_ptr<BaseParamControl> c3,
+                                                       std::shared_ptr<BaseParamControl> c4) {
     auto page = base_type::addParamPage(c1, c2, c3, c4);
     unsigned pageN = controlPages_.size() - 1;
 
@@ -56,19 +53,17 @@ BaseEditor::ControlPage TableParamEditor::addParamPage(
     setParamBounds(pageN, 2, c3);
     setParamBounds(pageN, 3, c4);
 
-    static juce::Colour clrs[4] = {Colours::red, Colours::blue, Colours::yellow, Colours::green};
+    static juce::Colour clrs[4] = { Colours::red, Colours::blue, Colours::yellow, Colours::green };
     for (auto i = 0; i < 4; i++) {
         auto c = page.control_[i];
-        if (c) {
-            c->fg(clrs[pageN % 4]);
-        }
+        if (c) { c->fg(clrs[pageN % 4]); }
     }
 
 
-//    if (c1) c1->fg(Colours::red);
-//    if (c2) c2->fg(Colours::blue);
-//    if (c3) c3->fg(Colours::green);
-//    if (c4) c4->fg(Colours::yellow);
+    //    if (c1) c1->fg(Colours::red);
+    //    if (c2) c2->fg(Colours::blue);
+    //    if (c3) c3->fg(Colours::green);
+    //    if (c4) c4->fg(Colours::yellow);
 
     for (auto i = 0; i < 4; i++) {
         auto c = page.control_[i];
@@ -91,13 +86,13 @@ void TableParamEditor::onDownButton(bool v) {
 }
 
 void TableParamEditor::eventUp(bool v) {
-    if (v) return; // change on button up
-    chgParamPage(-1,false);
+    if (v) return;  // change on button up
+    chgParamPage(-1, false);
 }
 
 void TableParamEditor::eventDown(bool v) {
-    if (v) return; // change on button up
-    chgParamPage(1,false);
+    if (v) return;  // change on button up
+    chgParamPage(1, false);
 }
 
-} // namespace
+}  // namespace ssp
