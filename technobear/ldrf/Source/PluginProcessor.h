@@ -52,7 +52,13 @@ public:
         I_RES_4,
         I_MAX
     };
-    enum { O_OUT_1, O_OUT_2, O_OUT_3, O_OUT_4, O_MAX };
+    enum {
+        O_OUT_1,
+        O_OUT_2,
+        O_OUT_3,
+        O_OUT_4,
+        O_MAX
+    };
 
     static constexpr unsigned MAX_FILTERS = 4;
 

@@ -55,9 +55,15 @@ protected:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
 
-    enum { I_MAX };
+    enum {
+        I_MAX
+    };
 
-    enum { O_DUMMY_L, O_DUMMY_R, O_MAX };
+    enum {
+        O_DUMMY_L,
+        O_DUMMY_R,
+        O_MAX
+    };
 
 private:
     bool isBusesLayoutSupported(const BusesLayout& layouts) const override { return true; }

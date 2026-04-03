@@ -101,8 +101,22 @@ protected:
     }
 
 private:
-    enum { I_IN, I_STRUM, I_VOCT, I_FM, I_STRUCTURE, I_BRIGHTNESS, I_DAMPING, I_POSITION, I_MAX };
-    enum { O_ODD, O_EVEN, O_MAX };
+    enum {
+        I_IN,
+        I_STRUM,
+        I_VOCT,
+        I_FM,
+        I_STRUCTURE,
+        I_BRIGHTNESS,
+        I_DAMPING,
+        I_POSITION,
+        I_MAX
+    };
+    enum {
+        O_ODD,
+        O_EVEN,
+        O_MAX
+    };
 
 
     bool isBusesLayoutSupported(const BusesLayout& layouts) const override { return true; }

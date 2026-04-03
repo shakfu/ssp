@@ -101,9 +101,29 @@ protected:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
 private:
-    enum { I_IN_1, I_IN_2, I_IN_3, I_IN_4, I_IN_5, I_IN_6, I_IN_7, I_IN_8, I_MAX };
+    enum {
+        I_IN_1,
+        I_IN_2,
+        I_IN_3,
+        I_IN_4,
+        I_IN_5,
+        I_IN_6,
+        I_IN_7,
+        I_IN_8,
+        I_MAX
+    };
 
-    enum { O_MAIN_L, O_MAIN_R, O_CUE_L, O_CUE_R, O_AUX_1_L, O_AUX_1_R, O_AUX_2_L, O_AUX_2_R, O_MAX };
+    enum {
+        O_MAIN_L,
+        O_MAIN_R,
+        O_CUE_L,
+        O_CUE_R,
+        O_AUX_1_L,
+        O_AUX_1_R,
+        O_AUX_2_L,
+        O_AUX_2_R,
+        O_MAX
+    };
 
 public:
     // TODO - clear up  OUT_T_MAX/2 = number of stereo channels vs O_MAX audio channels

@@ -52,7 +52,13 @@ public:
 
     void requestReset() { requestReset_ = true; }
 
-    enum { I_FREQ, I_RESET, I_CLOCK, I_VOCT, I_MAX };
+    enum {
+        I_FREQ,
+        I_RESET,
+        I_CLOCK,
+        I_VOCT,
+        I_MAX
+    };
     enum {
         O_OUT_MAIN,
         O_OUT_A,

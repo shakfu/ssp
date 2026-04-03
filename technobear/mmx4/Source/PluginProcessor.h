@@ -81,7 +81,17 @@ protected:
         I_MAX
     };
 
-    enum { O_SIG_AL, O_SIG_AR, O_SIG_BL, O_SIG_BR, O_SIG_CL, O_SIG_CR, O_SIG_DL, O_SIG_DR, O_MAX };
+    enum {
+        O_SIG_AL,
+        O_SIG_AR,
+        O_SIG_BL,
+        O_SIG_BR,
+        O_SIG_CL,
+        O_SIG_CR,
+        O_SIG_DL,
+        O_SIG_DR,
+        O_MAX
+    };
 
 
 public:

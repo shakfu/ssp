@@ -1,6 +1,5 @@
-#include "SSPApi.h"
-
 #include "PluginProcessor.h"
+#include "SSPApi.h"
 
 
 extern "C" __attribute__((visibility("default"))) Percussa::SSP::PluginDescriptor* createDescriptor() {

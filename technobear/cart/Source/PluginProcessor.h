@@ -70,7 +70,15 @@ public:
         //        I_Z_CV,
         I_MAX
     };
-    enum { O_X_CV, O_X_GATE, O_Y_CV, O_Y_GATE, O_C_CV, O_C_GATE, O_MAX };
+    enum {
+        O_X_CV,
+        O_X_GATE,
+        O_Y_CV,
+        O_Y_GATE,
+        O_C_CV,
+        O_C_GATE,
+        O_MAX
+    };
 
     enum ModMode { MOD_MODE_NONE, MOD_MODE_RESET, MOD_MODE_CLK, MOD_MODE_RUNSTP, MOD_MODE_DIR, MOD_MODE_MAX };
 

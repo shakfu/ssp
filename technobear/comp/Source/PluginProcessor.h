@@ -75,9 +75,18 @@ protected:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
 private:
-    enum { I_LEFT, I_RIGHT, I_SIDECHAIN, I_MAX };
+    enum {
+        I_LEFT,
+        I_RIGHT,
+        I_SIDECHAIN,
+        I_MAX
+    };
 
-    enum { O_LEFT, O_RIGHT, O_MAX };
+    enum {
+        O_LEFT,
+        O_RIGHT,
+        O_MAX
+    };
 
     daisysp::Compressor compressor_;
 

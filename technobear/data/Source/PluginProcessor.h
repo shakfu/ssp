@@ -47,8 +47,21 @@ public:
 
     bool hasEditor() const override { return true; }
 
-    enum { I_SIG_A, I_SIG_B, I_SIG_C, I_SIG_D, I_TRIG, I_MAX };
-    enum { O_SIG_A, O_SIG_B, O_SIG_C, O_SIG_D, O_MAX };
+    enum {
+        I_SIG_A,
+        I_SIG_B,
+        I_SIG_C,
+        I_SIG_D,
+        I_TRIG,
+        I_MAX
+    };
+    enum {
+        O_SIG_A,
+        O_SIG_B,
+        O_SIG_C,
+        O_SIG_D,
+        O_MAX
+    };
 
     static constexpr unsigned MAX_SIG_IN = (I_SIG_D - I_SIG_A) + 1;
     static constexpr unsigned MAX_SIG_OUT = (O_SIG_D - O_SIG_A) + 1;

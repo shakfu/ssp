@@ -70,9 +70,17 @@ protected:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
 private:
-    enum { I_LEFT, I_RIGHT, I_MAX };
+    enum {
+        I_LEFT,
+        I_RIGHT,
+        I_MAX
+    };
 
-    enum { O_LEFT, O_RIGHT, O_MAX };
+    enum {
+        O_LEFT,
+        O_RIGHT,
+        O_MAX
+    };
 
     inline float normValue(RangedAudioParameter& p) { return p.convertFrom0to1(p.getValue()); }
 

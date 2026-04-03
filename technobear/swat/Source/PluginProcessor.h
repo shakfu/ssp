@@ -79,9 +79,33 @@ protected:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
 private:
-    enum { I_X_1, I_Y_1, I_Z_1, I_X_2, I_Y_2, I_Z_2, I_X_3, I_Y_3, I_Z_3, I_X_4, I_Y_4, I_Z_4, I_MAX };
+    enum {
+        I_X_1,
+        I_Y_1,
+        I_Z_1,
+        I_X_2,
+        I_Y_2,
+        I_Z_2,
+        I_X_3,
+        I_Y_3,
+        I_Z_3,
+        I_X_4,
+        I_Y_4,
+        I_Z_4,
+        I_MAX
+    };
 
-    enum { O_A_1, O_B_1, O_A_2, O_B_2, O_A_3, O_B_3, O_A_4, O_B_4, O_MAX };
+    enum {
+        O_A_1,
+        O_B_1,
+        O_A_2,
+        O_B_2,
+        O_A_3,
+        O_B_3,
+        O_A_4,
+        O_B_4,
+        O_MAX
+    };
 
 
     std::shared_ptr<Algo> createAlgo(unsigned);

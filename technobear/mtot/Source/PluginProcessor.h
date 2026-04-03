@@ -67,9 +67,24 @@ public:
 protected:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
-    enum { I_CV_A, I_CV_B, I_CV_C, I_CV_D, I_CV_E, I_CV_F, I_CV_G, I_CV_H, I_VOCT, I_GATE, I_VEL, I_MAX };
+    enum {
+        I_CV_A,
+        I_CV_B,
+        I_CV_C,
+        I_CV_D,
+        I_CV_E,
+        I_CV_F,
+        I_CV_G,
+        I_CV_H,
+        I_VOCT,
+        I_GATE,
+        I_VEL,
+        I_MAX
+    };
 
-    enum { O_MAX };
+    enum {
+        O_MAX
+    };
 
 private:
     bool isBusesLayoutSupported(const BusesLayout& layouts) const override { return true; }

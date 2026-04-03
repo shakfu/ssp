@@ -110,7 +110,11 @@ private:
         I_MAX
     };
 
-    enum { O_LEFT, O_RIGHT, O_MAX };
+    enum {
+        O_LEFT,
+        O_RIGHT,
+        O_MAX
+    };
 
     bool isBusesLayoutSupported(const BusesLayout& layouts) const override { return true; }
 

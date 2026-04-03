@@ -59,9 +59,33 @@ protected:
 private:
     float processCV(float value, unsigned scale, unsigned root);
 
-    enum { I_SIG_1, I_TRIG_1, I_SIG_2, I_TRIG_2, I_SIG_3, I_TRIG_3, I_SIG_4, I_TRIG_4, I_SCALE, I_ROOT, I_MAX };
+    enum {
+        I_SIG_1,
+        I_TRIG_1,
+        I_SIG_2,
+        I_TRIG_2,
+        I_SIG_3,
+        I_TRIG_3,
+        I_SIG_4,
+        I_TRIG_4,
+        I_SCALE,
+        I_ROOT,
+        I_MAX
+    };
 
-    enum { O_SIG_1, O_TRIG_1, O_SIG_2, O_TRIG_2, O_SIG_3, O_TRIG_3, O_SIG_4, O_TRIG_4, O_SCALE, O_ROOT, O_MAX };
+    enum {
+        O_SIG_1,
+        O_TRIG_1,
+        O_SIG_2,
+        O_TRIG_2,
+        O_SIG_3,
+        O_TRIG_3,
+        O_SIG_4,
+        O_TRIG_4,
+        O_SCALE,
+        O_ROOT,
+        O_MAX
+    };
 
     static constexpr unsigned MAX_SIG = 4;
     std::atomic<float> lastSig_[MAX_SIG];
