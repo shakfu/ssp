@@ -5,7 +5,7 @@ namespace ssp {
 
 /// ButtonControl
 
-ParamButton::ParamButton(Parameter &p, unsigned fh, const juce::Colour fg, const juce::Colour bg, bool momentary)
+ParamButton::ParamButton(Parameter& p, unsigned fh, const juce::Colour fg, const juce::Colour bg, bool momentary)
     : attachment_(p, [this](float f) { paramChanged(f); }),
       param_(p),
       fh_(fh),
@@ -18,28 +18,28 @@ void ParamButton::paramChanged(float) {
     repaint();
 }
 
-void ParamButton::mouseUp(const juce::MouseEvent &event) {
+void ParamButton::mouseUp(const juce::MouseEvent& event) {
     onUp();
 }
 
-void ParamButton::mouseDown(const juce::MouseEvent &event) {
+void ParamButton::mouseDown(const juce::MouseEvent& event) {
     onDown();
 }
 
 
 void ParamButton::onUp() {
-    if(!momentary_) return;
+    if (!momentary_) return;
 
-    auto &p = param_;
+    auto& p = param_;
     p.beginChangeGesture();
     p.setValueNotifyingHost(0.f);
     p.endChangeGesture();
 }
 
 void ParamButton::onDown() {
-    if(!momentary_) return;
+    if (!momentary_) return;
 
-    auto &p = param_;
+    auto& p = param_;
     p.beginChangeGesture();
     p.setValueNotifyingHost(1.f);
     p.endChangeGesture();
@@ -47,10 +47,10 @@ void ParamButton::onDown() {
 
 
 void ParamButton::onClick() {
-    if(momentary_) return;
+    if (momentary_) return;
 
     // toggle - on event action
-    auto &p = param_;
+    auto& p = param_;
     bool v = p.getValue() > 0.5f;
     p.beginChangeGesture();
     p.setValueNotifyingHost(!v);
@@ -58,12 +58,12 @@ void ParamButton::onClick() {
 }
 
 
-void ParamButton::paint(juce::Graphics &g) {
+void ParamButton::paint(juce::Graphics& g) {
     const int w = getWidth();
     const int h = getHeight();
     g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), fh_, juce::Font::plain)));
 
-    auto &p = param_;
+    auto& p = param_;
     bool active = p.getValue() > 0.5f;
 
     if (!active) {

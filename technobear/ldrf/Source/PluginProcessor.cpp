@@ -1,4 +1,5 @@
 #include "PluginProcessor.h"
+
 #include "PluginEditor.h"
 #include "PluginMiniEditor.h"
 #include "ssp/EditorHost.h"
@@ -10,17 +11,14 @@ inline float constrain(float v, float vMin, float vMax) {
     return std::max<float>(vMin, std::min<float>(vMax, v));
 }
 
-PluginProcessor::PluginProcessor()
-    : PluginProcessor(getBusesProperties(), createParameterLayout()) {}
+PluginProcessor::PluginProcessor() : PluginProcessor(getBusesProperties(), createParameterLayout()) {
+}
 
-PluginProcessor::PluginProcessor(
-    const AudioProcessor::BusesProperties &ioLayouts,
-    AudioProcessorValueTreeState::ParameterLayout layout)
+PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
+                                 AudioProcessorValueTreeState::ParameterLayout layout)
     : BaseProcessor(ioLayouts, std::move(layout)), params_(vts()) {
     init();
-    for (unsigned i = 0; i < MAX_FILTERS; i++) {
-        filters_.push_back(std::make_unique<daisysp::MoogLadder>());
-    }
+    for (unsigned i = 0; i < MAX_FILTERS; i++) { filters_.push_back(std::make_unique<daisysp::MoogLadder>()); }
 }
 
 PluginProcessor::~PluginProcessor() {
@@ -32,21 +30,20 @@ String getFilterPid(unsigned id) {
 
 String getCutoffPid(unsigned fid) {
     return getFilterPid(fid) + String(ID::separator) + String(ID::cutoff);
-
 }
 
 String getResPid(unsigned fid) {
     return getFilterPid(fid) + String(ID::separator) + String(ID::res);
-
 }
 
-PluginProcessor::Filter::Filter(AudioProcessorValueTreeState &apvt, unsigned id) :
-    id_(id), pid_(getFilterPid(id)),
-    cutoff(*apvt.getParameter(getCutoffPid(id))),
-    res(*apvt.getParameter(getResPid(id))) {
+PluginProcessor::Filter::Filter(AudioProcessorValueTreeState& apvt, unsigned id)
+    : id_(id),
+      pid_(getFilterPid(id)),
+      cutoff(*apvt.getParameter(getCutoffPid(id))),
+      res(*apvt.getParameter(getResPid(id))) {
 }
 
-PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState &apvt) {
+PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState& apvt) {
     for (unsigned id = 0; id < MAX_FILTERS; id++) {
         auto filter = std::make_unique<Filter>(apvt, id);
         filters_.push_back(std::move(filter));
@@ -58,12 +55,10 @@ AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLa
     AudioProcessorValueTreeState::ParameterLayout params;
     BaseProcessor::addBaseParameters(params);
 
-    auto harmonics = std::make_unique<AudioProcessorParameterGroup>(ID::filters,
-                                                                    String(ID::filters),
-                                                                    ID::separator);
+    auto harmonics = std::make_unique<AudioProcessorParameterGroup>(ID::filters, String(ID::filters), ID::separator);
     for (unsigned id = 0; id < MAX_FILTERS; id++) {
-        harmonics->addChild(std::make_unique<
-            ssp::BaseFloatParameter>(getCutoffPid(id), "Cutoff " + String(id + 1), MIN_CUTOFF_FREQ, MAX_CUTOFF_FREQ, MAX_CUTOFF_FREQ));
+        harmonics->addChild(std::make_unique<ssp::BaseFloatParameter>(
+            getCutoffPid(id), "Cutoff " + String(id + 1), MIN_CUTOFF_FREQ, MAX_CUTOFF_FREQ, MAX_CUTOFF_FREQ));
         harmonics->addChild(
             std::make_unique<ssp::BaseFloatParameter>(getResPid(id), "Res " + String(id + 1), 0.0f, 1.0f, 0.0f));
     }
@@ -74,32 +69,15 @@ AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLa
 
 
 const String PluginProcessor::getInputBusName(int channelIndex) {
-    static String inBusName[I_MAX] = {
-        "In 1",
-        "Cutoff 1",
-        "Res 1",
-        "In 2",
-        "Cutoff 2",
-        "Res 2",
-        "In 3",
-        "Cutoff 3",
-        "Res 3",
-        "In 4",
-        "Cutoff 4",
-        "Res 4"
-    };
+    static String inBusName[I_MAX] = { "In 1", "Cutoff 1", "Res 1", "In 2", "Cutoff 2", "Res 2",
+                                       "In 3", "Cutoff 3", "Res 3", "In 4", "Cutoff 4", "Res 4" };
     if (channelIndex < I_MAX) { return inBusName[channelIndex]; }
     return "ZZIn-" + String(channelIndex);
 }
 
 
 const String PluginProcessor::getOutputBusName(int channelIndex) {
-    static String outBusName[O_MAX] = {
-        "Out 1",
-        "Out 2",
-        "Out 3",
-        "Out 4"
-    };
+    static String outBusName[O_MAX] = { "Out 1", "Out 2", "Out 3", "Out 4" };
     if (channelIndex < O_MAX) { return outBusName[channelIndex]; }
     return "ZZOut-" + String(channelIndex);
 }
@@ -107,22 +85,20 @@ const String PluginProcessor::getOutputBusName(int channelIndex) {
 
 void PluginProcessor::prepareToPlay(double newSampleRate, int estimatedSamplesPerBlock) {
     BaseProcessor::prepareToPlay(newSampleRate, estimatedSamplesPerBlock);
-    for (auto &filter: filters_) {
-        filter->Init(newSampleRate);
-    }
+    for (auto& filter : filters_) { filter->Init(newSampleRate); }
 }
 
 
-void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages) {
     BaseProcessor::processBlock(buffer, midiMessages);
     unsigned sz = buffer.getNumSamples();
 
-//    static constexpr float baseNote = 60.0f;
-//    float pitch =
-//        normValue(params_.pitch)
-//        + cv2Pitch(buffer.getSample(I_VOCT, 0))
-//        + baseNote;
-//    float freq = daisysp::mtof(pitch);
+    //    static constexpr float baseNote = 60.0f;
+    //    float pitch =
+    //        normValue(params_.pitch)
+    //        + cv2Pitch(buffer.getSample(I_VOCT, 0))
+    //        + baseNote;
+    //    float freq = daisysp::mtof(pitch);
     static unsigned constexpr IN_MULT = I_IN_2 - I_IN_1;
 
     float cutoff[MAX_FILTERS];
@@ -161,9 +137,9 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
 }
 
 
-AudioProcessorEditor *PluginProcessor::createEditor() {
+AudioProcessorEditor* PluginProcessor::createEditor() {
 #ifdef FORCE_COMPACT_UI
-    return new ssp::EditorHost(this, new PluginMiniEditor(*this),true);
+    return new ssp::EditorHost(this, new PluginMiniEditor(*this), true);
 #else
     if (useCompactUI()) {
         return new ssp::EditorHost(this, new PluginMiniEditor(*this), useCompactUI());
@@ -174,6 +150,6 @@ AudioProcessorEditor *PluginProcessor::createEditor() {
 #endif
 }
 
-AudioProcessor *JUCE_CALLTYPE createPluginFilter() {
+AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new PluginProcessor();
 }

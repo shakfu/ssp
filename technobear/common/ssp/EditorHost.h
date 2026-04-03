@@ -16,11 +16,11 @@ namespace ssp {
 
 class EditorHost : public juce::AudioProcessorEditor, public SSPActions {
 public:
-    explicit EditorHost(BaseProcessor *p, BaseView *e, bool compactUI = false, bool enableSysEditor = true,
+    explicit EditorHost(BaseProcessor* p, BaseView* e, bool compactUI = false, bool enableSysEditor = true,
                         bool drawDefaults = true);
     ~EditorHost();
 
-    void paint(Graphics &g) override { drawBasicPanel(g); }
+    void paint(Graphics& g) override { drawBasicPanel(g); }
 
     void resized() override;
 
@@ -48,9 +48,9 @@ public:
     void eventButtonHeld(unsigned btn) override;
 
     bool keyStateChanged(bool isKeyDown) override;
-    void modifierKeysChanged(const ModifierKeys &modifiers) override;
+    void modifierKeysChanged(const ModifierKeys& modifiers) override;
 
-    juce::Component *getEditorComponent() {
+    juce::Component* getEditorComponent() {
         if (sysActive_ && system_ != nullptr) { return system_; }
         return editor_;
     }
@@ -59,12 +59,12 @@ public:
     void sysEditor(bool sysEditor);
 
 private:
-    void drawMenuBox(Graphics &g);
-    void drawButtonBox(Graphics &g);
-    void drawBasicPanel(Graphics &g);
+    void drawMenuBox(Graphics& g);
+    void drawButtonBox(Graphics& g);
+    void drawBasicPanel(Graphics& g);
 
 
-    void setMenuBounds(ValueButton &btn, unsigned r);
+    void setMenuBounds(ValueButton& btn, unsigned r);
 
     ValueButton globalBtn_, networkBtn_, plugInBtn_, recBtn_;
 
@@ -74,15 +74,15 @@ private:
 
     bool keyStates_[6] = { false, false, false, false, false, false };
 
-    BaseProcessor *processor_;
-    BaseView *editor_;
-    SystemEditor *system_;
+    BaseProcessor* processor_;
+    BaseView* editor_;
+    SystemEditor* system_;
     bool compactUI_ = false;
     bool drawDefaults_ = false;
 
     Colour defaultBg_ = Colour(0xff111111);
 
-    SSPUI *sspui_ = nullptr;
+    SSPUI* sspui_ = nullptr;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(EditorHost)
 };
 

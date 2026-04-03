@@ -8,12 +8,12 @@ inline juce::String toString(float v) {
 }
 
 
-MiniControl::MiniControl(Parameter &p, float coarse, float fine, juce::Colour fg)
+MiniControl::MiniControl(Parameter& p, float coarse, float fine, juce::Colour fg)
     : SimpleParamControl(p, coarse, fine, fg) {
 
-};
+      };
 
-void MiniControl::paint(juce::Graphics &g) {
+void MiniControl::paint(juce::Graphics& g) {
     int h = getHeight();
     int w = getWidth();
     unsigned tfh = h / 3;
@@ -21,9 +21,11 @@ void MiniControl::paint(juce::Graphics &g) {
 
     unsigned gap = scale;
 
-    auto &p = param_;
-    const auto &titleFont = juce::Font( juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), tfh, juce::Font::plain));
-    const auto &valueFont = juce::Font( juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), vfh, juce::Font::plain));
+    auto& p = param_;
+    const auto& titleFont =
+        juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), tfh, juce::Font::plain));
+    const auto& valueFont =
+        juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), vfh, juce::Font::plain));
 
     g.setFont(titleFont);
     g.setColour(active() ? fg_ : juce::Colours::grey);
@@ -67,4 +69,4 @@ void MiniControl::paint(juce::Graphics &g) {
     }
 }
 
-}
+}  // namespace ssp

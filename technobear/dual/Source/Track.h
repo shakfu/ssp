@@ -14,23 +14,18 @@ public:
     explicit Track();
 
     void prepare(int sampleRate, int blockSize);
-    void process(juce::AudioSampleBuffer &ioBuffer);
+    void process(juce::AudioSampleBuffer& ioBuffer);
 
-    void getStateInformation(juce::XmlElement &outStream);
-    void setStateInformation(juce::XmlElement &inStream);
+    void getStateInformation(juce::XmlElement& outStream);
+    void setStateInformation(juce::XmlElement& inStream);
 
-    bool requestModuleChange(unsigned midx, const std::string &mn);
+    bool requestModuleChange(unsigned midx, const std::string& mn);
     bool requestClearTrack();
 
-    enum ModuleIdx {       
-        M_LEFT,
-        M_RIGHT,
-        M_MAX
-    };
+    enum ModuleIdx { M_LEFT, M_RIGHT, M_MAX };
 
     static constexpr int M_IN = -1;
     static constexpr int M_OUT = M_MAX;
-
 
 
     Module modules_[M_MAX];
@@ -46,7 +41,7 @@ private:
     static constexpr int MAX_IO_OUT = 2;
     static constexpr int MAX_IO = std::max(MAX_IO_IN, MAX_IO_OUT);
 
-    bool loadModule(std::string, Module &m);
+    bool loadModule(std::string, Module& m);
     void alloc(int sampleRate, int blockSize);
     void free();
 

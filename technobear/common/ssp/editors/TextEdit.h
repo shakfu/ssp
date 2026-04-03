@@ -7,12 +7,11 @@ namespace ssp {
 class Key;
 
 class TextEdit : public BaseEditor {
-
 public:
-    explicit TextEdit(BaseProcessor *p);
+    explicit TextEdit(BaseProcessor* p);
     virtual ~TextEdit();
 
-    void drawView(juce::Graphics &g) override;
+    void drawView(juce::Graphics& g) override;
 
     void editorShown() override {};
 
@@ -22,7 +21,7 @@ public:
     void onEncoderSwitch(unsigned enc, bool v) override;
 
     void onButton(unsigned btn, bool v) override;
-    
+
     void eventUp(bool v) override;
     void eventDown(bool v) override;
     void eventLeft(bool v) override;
@@ -31,20 +30,16 @@ public:
     void eventRightShift(bool v) override;
 
     std::string getText();
-    void setText(const std::string &txt);
+    void setText(const std::string& txt);
 
     void onCopyButton(bool v) {
         copyBtn_.onButton(v);
-        if (!v) {
-            copyBuffer_ = text_;
-        }
+        if (!v) { copyBuffer_ = text_; }
     }
 
     void onPasteButton(bool v) {
         pasteBtn_.onButton(v);
-        if (!v) {
-            setText(copyBuffer_);
-        }
+        if (!v) { setText(copyBuffer_); }
     }
 
     void onDelete();
@@ -62,27 +57,13 @@ private:
     int cursorFlashCounter = 0;
 
 
-    enum {
-        B_COPY,
-        B_PASTE,
-        B_3,
-        B_4,
-        B_5,
-        B_6,
-        B_7,
-        B_8,
-        B_MAX
-    };
+    enum { B_COPY, B_PASTE, B_3, B_4, B_5, B_6, B_7, B_8, B_MAX };
     std::string copyBuffer_;
     ValueButton copyBtn_, pasteBtn_;
 
 
     std::vector<std::shared_ptr<Key>> keys_;
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TextEdit)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TextEdit)
 };
 
-}
-
-
-
-
+}  // namespace ssp

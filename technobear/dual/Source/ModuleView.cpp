@@ -1,13 +1,13 @@
 #include "ModuleView.h"
 
-ModuleView::ModuleView(PluginProcessor &p) : base_type(&p, false), processor_(p) {
+ModuleView::ModuleView(PluginProcessor& p) : base_type(&p, false), processor_(p) {
     if (processor_.getSupportedModules().size() == 0) { processor_.loadSupportedModules(); }
 }
 
 ModuleView::~ModuleView() {
 }
 
-void ModuleView::drawView(Graphics &g) {
+void ModuleView::drawView(Graphics& g) {
     base_type::drawView(g);
     drawModulePanel(g);
 }
@@ -22,7 +22,7 @@ void ModuleView::onSSPTimer() {
     }
 }
 
-void ModuleView::drawModulePanel(Graphics &g) {
+void ModuleView::drawModulePanel(Graphics& g) {
     int fh = 14 * COMPACT_UI_SCALE;
     unsigned panelWidth = pluginWidth;
     // unsigned panelHeight = pluginHeight;

@@ -3,7 +3,7 @@
 
 namespace ssp {
 
-FileSelector::FileSelector(const juce::String &defDir) : baseDir_(defDir) {
+FileSelector::FileSelector(const juce::String& defDir) : baseDir_(defDir) {
 }
 
 
@@ -59,7 +59,7 @@ juce::String FileSelector::selectedFile() {
     if (selected_ == -1) return "";
 
     int idx = 0;
-    for (auto &iter : fileList_) {
+    for (auto& iter : fileList_) {
         if (idx == selected_) {
             auto file = iter.second;
             if (file.isDirectory()) return "";
@@ -71,7 +71,7 @@ juce::String FileSelector::selectedFile() {
 }
 
 
-void FileSelector::setFile(const juce::String &fullname) {
+void FileSelector::setFile(const juce::String& fullname) {
     juce::File f(fullname);
     if (!f.exists()) {
         selected_ = 0;
@@ -90,7 +90,7 @@ void FileSelector::setFile(const juce::String &fullname) {
         scanDir();
         selected_ = -1;
         int idx = 0;
-        for (auto &iter : fileList_) {
+        for (auto& iter : fileList_) {
             if (iter.second == f) { selected_ = idx; }
             idx++;
         }
@@ -120,9 +120,9 @@ void FileSelector::scanDir() {
 }
 
 
-void FileSelector::paint(juce::Graphics &g) {
+void FileSelector::paint(juce::Graphics& g) {
     static constexpr unsigned fh = 16 * COMPACT_UI_SCALE;
-    g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(),  fh, juce::Font::plain)));
+    g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), fh, juce::Font::plain)));
     int idx = 0;
     for (auto iter : fileList_) {
         juce::String name = iter.first;
@@ -133,7 +133,7 @@ void FileSelector::paint(juce::Graphics &g) {
 }
 
 
-void FileSelector::drawEntry(juce::Graphics &g, unsigned fidx, bool selected, const juce::String &name, bool isDir) {
+void FileSelector::drawEntry(juce::Graphics& g, unsigned fidx, bool selected, const juce::String& name, bool isDir) {
     float w = (getWidth() - 30 * COMPACT_UI_SCALE) / nMaxCols;
     float h = (getHeight() - 10 * COMPACT_UI_SCALE) / nFilePerCol;
 

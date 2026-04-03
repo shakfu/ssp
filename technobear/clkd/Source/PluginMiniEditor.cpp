@@ -6,7 +6,7 @@
 using pcontrol_type = ssp::MiniControl;
 using bcontrol_type = ssp::ParamButton;
 
-PluginMiniEditor::PluginMiniEditor(PluginProcessor &p)
+PluginMiniEditor::PluginMiniEditor(PluginProcessor& p)
     : base_type(&p),
       processor_(p),
       runButton_("Run", nullptr, 16 * COMPACT_UI_SCALE, Colours::green),
@@ -21,7 +21,6 @@ PluginMiniEditor::PluginMiniEditor(PluginProcessor &p)
     for (int d = 0; d < PluginProcessor::MAX_CLK_OUT; d++) {
         addParam(std::make_shared<pcontrol_type>(processor_.params_.divisions_[d]->val, 1, 0.25));
     }
-
 
 
     setButtonBounds(BN_RUN, &runButton_);

@@ -8,7 +8,7 @@
 #include "TrackEditor.h"
 
 
-PluginEditor::PluginEditor(PluginProcessor &p) : base_type(&p, false), processor_(p) {
+PluginEditor::PluginEditor(PluginProcessor& p) : base_type(&p, false), processor_(p) {
     mixerView_ = std::make_shared<MixerView>(p);
     mixerViewIdx_ = addView(mixerView_);
     trackEditor_ = std::make_shared<TrackEditor>(p);

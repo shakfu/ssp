@@ -7,14 +7,14 @@ namespace ssp {
 
 static constexpr unsigned LONG_PRESS_COUNT = 15;
 
-SSPUI::SSPUI(BaseProcessor *processor, EditorHost *actions) : processor_(processor), actions_(actions) {
+SSPUI::SSPUI(BaseProcessor* processor, EditorHost* actions) : processor_(processor), actions_(actions) {
     // startTimer(1000/30);  // 30fps
-    startTimer(1000/15);  // 30fps
+    startTimer(1000 / 15);  // 30fps
 
     for (unsigned i = 0; i < NENC; i++) {
-        auto &up = encUp_[i];
-        auto &down = encDown_[i];
-        auto &sw = encSW_[i];
+        auto& up = encUp_[i];
+        auto& down = encDown_[i];
+        auto& sw = encSW_[i];
 
         static constexpr int x = 60, y = 10;
         static constexpr int bw = 55, bh = 30;
@@ -35,7 +35,7 @@ SSPUI::SSPUI(BaseProcessor *processor, EditorHost *actions) : processor_(process
     }
 
     for (unsigned i = 0; i < NBUTS; i++) {
-        auto &b = buttons_[i];
+        auto& b = buttons_[i];
         static constexpr int x = 940, y = 10;
         static constexpr int bw = 95, bh = 30;
 
@@ -89,8 +89,8 @@ SSPUI::SSPUI(BaseProcessor *processor, EditorHost *actions) : processor_(process
     }
 
     for (unsigned i = 0; i < NIO; i++) {
-        auto &bI = inputs_[i];
-        auto &bO = outputs_[i];
+        auto& bI = inputs_[i];
+        auto& bO = outputs_[i];
 
         static constexpr int x = 100, y = 150;
         static constexpr int bw = 30, bh = 30;
@@ -127,7 +127,7 @@ void SSPUI::timerCallback() {
     actions_->repaint();
 }
 
-void SSPUI::paint(juce::Graphics &g) {
+void SSPUI::paint(juce::Graphics& g) {
     //    g.fillAll(Colours::grey);
     g.setColour(juce::Colours::white);
     g.drawText("Inputs :", 30, 150, 65, 30, juce::Justification::left);
@@ -137,11 +137,11 @@ void SSPUI::paint(juce::Graphics &g) {
 void SSPUI::resized() {
 }
 
-void SSPUI::buttonStateChanged(juce::Button *button) {
+void SSPUI::buttonStateChanged(juce::Button* button) {
     Listener::buttonStateChanged(button);
 }
 
-void SSPUI::buttonClicked(juce::Button *button) {
+void SSPUI::buttonClicked(juce::Button* button) {
     for (unsigned i = 0; i < NENC; i++) {
         if (button == &encUp_[i]) {
             actions_->onEncoder(i, 1.0f);
@@ -263,7 +263,7 @@ void SSPUI::generateButtenEvents(int n, bool val) {
 
     // on release...
     bool longPress = buttonCounter_[n] == 0;
-    
+
     buttonCounter_[n] = 0;
 
     for (int i = 0; i < SSP_LastBtn; i++) {

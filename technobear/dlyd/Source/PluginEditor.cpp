@@ -1,9 +1,9 @@
 
-#include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-#include "ssp/controls/ParamControl.h"
+#include "PluginProcessor.h"
 #include "ssp/controls/ParamButton.h"
+#include "ssp/controls/ParamControl.h"
 
 using pcontrol_type = ssp::BarParamControl;
 using bcontrol_type = ssp::ParamButton;
@@ -13,66 +13,32 @@ static constexpr unsigned MAX_VIEW = MAX_TAPS + 1;
 static constexpr unsigned L_CLRS = 5;
 
 
-PluginEditor::PluginEditor(PluginProcessor &p)
-    : base_type(&p, MAX_VIEW), processor_(p) {
-
-    static juce::Colour clrs[L_CLRS] = {Colours::red, Colours::blue, Colours::yellow, Colours::green, Colours::cyan};
+PluginEditor::PluginEditor(PluginProcessor& p) : base_type(&p, MAX_VIEW), processor_(p) {
+    static juce::Colour clrs[L_CLRS] = { Colours::red, Colours::blue, Colours::yellow, Colours::green, Colours::cyan };
     unsigned view = 0;
     static constexpr float defCoarse = 10.0f;
     static constexpr float defFine = 0.1f;
-    addParamPage(
-        std::make_shared<pcontrol_type>(processor_.params_.size, defCoarse, defFine),
-        std::make_shared<pcontrol_type>(processor_.params_.mix, defCoarse, defFine),
-        std::make_shared<pcontrol_type>(processor_.params_.in_level, defCoarse, defFine),
-        std::make_shared<pcontrol_type>(processor_.params_.out_level, defCoarse, defFine),
-        view,
-        Colours::orange
-    );
+    addParamPage(std::make_shared<pcontrol_type>(processor_.params_.size, defCoarse, defFine),
+                 std::make_shared<pcontrol_type>(processor_.params_.mix, defCoarse, defFine),
+                 std::make_shared<pcontrol_type>(processor_.params_.in_level, defCoarse, defFine),
+                 std::make_shared<pcontrol_type>(processor_.params_.out_level, defCoarse, defFine), view,
+                 Colours::orange);
 
-    addButtonPage(
-        std::make_shared<bcontrol_type>(processor_.params_.freeze, 24, Colours::lightskyblue),
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        view
-    );
+    addButtonPage(std::make_shared<bcontrol_type>(processor_.params_.freeze, 24, Colours::lightskyblue), nullptr,
+                  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, view);
     view++;
 
     for (unsigned tap = 0; tap < MAX_TAPS; tap++) {
-        auto &t = processor_.getTap(tap);
+        auto& t = processor_.getTap(tap);
 
-        addParamPage(
-            std::make_shared<pcontrol_type>(t.time, defCoarse, defFine),
-            std::make_shared<pcontrol_type>(t.level, defCoarse, defFine),
-            std::make_shared<pcontrol_type>(t.feedback, defCoarse, defFine),
-            std::make_shared<pcontrol_type>(t.pan, 0.1, 0.01),
-            view,
-            clrs[view % L_CLRS]
-        );
-        addParamPage(
-            std::make_shared<pcontrol_type>(t.lpf, 100, 5),
-            std::make_shared<pcontrol_type>(t.hpf, 100, 5),
-            std::make_shared<pcontrol_type>(t.noise, 1, 0.01),
-            nullptr,
-            view,
-            clrs[view % L_CLRS]
-        );
+        addParamPage(std::make_shared<pcontrol_type>(t.time, defCoarse, defFine),
+                     std::make_shared<pcontrol_type>(t.level, defCoarse, defFine),
+                     std::make_shared<pcontrol_type>(t.feedback, defCoarse, defFine),
+                     std::make_shared<pcontrol_type>(t.pan, 0.1, 0.01), view, clrs[view % L_CLRS]);
+        addParamPage(std::make_shared<pcontrol_type>(t.lpf, 100, 5), std::make_shared<pcontrol_type>(t.hpf, 100, 5),
+                     std::make_shared<pcontrol_type>(t.noise, 1, 0.01), nullptr, view, clrs[view % L_CLRS]);
 
-        addButtonPage(
-            nullptr,
-            nullptr,
-            nullptr,
-            nullptr,
-            nullptr,
-            nullptr,
-            nullptr,
-            nullptr,
-            view
-        );
+        addButtonPage(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, view);
         view++;
     }
 
@@ -88,7 +54,7 @@ PluginEditor::PluginEditor(PluginProcessor &p)
     addAndMakeVisible(outVu_);
 }
 
-void PluginEditor::drawView(Graphics &g) {
+void PluginEditor::drawView(Graphics& g) {
     float inL, inR, outL, outR;
     processor_.getRMS(inL, inR, outL, outR);
     inVu_.level(inL, inR);

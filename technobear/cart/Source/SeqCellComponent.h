@@ -7,10 +7,10 @@ class SeqCellComponent : public juce::Component {
 public:
     using Parameter = juce::RangedAudioParameter;
 
-    SeqCellComponent(PluginProcessor::PluginParams &params, unsigned step);
+    SeqCellComponent(PluginProcessor::PluginParams& params, unsigned step);
     void activeStep(unsigned xP, unsigned yP, unsigned cP);
 
-    void paint(Graphics &g);
+    void paint(Graphics& g);
 
 private:
     static constexpr unsigned L_CLRS = 3;
@@ -18,5 +18,5 @@ private:
 
     unsigned step_;
     bool activeX_, activeY_, activeC_;
-    PluginProcessor::PluginParams &params_;
+    PluginProcessor::PluginParams& params_;
 };

@@ -1,19 +1,19 @@
 #include "BaseMiniView.h"
-
 #include "ssp/BaseProcessor.h"
 
 namespace ssp {
 
 
-PageMiniView::PageMiniView(BaseProcessor *p) : base_type(p, true) {
+PageMiniView::PageMiniView(BaseProcessor* p) : base_type(p, true) {
 }
 
-void PageMiniView::drawView(Graphics &g) {
+void PageMiniView::drawView(Graphics& g) {
     g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), titleFH, Font::plain)));
 
     g.setColour(Colours::yellow);
-    g.drawSingleLineText(String(JucePlugin_Name) + ":" + String(JucePlugin_Desc) + String(" @ ") + String(JucePlugin_Manufacturer), 
-        gap, gap * 2);
+    g.drawSingleLineText(
+        String(JucePlugin_Name) + ":" + String(JucePlugin_Desc) + String(" @ ") + String(JucePlugin_Manufacturer), gap,
+        gap * 2);
 
     g.setColour(Colours::grey);
     g.drawSingleLineText("v " + String(JucePlugin_VersionString), 270 * COMPACT_UI_SCALE, gap * 2);
@@ -24,8 +24,8 @@ void PageMiniView::drawView(Graphics &g) {
 
 
 void PageMiniView::addParamPage(std::shared_ptr<BaseParamControl> c1, std::shared_ptr<BaseParamControl> c2,
-                                  std::shared_ptr<BaseParamControl> c3, std::shared_ptr<BaseParamControl> c4,
-                                  const juce::Colour &fg) {
+                                std::shared_ptr<BaseParamControl> c3, std::shared_ptr<BaseParamControl> c4,
+                                const juce::Colour& fg) {
     auto page = std::make_shared<ControlPage>();
     page->control_[0] = c1;
     page->control_[1] = c2;
@@ -61,7 +61,7 @@ void PageMiniView::addParamPage(std::shared_ptr<BaseParamControl> c1, std::share
 }
 
 
-void PageMiniView::setButtonBounds(unsigned bidx, juce::Component *p) {
+void PageMiniView::setButtonBounds(unsigned bidx, juce::Component* p) {
     if (p == nullptr) return;
 
     int offset = gap + (gap / 2);
@@ -75,8 +75,8 @@ void PageMiniView::setButtonBounds(unsigned bidx, juce::Component *p) {
 }
 
 
-void PageMiniView::setParamBounds(unsigned idx,  juce::Component* p) {
-    if(!p) return;
+void PageMiniView::setParamBounds(unsigned idx, juce::Component* p) {
+    if (!p) return;
 
     unsigned paramW = canvasW - (2 * gap);
     unsigned paramH = (canvasH - (5 * gap)) / nParamsPerPage;
@@ -90,21 +90,20 @@ void PageMiniView::setParamBounds(unsigned idx,  juce::Component* p) {
 }
 
 
-
 void PageMiniView::resized() {
     base_type::resized();
 
-    for (auto &paramPage : controlPages_    ) {
+    for (auto& paramPage : controlPages_) {
         int idx = 0;
-        for (auto &c : paramPage->control_) {
+        for (auto& c : paramPage->control_) {
             if (c) setParamBounds(idx, c.get());
             idx++;
         }
     }
 
-    for (auto &btnPage : buttonPages_) {
+    for (auto& btnPage : buttonPages_) {
         int bidx = 0;
-        for (auto &b : btnPage->control_) {
+        for (auto& b : btnPage->control_) {
             if (b) setButtonBounds(bidx, b.get());
             bidx++;
         }
@@ -112,9 +111,9 @@ void PageMiniView::resized() {
 }
 
 void PageMiniView::addButtonPage(std::shared_ptr<ParamButton> c1, std::shared_ptr<ParamButton> c2,
-                                   std::shared_ptr<ParamButton> c3, std::shared_ptr<ParamButton> c4,
-                                   std::shared_ptr<ParamButton> c5, std::shared_ptr<ParamButton> c6,
-                                   std::shared_ptr<ParamButton> c7, std::shared_ptr<ParamButton> c8) {
+                                 std::shared_ptr<ParamButton> c3, std::shared_ptr<ParamButton> c4,
+                                 std::shared_ptr<ParamButton> c5, std::shared_ptr<ParamButton> c6,
+                                 std::shared_ptr<ParamButton> c7, std::shared_ptr<ParamButton> c8) {
     auto page = std::make_shared<ButtonPage>();
     page->control_[0] = c1;
     page->control_[1] = c2;
@@ -151,7 +150,7 @@ void PageMiniView::addButtonPage(std::shared_ptr<ParamButton> c1, std::shared_pt
 }
 
 
-void PageMiniView::drawButtonBox(Graphics &g) {
+void PageMiniView::drawButtonBox(Graphics& g) {
     g.setColour(Colours::darkgrey);
     unsigned singleButtonH = buttonBarH / 2;
     g.drawHorizontalLine(SSP_COMPACT_HEIGHT - buttonBarH - 1, gap, SSP_COMPACT_WIDTH - gap);
@@ -173,7 +172,7 @@ void PageMiniView::chgParamPage(int inc, bool changeVis) {
     if (newPage >= controlPages_.size()) newPage = 0;
 
     if (newPage != paramPage_ && changeVis) {
-        auto &opage = controlPages_[paramPage_];
+        auto& opage = controlPages_[paramPage_];
         for (auto i = 0; i < nParamsPerPage; i++) {
             auto c = opage->control_[i];
             if (c) {
@@ -273,9 +272,9 @@ void PageMiniView::onButton(unsigned int bidx, bool v) {
     base_type::onButton(bidx, v);
 
     int page = buttonPages_.size() > 1 ? paramPage_ : 0;
-    auto &btnPage = buttonPages_[page];
+    auto& btnPage = buttonPages_[page];
     if (btnPage) {
-        auto &btn = btnPage->control_[bidx];
+        auto& btn = btnPage->control_[bidx];
         if (btn) {
             if (v)
                 btn->onDown();
@@ -291,12 +290,12 @@ void PageMiniView::eventButton(unsigned int bidx, bool longPress) {
     if (longPress) return;
 
     int page = buttonPages_.size() > 1 ? paramPage_ : 0;
-    auto &btnPage = buttonPages_[page];
+    auto& btnPage = buttonPages_[page];
     if (btnPage) {
-        auto &btn = btnPage->control_[bidx];
+        auto& btn = btnPage->control_[bidx];
         if (btn) btn->onClick();
     }
 }
 
 
-} // namespace ssp
+}  // namespace ssp

@@ -16,8 +16,8 @@ std::vector<Matrix::Wire> Track::connections() {
     return matrix_.connections_;
 }
 
-bool Track::requestModuleChange(unsigned midx, const std::string &mn) {
-    auto &m = modules_[midx];
+bool Track::requestModuleChange(unsigned midx, const std::string& mn) {
+    auto& m = modules_[midx];
 
     if (!m.lock_.test_and_set()) {
         clearModuleConnections(midx);
@@ -36,7 +36,7 @@ bool Track::requestClearTrack() {
     if (!lock_.test_and_set()) {
         for (int midx = 0; midx < M_MAX; midx++) {
             if (midx == M_IN || midx == M_OUT) continue;
-            auto &m = modules_[midx];
+            auto& m = modules_[midx];
             while (!m.lock_.test_and_set()) {};
             clearModuleConnections(midx);
             modules_[midx].free();
@@ -49,17 +49,17 @@ bool Track::requestClearTrack() {
 }
 
 
-bool Track::requestMatrixConnect(const Matrix::Jack &src, const Matrix::Jack &dest, float gain, float offset) {
+bool Track::requestMatrixConnect(const Matrix::Jack& src, const Matrix::Jack& dest, float gain, float offset) {
     if (!lock_.test_and_set()) {
         int srcCount = 0;
         int destCount = 0;
-        for (auto &w : matrix_.connections_) {
+        for (auto& w : matrix_.connections_) {
             if (w.src_ == src) srcCount++;
             if (w.dest_ == dest) destCount++;
         }
 
-        auto &srcMod = modules_[src.modIdx_];
-        auto &destMod = modules_[dest.modIdx_];
+        auto& srcMod = modules_[src.modIdx_];
+        auto& destMod = modules_[dest.modIdx_];
 
         if (srcMod.descriptor_ && src.chIdx_ < srcMod.descriptor_->outputChannelNames.size() && destMod.descriptor_ &&
             dest.chIdx_ < destMod.descriptor_->inputChannelNames.size()) {
@@ -76,17 +76,17 @@ bool Track::requestMatrixConnect(const Matrix::Jack &src, const Matrix::Jack &de
 }
 
 
-bool Track::requestMatrixDisconnect(const Matrix::Jack &src, const Matrix::Jack &dest) {
+bool Track::requestMatrixDisconnect(const Matrix::Jack& src, const Matrix::Jack& dest) {
     if (!lock_.test_and_set()) {
         int srcCount = 0;
         int destCount = 0;
-        for (auto &w : matrix_.connections_) {
+        for (auto& w : matrix_.connections_) {
             if (w.src_ == src) srcCount++;
             if (w.dest_ == dest) destCount++;
         }
 
-        auto &srcMod = modules_[src.modIdx_];
-        auto &destMod = modules_[dest.modIdx_];
+        auto& srcMod = modules_[src.modIdx_];
+        auto& destMod = modules_[dest.modIdx_];
         matrix_.disconnect(src, dest);
         if (srcCount == 1 && srcMod.plugin_) srcMod.plugin_->outputEnabled(src.chIdx_, false);
         if (destCount == 1 && destMod.plugin_) destMod.plugin_->inputEnabled(dest.chIdx_, false);
@@ -97,9 +97,9 @@ bool Track::requestMatrixDisconnect(const Matrix::Jack &src, const Matrix::Jack 
 }
 
 
-bool Track::requestMatrixAttenuate(const Matrix::Jack &src, const Matrix::Jack &dest, bool isOffset, float delta) {
+bool Track::requestMatrixAttenuate(const Matrix::Jack& src, const Matrix::Jack& dest, bool isOffset, float delta) {
     if (!lock_.test_and_set()) {
-        for (auto &w : matrix_.connections_) {
+        for (auto& w : matrix_.connections_) {
             if (w.src_ == src && w.dest_ == dest) {
                 if (isOffset) {
                     w.offset_ += delta;
@@ -121,24 +121,24 @@ void Track::prepare(int sampleRate, int blockSize) {
     blockSize_ = blockSize;
     sampleRate_ = sampleRate;
 
-    for (auto &m : modules_) { m.prepare(sampleRate_, blockSize_); }
+    for (auto& m : modules_) { m.prepare(sampleRate_, blockSize_); }
 }
 
-void Track::process(juce::AudioSampleBuffer &ioBuffer) {
+void Track::process(juce::AudioSampleBuffer& ioBuffer) {
     if (!lock_.test_and_set()) {
         size_t n = blockSize_;
-        auto &inMod = modules_[M_IN];
+        auto& inMod = modules_[M_IN];
         for (int c = 0; c < MAX_IO_IN; c++) { inMod.audioBuffer_.copyFrom(c, 0, ioBuffer, c, 0, n); }
-        auto &outMod = modules_[M_OUT];
+        auto& outMod = modules_[M_OUT];
         outMod.audioBuffer_.clear();
 
         unsigned modIdx = 0;
-        for (auto &m : modules_) {
-            auto &moduleBuf = m.audioBuffer_;
+        for (auto& m : modules_) {
+            auto& moduleBuf = m.audioBuffer_;
             if (modIdx > 0) moduleBuf.clear();
-            for (auto &route : matrix_.connections_) {
+            for (auto& route : matrix_.connections_) {
                 if (route.dest_.modIdx_ == modIdx) {
-                    auto &srcBuf = modules_[route.src_.modIdx_].audioBuffer_;
+                    auto& srcBuf = modules_[route.src_.modIdx_].audioBuffer_;
                     float gain = route.gain_;
                     float offset = route.offset_;
                     moduleBuf.addFrom(route.dest_.chIdx_, 0, srcBuf, route.src_.chIdx_, 0, n, gain);
@@ -168,7 +168,7 @@ void Track::process(juce::AudioSampleBuffer &ioBuffer) {
 
 // form juce_AudioProcessor.cpp
 const juce::uint32 magicXmlNumber = 0x21324356;
-void copyXmlToBinary(const juce::XmlElement &xml, juce::MemoryBlock &destData) {
+void copyXmlToBinary(const juce::XmlElement& xml, juce::MemoryBlock& destData) {
     {
         juce::MemoryOutputStream out(destData, false);
         out.writeInt(magicXmlNumber);
@@ -178,37 +178,37 @@ void copyXmlToBinary(const juce::XmlElement &xml, juce::MemoryBlock &destData) {
     }
 
     // go back and write the string length..
-    static_cast<juce::uint32 *>(destData.getData())[1] =
+    static_cast<juce::uint32*>(destData.getData())[1] =
         juce::ByteOrder::swapIfBigEndian((juce::uint32)destData.getSize() - 9);
 }
 
-std::unique_ptr<juce::XmlElement> getXmlFromBinary(const void *data, const int sizeInBytes) {
+std::unique_ptr<juce::XmlElement> getXmlFromBinary(const void* data, const int sizeInBytes) {
     if (sizeInBytes > 8 && juce::ByteOrder::littleEndianInt(data) == magicXmlNumber) {
         auto stringLength = (int)juce::ByteOrder::littleEndianInt(juce::addBytesToPointer(data, 4));
 
         if (stringLength > 0)
-            return parseXML(juce::String::fromUTF8(static_cast<const char *>(data) + 8,
+            return parseXML(juce::String::fromUTF8(static_cast<const char*>(data) + 8,
                                                    juce::jmin((sizeInBytes - 8), stringLength)));
     }
     return {};
 }
 
 
-void Track::getStateInformation(juce::XmlElement &outStream) {
+void Track::getStateInformation(juce::XmlElement& outStream) {
     outStream.setAttribute("mute", mute_);
     outStream.setAttribute("level", level_);
 
     std::unique_ptr<juce::XmlElement> xmlModules = std::make_unique<juce::XmlElement>("Modules");
 
-    for (auto &m : modules_) {
+    for (auto& m : modules_) {
         std::unique_ptr<juce::XmlElement> xmlModule = std::make_unique<juce::XmlElement>("Module");
 
-        auto &plugin = m.plugin_;
+        auto& plugin = m.plugin_;
         if (!plugin) {
             xmlModule->setAttribute("pluginName", "");
             xmlModule->setAttribute("dataSz", (int)0);
         } else {
-            void *data;
+            void* data;
             size_t dataSz;
             plugin->getState(&data, &dataSz);
             xmlModule->setAttribute("pluginName", m.pluginName_.c_str());
@@ -233,7 +233,7 @@ void Track::getStateInformation(juce::XmlElement &outStream) {
     outStream.addChildElement(xmlMatrix.release());
 }
 
-void Track::setStateInformation(juce::XmlElement &inStream) {
+void Track::setStateInformation(juce::XmlElement& inStream) {
     mute_ = inStream.getBoolAttribute("mute", false);
     level_ = inStream.getDoubleAttribute("level", 1.0f);
 
@@ -247,7 +247,7 @@ void Track::setStateInformation(juce::XmlElement &inStream) {
             if (!pluginName.isEmpty() && size > 0) {
                 while (!requestModuleChange(midx, pluginName.toStdString())) {}
 
-                auto &plugin = modules_[midx].plugin_;
+                auto& plugin = modules_[midx].plugin_;
                 if (plugin) {
                     auto xmlPlugData = xmlModule->getChildByName("data");
                     if (xmlPlugData) {
@@ -274,7 +274,7 @@ void Track::setStateInformation(juce::XmlElement &inStream) {
         // we need to use requestMatrixConnect, as this will update the plugin connections
         auto wires = matrix_.connections_;
         matrix_.connections_.clear();
-        for (auto &w : wires) { while (!requestMatrixConnect(w.src_, w.dest_, w.gain_, w.offset_)); }
+        for (auto& w : wires) { while (!requestMatrixConnect(w.src_, w.dest_, w.gain_, w.offset_)); }
 
     } else {
         ssp::log("setStateInformation : no Matrix tag");
@@ -293,14 +293,14 @@ void Track::free() {
 }
 
 void Track::resetModuleConnections(int midx) {
-    auto &m = modules_[midx];
+    auto& m = modules_[midx];
     if (m.descriptor_ && m.plugin_) {
         int inSz = m.descriptor_->inputChannelNames.size();
         for (int c = 0; c < inSz; c++) { m.plugin_->inputEnabled(c, false); }
         int outSz = m.descriptor_->outputChannelNames.size();
         for (int c = 0; c < outSz; c++) { m.plugin_->outputEnabled(c, false); }
 
-        for (auto &w : matrix_.connections_) {
+        for (auto& w : matrix_.connections_) {
             if (w.dest_.modIdx_ == midx && w.dest_.chIdx_ < inSz) m.plugin_->inputEnabled(w.dest_.chIdx_, true);
             if (w.src_.modIdx_ == midx && w.src_.chIdx_ < outSz) m.plugin_->outputEnabled(w.src_.chIdx_, true);
         }
@@ -309,9 +309,9 @@ void Track::resetModuleConnections(int midx) {
 
 
 void Track::clearModuleConnections(int midx) {
-    auto &wires = matrix_.connections_;
+    auto& wires = matrix_.connections_;
     wires.erase(
         std::remove_if(wires.begin(), wires.end(),
-                       [&](const Matrix::Wire &w) { return w.src_.modIdx_ == midx || w.dest_.modIdx_ == midx; }),
+                       [&](const Matrix::Wire& w) { return w.src_.modIdx_ == midx || w.dest_.modIdx_ == midx; }),
         wires.end());
 }

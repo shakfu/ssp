@@ -9,7 +9,7 @@ namespace ssp {
 
 class FileSelector : public juce::Component {
 public:
-    explicit FileSelector(const juce::String &defDir);
+    explicit FileSelector(const juce::String& defDir);
     ~FileSelector();
 
     void nextEntry();
@@ -18,13 +18,13 @@ public:
 
     juce::String selectedFile();
     juce::String baseDir() { return baseDir_; }
-    void setFile(const juce::String &fullname);
+    void setFile(const juce::String& fullname);
 
 private:
-    void paint(juce::Graphics &g) override;
+    void paint(juce::Graphics& g) override;
     // void resized() override;
     void visibilityChanged() override;
-    void drawEntry(juce::Graphics &g, unsigned idx, bool selected, const juce::String &name, bool isDir);
+    void drawEntry(juce::Graphics& g, unsigned idx, bool selected, const juce::String& name, bool isDir);
     void scanDir();
 
     std::map<std::string, juce::File> fileList_;

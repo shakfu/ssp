@@ -9,11 +9,8 @@ public:
 
     ~Quantizer() { ; }
 
-    void quantize(unsigned root_, unsigned scale_, int &oct, unsigned &semi);
+    void quantize(unsigned root_, unsigned scale_, int& oct, unsigned& semi);
 
-    const char *getScaleName(unsigned i);
-    const char *getTonicName(unsigned i);
+    const char* getScaleName(unsigned i);
+    const char* getTonicName(unsigned i);
 };
-
-
-

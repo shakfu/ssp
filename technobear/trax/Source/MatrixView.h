@@ -7,10 +7,10 @@
 
 class MatrixView : public ssp::MiniBasicView {
 public:
-    MatrixView(PluginProcessor &p);
+    MatrixView(PluginProcessor& p);
     ~MatrixView() override;
 
-    void drawView(Graphics &g) override;
+    void drawView(Graphics& g) override;
     void resized() override;
 
     void onEncoder(unsigned enc, float v) override;
@@ -67,5 +67,5 @@ private:
     ModuleComponent moduleA_;
     ModuleComponent moduleB_;
 
-    PluginProcessor &processor_;
+    PluginProcessor& processor_;
 };

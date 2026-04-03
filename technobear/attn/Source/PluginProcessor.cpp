@@ -1,4 +1,5 @@
 #include "PluginProcessor.h"
+
 #include "PluginEditor.h"
 #include "PluginMiniEditor.h"
 #include "ssp/EditorHost.h"
@@ -7,17 +8,14 @@ inline float constrain(float v, float vMin, float vMax) {
     return std::max<float>(vMin, std::min<float>(vMax, v));
 }
 
-PluginProcessor::PluginProcessor()
-    : PluginProcessor(getBusesProperties(), createParameterLayout()) {}
+PluginProcessor::PluginProcessor() : PluginProcessor(getBusesProperties(), createParameterLayout()) {
+}
 
-PluginProcessor::PluginProcessor(
-    const AudioProcessor::BusesProperties &ioLayouts,
-    AudioProcessorValueTreeState::ParameterLayout layout)
+PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
+                                 AudioProcessorValueTreeState::ParameterLayout layout)
     : BaseProcessor(ioLayouts, std::move(layout)), params_(vts()) {
     init();
-    for (int i = 0; i < MAX_SIG_OUT; i++) {
-        lastParam_[i] = params_.attnparams_[i]->val.getValue();
-    }
+    for (int i = 0; i < MAX_SIG_OUT; i++) { lastParam_[i] = params_.attnparams_[i]->val.getValue(); }
 }
 
 PluginProcessor::~PluginProcessor() {
@@ -29,17 +27,13 @@ String getPID(StringRef pre, unsigned sn, StringRef id) {
 }
 
 
-PluginProcessor::AttnParam::AttnParam(AudioProcessorValueTreeState &apvt, StringRef pre, unsigned sn) :
-    val(*apvt.getParameter(getPID(pre, sn, ID::val))) {
-
+PluginProcessor::AttnParam::AttnParam(AudioProcessorValueTreeState& apvt, StringRef pre, unsigned sn)
+    : val(*apvt.getParameter(getPID(pre, sn, ID::val))) {
 }
 
 
-PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState &apvt) :
-    slew(*apvt.getParameter(ID::slew)) {
-    for (unsigned i = 0; i < MAX_SIG_IN; i++) {
-        attnparams_.push_back(std::make_unique<AttnParam>(apvt, ID::attn, i));
-    }
+PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState& apvt) : slew(*apvt.getParameter(ID::slew)) {
+    for (unsigned i = 0; i < MAX_SIG_IN; i++) { attnparams_.push_back(std::make_unique<AttnParam>(apvt, ID::attn, i)); }
 }
 
 
@@ -64,62 +58,28 @@ AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLa
 
 
 const String PluginProcessor::getInputBusName(int channelIndex) {
-    static String inBusName[I_MAX] = {
-        "In A",
-        "In B",
-        "In C",
-        "In D",
-        "In E",
-        "In F",
-        "In G",
-        "In H",
-        "In I",
-        "In J",
-        "In K",
-        "In L",
-        "In M",
-        "In N",
-        "In O",
-        "In P"
-    };
+    static String inBusName[I_MAX] = { "In A", "In B", "In C", "In D", "In E", "In F", "In G", "In H",
+                                       "In I", "In J", "In K", "In L", "In M", "In N", "In O", "In P" };
     if (channelIndex < I_MAX) { return inBusName[channelIndex]; }
     return "ZZIn-" + String(channelIndex);
 }
 
 
 const String PluginProcessor::getOutputBusName(int channelIndex) {
-    static String outBusName[O_MAX] = {
-        "Out A",
-        "Out B",
-        "Out C",
-        "Out D",
-        "Out E",
-        "Out F",
-        "Out G",
-        "Out H",
-        "Out I",
-        "Out J",
-        "Out K",
-        "Out L",
-        "Out M",
-        "Out N",
-        "Out O",
-        "Out P"
-    };
+    static String outBusName[O_MAX] = { "Out A", "Out B", "Out C", "Out D", "Out E", "Out F", "Out G", "Out H",
+                                        "Out I", "Out J", "Out K", "Out L", "Out M", "Out N", "Out O", "Out P" };
     if (channelIndex < O_MAX) { return outBusName[channelIndex]; }
     return "ZZOut-" + String(channelIndex);
 }
 
 void PluginProcessor::prepareToPlay(double newSampleRate, int estimatedSamplesPerBlock) {
-    BaseProcessor::prepareToPlay(newSampleRate,estimatedSamplesPerBlock);
-    for (int i = 0; i < MAX_SIG_OUT; i++) {
-        lastParam_[i] = params_.attnparams_[i]->val.getValue();
-    }
+    BaseProcessor::prepareToPlay(newSampleRate, estimatedSamplesPerBlock);
+    for (int i = 0; i < MAX_SIG_OUT; i++) { lastParam_[i] = params_.attnparams_[i]->val.getValue(); }
 }
 
 #define convertParamVal(pv) pv.convertFrom0to1(pv.getValue())
 
-void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages) {
     BaseProcessor::processBlock(buffer, midiMessages);
     unsigned sz = buffer.getNumSamples();
 
@@ -132,8 +92,8 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
         float attnP = convertParamVal(params_.attnparams_[i]->val);
 
         for (int smp = 0; smp < sz; smp++) {
-            auto &lP = lastParam_[i];
-            float sigv = in ? buffer.getSample(I_SIG_A + i, smp) : 1.0f; // normalise to 1
+            auto& lP = lastParam_[i];
+            float sigv = in ? buffer.getSample(I_SIG_A + i, smp) : 1.0f;  // normalise to 1
             float attn = attnP;
             if (slew) {
                 static constexpr float slewRate = (1.0f / 128.0f);
@@ -146,9 +106,9 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
 }
 
 
-AudioProcessorEditor *PluginProcessor::createEditor() {
+AudioProcessorEditor* PluginProcessor::createEditor() {
 #ifdef FORCE_COMPACT_UI
-    return new ssp::EditorHost(this, new PluginMiniEditor(*this),true);
+    return new ssp::EditorHost(this, new PluginMiniEditor(*this), true);
 #else
     if (useCompactUI()) {
         return new ssp::EditorHost(this, new PluginMiniEditor(*this), useCompactUI());
@@ -159,7 +119,6 @@ AudioProcessorEditor *PluginProcessor::createEditor() {
 #endif
 }
 
-AudioProcessor *JUCE_CALLTYPE createPluginFilter() {
+AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new PluginProcessor();
 }
-

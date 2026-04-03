@@ -5,9 +5,9 @@ namespace ssp {
 
 class TextKey : public juce::Component {
 public:
-    TextKey(const std::string &k, unsigned fh = 27 * COMPACT_UI_SCALE) : TextKey(k, k, fh) {}
+    TextKey(const std::string& k, unsigned fh = 27 * COMPACT_UI_SCALE) : TextKey(k, k, fh) {}
 
-    TextKey(const std::string &k, const std::string &kv, unsigned fh) : k_(k), fh_(fh), kv_(kv) {}
+    TextKey(const std::string& k, const std::string& kv, unsigned fh) : k_(k), fh_(fh), kv_(kv) {}
 
     bool active() { return active_; }
 
@@ -17,7 +17,7 @@ public:
 
     void selected(bool a) { selected_ = a; }
 
-    void paint(juce::Graphics &g) {
+    void paint(juce::Graphics& g) {
         unsigned gap = 2 * COMPACT_UI_SCALE;
         g.setColour(active_ ? fg_ : bg_);
         g.fillRect(0, 0, getWidth(), getHeight());
@@ -76,7 +76,7 @@ void TextControl::resized() {
     unsigned y = 75 * COMPACT_UI_SCALE;
 
     int i = 0;
-    for (auto &key : keys_) {
+    for (auto& key : keys_) {
         float r = i / nCols_;
         float c = i % nCols_;
         key->setBounds((c * (w + COMPACT_UI_SCALE)) + x, (r * (h + COMPACT_UI_SCALE)) + y, w, h);
@@ -89,13 +89,13 @@ std::string TextControl::getText() {
     return text_;
 }
 
-void TextControl::setText(const std::string &txt) {
+void TextControl::setText(const std::string& txt) {
     text_ = txt;
     cursor_ = text_.length();
     repaint();
 }
 
-void TextControl::paint(juce::Graphics &g) {
+void TextControl::paint(juce::Graphics& g) {
     int gap = 5 * COMPACT_UI_SCALE;
     int x = gap;
     int y = gap;
@@ -105,7 +105,7 @@ void TextControl::paint(juce::Graphics &g) {
     int smallSp = 2 * COMPACT_UI_SCALE;
 
 
-    juce::Font font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(),fh, juce::Font::plain));
+    juce::Font font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), fh, juce::Font::plain));
     g.setColour(bg_);
     g.fillRect(x, y, w, h);
     g.setColour(fg_);
@@ -122,7 +122,7 @@ void TextControl::paint(juce::Graphics &g) {
     } else {
         g.setColour(bg_);
     }
-    int fpos = juce::GlyphArrangement::getStringWidth(font,text_);
+    int fpos = juce::GlyphArrangement::getStringWidth(font, text_);
     g.fillRect(x + smallSp + fpos + smallSp, y + smallSp * 4, smallSp * 2, fh - smallSp);
 }
 

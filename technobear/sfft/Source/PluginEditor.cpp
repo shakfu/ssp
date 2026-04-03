@@ -1,29 +1,26 @@
-#include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-#include "ssp/controls/ParamControl.h"
+#include "PluginProcessor.h"
 #include "ssp/controls/ParamButton.h"
+#include "ssp/controls/ParamControl.h"
 
 using pcontrol_type = ssp::BarParamControl;
 using bcontrol_type = ssp::ParamButton;
 
-PluginEditor::PluginEditor(PluginProcessor &p, unsigned maxviews)
-    : base_type(&p, maxviews),
-      processor_(p),
-      clrs_{Colours::green, Colours::blue, Colours::red, Colours::yellow} {
+PluginEditor::PluginEditor(PluginProcessor& p, unsigned maxviews)
+    : base_type(&p, maxviews), processor_(p), clrs_{ Colours::green, Colours::blue, Colours::red, Colours::yellow } {
     unsigned nParams = processor_.getNumRnboParameters();
 
     unsigned paramS = 0;
     for (unsigned view = 0; view < maxviews; view++) {
         for (unsigned row = 0; (row < 4) && (paramS < nParams); row++) {
-
             std::shared_ptr<ssp::BaseParamControl> p[4];
             for (unsigned i = 0; i < 4; i++) {
                 float inc = 1.0f;
                 float finc = 0.01f;
 
                 if (paramS < nParams) {
-                    const auto &param = processor_.params_.rnboParams_[paramS];
+                    const auto& param = processor_.params_.rnboParams_[paramS];
                     if (param->info_.enumValues != nullptr) {
                         finc = inc;
                     } else if (param->info_.steps > 2) {
@@ -44,7 +41,7 @@ PluginEditor::PluginEditor(PluginProcessor &p, unsigned maxviews)
 }
 
 
-void PluginEditor::drawView(Graphics &g) {
+void PluginEditor::drawView(Graphics& g) {
     base_type::drawView(g);
 }
 

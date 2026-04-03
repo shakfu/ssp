@@ -4,7 +4,7 @@
 #include "PerformanceEdit.h"
 #include "PerformanceView.h"
 
-PerformanceEditor::PerformanceEditor(PluginProcessor &p) : base_type(&p, true), processor_(p) {
+PerformanceEditor::PerformanceEditor(PluginProcessor& p) : base_type(&p, true), processor_(p) {
     perfView_ = std::make_shared<PerformanceView>(p);
     perfViewIdx_ = addView(perfView_);
     editView_ = std::make_shared<PerformanceEdit>(p);

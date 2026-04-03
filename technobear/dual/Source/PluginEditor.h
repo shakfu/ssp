@@ -12,7 +12,7 @@ using namespace juce;
 
 class PluginEditor : public ssp::MultiView<ssp::BaseView> {
 public:
-    explicit PluginEditor(PluginProcessor &);
+    explicit PluginEditor(PluginProcessor&);
     ~PluginEditor() override = default;
 
 protected:
@@ -29,7 +29,7 @@ protected:
     void eventButton(unsigned btn, bool longPress) override;
 
 private:
-    PluginProcessor &processor_;
+    PluginProcessor& processor_;
 
     std::shared_ptr<DualView> dualView_;
     int dualViewIdx_ = -1;

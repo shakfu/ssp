@@ -1,36 +1,33 @@
 #include "PluginProcessor.h"
+
 #include "PluginEditor.h"
 #include "PluginMiniEditor.h"
 #include "ssp/EditorHost.h"
-
 #include "ssp/Log.h"
 
-PluginProcessor::PluginProcessor()
-    : PluginProcessor(getBusesProperties(), createParameterLayout()) {}
-
-PluginProcessor::PluginProcessor(
-    const AudioProcessor::BusesProperties &ioLayouts,
-    AudioProcessorValueTreeState::ParameterLayout layout)
-    : BaseProcessor(ioLayouts, std::move(layout)), params_(vts()) {
-    init();
-    for (int i = 0; i < O_MAX; i++) {
-        lastCV_[i] = nextCV_[i] = 0.0f;
-    }
+PluginProcessor::PluginProcessor() : PluginProcessor(getBusesProperties(), createParameterLayout()) {
 }
 
-PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState &apvt) :
-    cv_a(*apvt.getParameter(ID::cv_a)),
-    cv_b(*apvt.getParameter(ID::cv_b)),
-    cv_c(*apvt.getParameter(ID::cv_c)),
-    cv_d(*apvt.getParameter(ID::cv_d)),
-    cv_e(*apvt.getParameter(ID::cv_e)),
-    cv_f(*apvt.getParameter(ID::cv_f)),
-    cv_g(*apvt.getParameter(ID::cv_g)),
-    cv_h(*apvt.getParameter(ID::cv_h)),
-    slew(*apvt.getParameter(ID::slew)),
-    pb_range(*apvt.getParameter(ID::pb_range)),
-    clock(*apvt.getParameter(ID::clock)),
-    transport(*apvt.getParameter(ID::transport)) {
+PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
+                                 AudioProcessorValueTreeState::ParameterLayout layout)
+    : BaseProcessor(ioLayouts, std::move(layout)), params_(vts()) {
+    init();
+    for (int i = 0; i < O_MAX; i++) { lastCV_[i] = nextCV_[i] = 0.0f; }
+}
+
+PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState& apvt)
+    : cv_a(*apvt.getParameter(ID::cv_a)),
+      cv_b(*apvt.getParameter(ID::cv_b)),
+      cv_c(*apvt.getParameter(ID::cv_c)),
+      cv_d(*apvt.getParameter(ID::cv_d)),
+      cv_e(*apvt.getParameter(ID::cv_e)),
+      cv_f(*apvt.getParameter(ID::cv_f)),
+      cv_g(*apvt.getParameter(ID::cv_g)),
+      cv_h(*apvt.getParameter(ID::cv_h)),
+      slew(*apvt.getParameter(ID::slew)),
+      pb_range(*apvt.getParameter(ID::pb_range)),
+      clock(*apvt.getParameter(ID::clock)),
+      transport(*apvt.getParameter(ID::transport)) {
 }
 
 
@@ -62,63 +59,48 @@ const String PluginProcessor::getInputBusName(int channelIndex) {
 
 const String PluginProcessor::getOutputBusName(int channelIndex) {
     switch (channelIndex) {
-        case O_CV_A:
-            return "CV A";
-        case O_CV_B:
-            return "CV B";
-        case O_CV_C:
-            return "CV C";
-        case O_CV_D:
-            return "CV D";
-        case O_CV_E:
-            return "CV E";
-        case O_CV_F:
-            return "CV F";
-        case O_CV_G:
-            return "CV G";
-        case O_CV_H:
-            return "CV H";
-        case O_VOCT:
-            return "VOct";
-        case O_GATE:
-            return "Gate";
-        case O_VEL:
-            return "Vel";
-        case O_CLOCK: 
-            return "Clock";
-        case O_START: 
-            return "Start";
-        case O_CONTINUE: 
-            return "Continue";
-        case O_STOP: 
-            return "Stop";
+        case O_CV_A: return "CV A";
+        case O_CV_B: return "CV B";
+        case O_CV_C: return "CV C";
+        case O_CV_D: return "CV D";
+        case O_CV_E: return "CV E";
+        case O_CV_F: return "CV F";
+        case O_CV_G: return "CV G";
+        case O_CV_H: return "CV H";
+        case O_VOCT: return "VOct";
+        case O_GATE: return "Gate";
+        case O_VEL: return "Vel";
+        case O_CLOCK: return "Clock";
+        case O_START: return "Start";
+        case O_CONTINUE: return "Continue";
+        case O_STOP: return "Stop";
         default:;
     }
     return "ZZOut-" + String(channelIndex);
 }
 
-void  PluginProcessor::prepareToPlay(double newSampleRate, int estimatedSamplesPerBlock) {
-    BaseProcessor::prepareToPlay(newSampleRate,estimatedSamplesPerBlock);
-    sampleRate_=newSampleRate;
+void PluginProcessor::prepareToPlay(double newSampleRate, int estimatedSamplesPerBlock) {
+    BaseProcessor::prepareToPlay(newSampleRate, estimatedSamplesPerBlock);
+    sampleRate_ = newSampleRate;
 }
 
 
-void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages) {
     BaseProcessor::processBlock(buffer, midiMessages);
     unsigned sz = buffer.getNumSamples();
 
     bool clock = params_.clock.getValue() > 0.5f;
     bool transport = params_.transport.getValue() > 0.5f;
 
-    if(clock != midiClockInput()) midiClockInput(clock);
-    if(transport != midiTransportInput()) midiTransportInput(transport);
+    if (clock != midiClockInput()) midiClockInput(clock);
+    if (transport != midiTransportInput()) midiTransportInput(transport);
 
     static constexpr unsigned max_cc = O_CV_H - O_CV_A;
     for (int i = 0; i < O_CLOCK; i++) {
         if (!isOutputEnabled(O_CV_A + i)) continue;
 
-        auto &lv = lastCV_[i];
-        auto &nv = nextCV_[i];
+        auto& lv = lastCV_[i];
+        auto& nv = nextCV_[i];
         // optionally, slew cc when they change
         bool slew = i < max_cc && lv != nv && params_.slew.getValue() > 0.5f;
         if (slew) {
@@ -130,7 +112,7 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
         lv = nv;
     }
 
-    if(isOutputEnabled(O_CLOCK) && clock) {
+    if (isOutputEnabled(O_CLOCK) && clock) {
         for (int smp = 0; smp < sz; smp++) {
             clockPhase_ += clockPhaseInc_;
             if (clockPhase_ >= 1.0) {
@@ -141,15 +123,15 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
             }
         }
     } else {
-        buffer.clear(O_CLOCK,0,sz);
+        buffer.clear(O_CLOCK, 0, sz);
     }
 
-    buffer.clear(O_START,0,sz);
-    buffer.setSample(O_START, 0,isOutputEnabled(O_START) && transport && startTrig_ ? 1.0f : 0.0f);
-    buffer.clear(O_CONTINUE,0,sz);
-    buffer.setSample(O_CONTINUE,0, isOutputEnabled(O_CONTINUE) && transport && continueTrig_ ? 1.0f : 0.0f);
-    buffer.clear(O_STOP,0,sz);
-    buffer.setSample(O_STOP, 0,isOutputEnabled(O_STOP) &&transport && stopTrig_ ? 1.0f : 0.0f);
+    buffer.clear(O_START, 0, sz);
+    buffer.setSample(O_START, 0, isOutputEnabled(O_START) && transport && startTrig_ ? 1.0f : 0.0f);
+    buffer.clear(O_CONTINUE, 0, sz);
+    buffer.setSample(O_CONTINUE, 0, isOutputEnabled(O_CONTINUE) && transport && continueTrig_ ? 1.0f : 0.0f);
+    buffer.clear(O_STOP, 0, sz);
+    buffer.setSample(O_STOP, 0, isOutputEnabled(O_STOP) && transport && stopTrig_ ? 1.0f : 0.0f);
 
     startTrig_ = false;
     continueTrig_ = false;
@@ -158,7 +140,7 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
 
 #define GET_P_VAL(x) x.convertFrom0to1(x.getValue())
 
-void PluginProcessor::handleIncomingMidiMessage(MidiInput *source, const MidiMessage &msg) {
+void PluginProcessor::handleIncomingMidiMessage(MidiInput* source, const MidiMessage& msg) {
     BaseProcessor::handleIncomingMidiMessage(source, msg);
     if (midiChannel() == 0 || msg.getChannel() == midiChannel()) {
         if (msg.isNoteOn()) {
@@ -240,9 +222,9 @@ void PluginProcessor::onMidiClock(double ts) {
     }
 }
 
-AudioProcessorEditor *PluginProcessor::createEditor() {
+AudioProcessorEditor* PluginProcessor::createEditor() {
 #ifdef FORCE_COMPACT_UI
-    return new ssp::EditorHost(this, new PluginMiniEditor(*this),true);
+    return new ssp::EditorHost(this, new PluginMiniEditor(*this), true);
 #else
     if (useCompactUI()) {
         return new ssp::EditorHost(this, new PluginMiniEditor(*this), useCompactUI());
@@ -254,8 +236,6 @@ AudioProcessorEditor *PluginProcessor::createEditor() {
 }
 
 
-AudioProcessor *JUCE_CALLTYPE createPluginFilter() {
+AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new PluginProcessor();
 }
-
-

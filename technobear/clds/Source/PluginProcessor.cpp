@@ -1,5 +1,6 @@
 
 #include "PluginProcessor.h"
+
 #include "PluginEditor.h"
 #include "PluginMiniEditor.h"
 #include "ssp/EditorHost.h"
@@ -8,23 +9,26 @@ inline float constrainFloat(float v, float vMin, float vMax) {
     return std::max<float>(vMin, std::min<float>(vMax, v));
 }
 
-inline float TO_SHORTFRAME(float v) { return constrainFloat(v * 32767.0f, -32768.0f, 32767.0f); }
+inline float TO_SHORTFRAME(float v) {
+    return constrainFloat(v * 32767.0f, -32768.0f, 32767.0f);
+}
 
-inline float FROM_SHORTFRAME(short v) { return (float(v) / 32768.0f); }
+inline float FROM_SHORTFRAME(short v) {
+    return (float(v) / 32768.0f);
+}
 
-PluginProcessor::PluginProcessor()
-    : PluginProcessor(getBusesProperties(), createParameterLayout()) {}
+PluginProcessor::PluginProcessor() : PluginProcessor(getBusesProperties(), createParameterLayout()) {
+}
 
-PluginProcessor::PluginProcessor(
-    const AudioProcessor::BusesProperties &ioLayouts,
-    AudioProcessorValueTreeState::ParameterLayout layout)
+PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
+                                 AudioProcessorValueTreeState::ParameterLayout layout)
     : BaseProcessor(ioLayouts, std::move(layout)), params_(vts()) {
     init();
     granularProcessor_ = nullptr;
     ibuf_ = obuf_ = nullptr;
     block_mem_ = block_ccm_ = nullptr;
-    for(int i=0;i<I_MAX;i++) inActivity_[i]=0;
-    for(int i=0;i<O_MAX;i++) outActivity_[i]=0;
+    for (int i = 0; i < I_MAX; i++) inActivity_[i] = 0;
+    for (int i = 0; i < O_MAX; i++) outActivity_[i] = 0;
 }
 
 PluginProcessor::~PluginProcessor() {
@@ -35,21 +39,21 @@ PluginProcessor::~PluginProcessor() {
     if (granularProcessor_) delete granularProcessor_;
 }
 
-PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState &apvt) :
-    position(*apvt.getParameter(ID::position)),
-    size(*apvt.getParameter(ID::size)),
-    density(*apvt.getParameter(ID::density)),
-    texture(*apvt.getParameter(ID::texture)),
+PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState& apvt)
+    : position(*apvt.getParameter(ID::position)),
+      size(*apvt.getParameter(ID::size)),
+      density(*apvt.getParameter(ID::density)),
+      texture(*apvt.getParameter(ID::texture)),
 
-    mix(*apvt.getParameter(ID::mix)),
-    spread(*apvt.getParameter(ID::spread)),
-    feedback(*apvt.getParameter(ID::feedback)),
-    reverb(*apvt.getParameter(ID::reverb)),
+      mix(*apvt.getParameter(ID::mix)),
+      spread(*apvt.getParameter(ID::spread)),
+      feedback(*apvt.getParameter(ID::feedback)),
+      reverb(*apvt.getParameter(ID::reverb)),
 
-    pitch(*apvt.getParameter(ID::pitch)),
-    mode(*apvt.getParameter(ID::mode)),
-    in_gain(*apvt.getParameter(ID::in_gain)),
-    freeze(*apvt.getParameter(ID::freeze)) {
+      pitch(*apvt.getParameter(ID::pitch)),
+      mode(*apvt.getParameter(ID::mode)),
+      in_gain(*apvt.getParameter(ID::in_gain)),
+      freeze(*apvt.getParameter(ID::freeze)) {
 }
 
 
@@ -81,48 +85,30 @@ AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLa
 
 
 const String PluginProcessor::getInputBusName(int channelIndex) {
-    static String inBusName[I_MAX] = {
-        "In L",
-        "In R",
-        "Trig",
-        "VOct",
-        "Pos",
-        "Size",
-        "Density",
-        "Texture",
-        "Freeze",
-        "Mix",
-        "Spread",
-        "Feedback",
-        "Reverb"
-    };
+    static String inBusName[I_MAX] = { "In L",    "In R",   "Trig", "VOct",   "Pos",      "Size",  "Density",
+                                       "Texture", "Freeze", "Mix",  "Spread", "Feedback", "Reverb" };
     if (channelIndex < I_MAX) { return inBusName[channelIndex]; }
     return "ZZIn-" + String(channelIndex);
 }
 
 
 const String PluginProcessor::getOutputBusName(int channelIndex) {
-    static String outBusName[O_MAX] = {
-        "Out L",
-        "Out R"
-    };
+    static String outBusName[O_MAX] = { "Out L", "Out R" };
     if (channelIndex < O_MAX) { return outBusName[channelIndex]; }
     return "ZZOut-" + String(channelIndex);
 }
 
 
-void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages) {
     BaseProcessor::processBlock(buffer, midiMessages);
 
-    if(activityCount_==0) {
-        for(int i=0;i<I_MAX;i++) {
-            inActivity_[i]=buffer.getSample(i,0);
-        }
+    if (activityCount_ == 0) {
+        for (int i = 0; i < I_MAX; i++) { inActivity_[i] = buffer.getSample(i, 0); }
     }
 
     if (granularProcessor_ == nullptr) {
         granularProcessor_ = new clouds::GranularProcessor;
-        auto &processor = *granularProcessor_;
+        auto& processor = *granularProcessor_;
 
         ibuf_ = new clouds::ShortFrame[IO_BUF_SZ];
         obuf_ = new clouds::ShortFrame[IO_BUF_SZ];
@@ -131,13 +117,11 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
         memset(block_mem_, 0, sizeof(uint8_t) * BLOCK_MEM_SZ * 2);
         memset(block_ccm_, 0, sizeof(uint8_t) * BLOCK_CCM_SZ * 2);
         memset(processor.mutable_parameters(), 0, sizeof(clouds::Parameters));
-        processor.Init(
-            block_mem_, BLOCK_MEM_SZ,
-            block_ccm_, BLOCK_CCM_SZ);
+        processor.Init(block_mem_, BLOCK_MEM_SZ, block_ccm_, BLOCK_CCM_SZ);
     }
 
 
-    auto &processor = *granularProcessor_;
+    auto& processor = *granularProcessor_;
 
     auto n = CloudsBlock;
 
@@ -153,24 +137,20 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
     float p_in_gain = params_.in_gain.getValue();
 
     for (int bidx = 0; bidx < buffer.getNumSamples(); bidx += n) {
-
         bool trig = false;
         float gain = (p_in_gain * 4.0f);
         float in_gain = constrainFloat(1.0f + (gain * gain), 1.0f, 17.0f);
 
         for (int i = 0; i < n; i++) {
-
             ibuf_[i].l = TO_SHORTFRAME(buffer.getSample(I_LEFT, bidx + i) * in_gain);
             ibuf_[i].r = stereoIn ? TO_SHORTFRAME(buffer.getSample(I_RIGHT, bidx + i) * in_gain) : ibuf_[i].l;
 
-            if (buffer.getSample(I_TRIG, bidx + i) > 0.5f) {
-                trig = true;
-            }
+            if (buffer.getSample(I_TRIG, bidx + i) > 0.5f) { trig = true; }
         }
 
         // control rate
         int imode = params_.mode.convertFrom0to1(params_.mode.getValue());
-        clouds::PlaybackMode mode = (clouds::PlaybackMode) (imode % clouds::PLAYBACK_MODE_LAST);
+        clouds::PlaybackMode mode = (clouds::PlaybackMode)(imode % clouds::PLAYBACK_MODE_LAST);
 
         processor.set_playback_mode(mode);
         processor.set_silence(false);
@@ -188,10 +168,8 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
 
         auto p = processor.mutable_parameters();
 
-        float pitch =
-            params_.pitch.convertFrom0to1(params_.pitch.getValue())
-            + cv2Pitch(buffer.getSample(I_VOCT, bidx))
-            + (noteInput() ? noteInputTranspose_ : 0.0f);
+        float pitch = params_.pitch.convertFrom0to1(params_.pitch.getValue()) +
+                      cv2Pitch(buffer.getSample(I_VOCT, bidx)) + (noteInput() ? noteInputTranspose_ : 0.0f);
 
         float position = params_.position.getValue() + buffer.getSample(I_POS, bidx);
         float size = params_.size.getValue() + buffer.getSample(I_SIZE, bidx);
@@ -204,9 +182,9 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
         float feedback = params_.feedback.getValue() + buffer.getSample(I_FEEDBACK, bidx);
         float reverb = params_.reverb.getValue() + buffer.getSample(I_REVERB, bidx);
 
-        //restrict density to .2 to .8 for granular mode, outside this breaks up
-        // density = constrain(density, 0.0f, 1.0f);
-        // density = (mode == clouds::PLAYBACK_MODE_GRANULAR) ? (density * 0.6f) + 0.2f : density;
+        // restrict density to .2 to .8 for granular mode, outside this breaks up
+        //  density = constrain(density, 0.0f, 1.0f);
+        //  density = (mode == clouds::PLAYBACK_MODE_GRANULAR) ? (density * 0.6f) + 0.2f : density;
 
         p->freeze = freeze;
 
@@ -240,17 +218,15 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
     outRms_[0].process(buffer, O_LEFT);
     if (stereoOut) outRms_[1].process(buffer, O_RIGHT);
 
-    if(activityCount_==0) {
-        for(int i=0;i<O_MAX;i++) {
-            outActivity_[i]=buffer.getSample(i,0);
-        }
+    if (activityCount_ == 0) {
+        for (int i = 0; i < O_MAX; i++) { outActivity_[i] = buffer.getSample(i, 0); }
     }
-    activityCount_ = (activityCount_ + 1 ) % ACTIVITY_PERIOD;
+    activityCount_ = (activityCount_ + 1) % ACTIVITY_PERIOD;
 }
 
-AudioProcessorEditor *PluginProcessor::createEditor() {
+AudioProcessorEditor* PluginProcessor::createEditor() {
 #ifdef FORCE_COMPACT_UI
-    return new ssp::EditorHost(this, new PluginMiniEditor(*this),true);
+    return new ssp::EditorHost(this, new PluginMiniEditor(*this), true);
 #else
     if (useCompactUI()) {
         return new ssp::EditorHost(this, new PluginMiniEditor(*this), useCompactUI());
@@ -261,8 +237,6 @@ AudioProcessorEditor *PluginProcessor::createEditor() {
 #endif
 }
 
-AudioProcessor *JUCE_CALLTYPE createPluginFilter() {
+AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new PluginProcessor();
 }
-
-

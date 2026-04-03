@@ -8,7 +8,7 @@
 using pcontrol_type = ssp::BarParamControl;
 using bcontrol_type = ssp::ParamButton;
 
-PluginMiniEditor::PluginMiniEditor(PluginProcessor &p) : base_type(&p), processor_(p) {
+PluginMiniEditor::PluginMiniEditor(PluginProcessor& p) : base_type(&p), processor_(p) {
     addParamPage(std::make_shared<pcontrol_type>(processor_.params_.oper, 1.0f, 1.0f),
                  std::make_shared<pcontrol_type>(processor_.params_.triglevel, 0.1, 0.01f), nullptr, nullptr);
 
@@ -24,7 +24,7 @@ PluginMiniEditor::PluginMiniEditor(PluginProcessor &p) : base_type(&p), processo
 }
 
 
-void PluginMiniEditor::drawView(Graphics &g) {
+void PluginMiniEditor::drawView(Graphics& g) {
     base_type::drawView(g);
 
     float inputs[PluginProcessor::I_MAX];

@@ -1,4 +1,5 @@
 #include "PluginProcessor.h"
+
 #include "PluginEditor.h"
 #include "PluginMiniEditor.h"
 #include "ssp/EditorHost.h"
@@ -7,12 +8,11 @@ inline float constrain(float v, float vMin, float vMax) {
     return std::max<float>(vMin, std::min<float>(vMax, v));
 }
 
-PluginProcessor::PluginProcessor()
-    : PluginProcessor(getBusesProperties(), createParameterLayout()) {}
+PluginProcessor::PluginProcessor() : PluginProcessor(getBusesProperties(), createParameterLayout()) {
+}
 
-PluginProcessor::PluginProcessor(
-    const AudioProcessor::BusesProperties &ioLayouts,
-    AudioProcessorValueTreeState::ParameterLayout layout)
+PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
+                                 AudioProcessorValueTreeState::ParameterLayout layout)
     : BaseProcessor(ioLayouts, std::move(layout)), params_(vts()) {
     init();
 
@@ -23,23 +23,23 @@ PluginProcessor::PluginProcessor(
     inputEnabled[I_LEVEL] = false;
 #endif
 
-    for(int i=0;i<I_MAX;i++) inActivity_[i]=0;
-    for(int i=0;i<O_MAX;i++) outActivity_[i]=0;
+    for (int i = 0; i < I_MAX; i++) inActivity_[i] = 0;
+    for (int i = 0; i < O_MAX; i++) outActivity_[i] = 0;
 }
 
-PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState &apvt) :
-    pitch(*apvt.getParameter(ID::pitch)),
-    harmonics(*apvt.getParameter(ID::harmonics)),
-    timbre(*apvt.getParameter(ID::timbre)),
-    morph(*apvt.getParameter(ID::morph)),
-    model(*apvt.getParameter(ID::model)),
-    freq_mod(*apvt.getParameter(ID::freq_mod)),
-    timbre_mod(*apvt.getParameter(ID::timbre_mod)),
-    morph_mod(*apvt.getParameter(ID::morph_mod)),
-    lpg(*apvt.getParameter(ID::lpg)),
-    vca(*apvt.getParameter(ID::vca)),
-    enable_trig(*apvt.getParameter(ID::enable_trig)),
-    enable_level(*apvt.getParameter(ID::enable_level)) {
+PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState& apvt)
+    : pitch(*apvt.getParameter(ID::pitch)),
+      harmonics(*apvt.getParameter(ID::harmonics)),
+      timbre(*apvt.getParameter(ID::timbre)),
+      morph(*apvt.getParameter(ID::morph)),
+      model(*apvt.getParameter(ID::model)),
+      freq_mod(*apvt.getParameter(ID::freq_mod)),
+      timbre_mod(*apvt.getParameter(ID::timbre_mod)),
+      morph_mod(*apvt.getParameter(ID::morph_mod)),
+      lpg(*apvt.getParameter(ID::lpg)),
+      vca(*apvt.getParameter(ID::vca)),
+      enable_trig(*apvt.getParameter(ID::enable_trig)),
+      enable_level(*apvt.getParameter(ID::enable_level)) {
 }
 
 
@@ -91,7 +91,7 @@ AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLa
     params.add(std::make_unique<ssp::BaseFloatParameter>(ID::lpg, "LPG", 0.0f, 100.0f, 50.0f));
     params.add(std::make_unique<ssp::BaseFloatParameter>(ID::vca, "VCA", 0.0f, 100.0f, 50.0f));
 
-    bool enableIO[2] = {false,false};
+    bool enableIO[2] = { false, false };
     params.add(std::make_unique<ssp::BaseBoolParameter>(ID::enable_trig, "Trig", enableIO[0]));
     params.add(std::make_unique<ssp::BaseBoolParameter>(ID::enable_level, "Level", enableIO[1]));
 
@@ -100,26 +100,14 @@ AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLa
 
 
 const String PluginProcessor::getInputBusName(int channelIndex) {
-    static String inBusName[I_MAX] = {
-        "VOct",
-        "Trig",
-        "Level",
-        "Harm",
-        "Timbre",
-        "Morph",
-        "FM",
-        "Model"
-    };
+    static String inBusName[I_MAX] = { "VOct", "Trig", "Level", "Harm", "Timbre", "Morph", "FM", "Model" };
     if (channelIndex < I_MAX) { return inBusName[channelIndex]; }
     return "ZZIn-" + String(channelIndex);
 }
 
 
 const String PluginProcessor::getOutputBusName(int channelIndex) {
-    static String outBusName[O_MAX] = {
-        "Out",
-        "Aux"
-    };
+    static String outBusName[O_MAX] = { "Out", "Aux" };
     if (channelIndex < O_MAX) { return outBusName[channelIndex]; }
     return "ZZOut-" + String(channelIndex);
 }
@@ -130,7 +118,7 @@ void PluginProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
     voice_.Init(&allocator);
 }
 
-void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages) {
     BaseProcessor::processBlock(buffer, midiMessages);
     auto n = PltsBlock;
 
@@ -148,23 +136,19 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
         bool trig = false;
         for (int i = 0; i < n; i++) {
             bool t = buffer.getSample(I_TRIG, bidx + i) > 0.5;
-            if (t != trig_ && t) {
-                trig = true;
-            }
+            if (t != trig_ && t) { trig = true; }
             trig_ = t;
         }
 
         // static constexpr float PltsPitchOffset = 60.0f - 3.044f;
         static constexpr float PltsPitchOffset = 60.0f;
         float pitch =
-            params_.pitch.convertFrom0to1(params_.pitch.getValue())
-            + (noteInput() ? noteInputTranspose_ : 0.0f);
+            params_.pitch.convertFrom0to1(params_.pitch.getValue()) + (noteInput() ? noteInputTranspose_ : 0.0f);
 
-        patch_.engine = (int) constrain(params_.model.convertFrom0to1(params_.model.getValue()),
-                                        0.0f, PltsMaxEngine);
+        patch_.engine = (int)constrain(params_.model.convertFrom0to1(params_.model.getValue()), 0.0f, PltsMaxEngine);
 
         patch_.note = PltsPitchOffset + pitch;
-//        patch_.note = 60.f + pitch * 12.f;
+        //        patch_.note = 60.f + pitch * 12.f;
         patch_.harmonics = params_.harmonics.getValue();
         patch_.timbre = params_.timbre.getValue();
         patch_.morph = params_.morph.getValue();
@@ -204,9 +188,7 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
                 buffer.setSample(O_AUX, bidx + i, output[i].aux / 32768.f);
             }
         } else {
-            for (int i = 0; i < PltsBlock; i++) {
-                buffer.setSample(O_OUT, bidx + i, output[i].out / 32768.f);
-            }
+            for (int i = 0; i < PltsBlock; i++) { buffer.setSample(O_OUT, bidx + i, output[i].out / 32768.f); }
             buffer.clear(O_AUX, 0, n);
         }
     }
@@ -214,29 +196,25 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
     outRms_[0].process(buffer, O_OUT);
     if (auxOut) outRms_[1].process(buffer, O_AUX);
 
-    if(activityCount_==0) {
-        for(int i=0;i<O_MAX;i++) {
-            outActivity_[i]=buffer.getSample(i,0);
-        }
+    if (activityCount_ == 0) {
+        for (int i = 0; i < O_MAX; i++) { outActivity_[i] = buffer.getSample(i, 0); }
     }
-    activityCount_ = (activityCount_ + 1 ) % ACTIVITY_PERIOD;
+    activityCount_ = (activityCount_ + 1) % ACTIVITY_PERIOD;
 }
 
-AudioProcessorEditor *PluginProcessor::createEditor() {
+AudioProcessorEditor* PluginProcessor::createEditor() {
 #ifdef FORCE_COMPACT_UI
-    return new ssp::EditorHost(this, new PluginMiniEditor(*this),true);
+    return new ssp::EditorHost(this, new PluginMiniEditor(*this), true);
 #else
-    if(useCompactUI()) {
-        return new ssp::EditorHost(this, new PluginMiniEditor(*this),useCompactUI());
+    if (useCompactUI()) {
+        return new ssp::EditorHost(this, new PluginMiniEditor(*this), useCompactUI());
 
     } else {
-        return new ssp::EditorHost(this, new PluginEditor(*this),useCompactUI());
+        return new ssp::EditorHost(this, new PluginEditor(*this), useCompactUI());
     }
 #endif
 }
 
-AudioProcessor *JUCE_CALLTYPE createPluginFilter() {
+AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new PluginProcessor();
 }
-
-

@@ -1,63 +1,58 @@
 #pragma once
 
-#include "ssp/BaseProcessor.h"
-
 #include <daisysp.h>
 
-#include <atomic>
 #include <algorithm>
+#include <atomic>
+
+#include "ssp/BaseProcessor.h"
 
 using namespace juce;
 
 namespace ID {
-#define PARAMETER_ID(str) constexpr const char* str { #str };
-constexpr const char *separator{":"};
+#define PARAMETER_ID(str) constexpr const char* str{ #str };
+constexpr const char* separator{ ":" };
 
 
-PARAMETER_ID (wave)
-PARAMETER_ID (freq)
-PARAMETER_ID (amp)
-PARAMETER_ID (phase)
-PARAMETER_ID (lfo)
+PARAMETER_ID(wave)
+PARAMETER_ID(freq)
+PARAMETER_ID(amp)
+PARAMETER_ID(phase)
+PARAMETER_ID(lfo)
 
 
 // slaveosc : 1-7
-PARAMETER_ID (slaveosc)
+PARAMETER_ID(slaveosc)
 
-//PARAMETER_ID (wave)
-PARAMETER_ID (ratio)
-//PARAMETER_ID (amp)
-//PARAMETER_ID (phase)
+// PARAMETER_ID (wave)
+PARAMETER_ID(ratio)
+// PARAMETER_ID (amp)
+// PARAMETER_ID (phase)
 
 #undef PARAMETER_ID
-}
+}  // namespace ID
 
 
 class PluginProcessor : public ssp::BaseProcessor {
 public:
     explicit PluginProcessor();
-    explicit PluginProcessor(const AudioProcessor::BusesProperties &ioLayouts, AudioProcessorValueTreeState::ParameterLayout layout);
+    explicit PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
+                             AudioProcessorValueTreeState::ParameterLayout layout);
     ~PluginProcessor();
 
     const String getName() const override { return JucePlugin_Name; }
 
-    void processBlock(AudioSampleBuffer &, MidiBuffer &) override;
+    void processBlock(AudioSampleBuffer&, MidiBuffer&) override;
 
-    AudioProcessorEditor *createEditor() override;
+    AudioProcessorEditor* createEditor() override;
 
     bool hasEditor() const override { return true; }
 
     void prepareToPlay(double newSampleRate, int estimatedSamplesPerBlock) override;
 
-    void requestReset() { requestReset_=true;}
+    void requestReset() { requestReset_ = true; }
 
-    enum {
-        I_FREQ,
-        I_RESET,
-        I_CLOCK,
-        I_VOCT,
-        I_MAX
-    };
+    enum { I_FREQ, I_RESET, I_CLOCK, I_VOCT, I_MAX };
     enum {
         O_OUT_MAIN,
         O_OUT_A,
@@ -83,29 +78,29 @@ public:
 
     struct SlaveOscParams {
         using Parameter = juce::RangedAudioParameter;
-        SlaveOscParams(AudioProcessorValueTreeState &apvt, unsigned id);
+        SlaveOscParams(AudioProcessorValueTreeState& apvt, unsigned id);
         unsigned id_;
-        String pid_; // e.g mods:1
-        Parameter &wave;
-        Parameter &ratio;
-        Parameter &amp;
-        Parameter &phase;
+        String pid_;  // e.g mods:1
+        Parameter& wave;
+        Parameter& ratio;
+        Parameter& amp;
+        Parameter& phase;
     };
 
     struct PluginParams {
         using Parameter = juce::RangedAudioParameter;
-        explicit PluginParams(juce::AudioProcessorValueTreeState &);
+        explicit PluginParams(juce::AudioProcessorValueTreeState&);
 
-        Parameter &wave;
-        Parameter &freq;
-        Parameter &amp;
-        Parameter &phase;
-        Parameter &lfo;
+        Parameter& wave;
+        Parameter& freq;
+        Parameter& amp;
+        Parameter& phase;
+        Parameter& lfo;
 
         std::vector<std::unique_ptr<SlaveOscParams>> slaveOscsParams_;
     } params_;
 
-    SlaveOscParams &getSlaveOscParam(unsigned t) {
+    SlaveOscParams& getSlaveOscParam(unsigned t) {
         jassert(t < params_.slaveOscsParams_.size());
         return *(params_.slaveOscsParams_[t]);
     }
@@ -113,12 +108,8 @@ public:
 
     static BusesProperties getBusesProperties() {
         BusesProperties props;
-        for (auto i = 0; i < I_MAX; i++) {
-            props.addBus(true, getInputBusName(i), AudioChannelSet::mono());
-        }
-        for (auto i = 0; i < O_MAX; i++) {
-            props.addBus(false, getOutputBusName(i), AudioChannelSet::mono());
-        }
+        for (auto i = 0; i < I_MAX; i++) { props.addBus(true, getInputBusName(i), AudioChannelSet::mono()); }
+        for (auto i = 0; i < O_MAX; i++) { props.addBus(false, getOutputBusName(i), AudioChannelSet::mono()); }
         return props;
     }
 
@@ -126,34 +117,30 @@ protected:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
 private:
-    bool isBusesLayoutSupported(const BusesLayout &layouts) const override {
-        return true;
-    }
+    bool isBusesLayoutSupported(const BusesLayout& layouts) const override { return true; }
 
     static const String getInputBusName(int channelIndex);
     static const String getOutputBusName(int channelIndex);
 
-    inline float normValue(RangedAudioParameter &p) { return p.convertFrom0to1(p.getValue()); }
+    inline float normValue(RangedAudioParameter& p) { return p.convertFrom0to1(p.getValue()); }
 
     daisysp::Oscillator mainOsc_;
-    float mainPhase_=0.0f;
-    float mainFreq_=0.0f;
+    float mainPhase_ = 0.0f;
+    float mainFreq_ = 0.0f;
 
     struct {
         daisysp::Oscillator osc_;
-        float phase_=0.0f;
-        float freq_=0.0f;
+        float phase_ = 0.0f;
+        float freq_ = 0.0f;
 
     } slaveOscs_[MAX_S_OSC];
 
-    int clockSampleCnt_=0;
+    int clockSampleCnt_ = 0;
     float lastClock_ = 0.0f;
     float clockFreq_ = 0.0f;
 
     float lastReset_ = 0.0f;
     bool requestReset_ = false;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)
 };
-
-

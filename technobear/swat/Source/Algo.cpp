@@ -1,7 +1,7 @@
 #include "Algo.h"
 
 // Helper /////////////////////////////////////////////////////////////////////
-void drawAB(juce::Graphics &g, float A, float B) {
+void drawAB(juce::Graphics& g, float A, float B) {
     unsigned space = 32;
     unsigned fh = 16 * COMPACT_UI_SCALE;
     unsigned x = space;
@@ -15,12 +15,12 @@ void drawAB(juce::Graphics &g, float A, float B) {
 }
 
 
-//Algo
+// Algo
 
 double Algo::sampleRate_ = 48000.0f;
 
 
-void Algo::paint(juce::Graphics &g) {
+void Algo::paint(juce::Graphics& g) {
     drawHelp(g);
 }
 
@@ -35,19 +35,16 @@ void Algo::encoder(unsigned enc, int dir) {
 }
 
 void Algo::button(unsigned btn, bool state) {
-
 }
 
 void Algo::encswitch(unsigned enc, bool state) {
     if (enc < params_.size()) {
-        if (!state) {
-            params_[enc]->reset();
-        }
+        if (!state) { params_[enc]->reset(); }
     }
 }
 
 
-void Algo::drawHelp(juce::Graphics &g) {
+void Algo::drawHelp(juce::Graphics& g) {
     unsigned x = 900;
     unsigned y = 40;
     unsigned space = 30;
@@ -88,13 +85,11 @@ void Algo::drawHelp(juce::Graphics &g) {
 }
 
 
-void Algo::writeToXml(juce::XmlElement &xml) {
-    for (auto p : params_) {
-        xml.setAttribute(p->name().c_str(), double(p->floatVal()));
-    }
+void Algo::writeToXml(juce::XmlElement& xml) {
+    for (auto p : params_) { xml.setAttribute(p->name().c_str(), double(p->floatVal())); }
 }
 
-void Algo::readFromXml(juce::XmlElement &xml) {
+void Algo::readFromXml(juce::XmlElement& xml) {
     for (auto p : params_) {
         if (xml.hasAttribute(p->name().c_str())) {
             p->floatVal(xml.getDoubleAttribute(p->name().c_str(), 0.0f));
@@ -104,7 +99,7 @@ void Algo::readFromXml(juce::XmlElement &xml) {
     }
 }
 
-//AgFloatParam
+// AgFloatParam
 void AgFloatParam::inc() {
     val_ = constrain(val_ + step_, min_, max_);
 }
@@ -118,7 +113,7 @@ void AgFloatParam::reset() {
 }
 
 
-//AgIntParam
+// AgIntParam
 void AgIntParam::inc() {
     val_ = constrain(val_ + step_, min_, max_);
 }

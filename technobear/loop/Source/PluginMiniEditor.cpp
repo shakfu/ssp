@@ -9,7 +9,7 @@ using pcontrol_type = ssp::BarParamControl;
 using bcontrol_type = ssp::ParamButton;
 
 
-PluginMiniEditor::PluginMiniEditor(PluginProcessor &p)
+PluginMiniEditor::PluginMiniEditor(PluginProcessor& p)
     : base_type(&p), processor_(p), clrs_{ Colours::green, Colours::blue, Colours::orange, Colours::yellow } {
     static constexpr float inc = 1.0f;
     static constexpr float finc = 0.01f;
@@ -17,7 +17,7 @@ PluginMiniEditor::PluginMiniEditor(PluginProcessor &p)
 
     {  // recording parameters
         juce::Colour clr = Colours::red;
-        auto &reclayer = processor_.params_.recParams_;
+        auto& reclayer = processor_.params_.recParams_;
 
         addParamPage(std::make_shared<pcontrol_type>(reclayer->layer_, inc, inc),
                      std::make_shared<pcontrol_type>(reclayer->gain_, inc, finc),
@@ -31,7 +31,7 @@ PluginMiniEditor::PluginMiniEditor(PluginProcessor &p)
 
     for (int lidx = 0; lidx < MAX_LAYERS; lidx++) {
         juce::Colour clr = clrs_[lidx];
-        auto &layer = processor_.params_.layers_[lidx];
+        auto& layer = processor_.params_.layers_[lidx];
         addParamPage(std::make_shared<pcontrol_type>(layer->rate_, inc, finc),
                      std::make_shared<pcontrol_type>(layer->gain_, inc, finc),
                      std::make_shared<pcontrol_type>(layer->begin_, 0.1f, 0.01),
@@ -49,7 +49,7 @@ PluginMiniEditor::PluginMiniEditor(PluginProcessor &p)
     }
 
     for (int i = 0; i < MAX_LAYERS; i++) {
-        auto &layer = layer_[i];
+        auto& layer = layer_[i];
         std::string title = std::string("Layer ") + std::to_string(i);
         scopes_[i].initSignal(0, title, layer.dataBuf_, DATA_POINTS, DATA_POINTS, clrs_[i]);
         addAndMakeVisible(scopes_[i]);
@@ -59,7 +59,7 @@ PluginMiniEditor::PluginMiniEditor(PluginProcessor &p)
 void PluginMiniEditor::onSSPTimer() {
     base_type::onSSPTimer();
     for (int i = 0; i < MAX_LAYERS; i++) {
-        auto &layer = layer_[i];
+        auto& layer = layer_[i];
         processor_.fillLayerData(i, layer.dataBuf_, DATA_POINTS, layer.curPos_, layer.beginPos_, layer.endPos_,
                                  layer.isRec_, layer.recPos_);
         scopes_[i].setPosition(0, layer.curPos_, layer.beginPos_, layer.endPos_);
@@ -69,12 +69,12 @@ void PluginMiniEditor::onSSPTimer() {
 }
 
 
-void PluginMiniEditor::drawView(Graphics &g) {
+void PluginMiniEditor::drawView(Graphics& g) {
     base_type::drawView(g);
     const juce::Colour bg(0xff111111);
 
     for (int i = 0; i < MAX_LAYERS; i++) {
-        auto &layer = layer_[i];
+        auto& layer = layer_[i];
         if (layer.isRec_) {
             const int h = 37 * COMPACT_UI_SCALE;
             const int w = DATA_POINTS;

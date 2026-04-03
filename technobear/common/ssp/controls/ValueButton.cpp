@@ -4,7 +4,7 @@
 
 namespace ssp {
 
-ValueButton::ValueButton(const String &label, std::function<void(bool v)> cb, unsigned fh, const Colour fg,
+ValueButton::ValueButton(const String& label, std::function<void(bool v)> cb, unsigned fh, const Colour fg,
                          const Colour bg, bool def)
     : label_(label), value_(def), callback_(cb), fh_(fh), fg_(fg), bg_(bg) {
 }
@@ -15,14 +15,14 @@ void ValueButton::valueChanged(bool b) {
 }
 
 void ValueButton::value(bool v) {
-    if(value_ != v) {
+    if (value_ != v) {
         value_ = v;
         valueChanged(value_);
     }
 }
 
 
-void ValueButton::paint(Graphics &g) {
+void ValueButton::paint(Graphics& g) {
     const int w = getWidth();
     const int h = getHeight();
     g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), fh_, Font::plain)));

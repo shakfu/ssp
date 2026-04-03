@@ -1,16 +1,14 @@
 #include "PluginProcessor.h"
 
 
-unsigned PluginProcessor::setCartLayerX(Steps &steps, unsigned x, unsigned xOffset, LayerData &ld) {
+unsigned PluginProcessor::setCartLayerX(Steps& steps, unsigned x, unsigned xOffset, LayerData& ld) {
     int xC = x % 4;
     int yC = ld.seqStep_ / 4;
 
     if (!ld.p_.fun_op_sleep_) {
         for (int i = 0; i < 4; i++) {
             unsigned pos = (yC * 4) + ((xC + xOffset) % 4);
-            if (steps[pos]->access.getValue() > 0.5f) {
-                return xC % 4;
-            }
+            if (steps[pos]->access.getValue() > 0.5f) { return xC % 4; }
             xC++;
         }
         // no access, so return current seqstep
@@ -19,16 +17,14 @@ unsigned PluginProcessor::setCartLayerX(Steps &steps, unsigned x, unsigned xOffs
     return x % 4;
 }
 
-unsigned PluginProcessor::setCartLayerY(Steps &steps, unsigned y, unsigned yOffset, LayerData &ld) {
+unsigned PluginProcessor::setCartLayerY(Steps& steps, unsigned y, unsigned yOffset, LayerData& ld) {
     int xC = ld.seqStep_ % 4;
     int yC = y % 4;
 
     if (!ld.p_.fun_op_sleep_) {
         for (int i = 0; i < 4; i++) {
             unsigned pos = (((yC + yOffset) % 4) * 4) + xC;
-            if (steps[pos]->access.getValue() > 0.5f) {
-                return yC % 4;
-            }
+            if (steps[pos]->access.getValue() > 0.5f) { return yC % 4; }
             yC++;
         }
         // no access, so return current seqstep
@@ -37,7 +33,7 @@ unsigned PluginProcessor::setCartLayerY(Steps &steps, unsigned y, unsigned yOffs
     return y % 4;
 }
 
-void PluginProcessor::prepCartLayer(Layer &layerParam, LayerData &ld) {
+void PluginProcessor::prepCartLayer(Layer& layerParam, LayerData& ld) {
     // this is separate, so I don't populate stuff I don't use ...
     ld.p_.fun_op_trig_ = layerParam.fun_op_trig.getValue() > 0.5f;
     ld.p_.fun_op_sleep_ = layerParam.fun_op_sleep.getValue() > 0.5f;
@@ -46,7 +42,8 @@ void PluginProcessor::prepCartLayer(Layer &layerParam, LayerData &ld) {
     ld.p_.root_ = normValue(layerParam.root);
 }
 
-void PluginProcessor::processCartLayer(Steps &steps, LayerData &ld, LayerData &xld, LayerData &yld, float &o_cv, bool &o_gate) {
+void PluginProcessor::processCartLayer(Steps& steps, LayerData& ld, LayerData& xld, LayerData& yld, float& o_cv,
+                                       bool& o_gate) {
     // functions working for C
     // fun.sleep, fun.trig
     // gate, access, glide, quant (scale, root)
@@ -66,12 +63,8 @@ void PluginProcessor::processCartLayer(Steps &steps, LayerData &ld, LayerData &x
     unsigned xOffset = 0;
     unsigned yOffset = 0;
     static constexpr unsigned MAX_C_STEP = 4;
-    if (xld.p_.fun_cv_mode_ == CV_MODE_LOC) {
-        xOffset = (int(xld.lastCvIn_ * MAX_C_STEP) + MAX_C_STEP) % MAX_C_STEP;
-    }
-    if (yld.p_.fun_cv_mode_ == CV_MODE_LOC) {
-        yOffset = (int(yld.lastCvIn_ * MAX_C_STEP) + MAX_C_STEP) % MAX_C_STEP;
-    }
+    if (xld.p_.fun_cv_mode_ == CV_MODE_LOC) { xOffset = (int(xld.lastCvIn_ * MAX_C_STEP) + MAX_C_STEP) % MAX_C_STEP; }
+    if (yld.p_.fun_cv_mode_ == CV_MODE_LOC) { yOffset = (int(yld.lastCvIn_ * MAX_C_STEP) + MAX_C_STEP) % MAX_C_STEP; }
 
     unsigned nextStep = ld.seqStep_;
     unsigned xStep = nextStep % 4;
@@ -94,7 +87,7 @@ void PluginProcessor::processCartLayer(Steps &steps, LayerData &ld, LayerData &x
     ld.seqStep_ = nextStep;
     ld.pos_ = (((yStep + yOffset) % MAX_C_STEP) * 4) + ((xStep + xOffset) % 4);
 
-    auto &activeStep = *steps[ld.pos_];
+    auto& activeStep = *steps[ld.pos_];
     bool glide = activeStep.glide.getValue() > 0.5f;
     bool access = activeStep.access.getValue() > 0.5f;
 
@@ -104,16 +97,14 @@ void PluginProcessor::processCartLayer(Steps &steps, LayerData &ld, LayerData &x
     }
 
     if (glide) {
-        float glideTime = getSampleRate() / 2.0f; // 120bpm = 2 ticks/sec
+        float glideTime = getSampleRate() / 2.0f;  // 120bpm = 2 ticks/sec
         o_cv = ld.cv_ + ((ld.targetCv_ - ld.cv_) * (glideRatio / glideTime));
     } else {
         o_cv = ld.targetCv_;
     }
 
     if (ld.p_.fun_op_trig_) {
-        if (xld.clkTrig_ || yld.clkTrig_) {
-            ld.gateTime_ = trigGateTime;
-        }
+        if (xld.clkTrig_ || yld.clkTrig_) { ld.gateTime_ = trigGateTime; }
         o_gate = ld.gateTime_ > 0;
         if (ld.gateTime_ > 0) ld.gateTime_--;
     } else {
@@ -124,6 +115,3 @@ void PluginProcessor::processCartLayer(Steps &steps, LayerData &ld, LayerData &x
     ld.cv_ = o_cv;
     ld.gate_ = o_gate;
 }
-
-
-

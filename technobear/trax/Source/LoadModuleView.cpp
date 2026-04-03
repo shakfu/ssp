@@ -1,7 +1,7 @@
 
 #include "LoadModuleView.h"
 
-std::string nicePlugName(const std::string &n) {
+std::string nicePlugName(const std::string& n) {
     std::string nn = n.substr(n.find_last_of('/') + 1);
 #if __APPLE__
 #else
@@ -12,7 +12,7 @@ std::string nicePlugName(const std::string &n) {
 }
 
 
-LoadModuleView::LoadModuleView(PluginProcessor &p, bool compactUI)
+LoadModuleView::LoadModuleView(PluginProcessor& p, bool compactUI)
     : base_type(&p, compactUI),
       processor_(p),
       scanBtn_("Scan", nullptr, 16 * COMPACT_UI_SCALE, Colours::white, Colours::black),
@@ -27,7 +27,7 @@ LoadModuleView::LoadModuleView(PluginProcessor &p, bool compactUI)
 }
 
 
-void LoadModuleView::drawView(Graphics &g) {
+void LoadModuleView::drawView(Graphics& g) {
     static constexpr unsigned fh = 14 * COMPACT_UI_SCALE;
     static constexpr unsigned gap = 5 * COMPACT_UI_SCALE;
     static constexpr unsigned x = gap;
@@ -53,7 +53,7 @@ void LoadModuleView::resized() {
     moduleList_.setBounds(x + gap + w, y, w, SSP_COMPACT_HEIGHT - (80 * COMPACT_UI_SCALE));
 }
 
-void LoadModuleView::drawButtonBox(Graphics &g) {
+void LoadModuleView::drawButtonBox(Graphics& g) {
     static constexpr unsigned gap = 5 * COMPACT_UI_SCALE;
     static constexpr unsigned nParamPerPage = 4;
     static constexpr unsigned titleH = 12 * COMPACT_UI_SCALE;
@@ -72,7 +72,7 @@ void LoadModuleView::drawButtonBox(Graphics &g) {
     for (int i = 0; i < 5; i++) { g.drawVerticalLine(butLeftX + (i * bw) - 1, butTopY, butTopY + buttonBarH - 1); }
 }
 
-void LoadModuleView::setButtonBounds(ssp::ValueButton &btn, unsigned r, unsigned c) {
+void LoadModuleView::setButtonBounds(ssp::ValueButton& btn, unsigned r, unsigned c) {
     static constexpr unsigned gap = 5 * COMPACT_UI_SCALE;
     static constexpr unsigned nParamPerPage = 4;
     static constexpr unsigned titleH = 12 * COMPACT_UI_SCALE;
@@ -92,11 +92,11 @@ void LoadModuleView::loadModule() {
     if (moduleList_.idx() < 0) return;
 
     auto curMod = processor_.getLoadedPlugin(trackIdx_, moduleIdx_);
-    auto &modules = processor_.getSupportedModules();
+    auto& modules = processor_.getSupportedModules();
 
     int modId = modulesId_[moduleList_.idx()];
 
-    auto &newMod = modules[modId];
+    auto& newMod = modules[modId];
 
     if (newMod.name != curMod) {
         // time to load a new module !
@@ -123,7 +123,7 @@ void LoadModuleView::onEncoder(unsigned enc, float v) {
             else
                 moduleList_.prevItem();
             int modId = modulesId_[moduleList_.idx()];
-            auto &modules = processor_.getSupportedModules();
+            auto& modules = processor_.getSupportedModules();
             pluginDescripton_ = modules[modId].description;
             break;
         }
@@ -137,10 +137,10 @@ void LoadModuleView::updateModuleList() {
     moduleList_.clear();
     modulesId_.clear();
 
-    auto &modules = processor_.getSupportedModules();
+    auto& modules = processor_.getSupportedModules();
     int modIdx = 0;
     int modListIdx = 0, selListIdx = 0;
-    for (auto &m : modules) {
+    for (auto& m : modules) {
         if (cat == 0 ||
             std::find(m.categories.begin(), m.categories.end(), categories_[cat - 1]) != m.categories.end()) {
             modulesId_.push_back(modIdx);
@@ -191,9 +191,9 @@ void LoadModuleView::editorShown() {
     moduleUpdated_ = false;
 
     categoryList_.addItem("All");
-    auto &modules = processor_.getSupportedModules();
-    for (auto &m : modules) {
-        for (auto &cat : m.categories) {
+    auto& modules = processor_.getSupportedModules();
+    for (auto& m : modules) {
+        for (auto& cat : m.categories) {
             if (std::find(categories_.begin(), categories_.end(), cat) == categories_.end()) {
                 categories_.push_back(cat);
                 categoryList_.addItem(cat);

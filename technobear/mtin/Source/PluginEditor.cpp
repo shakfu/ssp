@@ -1,47 +1,30 @@
 
-#include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-#include "ssp/controls/ParamControl.h"
+#include "PluginProcessor.h"
 #include "ssp/controls/ParamButton.h"
+#include "ssp/controls/ParamControl.h"
 
 using pcontrol_type = ssp::BarParamControl;
 using bcontrol_type = ssp::ParamButton;
 
-PluginEditor::PluginEditor(PluginProcessor &p)
-    : base_type(&p),
-      processor_(p) {
-    addParamPage(
-        std::make_shared<pcontrol_type>(processor_.params_.cv_a, 1.0f, 1.0f),
-        std::make_shared<pcontrol_type>(processor_.params_.cv_b, 1.0f, 1.0f),
-        std::make_shared<pcontrol_type>(processor_.params_.cv_c, 1.0f, 1.0f),
-        std::make_shared<pcontrol_type>(processor_.params_.cv_d, 1.0f, 1.0f)
-    );
+PluginEditor::PluginEditor(PluginProcessor& p) : base_type(&p), processor_(p) {
+    addParamPage(std::make_shared<pcontrol_type>(processor_.params_.cv_a, 1.0f, 1.0f),
+                 std::make_shared<pcontrol_type>(processor_.params_.cv_b, 1.0f, 1.0f),
+                 std::make_shared<pcontrol_type>(processor_.params_.cv_c, 1.0f, 1.0f),
+                 std::make_shared<pcontrol_type>(processor_.params_.cv_d, 1.0f, 1.0f));
 
-    addParamPage(
-        std::make_shared<pcontrol_type>(processor_.params_.cv_e, 1.0f, 1.0f),
-        std::make_shared<pcontrol_type>(processor_.params_.cv_f, 1.0f, 1.0f),
-        std::make_shared<pcontrol_type>(processor_.params_.cv_g, 1.0f, 1.0f),
-        std::make_shared<pcontrol_type>(processor_.params_.cv_h, 1.0f, 1.0f)
-    );
+    addParamPage(std::make_shared<pcontrol_type>(processor_.params_.cv_e, 1.0f, 1.0f),
+                 std::make_shared<pcontrol_type>(processor_.params_.cv_f, 1.0f, 1.0f),
+                 std::make_shared<pcontrol_type>(processor_.params_.cv_g, 1.0f, 1.0f),
+                 std::make_shared<pcontrol_type>(processor_.params_.cv_h, 1.0f, 1.0f));
 
-    addParamPage(
-        std::make_shared<pcontrol_type>(processor_.params_.pb_range, 1.0f, 1.0f),
-        nullptr,
-        nullptr,
-        nullptr
-    );
+    addParamPage(std::make_shared<pcontrol_type>(processor_.params_.pb_range, 1.0f, 1.0f), nullptr, nullptr, nullptr);
 
-    addButtonPage(
-        std::make_shared<bcontrol_type>(processor_.params_.slew, 24, Colours::lightskyblue),
-        nullptr,
-        nullptr,
-        nullptr,
-        std::make_shared<bcontrol_type>(processor_.params_.clock, 24, Colours::lightskyblue),
-        std::make_shared<bcontrol_type>(processor_.params_.transport, 24, Colours::lightskyblue),
-        nullptr,
-        nullptr
-    );
+    addButtonPage(std::make_shared<bcontrol_type>(processor_.params_.slew, 24, Colours::lightskyblue), nullptr, nullptr,
+                  nullptr, std::make_shared<bcontrol_type>(processor_.params_.clock, 24, Colours::lightskyblue),
+                  std::make_shared<bcontrol_type>(processor_.params_.transport, 24, Colours::lightskyblue), nullptr,
+                  nullptr);
 
     setSize(1600, 480);
 }

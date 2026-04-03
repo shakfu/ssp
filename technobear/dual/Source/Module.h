@@ -13,15 +13,15 @@ struct ModuleDesc {
 
 struct Module {
     explicit Module();
-    void alloc(const std::string &f, SSPExtendedApi::PluginInterface *p, SSPExtendedApi::PluginDescriptor *d, void *h);
+    void alloc(const std::string& f, SSPExtendedApi::PluginInterface* p, SSPExtendedApi::PluginDescriptor* d, void* h);
     void free();
 
     void prepare(int sampleRate, int blockSize);
-    void process(juce::AudioSampleBuffer& );
+    void process(juce::AudioSampleBuffer&);
 
     bool loadModule(std::string);
     static std::string getPluginFile(const std::string& m);
-    static bool checkPlugin(const std::string &f,ModuleDesc &md);
+    static bool checkPlugin(const std::string& f, ModuleDesc& md);
     static void scanPlugins(std::vector<ModuleDesc>& supportedModules);
     static bool loadSupportedModules(std::vector<ModuleDesc>& supportedModules);
     static bool saveSupportedModules(std::vector<ModuleDesc>& supportedModules);
@@ -31,8 +31,8 @@ struct Module {
     std::string pluginName_;
     std::string requestedModule_;
     std::atomic_flag lock_ = ATOMIC_FLAG_INIT;
-    SSPExtendedApi::PluginInterface *plugin_ = nullptr;
-    SSPExtendedApi::PluginEditorInterface *editor_ = nullptr;
-    SSPExtendedApi::PluginDescriptor *descriptor_ = nullptr;
-    void *dlHandle_ = nullptr;
+    SSPExtendedApi::PluginInterface* plugin_ = nullptr;
+    SSPExtendedApi::PluginEditorInterface* editor_ = nullptr;
+    SSPExtendedApi::PluginDescriptor* descriptor_ = nullptr;
+    void* dlHandle_ = nullptr;
 };

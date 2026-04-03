@@ -1,7 +1,6 @@
 #include "SystemEditor.h"
 
 #include "BaseProcessor.h"
-
 #include "ssp/Log.h"
 // #include "SSP.h"
 
@@ -11,11 +10,11 @@ namespace ssp {
 static constexpr unsigned btnTopY = 380 - 1;
 static constexpr unsigned btnSpaceY = 50;
 
-inline bool isInternalMidi(const String &name) {
+inline bool isInternalMidi(const String& name) {
     return name.contains("Juce") || name.contains("Midi Through Port");
 }
 
-SystemEditor::SystemEditor(BaseProcessor *p)
+SystemEditor::SystemEditor(BaseProcessor* p)
     : baseProcessor_(p),
       learnBtn_(
           "Learn", [&](bool b) { midiLearn(b); }, 12 * COMPACT_UI_SCALE, Colours::yellow),
@@ -23,16 +22,23 @@ SystemEditor::SystemEditor(BaseProcessor *p)
           "Delete", [&](bool b) { deleteAutomation(b); }, 12 * COMPACT_UI_SCALE, Colours::yellow),
       noteInputBtn_(
           "Note In", [&](bool b) { noteInput(b); }, 12 * COMPACT_UI_SCALE, Colours::lightskyblue),
-      midiInCtrl_("Midi IN", [&](float idx, const std::string &str) { midiInCallback(idx, str); }),
-      midiOutCtrl_("Midi OUT", [&](float idx, const std::string &str) { midiOutCallback(idx, str); }),
-      midiChannelCtrl_("Midi Channel", [&](float idx, const std::string &str) { midiChannelCallback(idx, str); }),
+      midiInCtrl_("Midi IN", [&](float idx, const std::string& str) { midiInCallback(idx, str); }),
+      midiOutCtrl_("Midi OUT", [&](float idx, const std::string& str) { midiOutCallback(idx, str); }),
+      midiChannelCtrl_("Midi Channel", [&](float idx, const std::string& str) { midiChannelCallback(idx, str); }),
       deviceMode_(
-          "Device", [&](bool b) { if(!b) mode(M_DEVICE); }, 12 * COMPACT_UI_SCALE, Colours::yellow),
+          "Device",
+          [&](bool b) {
+              if (!b) mode(M_DEVICE);
+          },
+          12 * COMPACT_UI_SCALE, Colours::yellow),
       paramMode_(
-          "Param", [&](bool b) { if(!b) mode(M_PARAM); }, 12 * COMPACT_UI_SCALE, Colours::yellow),
+          "Param",
+          [&](bool b) {
+              if (!b) mode(M_PARAM);
+          },
+          12 * COMPACT_UI_SCALE, Colours::yellow),
 
       mode_(M_PARAM) {
-
     learnBtn_.setToggle(true);
     noteInputBtn_.setToggle(true);
 
@@ -45,7 +51,6 @@ SystemEditor::SystemEditor(BaseProcessor *p)
     //     }
 
     // });
- 
 
 
     baseProcessor_->midiLearn(false);
@@ -94,7 +99,7 @@ void SystemEditor::populateMidiDevices() {
             if (baseProcessor_->isActiveMidiIn(name)) {
                 selIdx = idx + 1;  // none
                 // selected is valid, but not connected, attempt reconnect
-                if (!baseProcessor_->isConnectedMidiIn(name)){ // TODO - midi needed ?
+                if (!baseProcessor_->isConnectedMidiIn(name)) {  // TODO - midi needed ?
                     baseProcessor_->setMidiInDevice(name);
                 }
             }
@@ -102,9 +107,9 @@ void SystemEditor::populateMidiDevices() {
         }
     }
 
-    if(selIdx==-1) {
+    if (selIdx == -1) {
         auto name = baseProcessor_->getMidiInName();
-        if(!name.empty()) {
+        if (!name.empty()) {
             midiInStr_.push_back(std::to_string(idx) + ":" + name + " ! ");
             selIdx = idx + 1;
         }
@@ -125,29 +130,27 @@ void SystemEditor::populateMidiDevices() {
             if (baseProcessor_->isActiveMidiOut(name)) {
                 selIdx = idx + 1;  // none
                 // selected is valid, but not connected, attempt reconnect
-                if (!baseProcessor_->isConnectedMidiOut(name)){ // TODO - midi needed ?
+                if (!baseProcessor_->isConnectedMidiOut(name)) {  // TODO - midi needed ?
                     baseProcessor_->setMidiOutDevice(name);
                 }
             }
             idx++;
         }
     }
-    if(selIdx==-1) {
+    if (selIdx == -1) {
         auto name = baseProcessor_->getMidiOutName();
-        if(!name.empty()) {
+        if (!name.empty()) {
             midiOutStr_.push_back(std::to_string(idx) + ":" + name + " ! ");
             selIdx = idx + 1;
         }
     }
 
     midiOutCtrl_.setValues(midiOutStr_, selIdx);
-
 }
 
 void SystemEditor::visibilityChanged() {
     populateMidiDevices();
 }
-
 
 
 void SystemEditor::mode(UI_Mode m) {
@@ -167,25 +170,25 @@ void SystemEditor::mode(UI_Mode m) {
 }
 
 
-void SystemEditor::midiInCallback(float idx, const std::string &dev) {
+void SystemEditor::midiInCallback(float idx, const std::string& dev) {
     //    Logger::writeToLog("midiInCallback -> " + String(idx) + " : " + dev);
     unsigned i = idx;
-    if (i > 0 && i < inDevices_.size() ) {  // 0 ==  NONE and available
+    if (i > 0 && i < inDevices_.size()) {  // 0 ==  NONE and available
         auto device = inDevices_[i - 1];
         if (!isInternalMidi(device.name)) {
-            baseProcessor_->setMidiInDevice(device.name.toStdString()); 
+            baseProcessor_->setMidiInDevice(device.name.toStdString());
             return;
         }
     } else {
         // none, disconnect, unavailable leave 'as is', reconnect thread
-        if(i==0) baseProcessor_->setMidiInDevice("");
+        if (i == 0) baseProcessor_->setMidiInDevice("");
     }
 }
 
-void SystemEditor::midiOutCallback(float idx, const std::string &dev) {
+void SystemEditor::midiOutCallback(float idx, const std::string& dev) {
     //    Logger::writeToLog("midiOutCallback -> " + String(idx) + " : " + dev);
     unsigned i = idx;
-    if (i > 0 && i < outDevices_.size() ) {  // 0 ==  NONE and available
+    if (i > 0 && i < outDevices_.size()) {  // 0 ==  NONE and available
         auto device = outDevices_[i - 1];
         if (!isInternalMidi(device.name)) {
             baseProcessor_->setMidiOutDevice(device.name.toStdString());
@@ -193,13 +196,12 @@ void SystemEditor::midiOutCallback(float idx, const std::string &dev) {
         }
     } else {
         // none, disconnect, unavailable leave 'as is', reconnect thread
-        if(i==0) baseProcessor_->setMidiOutDevice("");
+        if (i == 0) baseProcessor_->setMidiOutDevice("");
     }
 }
 
- 
 
-void SystemEditor::midiChannelCallback(float idx, const std::string &ch) {
+void SystemEditor::midiChannelCallback(float idx, const std::string& ch) {
     baseProcessor_->midiChannel(idx);
 }
 
@@ -219,12 +221,12 @@ void SystemEditor::noteInput(bool b) {
 void SystemEditor::deleteAutomation(bool b) {
     if (!b) {
         if (selIdx_ >= 0) {
-            auto &am = baseProcessor_->midiAutomation();
+            auto& am = baseProcessor_->midiAutomation();
             if (am.empty() || selIdx_ >= am.size()) return;
 
             int idx = 0;
             for (auto ai = am.begin(); ai != am.end(); ai++) {
-                auto &a = ai->second;
+                auto& a = ai->second;
                 if (idx == selIdx_) {
                     am.erase(a.paramIdx_);
                     if (selIdx_ != 0) {
@@ -260,8 +262,8 @@ void SystemEditor::onEncoder(unsigned enc, float v) {
                 break;
             }
             case 1: {
-                auto &am = baseProcessor_->midiAutomation();
-                if(selIdx_ < am.size()) {
+                auto& am = baseProcessor_->midiAutomation();
+                if (selIdx_ < am.size()) {
                     auto ai = am.begin();
                     int idx = 0;
                     while (idx < selIdx_) {
@@ -269,15 +271,15 @@ void SystemEditor::onEncoder(unsigned enc, float v) {
                         idx++;
                     }
                     if (ai != am.end()) {
-                        auto &a = ai->second;
+                        auto& a = ai->second;
                         a.scale_ += v * 0.01f;
                     }
                 }
                 break;
             }
             case 2: {
-                auto &am = baseProcessor_->midiAutomation();
-                if(selIdx_ < am.size()) {
+                auto& am = baseProcessor_->midiAutomation();
+                if (selIdx_ < am.size()) {
                     auto ai = am.begin();
                     int idx = 0;
                     while (idx < selIdx_) {
@@ -285,7 +287,7 @@ void SystemEditor::onEncoder(unsigned enc, float v) {
                         idx++;
                     }
                     if (ai != am.end()) {
-                        auto &a = ai->second;
+                        auto& a = ai->second;
                         a.offset_ += v * 0.01f;
                     }
                 }

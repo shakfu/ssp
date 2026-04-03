@@ -8,17 +8,17 @@
 using pcontrol_type = ssp::BarParamControl;
 using bcontrol_type = ssp::ParamButton;
 
-PluginMiniEditor::PluginMiniEditor(PluginProcessor &p) : base_type(&p), processor_(p) {
+PluginMiniEditor::PluginMiniEditor(PluginProcessor& p) : base_type(&p), processor_(p) {
     addParamPage(std::make_shared<pcontrol_type>(processor_.params_.inSel, 0.25),
                  std::make_shared<pcontrol_type>(processor_.params_.outSel, 0.25), nullptr, nullptr);
 
     addButtonPage(
         std::make_shared<bcontrol_type>(processor_.params_.active, 12 * COMPACT_UI_SCALE, Colours::lightskyblue),
-        std::make_shared<bcontrol_type>(processor_.params_.soft, 12 * COMPACT_UI_SCALE, Colours::orange), 
-        nullptr,nullptr, nullptr, nullptr, nullptr, nullptr);
+        std::make_shared<bcontrol_type>(processor_.params_.soft, 12 * COMPACT_UI_SCALE, Colours::orange), nullptr,
+        nullptr, nullptr, nullptr, nullptr, nullptr);
 }
 
-void PluginMiniEditor::drawGrid(Graphics &g) {
+void PluginMiniEditor::drawGrid(Graphics& g) {
     //    int x = 40;
     //    int y = 40;
     int x = canvasX() + 40 * COMPACT_UI_SCALE;
@@ -71,7 +71,7 @@ void PluginMiniEditor::drawGrid(Graphics &g) {
     }
 }
 
-void PluginMiniEditor::drawView(Graphics &g) {
+void PluginMiniEditor::drawView(Graphics& g) {
     base_type::drawView(g);
     drawGrid(g);
 }

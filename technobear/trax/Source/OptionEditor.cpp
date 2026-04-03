@@ -10,7 +10,7 @@
 
 class LoadPresetView : public ssp::MiniBasicView {
 public:
-    LoadPresetView(PluginProcessor &p, const String &defDir) : base_type(&p), processor_(p) {
+    LoadPresetView(PluginProcessor& p, const String& defDir) : base_type(&p), processor_(p) {
         fileControl_ = std::make_shared<ssp::FileSelector>(defDir);
         addAndMakeVisible(fileControl_.get());
         addButton(0, std::make_shared<ssp::ValueButton>("Load", [&](bool b) {
@@ -61,14 +61,14 @@ public:
 
 private:
     using base_type = ssp::MiniBasicView;
-    PluginProcessor &processor_;
+    PluginProcessor& processor_;
     std::shared_ptr<ssp::FileSelector> fileControl_;
 };
 
 
 class SavePresetView : public ssp::MiniBasicView {
 public:
-    SavePresetView(PluginProcessor &p, const String &defDir) : ssp::MiniBasicView(&p), processor_(p), baseDir_(defDir) {
+    SavePresetView(PluginProcessor& p, const String& defDir) : ssp::MiniBasicView(&p), processor_(p), baseDir_(defDir) {
         textControl_ = std::make_shared<ssp::TextControl>();
         addAndMakeVisible(textControl_.get());
         addButton(0, std::make_shared<ssp::ValueButton>("Save", [&](bool b) {
@@ -142,13 +142,13 @@ public:
 private:
     using base_type = ssp::MiniBasicView;
 
-    PluginProcessor &processor_;
+    PluginProcessor& processor_;
     std::shared_ptr<ssp::TextControl> textControl_;
     String baseDir_ = "~";
 };
 
 
-OptionEditor::OptionEditor(PluginProcessor &p) : base_type(&p, false), processor_(p) {
+OptionEditor::OptionEditor(PluginProcessor& p) : base_type(&p, false), processor_(p) {
     optionView_ = std::make_shared<OptionView>(processor_);
     optionViewIdx_ = addView(optionView_);
 

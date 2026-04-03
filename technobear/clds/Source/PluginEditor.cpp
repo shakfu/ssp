@@ -1,48 +1,30 @@
-#include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-#include "ssp/controls/ParamControl.h"
+#include "PluginProcessor.h"
 #include "ssp/controls/ParamButton.h"
+#include "ssp/controls/ParamControl.h"
 
 using pcontrol_type = ssp::BarParamControl;
 using bcontrol_type = ssp::ParamButton;
 
-PluginEditor::PluginEditor(PluginProcessor &p)
-    : base_type(&p),
-      processor_(p) {
+PluginEditor::PluginEditor(PluginProcessor& p) : base_type(&p), processor_(p) {
+    addParamPage(std::make_shared<pcontrol_type>(processor_.params_.position),
+                 std::make_shared<pcontrol_type>(processor_.params_.size),
+                 std::make_shared<pcontrol_type>(processor_.params_.density),
+                 std::make_shared<pcontrol_type>(processor_.params_.texture));
 
-    addParamPage(
-        std::make_shared<pcontrol_type>(processor_.params_.position),
-        std::make_shared<pcontrol_type>(processor_.params_.size),
-        std::make_shared<pcontrol_type>(processor_.params_.density),
-        std::make_shared<pcontrol_type>(processor_.params_.texture)
-    );
+    addParamPage(std::make_shared<pcontrol_type>(processor_.params_.mix),
+                 std::make_shared<pcontrol_type>(processor_.params_.spread),
+                 std::make_shared<pcontrol_type>(processor_.params_.feedback),
+                 std::make_shared<pcontrol_type>(processor_.params_.reverb));
 
-    addParamPage(
-        std::make_shared<pcontrol_type>(processor_.params_.mix),
-        std::make_shared<pcontrol_type>(processor_.params_.spread),
-        std::make_shared<pcontrol_type>(processor_.params_.feedback),
-        std::make_shared<pcontrol_type>(processor_.params_.reverb)
-    );
-
-    addParamPage(
-        std::make_shared<pcontrol_type>(processor_.params_.pitch),
-        std::make_shared<pcontrol_type>(processor_.params_.mode, 1.0f, 1.0f),
-        std::make_shared<pcontrol_type>(processor_.params_.in_gain),
-        nullptr
-    );
+    addParamPage(std::make_shared<pcontrol_type>(processor_.params_.pitch),
+                 std::make_shared<pcontrol_type>(processor_.params_.mode, 1.0f, 1.0f),
+                 std::make_shared<pcontrol_type>(processor_.params_.in_gain), nullptr);
 
 
-    addButtonPage(
-        std::make_shared<bcontrol_type>(processor_.params_.freeze, 24, Colours::lightskyblue),
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr
-    );
+    addButtonPage(std::make_shared<bcontrol_type>(processor_.params_.freeze, 24, Colours::lightskyblue), nullptr,
+                  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
 
     inVu_.init("In");
     outVu_.init("Out");
@@ -57,7 +39,7 @@ PluginEditor::PluginEditor(PluginProcessor &p)
 }
 
 
-void PluginEditor::drawView(Graphics &g) {
+void PluginEditor::drawView(Graphics& g) {
     float inL, inR, outL, outR;
     processor_.getRMS(inL, inR, outL, outR);
     inVu_.level(inL, inR);

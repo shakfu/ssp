@@ -5,21 +5,21 @@ StereoChannel::StereoChannel() {
     addAndMakeVisible(vuMeter_);
 }
 
-inline float normValue(RangedAudioParameter &p) {
+inline float normValue(RangedAudioParameter& p) {
     return p.convertFrom0to1(p.getValue());
 }
 
-void StereoChannel::paint(Graphics &g) {
+void StereoChannel::paint(Graphics& g) {
     static constexpr int fh = 8 * COMPACT_UI_SCALE;
     int h = getHeight();
     int w = getWidth();
 
     vuMeter_.level(lData_->rms_.lvl(), rData_->rms_.lvl());
 
-    float gl=normValue(lData_->level[0]);
-    float gr=normValue(rData_->level[0]);
-    if(rData_->dummy_) gr=gl;
-    vuMeter_.gainLevel(gl,gr);
+    float gl = normValue(lData_->level[0]);
+    float gr = normValue(rData_->level[0]);
+    if (rData_->dummy_) gr = gl;
+    vuMeter_.gainLevel(gl, gr);
 
     g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), fh, juce::Font::plain)));
 

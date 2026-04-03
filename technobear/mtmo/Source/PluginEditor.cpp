@@ -12,7 +12,7 @@ void PluginEditor::onSSPTimer() {
     MidiMessage msg;
     while (processor_.messageQueue().try_dequeue(msg)) {
         //        Logger::writeToLog("timerCallback -> " + msg.getDescription());
-        auto &data = dataBuf_[wrPos_];
+        auto& data = dataBuf_[wrPos_];
 
         if (msg.isNoteOn(false)) {
             data.channel_ = String(msg.getChannel());
@@ -67,11 +67,11 @@ void PluginEditor::onSSPTimer() {
 }
 
 
-PluginEditor::PluginEditor(PluginProcessor &p) : base_type(&p), processor_(p) {
+PluginEditor::PluginEditor(PluginProcessor& p) : base_type(&p), processor_(p) {
     setSize(1600, 480);
 }
 
-void PluginEditor::drawView(Graphics &g) {
+void PluginEditor::drawView(Graphics& g) {
     base_type::drawView(g);
 
     const int fh = 12 * COMPACT_UI_SCALE;
