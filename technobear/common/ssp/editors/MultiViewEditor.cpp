@@ -1,16 +1,13 @@
 #include "MultiViewEditor.h"
 
-#include "ssp/BaseProcessor.h"
-
 #include "SSP.h"
-
-#include "ssp/controls/ParamControl.h"
+#include "ssp/BaseProcessor.h"
 #include "ssp/controls/ParamButton.h"
+#include "ssp/controls/ParamControl.h"
 
 namespace ssp {
 
-MultiViewEditor::MultiViewEditor(BaseProcessor *p, unsigned maxView)
-    : base_type(p) {
+MultiViewEditor::MultiViewEditor(BaseProcessor* p, unsigned maxView) : base_type(p) {
     setButtonBounds(upBtn_, 0, 5);
     addAndMakeVisible(upBtn_);
 
@@ -32,13 +29,11 @@ MultiViewEditor::MultiViewEditor(BaseProcessor *p, unsigned maxView)
 }
 
 
-MultiViewEditor::ControlPage MultiViewEditor::addParamPage(
-    std::shared_ptr<BaseParamControl> c1,
-    std::shared_ptr<BaseParamControl> c2,
-    std::shared_ptr<BaseParamControl> c3,
-    std::shared_ptr<BaseParamControl> c4,
-    unsigned v,
-    juce::Colour clr) {
+MultiViewEditor::ControlPage MultiViewEditor::addParamPage(std::shared_ptr<BaseParamControl> c1,
+                                                           std::shared_ptr<BaseParamControl> c2,
+                                                           std::shared_ptr<BaseParamControl> c3,
+                                                           std::shared_ptr<BaseParamControl> c4, unsigned v,
+                                                           juce::Colour clr) {
     ControlPage page;
     page.control_[0] = c1;
     page.control_[1] = c2;
@@ -56,7 +51,7 @@ MultiViewEditor::ControlPage MultiViewEditor::addParamPage(
     if (c4) c4->fg(clr);
 
     if (v < views_.size()) {
-        auto &view = views_[v];
+        auto& view = views_[v];
         view.controlPages_.push_back(page);
         if (v == view_ && paramPage_ == view.controlPages_.size() - 1) {
             for (auto i = 0; i < 4; i++) {
@@ -80,17 +75,10 @@ MultiViewEditor::ControlPage MultiViewEditor::addParamPage(
     return page;
 }
 
-void MultiViewEditor::addButtonPage(
-    std::shared_ptr<ParamButton> c1,
-    std::shared_ptr<ParamButton> c2,
-    std::shared_ptr<ParamButton> c3,
-    std::shared_ptr<ParamButton> c4,
-    std::shared_ptr<ParamButton> c5,
-    std::shared_ptr<ParamButton> c6,
-    std::shared_ptr<ParamButton> c7,
-    std::shared_ptr<ParamButton> c8,
-    unsigned v
-) {
+void MultiViewEditor::addButtonPage(std::shared_ptr<ParamButton> c1, std::shared_ptr<ParamButton> c2,
+                                    std::shared_ptr<ParamButton> c3, std::shared_ptr<ParamButton> c4,
+                                    std::shared_ptr<ParamButton> c5, std::shared_ptr<ParamButton> c6,
+                                    std::shared_ptr<ParamButton> c7, std::shared_ptr<ParamButton> c8, unsigned v) {
     ButtonPage page;
     page.control_[0] = c1;
     page.control_[1] = c2;
@@ -112,7 +100,7 @@ void MultiViewEditor::addButtonPage(
 
 
     if (v < views_.size()) {
-        auto &view = views_[v];
+        auto& view = views_[v];
         view.buttonPages_.push_back(page);
 
         if (view_ == v && paramPage_ == view.buttonPages_.size() - 1) {
@@ -134,14 +122,12 @@ void MultiViewEditor::onEncoder(unsigned enc, float v) {
     base_type::onEncoder(enc, v);
     if (v > -0.01f && v < 0.01f) return;
 
-    auto &view = views_[view_];
+    auto& view = views_[view_];
     if (paramPage_ < view.controlPages_.size()) {
         auto page = view.controlPages_[paramPage_];
         auto c = page.control_[enc];
         if (c != nullptr) {
-            if (encoderState_[enc]) {
-                encoderFine[enc] = true;
-            }
+            if (encoderState_[enc]) { encoderFine[enc] = true; }
             if (v > 0.0f) {
                 c->inc(encoderFine[enc]);
             } else if (v < 0.0f) {
@@ -153,17 +139,15 @@ void MultiViewEditor::onEncoder(unsigned enc, float v) {
 
 void MultiViewEditor::onEncoderSwitch(unsigned enc, bool v) {
     base_type::onEncoderSwitch(enc, v);
-    if (v) return; // change on button up
+    if (v) return;  // change on button up
 
-    auto &view = views_[view_];
+    auto& view = views_[view_];
     if (!encoderFine[enc]) {
         if (paramPage_ < view.controlPages_.size()) {
             auto page = view.controlPages_[paramPage_];
             auto c = page.control_[enc];
             if (c != nullptr) {
-                if (v == 0) {
-                    c->reset();
-                }
+                if (v == 0) { c->reset(); }
             }
         }
     }
@@ -173,13 +157,15 @@ void MultiViewEditor::onEncoderSwitch(unsigned enc, bool v) {
 void MultiViewEditor::onButton(unsigned btn, bool v) {
     base_type::onButton(btn, v);
 
-    auto &view = views_[view_];
+    auto& view = views_[view_];
     if (buttonPage_ < view.buttonPages_.size()) {
         auto page = view.buttonPages_[buttonPage_];
         auto c = page.control_[btn];
         if (c != nullptr) {
-            if (v) c->onDown();
-            else c->onUp();
+            if (v)
+                c->onDown();
+            else
+                c->onUp();
         }
     }
 }
@@ -187,19 +173,17 @@ void MultiViewEditor::onButton(unsigned btn, bool v) {
 void MultiViewEditor::eventButton(unsigned btn, bool v) {
     base_type::eventButton(btn, v);
 
-    auto &view = views_[view_];
+    auto& view = views_[view_];
     if (buttonPage_ < view.buttonPages_.size()) {
         auto page = view.buttonPages_[buttonPage_];
         auto c = page.control_[btn];
-        if (c != nullptr) {
-            c->onClick();
-        }
+        if (c != nullptr) { c->onClick(); }
     }
 }
 
 
 void MultiViewEditor::chgParamPage(int delta, bool changeVis) {
-    auto &view = views_[view_];
+    auto& view = views_[view_];
     unsigned nextP = paramPage_;
     if (delta < 0) {
         nextP = paramPage_ > 0 ? paramPage_ - 1 : paramPage_;
@@ -210,14 +194,14 @@ void MultiViewEditor::chgParamPage(int delta, bool changeVis) {
 }
 
 void MultiViewEditor::setParamPage(unsigned p, bool changeVis) {
-    auto &view = views_[view_];
+    auto& view = views_[view_];
     unsigned lastP = paramPage_;
     unsigned nextP = p;
     if (lastP != nextP) {
         paramPage_ = nextP;
         auto page = view.controlPages_[lastP];
         for (auto i = 0; i < 4; i++) {
-            auto &c = page.control_[i];
+            auto& c = page.control_[i];
             if (c != nullptr) {
                 if (changeVis) c->setVisible(false);
                 c->active(false);
@@ -225,7 +209,7 @@ void MultiViewEditor::setParamPage(unsigned p, bool changeVis) {
         }
         page = view.controlPages_[nextP];
         for (auto i = 0; i < 4; i++) {
-            auto &c = page.control_[i];
+            auto& c = page.control_[i];
             if (c != nullptr) {
                 if (changeVis) c->setVisible(true);
                 c->active(true);
@@ -235,7 +219,7 @@ void MultiViewEditor::setParamPage(unsigned p, bool changeVis) {
 }
 
 void MultiViewEditor::chgButtonPage(int delta) {
-    auto &view = views_[view_];
+    auto& view = views_[view_];
     unsigned nextP = buttonPage_;
     if (delta < 0) {
         nextP = buttonPage_ > 0 ? buttonPage_ - 1 : buttonPage_;
@@ -247,16 +231,16 @@ void MultiViewEditor::chgButtonPage(int delta) {
 
 void MultiViewEditor::setButtonPage(unsigned p) {
     static constexpr unsigned MAX_BTN = 8;
-    auto &view = views_[view_];
+    auto& view = views_[view_];
     unsigned lastP = buttonPage_;
     unsigned nextP = p;
 
     if (lastP != nextP) {
-        if(buttonPage_ < view.buttonPages_.size()) {
+        if (buttonPage_ < view.buttonPages_.size()) {
             buttonPage_ = nextP;
             auto page = view.buttonPages_[lastP];
             for (auto i = 0; i < MAX_BTN; i++) {
-                auto &c = page.control_[i];
+                auto& c = page.control_[i];
                 if (c != nullptr) {
                     c->setVisible(false);
                     //                c->active(false);
@@ -264,13 +248,13 @@ void MultiViewEditor::setButtonPage(unsigned p) {
             }
         }
 
-        if(nextP < view.buttonPages_.size()) {
+        if (nextP < view.buttonPages_.size()) {
             auto page = view.buttonPages_[nextP];
             for (auto i = 0; i < MAX_BTN; i++) {
-                auto &c = page.control_[i];
+                auto& c = page.control_[i];
                 if (c != nullptr) {
                     c->setVisible(true);
-//                c->active(true);
+                    //                c->active(true);
                 }
             }
         }
@@ -295,19 +279,17 @@ void MultiViewEditor::setView(unsigned v) {
         static constexpr unsigned MAX_BTN = 8;
 
         {  // display current buttons/params
-            auto &view = views_[lastV];
-            if(buttonPage_ < view.buttonPages_.size()) {
+            auto& view = views_[lastV];
+            if (buttonPage_ < view.buttonPages_.size()) {
                 auto bpage = view.buttonPages_[buttonPage_];
                 for (auto i = 0; i < MAX_BTN; i++) {
-                    auto &c = bpage.control_[i];
-                    if (c != nullptr) {
-                        c->setVisible(false);
-                    }
+                    auto& c = bpage.control_[i];
+                    if (c != nullptr) { c->setVisible(false); }
                 }
             }
             auto ppage = view.controlPages_[paramPage_];
             for (auto i = 0; i < 4; i++) {
-                auto &c = ppage.control_[i];
+                auto& c = ppage.control_[i];
                 if (c != nullptr) {
                     c->setVisible(false);
                     c->active(false);
@@ -315,23 +297,19 @@ void MultiViewEditor::setView(unsigned v) {
             }
         }
 
-        {   // enable new buttons/controls
-            auto &view = views_[nextV];
-            if(buttonPage_ >= view.buttonPages_.size()) {
-                buttonPage_=0;
-            }
-            if(buttonPage_ < view.buttonPages_.size()) {
+        {  // enable new buttons/controls
+            auto& view = views_[nextV];
+            if (buttonPage_ >= view.buttonPages_.size()) { buttonPage_ = 0; }
+            if (buttonPage_ < view.buttonPages_.size()) {
                 auto bpage = view.buttonPages_[buttonPage_];
                 for (auto i = 0; i < MAX_BTN; i++) {
-                    auto &c = bpage.control_[i];
-                    if (c != nullptr) {
-                        c->setVisible(true);
-                    }
+                    auto& c = bpage.control_[i];
+                    if (c != nullptr) { c->setVisible(true); }
                 }
             }
             auto ppage = view.controlPages_[paramPage_];
             for (auto i = 0; i < 4; i++) {
-                auto &c = ppage.control_[i];
+                auto& c = ppage.control_[i];
                 if (c != nullptr) {
                     c->setVisible(true);
                     c->active(true);
@@ -344,14 +322,14 @@ void MultiViewEditor::setView(unsigned v) {
 void MultiViewEditor::eventUp(bool v) {
     base_type::eventUp(v);
 
-    if (v) return; // change on button up
+    if (v) return;  // change on button up
     chgParamPage(-1, true);
 }
 
 void MultiViewEditor::eventDown(bool v) {
     base_type::eventDown(v);
 
-    if (v) return; // change on button up
+    if (v) return;  // change on button up
     chgParamPage(1, true);
 }
 
@@ -359,14 +337,14 @@ void MultiViewEditor::eventDown(bool v) {
 void MultiViewEditor::eventLeft(bool v) {
     base_type::eventLeft(v);
 
-    if (v) return; // change on button up
+    if (v) return;  // change on button up
     chgButtonPage(-1);
 }
 
 void MultiViewEditor::eventRight(bool v) {
     base_type::eventRight(v);
 
-    if (v) return; // change on button up
+    if (v) return;  // change on button up
     chgButtonPage(1);
 }
 
@@ -385,4 +363,4 @@ void MultiViewEditor::setParamBounds(unsigned idx, std::shared_ptr<BaseParamCont
     c->setBounds(x + sp, y, w - sp * 2, h);
 }
 
-}//ssp
+}  // namespace ssp

@@ -9,11 +9,9 @@ static constexpr unsigned btnSpaceY = 50;
 
 class Key : public Component {
 public:
-    Key(const std::string &k, unsigned fh = 55) : Key(k, k, fh) {
-    }
+    Key(const std::string& k, unsigned fh = 55) : Key(k, k, fh) {}
 
-    Key(const std::string &k, const std::string &kv, unsigned fh) : k_(k), fh_(fh), kv_(kv) {
-    }
+    Key(const std::string& k, const std::string& kv, unsigned fh) : k_(k), fh_(fh), kv_(kv) {}
 
     bool active() { return active_; }
 
@@ -23,8 +21,7 @@ public:
 
     void selected(bool a) { selected_ = a; }
 
-    void paint(Graphics &g) {
-
+    void paint(Graphics& g) {
         g.setColour(active_ ? fg_ : bg_);
         g.fillRect(0, 0, getWidth(), getHeight());
 
@@ -48,11 +45,13 @@ private:
 };
 
 
-TextEdit::TextEdit(BaseProcessor *p) : BaseEditor(p),
-                                       copyBtn_("Copy", [&](bool b) { onCopyButton(b); }, 24, Colours::cyan),
-                                       pasteBtn_("Paste", [&](bool b) { onPasteButton(b); }, 24, Colours::yellow) {
-//    upBtn_.setVisible(false);
-//    downBtn_.setVisible(false);
+TextEdit::TextEdit(BaseProcessor* p)
+    : BaseEditor(p),
+      copyBtn_(
+          "Copy", [&](bool b) { onCopyButton(b); }, 24, Colours::cyan),
+      pasteBtn_("Paste", [&](bool b) { onPasteButton(b); }, 24, Colours::yellow) {
+    //    upBtn_.setVisible(false);
+    //    downBtn_.setVisible(false);
     int bfh = 48;
     upBtn_.label("^", bfh);
     downBtn_.label("v", bfh);
@@ -111,12 +110,12 @@ std::string TextEdit::getText() {
     return text_;
 }
 
-void TextEdit::setText(const std::string &txt) {
+void TextEdit::setText(const std::string& txt) {
     text_ = txt;
     cursor_ = text_.length();
 }
 
-void TextEdit::drawView(Graphics &g) {
+void TextEdit::drawView(Graphics& g) {
     // display 1600x 480
     // x= left/right (0..1599)
     // y= top/bottom (0..479)
@@ -126,7 +125,7 @@ void TextEdit::drawView(Graphics &g) {
     float w = 800;
     float h = 400;
     float fh = 24;
-    Font font(juce::FontOptions(Font::getDefaultMonospacedFontName(),fh, juce::Font::plain));
+    Font font(juce::FontOptions(Font::getDefaultMonospacedFontName(), fh, juce::Font::plain));
     g.setColour(bg_);
     g.fillRect(x, y, w, h);
     g.setColour(fg_);
@@ -144,7 +143,7 @@ void TextEdit::drawView(Graphics &g) {
         g.setColour(bg_);
     }
 
-    float fpos = juce::GlyphArrangement::getStringWidth(font,text_);
+    float fpos = juce::GlyphArrangement::getStringWidth(font, text_);
     g.fillRect(x + 2.f + fpos + 2.f, y + 4.f, 4.f, fh - 2.0f);
 }
 
@@ -164,7 +163,7 @@ void TextEdit::onSelect() {
 void TextEdit::onEncoder(unsigned id, float v) {
     base_type::onEncoder(id, v);
     switch (id) {
-        case 0 : {
+        case 0: {
             if (v > 0) {
                 if (selected_ + 1 < keys_.size()) {
                     keys_[selected_]->selected(false);
@@ -180,8 +179,7 @@ void TextEdit::onEncoder(unsigned id, float v) {
             }
             break;
         }
-        default:
-            ;
+        default:;
     }
 }
 
@@ -189,24 +187,23 @@ void TextEdit::onEncoderSwitch(unsigned id, bool v) {
     base_type::onEncoderSwitch(id, v);
     if (v) return;
     switch (id) {
-        case 0 : {
+        case 0: {
             keys_[selected_]->active(v);
             if (!v) onSelect();
             break;
         }
-        default:
-            ;
+        default:;
     }
 }
 
 void TextEdit::onButton(unsigned id, bool v) {
     base_type::onButton(id, v);
     switch (id) {
-        case B_COPY : {
+        case B_COPY: {
             onCopyButton(v);
             break;
         }
-        case B_PASTE : {
+        case B_PASTE: {
             onPasteButton(v);
             break;
         }
@@ -256,16 +253,16 @@ void TextEdit::eventRight(bool v) {
 
 void TextEdit::eventLeftShift(bool v) {
     base_type::eventLeftShift(v);
-    if(v) return;
+    if (v) return;
     onDelete();
 }
 
 void TextEdit::eventRightShift(bool v) {
     base_type::eventRightShift(v);
-    if(v) return;
+    if (v) return;
     keys_[selected_]->active(true);
     onSelect();
 }
 
 
-}
+}  // namespace ssp

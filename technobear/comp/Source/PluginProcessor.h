@@ -1,25 +1,25 @@
 #pragma once
 
 
+#include <algorithm>
+#include <atomic>
+
+#include "daisysp.h"
 #include "ssp/BaseProcessor.h"
 #include "ssp/controls/RmsTrack.h"
 
-#include <atomic>
-#include <algorithm>
-#include "daisysp.h"
-
 namespace ID {
-#define PARAMETER_ID(str) constexpr const char* str { #str };
+#define PARAMETER_ID(str) constexpr const char* str{ #str };
 
-PARAMETER_ID (ratio)
-PARAMETER_ID (threshold)
-PARAMETER_ID (attack)
-PARAMETER_ID (release)
-PARAMETER_ID (makeup)
-PARAMETER_ID (automakeup)
+PARAMETER_ID(ratio)
+PARAMETER_ID(threshold)
+PARAMETER_ID(attack)
+PARAMETER_ID(release)
+PARAMETER_ID(makeup)
+PARAMETER_ID(automakeup)
 
 #undef PARAMETER_ID
-}
+}  // namespace ID
 
 using namespace juce;
 
@@ -27,31 +27,32 @@ using namespace juce;
 class PluginProcessor : public ssp::BaseProcessor {
 public:
     explicit PluginProcessor();
-    explicit PluginProcessor(const AudioProcessor::BusesProperties &ioLayouts, AudioProcessorValueTreeState::ParameterLayout layout);
+    explicit PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
+                             AudioProcessorValueTreeState::ParameterLayout layout);
     ~PluginProcessor();
 
     const String getName() const override { return JucePlugin_Name; }
 
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
-    void processBlock(AudioSampleBuffer &, MidiBuffer &) override;
+    void processBlock(AudioSampleBuffer&, MidiBuffer&) override;
 
-    AudioProcessorEditor *createEditor() override;
+    AudioProcessorEditor* createEditor() override;
 
     bool hasEditor() const override { return true; }
 
     struct PluginParams {
         using Parameter = juce::RangedAudioParameter;
-        explicit PluginParams(juce::AudioProcessorValueTreeState &);
-        Parameter &ratio;
-        Parameter &threshold;
-        Parameter &attack;
-        Parameter &release;
-        Parameter &makeup;
-        Parameter &automakeup;
+        explicit PluginParams(juce::AudioProcessorValueTreeState&);
+        Parameter& ratio;
+        Parameter& threshold;
+        Parameter& attack;
+        Parameter& release;
+        Parameter& makeup;
+        Parameter& automakeup;
     } params_;
 
-    void getRMS(float &lIn, float &rIn, float &lOut, float &rOut) {
+    void getRMS(float& lIn, float& rIn, float& lOut, float& rOut) {
         lIn = inRms_[0].lvl();
         rIn = inRms_[1].lvl();
         lOut = outRms_[0].lvl();
@@ -60,26 +61,19 @@ public:
 
     static BusesProperties getBusesProperties() {
         BusesProperties props;
-        for (auto i = 0; i < I_MAX; i++) {
-            props.addBus(true, getInputBusName(i), AudioChannelSet::mono());
-        }
-        for (auto i = 0; i < O_MAX; i++) {
-            props.addBus(false, getOutputBusName(i), AudioChannelSet::mono());
-        }
+        for (auto i = 0; i < I_MAX; i++) { props.addBus(true, getInputBusName(i), AudioChannelSet::mono()); }
+        for (auto i = 0; i < O_MAX; i++) { props.addBus(false, getOutputBusName(i), AudioChannelSet::mono()); }
         return props;
     }
 
     float ioActivity(bool input, int bus) {
-        jassert(
-            (input == true && bus < I_MAX)
-            ||
-            (input == false && bus < O_MAX)
-        );
+        jassert((input == true && bus < I_MAX) || (input == false && bus < O_MAX));
         return input ? inActivity_[bus] : outActivity_[bus];
     }
 
 protected:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
 private:
     enum {
         I_LEFT,
@@ -96,9 +90,7 @@ private:
 
     daisysp::Compressor compressor_;
 
-    bool isBusesLayoutSupported(const BusesLayout &layouts) const override {
-        return true;
-    }
+    bool isBusesLayoutSupported(const BusesLayout& layouts) const override { return true; }
 
     static const String getInputBusName(int channelIndex);
     static const String getOutputBusName(int channelIndex);
@@ -111,7 +103,5 @@ private:
     unsigned activityCount_ = 0;
     static constexpr unsigned ACTIVITY_PERIOD = 10;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)
 };
-
-

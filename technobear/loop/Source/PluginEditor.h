@@ -1,8 +1,8 @@
 #pragma once
 
 #include "PluginProcessor.h"
-#include "ssp/editors/BaseViewEditor.h"
 #include "ssp/controls/WaveDisp.h"
+#include "ssp/editors/BaseViewEditor.h"
 #include "ssp/editors/FileBrowser.h"
 #include "ssp/editors/TextEdit.h"
 
@@ -10,16 +10,17 @@ using namespace juce;
 
 class PluginEditor : public ssp::BaseViewEditor {
 public:
-    explicit PluginEditor(PluginProcessor &);
+    explicit PluginEditor(PluginProcessor&);
     ~PluginEditor() override = default;
 
-    void drawView(Graphics &) override;
+    void drawView(Graphics&) override;
     void resized() override;
 
 
     void onFileButton(bool v);
     void onSaveButton(bool v);
     void onCancelButton(bool v);
+
 protected:
     using base_type = ssp::BaseViewEditor;
 
@@ -29,6 +30,7 @@ protected:
     void onButton(unsigned int id, bool v) override;
 
     void setView(unsigned newView) override;
+
 private:
     enum {
         V_LAYER_1,
@@ -55,27 +57,11 @@ private:
         float recPos_ = 0.0;
     } layer_[MAX_LAYERS];
 
-    enum E_ViewMode {
-        M_LAYER,
-        M_REC,
-        M_SAVE,
-        M_FILE,
-        M_MAX
-    };
+    enum E_ViewMode { M_LAYER, M_REC, M_SAVE, M_FILE, M_MAX };
 
 
     // note: this overlap with parameter buttons!
-    enum  {
-        B_1,
-        B_2,
-        B_3,
-        B_4,
-        B_FILE,
-        B_SAVE,
-        B_7,
-        B_CANCEL,
-        B_MAX
-    };
+    enum { B_1, B_2, B_3, B_4, B_FILE, B_SAVE, B_7, B_CANCEL, B_MAX };
 
     unsigned viewMode_ = M_LAYER;
 
@@ -83,15 +69,10 @@ private:
     std::shared_ptr<ssp::TextEdit> saveEditor_;
     ssp::ValueButton fileBtn_, saveBtn_, cancelBtn_;
 
-    ssp::WaveDisp<1> scopes_[MAX_LAYERS] = {
-        ssp::WaveDisp<1>(false, true),
-        ssp::WaveDisp<1>(false, true),
-        ssp::WaveDisp<1>(false, true),
-        ssp::WaveDisp<1>(false, true)
-    };
+    ssp::WaveDisp<1> scopes_[MAX_LAYERS] = { ssp::WaveDisp<1>(false, true), ssp::WaveDisp<1>(false, true),
+                                             ssp::WaveDisp<1>(false, true), ssp::WaveDisp<1>(false, true) };
 
 
-    PluginProcessor &processor_;
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginEditor)
+    PluginProcessor& processor_;
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginEditor)
 };
-

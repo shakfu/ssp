@@ -8,8 +8,8 @@
 using namespace juce;
 
 namespace ID {
-#define PARAMETER_ID(str) constexpr const char *str{ #str };
-constexpr const char *separator{ ":" };
+#define PARAMETER_ID(str) constexpr const char* str{ #str };
+constexpr const char* separator{ ":" };
 
 
 // vca : 1-4
@@ -25,15 +25,15 @@ PARAMETER_ID(pan)
 class PluginProcessor : public ssp::BaseProcessor {
 public:
     explicit PluginProcessor();
-    explicit PluginProcessor(const AudioProcessor::BusesProperties &ioLayouts,
+    explicit PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
                              AudioProcessorValueTreeState::ParameterLayout layout);
     ~PluginProcessor();
 
     const String getName() const override { return JucePlugin_Name; }
 
-    void processBlock(AudioSampleBuffer &, MidiBuffer &) override;
+    void processBlock(AudioSampleBuffer&, MidiBuffer&) override;
 
-    AudioProcessorEditor *createEditor() override;
+    AudioProcessorEditor* createEditor() override;
 
     bool hasEditor() const override { return true; }
 
@@ -79,21 +79,21 @@ public:
 
     struct VcaParams {
         using Parameter = juce::RangedAudioParameter;
-        VcaParams(AudioProcessorValueTreeState &apvt, unsigned id);
+        VcaParams(AudioProcessorValueTreeState& apvt, unsigned id);
         unsigned id_;
         String pid_;  // e.g mods:1
-        Parameter &gain;
-        Parameter &pan;
+        Parameter& gain;
+        Parameter& pan;
     };
 
     struct PluginParams {
         using Parameter = juce::RangedAudioParameter;
-        explicit PluginParams(juce::AudioProcessorValueTreeState &);
+        explicit PluginParams(juce::AudioProcessorValueTreeState&);
 
         std::vector<std::unique_ptr<VcaParams>> vcaParams_;
     } params_;
 
-    VcaParams &getVcaParam(unsigned i) {
+    VcaParams& getVcaParam(unsigned i) {
         jassert(i < params_.vcaParams_.size());
         return *(params_.vcaParams_[i]);
     }
@@ -109,12 +109,12 @@ protected:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
 private:
-    bool isBusesLayoutSupported(const BusesLayout &layouts) const override { return true; }
+    bool isBusesLayoutSupported(const BusesLayout& layouts) const override { return true; }
 
     static const String getInputBusName(int channelIndex);
     static const String getOutputBusName(int channelIndex);
 
-    inline float normValue(RangedAudioParameter &p) { return p.convertFrom0to1(p.getValue()); }
+    inline float normValue(RangedAudioParameter& p) { return p.convertFrom0to1(p.getValue()); }
 
 
     struct {

@@ -8,16 +8,16 @@
 #define SSP_FULL_IMAGECACHE_HASHCODE 0x53535048415348
 #define SSP_COMPACT_IMAGECACHE_HASHCODE 0x53535048415349
 
-SSP_PluginEditorInterface::SSP_PluginEditorInterface(ssp::EditorHost *editor) : editor_(editor) {
+SSP_PluginEditorInterface::SSP_PluginEditorInterface(ssp::EditorHost* editor) : editor_(editor) {
     for (int i = 0; i < SSP_LastBtn; i++) {
         buttonCounter_[i] = 0;
         buttonState_[i] = false;
     }
-    // ssp::log("SSP_PluginEditorInterface");       
+    // ssp::log("SSP_PluginEditorInterface");
 }
 
 SSP_PluginEditorInterface::~SSP_PluginEditorInterface() {
-    // ssp::log("~SSP_PluginEditorInterface");       
+    // ssp::log("~SSP_PluginEditorInterface");
     if (editor_) delete editor_;
 }
 
@@ -35,7 +35,7 @@ void SSP_PluginEditorInterface::frameStart() {
 void SSP_PluginEditorInterface::visibilityChanged(bool b) {
     PluginEditorInterface::visibilityChanged(b);
     editor_->setVisible(false);
-    if(!b) {
+    if (!b) {
         // if we loose visiibity, then forget button states
         for (int i = 0; i < SSP_LastBtn; i++) {
             buttonCounter_[i] = 0;
@@ -46,18 +46,18 @@ void SSP_PluginEditorInterface::visibilityChanged(bool b) {
 }
 
 
-void SSP_PluginEditorInterface::renderToImage(unsigned char *buffer, int width, int height) {
+void SSP_PluginEditorInterface::renderToImage(unsigned char* buffer, int width, int height) {
     auto hashcode = editor_->isCompactUI() ? SSP_COMPACT_IMAGECACHE_HASHCODE : SSP_FULL_IMAGECACHE_HASHCODE;
     Image img = ImageCache::getFromHashCode(hashcode);
     if (!img.isValid()) {
         Image newimg(Image::ARGB, width, height, true);
         ImageCache::addImageToCache(newimg, hashcode);
         img = newimg;
-        // ssp::log("renderToImage noimage : " +std::to_string(width)+ "," +std::to_string(height));       
+        // ssp::log("renderToImage noimage : " +std::to_string(width)+ "," +std::to_string(height));
     }
 
     if (!editor_->isVisible()) {
-        // ssp::log("renderToImage novis : " +std::to_string(width)+ "," +std::to_string(height));       
+        // ssp::log("renderToImage novis : " +std::to_string(width)+ "," +std::to_string(height));
         editor_->setBounds(Rectangle<int>(0, 0, width, height));
         editor_->setOpaque(true);
         editor_->setVisible(true);
@@ -67,7 +67,7 @@ void SSP_PluginEditorInterface::renderToImage(unsigned char *buffer, int width, 
     editor_->paintEntireComponent(g, true);
     Image::BitmapData bitmap(img, Image::BitmapData::readOnly);
 
-    if(buffer) memcpy(buffer, bitmap.data, width * height * 4);
+    if (buffer) memcpy(buffer, bitmap.data, width * height * 4);
 }
 
 void SSP_PluginEditorInterface::buttonPressed(int n, bool val) {
@@ -122,7 +122,7 @@ void SSP_PluginEditorInterface::generateButtenEvents(int n, bool val) {
     if (buttonState_[n] == val) return;
     // only look at transitions
 
-    auto &actions_ = editor_;
+    auto& actions_ = editor_;
     buttonState_[n] = val;
 
     if (val) {

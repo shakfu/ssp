@@ -2,8 +2,7 @@
 
 #include "UIStringFunc.h"
 
-SeqStepControl::SeqStepControl(Parameter &p, Parameter& scale)
-    : BarParamControl(p, 0.2f, 0.01f), scale_(scale) {
+SeqStepControl::SeqStepControl(Parameter& p, Parameter& scale) : BarParamControl(p, 0.2f, 0.01f), scale_(scale) {
 }
 
 #define GET_P_VAL(x) x.convertFrom0to1(x.getValue())
@@ -24,12 +23,12 @@ String SeqStepControl::getTextValue() {
 }
 
 void SeqStepControl::inc(bool fine) {
-   bool  useStepNotes = scale_.getValue() != 0.0f;
+    bool useStepNotes = scale_.getValue() != 0.0f;
 
     if (useStepNotes) {
         static constexpr float coarseInc = 1.0f / (10.0f * 12.0f);  // +/-5 oct
         static constexpr float fineInc = coarseInc / 100.0f;        // cents
-        auto &p = param_;
+        auto& p = param_;
         p.beginChangeGesture();
         float inc = fine ? fineInc : coarseInc;
         float v = p.getValue();
@@ -43,12 +42,12 @@ void SeqStepControl::inc(bool fine) {
 }
 
 void SeqStepControl::dec(bool fine) {
-   bool  useStepNotes = scale_.getValue() != 0.0f;
+    bool useStepNotes = scale_.getValue() != 0.0f;
 
     if (useStepNotes) {
         static constexpr float coarseInc = 1.0f / (10.0f * 12.0f);  // +/-5 oct
         static constexpr float fineInc = coarseInc / 100.0f;        // cents
-        auto &p = param_;
+        auto& p = param_;
         p.beginChangeGesture();
         float inc = fine ? fineInc : coarseInc;
         float v = p.getValue();

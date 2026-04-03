@@ -1,41 +1,38 @@
 
-#include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-#include "ssp/controls/ParamControl.h"
+#include "PluginProcessor.h"
 #include "ssp/controls/ParamButton.h"
+#include "ssp/controls/ParamControl.h"
 
 using pcontrol_type = ssp::BarParamControl;
 using bcontrol_type = ssp::ParamButton;
 
 
-PluginEditor::PluginEditor(PluginProcessor &p)
-    : base_type(&p), processor_(p),
+PluginEditor::PluginEditor(PluginProcessor& p)
+    : base_type(&p),
+      processor_(p),
       runButton_("Run", nullptr, 16 * COMPACT_UI_SCALE, Colours::green),
       resetButton_("Reset", nullptr, 16 * COMPACT_UI_SCALE, Colours::yellow),
       useTrigsButton_("TrigSync", nullptr, 10 * COMPACT_UI_SCALE, Colours::cyan) {
-
-    addParamPage(
-        std::make_shared<pcontrol_type>(processor_.params_.source, 1.0f, 1.0f),
-        std::make_shared<pcontrol_type>(processor_.params_.clkindiv, 1.0f, 0.25f),
-        std::make_shared<pcontrol_type>(processor_.params_.bpm, 10.0f, 0.1f),
-        std::make_shared<pcontrol_type>(processor_.params_.midippqn, 1.0f, 1.0f)
-    );
+    addParamPage(std::make_shared<pcontrol_type>(processor_.params_.source, 1.0f, 1.0f),
+                 std::make_shared<pcontrol_type>(processor_.params_.clkindiv, 1.0f, 0.25f),
+                 std::make_shared<pcontrol_type>(processor_.params_.bpm, 10.0f, 0.1f),
+                 std::make_shared<pcontrol_type>(processor_.params_.midippqn, 1.0f, 1.0f));
 
     unsigned d = 0;
-    addParamPage(
-        std::make_shared<pcontrol_type>(processor_.params_.divisions_[d + 0]->val, 1, 0.25),
-        std::make_shared<pcontrol_type>(processor_.params_.divisions_[d + 1]->val, 1, 0.25),
-        std::make_shared<pcontrol_type>(processor_.params_.divisions_[d + 2]->val, 1, 0.25),
-        std::make_shared<pcontrol_type>(processor_.params_.divisions_[d + 3]->val, 1, 0.25)
-    );
+    addParamPage(std::make_shared<pcontrol_type>(processor_.params_.divisions_[d + 0]->val, 1, 0.25),
+                 std::make_shared<pcontrol_type>(processor_.params_.divisions_[d + 1]->val, 1, 0.25),
+                 std::make_shared<pcontrol_type>(processor_.params_.divisions_[d + 2]->val, 1, 0.25),
+                 std::make_shared<pcontrol_type>(processor_.params_.divisions_[d + 3]->val, 1, 0.25));
     d += 4;
-    addParamPage(
-        std::make_shared<pcontrol_type>(processor_.params_.divisions_[d + 0]->val, 1, 0.25),
-        std::make_shared<pcontrol_type>(processor_.params_.divisions_[d + 1]->val, 1, 0.25),
-        std::make_shared<pcontrol_type>(processor_.params_.divisions_[d + 2]->val, 1, 0.25),
-        std::make_shared<pcontrol_type>(processor_.params_.divisions_[d + 3]->val, 1, 0.25)
-    );
+    addParamPage(std::make_shared<pcontrol_type>(processor_.params_.divisions_[d + 0]->val, 1, 0.25),
+                 std::make_shared<pcontrol_type>(processor_.params_.divisions_[d + 1]->val, 1, 0.25),
+                 std::make_shared<pcontrol_type>(processor_.params_.divisions_[d + 2]->val, 1, 0.25),
+                 std::make_shared<pcontrol_type>(processor_.params_.divisions_[d + 3]->val, 1, 0.25));
+
+    addButtonPage(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+                  std::make_shared<bcontrol_type>(processor_.params_.midiTransport, 16, Colours::lightskyblue));
 
     // add some buttons
     setButtonBounds(runButton_, 0, 0);
@@ -49,7 +46,7 @@ PluginEditor::PluginEditor(PluginProcessor &p)
     setSize(1600, 480);
 }
 
-void PluginEditor::drawView(Graphics &g) {
+void PluginEditor::drawView(Graphics& g) {
     base_type::drawView(g);
 
     static String runLabel = "Run";
@@ -73,9 +70,9 @@ void PluginEditor::drawView(Graphics &g) {
     const int gw = 25;
 
     g.setFont(15 * COMPACT_UI_SCALE);
-    static const char *running = "Running";
-    static const char *stopped = "Stopped";
-    const char *runTxt;
+    static const char* running = "Running";
+    static const char* stopped = "Stopped";
+    const char* runTxt;
     if (runState) {
         runTxt = running;
         g.setColour(Colours::green);
@@ -104,7 +101,7 @@ void PluginEditor::drawView(Graphics &g) {
 
 void PluginEditor::onButton(unsigned btn, bool v) {
     base_type::onButton(btn, v);
-    if (!v) { // on release
+    if (!v) {  // on release
         switch (btn) {
             case BN_RUN: {
                 processor_.toggleRunRequest();
@@ -120,5 +117,5 @@ void PluginEditor::onButton(unsigned btn, bool v) {
             }
         }
     }
-//    Logger::writeToLog(String::formatted("ClkD onButton %d -  %d ", btn,v));
+    //    Logger::writeToLog(String::formatted("ClkD onButton %d -  %d ", btn,v));
 }

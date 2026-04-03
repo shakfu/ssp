@@ -1,4 +1,5 @@
 #include "PluginProcessor.h"
+
 #include "PluginEditor.h"
 #include "PluginMiniEditor.h"
 #include "ssp/EditorHost.h"
@@ -7,16 +8,15 @@ inline float constrain(float v, float vMin, float vMax) {
     return std::max<float>(vMin, std::min<float>(vMax, v));
 }
 
-PluginProcessor::PluginProcessor()
-    : PluginProcessor(getBusesProperties(), createParameterLayout()) {}
+PluginProcessor::PluginProcessor() : PluginProcessor(getBusesProperties(), createParameterLayout()) {
+}
 
-PluginProcessor::PluginProcessor(
-    const AudioProcessor::BusesProperties &ioLayouts,
-    AudioProcessorValueTreeState::ParameterLayout layout)
+PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
+                                 AudioProcessorValueTreeState::ParameterLayout layout)
     : BaseProcessor(ioLayouts, std::move(layout)), params_(vts()) {
     init();
-    for(int i=0;i<I_MAX;i++) inActivity_[i]=0;
-    for(int i=0;i<O_MAX;i++) outActivity_[i]=0;
+    for (int i = 0; i < I_MAX; i++) inActivity_[i] = 0;
+    for (int i = 0; i < O_MAX; i++) outActivity_[i] = 0;
 }
 
 PluginProcessor::~PluginProcessor() {
@@ -28,20 +28,18 @@ String getHarmonicPid(unsigned id) {
 
 String getAmpPid(unsigned hid) {
     return getHarmonicPid(hid) + String(ID::separator) + String(ID::amp);
-
 }
 
-PluginProcessor::Harmonic::Harmonic(AudioProcessorValueTreeState &apvt, unsigned id) :
-    id_(id), pid_(getHarmonicPid(id)),
-    amp(*apvt.getParameter(getAmpPid(id))) {
+PluginProcessor::Harmonic::Harmonic(AudioProcessorValueTreeState& apvt, unsigned id)
+    : id_(id), pid_(getHarmonicPid(id)), amp(*apvt.getParameter(getAmpPid(id))) {
 }
 
-PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState &apvt) :
-    pitch(*apvt.getParameter(ID::pitch)),
-    first(*apvt.getParameter(ID::first)),
-    centre(*apvt.getParameter(ID::centre)),
-    spread(*apvt.getParameter(ID::spread)),
-    amount(*apvt.getParameter(ID::amount)) {
+PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState& apvt)
+    : pitch(*apvt.getParameter(ID::pitch)),
+      first(*apvt.getParameter(ID::first)),
+      centre(*apvt.getParameter(ID::centre)),
+      spread(*apvt.getParameter(ID::spread)),
+      amount(*apvt.getParameter(ID::amount)) {
     for (unsigned hid = 0; hid < MAX_HARMONICS; hid++) {
         auto harmonic = std::make_unique<Harmonic>(apvt, hid);
         harmonics_.push_back(std::move(harmonic));
@@ -59,11 +57,11 @@ AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLa
     params.add(std::make_unique<ssp::BaseFloatParameter>(ID::spread, "T.Spread", 0.5f, 16.0f, 0.5f));
     params.add(std::make_unique<ssp::BaseFloatParameter>(ID::amount, "T.Amount", 0.0f, 1.0f, 0.0f));
 
-    auto harmonics = std::make_unique<AudioProcessorParameterGroup>(ID::harmonics,
-                                                                    String(ID::harmonics),
-                                                                    ID::separator);
+    auto harmonics =
+        std::make_unique<AudioProcessorParameterGroup>(ID::harmonics, String(ID::harmonics), ID::separator);
     for (unsigned hid = 0; hid < MAX_HARMONICS; hid++) {
-        harmonics->addChild(std::make_unique<ssp::BaseFloatParameter>(getAmpPid(hid), "Amp " + String(hid), 0, 1.0f, hid == 0 ? 1.0f : 0.0f));
+        harmonics->addChild(std::make_unique<ssp::BaseFloatParameter>(getAmpPid(hid), "Amp " + String(hid), 0, 1.0f,
+                                                                      hid == 0 ? 1.0f : 0.0f));
     }
     params.add(std::move(harmonics));
 
@@ -72,13 +70,7 @@ AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLa
 
 
 const String PluginProcessor::getInputBusName(int channelIndex) {
-    static String inBusName[I_MAX] = {
-        "VOct",
-        "Amp",
-        "TCentre",
-        "TSpread",
-        "TAmount"
-    };
+    static String inBusName[I_MAX] = { "VOct", "Amp", "TCentre", "TSpread", "TAmount" };
     if (channelIndex < I_MAX) { return inBusName[channelIndex]; }
     return "ZZIn-" + String(channelIndex);
 }
@@ -99,27 +91,23 @@ void PluginProcessor::prepareToPlay(double newSampleRate, int estimatedSamplesPe
 }
 
 
-void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
-    if(activityCount_==0) {
-        for(int i=0;i<I_MAX;i++) {
-            inActivity_[i]=buffer.getSample(i,0);
-        }
+void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
+    if (activityCount_ == 0) {
+        for (int i = 0; i < I_MAX; i++) { inActivity_[i] = buffer.getSample(i, 0); }
     }
 
     unsigned sz = buffer.getNumSamples();
 
     static constexpr float baseNote = 60.0f;
-    float pitch =
-        normValue(params_.pitch)
-        + cv2Pitch(buffer.getSample(I_VOCT, 0))
-        + baseNote;
+    float pitch = normValue(params_.pitch) + cv2Pitch(buffer.getSample(I_VOCT, 0)) + baseNote;
     float freq = daisysp::mtof(pitch);
 
     oscillator_.SetFirstHarmIdx(normValue(params_.first));
 
     // control rate
-    float cvCentre = (buffer.getSample(I_CENTRE, 0) * 8.0f) + 8.0f; // 0..16
-    float cvSpread = (buffer.getSample(I_SPREAD, 0) * 8.0f) + 8.0f; // 0..16
+    float cvCentre = (buffer.getSample(I_CENTRE, 0) * 8.0f) + 8.0f;  // 0..16
+    float cvSpread = (buffer.getSample(I_SPREAD, 0) * 8.0f) + 8.0f;  // 0..16
     float cvAmount = buffer.getSample(I_AMOUNT, 0);
     float centre = daisysp::fclamp((normValue(params_.centre) - 1.0f) + cvCentre, 0.0f, 16.0f) * -1.0f;
     float spread = daisysp::fclamp(normValue(params_.spread) + cvSpread, 0.1, 16.0f);
@@ -130,21 +118,19 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
     float hspread = spread / 8.0f;
     static constexpr float rHarmonics = 1.0f / float(MAX_HARMONICS);
     for (unsigned h = 0; h < MAX_HARMONICS; h++) {
-        auto &harmonic = *params_.harmonics_[h];
+        auto& harmonic = *params_.harmonics_[h];
         float ph = (h + centre) * rHarmonics;
         float sph = (ph / hspread);
         float tph = daisysp::fclamp(sph, -1.0f, 1.0f);
         float tilt = daisysp::fmax(cosf(tph * PI_F), 0);
         amps[h] = tilt * amount;
-        amps[h] += harmonic.amp.getValue(); // 0..1 is fine
+        amps[h] += harmonic.amp.getValue();  // 0..1 is fine
         sum += amps[h];
     }
 
 
     float rsum = sum > 0.0f ? 1.0f / sum : 1.0f;
-    for (unsigned h = 0; h < MAX_HARMONICS; h++) {
-        amps[h] = amps[h] * rsum;
-    }
+    for (unsigned h = 0; h < MAX_HARMONICS; h++) { amps[h] = amps[h] * rsum; }
 
     oscillator_.SetFreq(freq);
     oscillator_.SetAmplitudes(amps);
@@ -155,18 +141,16 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
         buffer.setSample(O_MAIN, s, oscillator_.Process() * amp);
     }
 
-    if(activityCount_==0) {
-        for(int i=0;i<O_MAX;i++) {
-            outActivity_[i]=buffer.getSample(i,0);
-        }
+    if (activityCount_ == 0) {
+        for (int i = 0; i < O_MAX; i++) { outActivity_[i] = buffer.getSample(i, 0); }
     }
-    activityCount_ = (activityCount_ + 1 ) % ACTIVITY_PERIOD;
+    activityCount_ = (activityCount_ + 1) % ACTIVITY_PERIOD;
 }
 
 
-AudioProcessorEditor *PluginProcessor::createEditor() {
+AudioProcessorEditor* PluginProcessor::createEditor() {
 #ifdef FORCE_COMPACT_UI
-    return new ssp::EditorHost(this, new PluginMiniEditor(*this),true);
+    return new ssp::EditorHost(this, new PluginMiniEditor(*this), true);
 #else
     if (useCompactUI()) {
         return new ssp::EditorHost(this, new PluginMiniEditor(*this), useCompactUI());
@@ -177,6 +161,6 @@ AudioProcessorEditor *PluginProcessor::createEditor() {
 #endif
 }
 
-AudioProcessor *JUCE_CALLTYPE createPluginFilter() {
+AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new PluginProcessor();
 }

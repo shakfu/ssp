@@ -9,13 +9,13 @@
 PluginProcessor::PluginProcessor() : PluginProcessor(getBusesProperties(), createParameterLayout()) {
 }
 
-PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties &ioLayouts,
+PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
                                  AudioProcessorValueTreeState::ParameterLayout layout)
     : BaseProcessor(ioLayouts, std::move(layout)) {
     init();
 
     int trackIdx = 0;
-    for (auto &track : tracks_) {
+    for (auto& track : tracks_) {
         // create thread for each track, place into trackThreads_
         trackThreads_.emplace_back([this, trackIdx] {
             bool running = true;
@@ -53,7 +53,7 @@ PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties &ioLayout
     }
 #endif
 
-    for (auto &t : trackThreads_) { t.detach(); }
+    for (auto& t : trackThreads_) { t.detach(); }
 }
 
 bool PluginProcessor::shouldExit() {
@@ -64,19 +64,19 @@ PluginProcessor::~PluginProcessor() {
     shouldExit_ = true;
 
     int trackCnt = 0;
-    for (auto &track : tracks_) {
+    for (auto& track : tracks_) {
         std::lock_guard lk(track.mutex_);
         track.ready_ = true;
         track.cv_.notify_one();
         // ssp::log("ssp thread :" + std::to_string(trackCnt++));
     }
 
-    for (auto &track : tracks_) {
+    for (auto& track : tracks_) {
         std::unique_lock<std::mutex> lk(track.mutex_);
         track.cv_.wait(lk, [&track] { return track.exited_; });
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        // ssp::log("ssp thread :" + std::to_string(--trackCnt) + " : " + std::to_string(track.processed_) + "," + std::to_string(track.ready_));
-
+        // ssp::log("ssp thread :" + std::to_string(--trackCnt) + " : " + std::to_string(track.processed_) + "," +
+        // std::to_string(track.ready_));
     }
 
 
@@ -85,9 +85,9 @@ PluginProcessor::~PluginProcessor() {
 }
 
 
-bool PluginProcessor::requestModuleChange(unsigned t, unsigned m, const std::string &mn) {
+bool PluginProcessor::requestModuleChange(unsigned t, unsigned m, const std::string& mn) {
     if (t >= MAX_TRACKS || m >= Track::M_MAX) return false;
-    auto &track = tracks_[t];
+    auto& track = tracks_[t];
     bool ret = track.requestModuleChange(m, mn);
     if (ret) { while (!removePerformanceParam(t, m)); }
     return ret;
@@ -127,23 +127,24 @@ void PluginProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
     BaseProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 
     for (int i = 0; i < MAX_TRACKS; i++) { threadBuffers_[i].setSize(IO_MAX, samplesPerBlock); }
-    for (auto &track : tracks_) { prepareTrack(track, sampleRate, samplesPerBlock); }
+    for (auto& track : tracks_) { prepareTrack(track, sampleRate, samplesPerBlock); }
 }
 
-void PluginProcessor::prepareTrack(Track &track, double sampleRate, int samplesPerBlock) {
+void PluginProcessor::prepareTrack(Track& track, double sampleRate, int samplesPerBlock) {
     track.prepare(sampleRate, samplesPerBlock);
 }
 
 
-void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
-    if(shouldExit_) return;
+void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
+    if (shouldExit_) return;
 
     auto n = buffer.getNumSamples();
 
     // process thread
     int trackIdx = 0;
-    for (auto &track : tracks_) {
-        auto &tBuf = threadBuffers_[trackIdx];
+    for (auto& track : tracks_) {
+        auto& tBuf = threadBuffers_[trackIdx];
         for (int c = 0; c < I_MAX; c++) { tBuf.copyFrom(c, 0, buffer, c, 0, n); }
 
         std::lock_guard lk(track.mutex_);
@@ -153,12 +154,12 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
         trackIdx++;
     }
 
-    for (auto &track : tracks_) {
+    for (auto& track : tracks_) {
         std::unique_lock<std::mutex> lk(track.mutex_);
         track.cv_.wait(lk, [&track] { return track.processed_ || track.exited_; });
-        if(track.exited_) return;
+        if (track.exited_) return;
     }
- 
+
 
     // pluginprocessr thread
     // once all process done... sum outputs for mix
@@ -166,8 +167,8 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
     // static constexpr float MIX_CHANNEL_GAIN = 1.0f / float(MAX_TRACKS);
     static constexpr float MIX_CHANNEL_GAIN = 1.0f;
     trackIdx = 0;
-    for (auto &track : tracks_) {
-        auto &tBuf = threadBuffers_[trackIdx];
+    for (auto& track : tracks_) {
+        auto& tBuf = threadBuffers_[trackIdx];
         float gain = track.level();
 
         for (int i = 0; i < O_MAX; i++) {
@@ -180,7 +181,7 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
     }
 }
 
-void PluginProcessor::processTrack(Track &track, AudioSampleBuffer &ioBuffer) {
+void PluginProcessor::processTrack(Track& track, AudioSampleBuffer& ioBuffer) {
     track.process(ioBuffer);
 }
 
@@ -196,18 +197,18 @@ void PluginProcessor::onOutputChanged(unsigned i, bool b) {
 static constexpr int checkBytes = 0x1FF1;
 static constexpr int protoVersion = 0x0001;
 
-static const char *TRAX_XML_TAG = "TRAX";
-static const char *TRACKS_XML_TAG = "Tracks";
-static const char *TRACK_XML_TAG = "Track";
-static const char *PERF_XML_TAG = "PerformParams";
-static const char *PERF_PARAM_XML_TAG = "Param";
+static const char* TRAX_XML_TAG = "TRAX";
+static const char* TRACKS_XML_TAG = "Tracks";
+static const char* TRACK_XML_TAG = "Track";
+static const char* PERF_XML_TAG = "PerformParams";
+static const char* PERF_PARAM_XML_TAG = "Param";
 
 
-void PluginProcessor::getStateInformation(MemoryBlock &destData) {
+void PluginProcessor::getStateInformation(MemoryBlock& destData) {
     std::unique_ptr<juce::XmlElement> xmlTrax = std::make_unique<juce::XmlElement>(TRAX_XML_TAG);
 
     std::unique_ptr<juce::XmlElement> xmlTracks = std::make_unique<juce::XmlElement>(TRACKS_XML_TAG);
-    for (auto &track : tracks_) {
+    for (auto& track : tracks_) {
         std::unique_ptr<juce::XmlElement> xmlTrack = std::make_unique<juce::XmlElement>(TRACK_XML_TAG);
         track.getStateInformation(*xmlTrack);
         xmlTracks->addChildElement(xmlTrack.release());
@@ -215,7 +216,7 @@ void PluginProcessor::getStateInformation(MemoryBlock &destData) {
     xmlTrax->addChildElement(xmlTracks.release());
 
     std::unique_ptr<juce::XmlElement> xmlPerf = std::make_unique<juce::XmlElement>(PERF_XML_TAG);
-    for (auto &param : performanceParams_) {
+    for (auto& param : performanceParams_) {
         std::unique_ptr<juce::XmlElement> xmlParam = std::make_unique<juce::XmlElement>(PERF_PARAM_XML_TAG);
         xmlParam->setAttribute("track", (int)param.trackIdx());
         xmlParam->setAttribute("module", (int)param.moduleIdx());
@@ -229,7 +230,7 @@ void PluginProcessor::getStateInformation(MemoryBlock &destData) {
 }
 
 
-void PluginProcessor::setStateInformation(const void *data, int sizeInBytes) {
+void PluginProcessor::setStateInformation(const void* data, int sizeInBytes) {
     initPreset();
 
     loadSupportedModules();
@@ -288,7 +289,7 @@ void PluginProcessor::setStateInformation(const void *data, int sizeInBytes) {
 }
 void PluginProcessor::initPreset() {
     int trackIdx = 0;
-    for (auto &track : tracks_) {
+    for (auto& track : tracks_) {
         while (!track.requestClearTrack()) {}
         while (!removePerformanceParam(trackIdx)) {}
         track.mute(false);
@@ -323,14 +324,14 @@ void PluginProcessor::loadPreset() {
 }
 
 
-bool PluginProcessor::addPerformanceParam(const PerformanceParam &p) {
+bool PluginProcessor::addPerformanceParam(const PerformanceParam& p) {
     performanceParams_.push_back(p);
     return true;
 }
-bool PluginProcessor::removePerformanceParam(const PerformanceParam &p) {
+bool PluginProcessor::removePerformanceParam(const PerformanceParam& p) {
     // remove from vector if track, module and param ids match
     performanceParams_.erase(std::remove_if(performanceParams_.begin(), performanceParams_.end(),
-                                            [&p](const PerformanceParam &pp) {
+                                            [&p](const PerformanceParam& pp) {
                                                 return pp.trackIdx() == p.trackIdx() &&
                                                        pp.moduleIdx() == p.moduleIdx() && pp.paramIdx() == p.paramIdx();
                                             }),
@@ -342,20 +343,20 @@ bool PluginProcessor::removePerformanceParam(unsigned t, unsigned m) {
     // remove from vector if track, module ids match
     performanceParams_.erase(
         std::remove_if(performanceParams_.begin(), performanceParams_.end(),
-                       [t, m](const PerformanceParam &pp) { return pp.trackIdx() == t && pp.moduleIdx() == m; }),
+                       [t, m](const PerformanceParam& pp) { return pp.trackIdx() == t && pp.moduleIdx() == m; }),
         performanceParams_.end());
     return true;
 }
 bool PluginProcessor::removePerformanceParam(unsigned t) {
     // remove from vector if track id matches
     performanceParams_.erase(std::remove_if(performanceParams_.begin(), performanceParams_.end(),
-                                            [t](const PerformanceParam &pp) { return pp.trackIdx() == t; }),
+                                            [t](const PerformanceParam& pp) { return pp.trackIdx() == t; }),
                              performanceParams_.end());
     return true;
 }
 
 
-AudioProcessorEditor *PluginProcessor::createEditor() {
+AudioProcessorEditor* PluginProcessor::createEditor() {
     static constexpr bool useSysEditor = false, defaultDraw = false;
 #ifdef FORCE_COMPACT_UI
     return new ssp::EditorHost(this, new PluginEditor(*this), true, useSysEditor, defaultDraw);
@@ -364,6 +365,6 @@ AudioProcessorEditor *PluginProcessor::createEditor() {
 #endif
 }
 
-AudioProcessor *JUCE_CALLTYPE createPluginFilter() {
+AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new PluginProcessor();
 }

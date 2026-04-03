@@ -4,11 +4,11 @@
 // you will need to create a SSPApi.cpp in your project file,
 // this will allows specifc to be overriden, though usually most of the default as ok
 
-/* 
+/*
 // example: SSPApi.cpp
 // you'll want to override colour at least, you might want to overide name
-// usually createInstance is fine (and uses implementation in this file), 
-// but specialised cases can override 
+// usually createInstance is fine (and uses implementation in this file),
+// but specialised cases can override
 
 ------
 
@@ -32,52 +32,45 @@ Percussa::SSP::PluginInterface *createInstance() {
 
 #include "SSPApiProcessor.h"
 
-void SSP_defaultDescriptor(Percussa::SSP::PluginDescriptor *desc) {
+void SSP_defaultDescriptor(Percussa::SSP::PluginDescriptor* desc) {
     std::vector<std::string> inNames;
     std::vector<std::string> outNames;
     auto busProps = PluginProcessor::getBusesProperties();
 
-    for (auto layout: busProps.inputLayouts) {
-        inNames.push_back(layout.busName.toStdString());
-    }
-    for (auto layout: busProps.outputLayouts) {
-        outNames.push_back(layout.busName.toStdString());
-    }
+    for (auto layout : busProps.inputLayouts) { inNames.push_back(layout.busName.toStdString()); }
+    for (auto layout : busProps.outputLayouts) { outNames.push_back(layout.busName.toStdString()); }
 
     desc->name = JucePlugin_Name;
     desc->descriptiveName = JucePlugin_Desc;
     desc->manufacturerName = JucePlugin_Manufacturer;
-    desc->version = JucePlugin_VersionString;
-    desc->uid = (int) JucePlugin_VSTUniqueID;
+    desc->version = TB_BUILD_DATE;
+    desc->uid = (int)JucePlugin_VSTUniqueID;
     desc->inputChannelNames = inNames;
     desc->outputChannelNames = outNames;
     desc->colour = Colours::green.getARGB();
 }
 
 
-Percussa::SSP::PluginDescriptor *SSP_createDescriptor() {
+Percussa::SSP::PluginDescriptor* SSP_createDescriptor() {
     auto desc = new Percussa::SSP::PluginDescriptor;
     SSP_defaultDescriptor(desc);
     return desc;
 }
 
 
-extern "C" __attribute__ ((visibility("default")))
-void getApiVersion(unsigned &major, unsigned &minor) {
+extern "C" __attribute__((visibility("default"))) void getApiVersion(unsigned& major, unsigned& minor) {
     major = Percussa::SSP::API_MAJOR_VERSION;
     minor = Percussa::SSP::API_MINOR_VERSION;
 }
 
-#define CAT_MODULATION  "Modulation"
-#define CAT_FX  "FX"
+#define CAT_MODULATION "Modulation"
+#define CAT_FX "FX"
 #define CAT_OSCILLATOR "Oscillator"
 #define CAT_UTILITY "Utility"
 #define CAT_MIDI "Midi"
 
 
-
-
-# if 0
+#if 0
 // now using ScopedJuceInitialiser_GUI juceInitialiser_;
 
 

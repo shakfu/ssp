@@ -17,7 +17,7 @@ class AddRouteView;
 
 class TrackEditor : public ssp::MultiView<ssp::BaseView> {
 public:
-    TrackEditor(PluginProcessor &p);
+    TrackEditor(PluginProcessor& p);
     ~TrackEditor() override;
 
     void editorShown() override;
@@ -30,11 +30,12 @@ public:
     void eventButtonHeld(unsigned btn) override;
 
     void resized() override;
+
 private:
     using base_type = ssp::MultiView<ssp::BaseView>;
 
     unsigned trackIdx_;
-    PluginProcessor &processor_;
+    PluginProcessor& processor_;
 
     std::shared_ptr<TrackView> trackView_;
     std::shared_ptr<ModuleView> moduleView_;

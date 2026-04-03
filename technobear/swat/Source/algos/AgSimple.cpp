@@ -1,7 +1,8 @@
 #include "AgSimple.h"
-#include "Algos.h"
 
 #include <juce_audio_basics/juce_audio_basics.h>
+
+#include "Algos.h"
 
 using namespace juce;
 
@@ -10,25 +11,26 @@ using namespace juce;
 
 // "A = Constant A + X\n"
 // "B = Constant B + Y\n"
-void AgConstant::process(
-    const float* x, const float* y, const float* z,
-    float* a, float* b,
-    unsigned ns) {
-    int n=ns;
+void AgConstant::process(const float* x, const float* y, const float* z, float* a, float* b, unsigned ns) {
+    int n = ns;
     A_ = params_[0]->floatVal();
     B_ = params_[1]->floatVal();
 
     if (a != nullptr) {
-        if (x) FloatVectorOperations::copy(a, x, n);
-        else FloatVectorOperations::fill(a, 0.0f, n);
+        if (x)
+            FloatVectorOperations::copy(a, x, n);
+        else
+            FloatVectorOperations::fill(a, 0.0f, n);
         FloatVectorOperations::add(a, A_, n);
         lastA_ = a[0];
     }
 
 
     if (b != nullptr) {
-        if (y) FloatVectorOperations::copy(b, y, n);
-        else FloatVectorOperations::fill(b, 0.0f, n);
+        if (y)
+            FloatVectorOperations::copy(b, y, n);
+        else
+            FloatVectorOperations::fill(b, 0.0f, n);
         FloatVectorOperations::add(b, B_, n);
         lastB_ = b[0];
     }
@@ -40,15 +42,14 @@ void AgConstant::process(
 // "Precision Adder\n"
 // "A = X + Y + Z \n"
 // "B = X - Y - Z\n"
-void AgPrecAdder::process(
-    const float* x, const float* y, const float* z,
-    float* a, float* b,
-    unsigned ns) {
-    int n=ns;
+void AgPrecAdder::process(const float* x, const float* y, const float* z, float* a, float* b, unsigned ns) {
+    int n = ns;
 
     if (a != nullptr) {
-        if (x) FloatVectorOperations::copy(a, x, n);
-        else FloatVectorOperations::fill(a, 0.0, n);
+        if (x)
+            FloatVectorOperations::copy(a, x, n);
+        else
+            FloatVectorOperations::fill(a, 0.0, n);
         if (y) FloatVectorOperations::add(a, y, n);
         if (z) FloatVectorOperations::add(a, z, n);
         lastA_ = a[0];
@@ -56,8 +57,10 @@ void AgPrecAdder::process(
 
 
     if (b != nullptr) {
-        if (x) FloatVectorOperations::copy(b, x, n);
-        else FloatVectorOperations::fill(b, 0.0, n);
+        if (x)
+            FloatVectorOperations::copy(b, x, n);
+        else
+            FloatVectorOperations::fill(b, 0.0, n);
         if (y) FloatVectorOperations::subtract(b, y, n);
         if (z) FloatVectorOperations::subtract(b, z, n);
 
@@ -81,22 +84,18 @@ void AgPrecAdder::process(
 ///////////////////////////////////////////////////////////////////////////////
 
 
-
 // "A =min(X,Y)\n"
 // "B =max(X,Y)\n"
 // "Z gate"
-void AgMinMax::process(
-    const float* x, const float* y, const float* z,
-    float* a, float* b,
-    unsigned ns) {
-    int n=ns;
+void AgMinMax::process(const float* x, const float* y, const float* z, float* a, float* b, unsigned ns) {
+    int n = ns;
 
     bool gate = true;
     for (auto i = 0; i < n; i++) {
         if (z != nullptr) gate = z[i];
         if (gate) {
-            float xi = ( x == nullptr ?  0.0f : x[i]);
-            float yi = ( y == nullptr ?  0.0f : y[i]);
+            float xi = (x == nullptr ? 0.0f : x[i]);
+            float yi = (y == nullptr ? 0.0f : y[i]);
 
             if (a != nullptr) a[i] = std::min(xi, yi);
             if (b != nullptr) b[i] = std::max(xi, yi);
@@ -135,26 +134,26 @@ void AgMinMax::process(
 ///////////////////////////////////////////////////////////////////////////////
 
 
-
 // "A = Z > 1 , X else Y\n"
 // "B = Z > 1 , Y else Z\n"
 // "Z switch"
-void AgSwitch::process(
-    const float* x, const float* y, const float* z,
-    float* a, float* b,
-    unsigned ns) {
-    int n=ns;
+void AgSwitch::process(const float* x, const float* y, const float* z, float* a, float* b, unsigned ns) {
+    int n = ns;
 
     bool gate = true;
     if (z != nullptr) gate = z[0];
 
     if (a != nullptr) {
         if (gate) {
-            if (x) FloatVectorOperations::copy(a, x, n);
-            else FloatVectorOperations::fill(a, 0.0, n);
+            if (x)
+                FloatVectorOperations::copy(a, x, n);
+            else
+                FloatVectorOperations::fill(a, 0.0, n);
         } else {
-            if (y) FloatVectorOperations::copy(a, y, n);
-            else FloatVectorOperations::fill(a, 0.0, n);
+            if (y)
+                FloatVectorOperations::copy(a, y, n);
+            else
+                FloatVectorOperations::fill(a, 0.0, n);
         }
 
         lastA_ = a[0];
@@ -162,11 +161,15 @@ void AgSwitch::process(
 
     if (b != nullptr) {
         if (!gate) {
-            if (x) FloatVectorOperations::copy(b, x, n);
-            else FloatVectorOperations::fill(b, 0.0, n);
+            if (x)
+                FloatVectorOperations::copy(b, x, n);
+            else
+                FloatVectorOperations::fill(b, 0.0, n);
         } else {
-            if (y) FloatVectorOperations::copy(b, y, n);
-            else FloatVectorOperations::fill(b, 0.0, n);
+            if (y)
+                FloatVectorOperations::copy(b, y, n);
+            else
+                FloatVectorOperations::fill(b, 0.0, n);
         }
 
         lastB_ = b[0];
@@ -175,18 +178,16 @@ void AgSwitch::process(
 
 ///////////////////////////////////////////////////////////////////////////////
 
-template<typename T> bool comparator(bool TS, T S1, T Th, T Hy ) {
+template <typename T>
+bool comparator(bool TS, T S1, T Th, T Hy) {
     return TS ? S1 >= (Th - Hy) : S1 >= Th;
 }
 
 // "A = gate X > Y\n"
 // "B = ! A\n"
 // "Z Hysterisis"
-void AgComparator::process(
-    const float* x, const float* y, const float* z,
-    float* a, float* b,
-    unsigned ns) {
-    int n=ns;
+void AgComparator::process(const float* x, const float* y, const float* z, float* a, float* b, unsigned ns) {
+    int n = ns;
 
     if (a != nullptr) {
         for (auto i = 0; i < n; i++) {
@@ -195,24 +196,22 @@ void AgComparator::process(
             float T = y != nullptr ? y[i] : 0.0f;
             float H = z != nullptr ? z[i] : 0.0f;
 
-            // if(i==0) Logger::writeToLog("comparator " + String(S1) + ">" +String(T) + " " + String(comparator(S0,S1,T,H)));
-            // if(i==0) Logger::writeToLog("comparator " + String(S1) + ">" +String(T) + " " + String(S1>T));
+            // if(i==0) Logger::writeToLog("comparator " + String(S1) + ">" +String(T) + " " +
+            // String(comparator(S0,S1,T,H))); if(i==0) Logger::writeToLog("comparator " + String(S1) + ">" +String(T) +
+            // " " + String(S1>T));
 
             a[i] = comparator<float>(TS, S1, T, H);
             lastTS_ = a[i] > 0.5f;
             // lastX_ = S1;
-            if (b != nullptr) {
-                b[i] = ! a[i];
-            }
+            if (b != nullptr) { b[i] = !a[i]; }
         }
     } else if (b != nullptr) {
-        FloatVectorOperations::fill(b, 0.0f , n);
+        FloatVectorOperations::fill(b, 0.0f, n);
     }
 
     lastA_ = a != nullptr ? a[0] : 0.0f;
     lastB_ = b != nullptr ? b[0] : 0.0f;
 }
-
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -221,47 +220,41 @@ void AgComparator::process(
 // "Z Hysterisis"
 
 
-void AgComparatorW::process(
-    const float* x, const float* y, const float* z,
-    float* a, float* b,
-    unsigned ns) {
-    int n=ns;
+void AgComparatorW::process(const float* x, const float* y, const float* z, float* a, float* b, unsigned ns) {
+    int n = ns;
 
-    LOW_  = params_[0]->floatVal();
-    HIGH_  = params_[1]->floatVal();
-    H_  = params_[2]->floatVal();
+    LOW_ = params_[0]->floatVal();
+    HIGH_ = params_[1]->floatVal();
+    H_ = params_[2]->floatVal();
 
     if (a != nullptr) {
         for (auto i = 0; i < n; i++) {
             float S1 = x != nullptr ? x[i] : 0.0f;
-            float HY = z != nullptr ? z[i] + H_ : (float) H_;
+            float HY = z != nullptr ? z[i] + H_ : (float)H_;
             float TS = lastTS_;
 
             // high
-            float HT = y != nullptr ? LOW_ + y[i] : (float) LOW_;
+            float HT = y != nullptr ? LOW_ + y[i] : (float)LOW_;
             bool Ha = comparator<float>(TS, S1, HT, HY);
 
             // low
-            float LT = y != nullptr ? HIGH_ - y[i] : (float) HIGH_;
+            float LT = y != nullptr ? HIGH_ - y[i] : (float)HIGH_;
             bool La = comparator<float>(TS, LT, S1, HY);
 
             a[i] = Ha && La;
 
             lastTS_ = a[i] > 0.5f;
-            if (b != nullptr) {
-                b[i] = ! a[i];
-            }
-
+            if (b != nullptr) { b[i] = !a[i]; }
         }
     } else if (b != nullptr) {
-        FloatVectorOperations::fill(b, 0.0f , n);
+        FloatVectorOperations::fill(b, 0.0f, n);
     }
 
     lastA_ = a != nullptr ? a[0] : 0.0f;
     lastB_ = b != nullptr ? b[0] : 0.0f;
 }
 
-void AgComparatorW::paint (Graphics& g) {
+void AgComparatorW::paint(Graphics& g) {
     Algo::paint(g);
     unsigned space = 32;
     unsigned fh = 16 * COMPACT_UI_SCALE;
@@ -284,53 +277,47 @@ void AgComparatorW::paint (Graphics& g) {
 }
 
 
-
 ///////////////////////////////////////////////////////////////////////////////
 
 // "A = X : in range -> out range\n"
 // "B = Y : in range -> out range\n"
-void AgMapVV::process(
-    const float* x, const float* y, const float* z,
-    float* a, float* b,
-    unsigned ns) {
-    int n=ns;
+void AgMapVV::process(const float* x, const float* y, const float* z, float* a, float* b, unsigned ns) {
+    int n = ns;
 
-    minIn_  = params_[0]->floatVal();
-    maxIn_  = params_[1]->floatVal();
+    minIn_ = params_[0]->floatVal();
+    maxIn_ = params_[1]->floatVal();
     minOut_ = params_[2]->floatVal();
     maxOut_ = params_[3]->floatVal();
 
-    float scale  =  (maxOut_ - minOut_) / (maxIn_ - minIn_);
-    float offset = minOut_ - (minIn_ * scale) ;
+    float scale = (maxOut_ - minOut_) / (maxIn_ - minIn_);
+    float offset = minOut_ - (minIn_ * scale);
 
     if (a != nullptr) {
-        if (x)  {
+        if (x) {
             FloatVectorOperations::copy(a, x, n);
             FloatVectorOperations::multiply(a, scale, n);
             FloatVectorOperations::add(a, offset, n);
             for (auto i = 0; i < n; i++) a[i] = constrain(a[i], minOut_, maxOut_);
-        }
-        else  {
+        } else {
             FloatVectorOperations::fill(a, minOut_, n);
         }
         lastA_ = a[0];
     }
 
     if (b != nullptr) {
-        if (y)  {
+        if (y) {
             FloatVectorOperations::copy(b, y, n);
             FloatVectorOperations::multiply(b, scale, n);
             FloatVectorOperations::add(b, offset, n);
             for (auto i = 0; i < n; i++) b[i] = constrain(b[i], minOut_, maxOut_);
-        }
-        else  {
+        } else {
             FloatVectorOperations::fill(b, minOut_, n);
         }
         lastB_ = b[0];
     }
 }
 
-void AgMapVV::paint (Graphics& g) {
+void AgMapVV::paint(Graphics& g) {
     Algo::paint(g);
     unsigned space = 32;
     unsigned fh = 16 * COMPACT_UI_SCALE;
@@ -359,24 +346,21 @@ void AgMapVV::paint (Graphics& g) {
 
 // "A = A + (X > 0.5:step) - (X < -0.5:step)\n"
 // "B = B + (Y > 0.5:step) - (Y < -0.5:step)\n"
-void AgCounter::process(
-    const float* x, const float* y, const float* z,
-    float* a, float* b,
-    unsigned ns) {
-    int n=ns;
+void AgCounter::process(const float* x, const float* y, const float* z, float* a, float* b, unsigned ns) {
+    int n = ns;
 
-    min_  = params_[0]->floatVal();
-    max_  = params_[1]->floatVal();
-    step_  = params_[2]->floatVal();
+    min_ = params_[0]->floatVal();
+    max_ = params_[1]->floatVal();
+    step_ = params_[2]->floatVal();
 
     float min = min_, max = max_, step = step_;
     float qtrstep = step / 4.0f;
 
     if (a != nullptr) {
-        if (x != nullptr)  {
+        if (x != nullptr) {
             for (auto i = 0; i < n; i++) {
-                int S = x[i] >= 0.5f ? 1  : ( x[i] <= -0.5f ? -1 : 0 );
-                if (lastXS_ != S ) {
+                int S = x[i] >= 0.5f ? 1 : (x[i] <= -0.5f ? -1 : 0);
+                if (lastXS_ != S) {
                     float NS = lastA_ + (S * step);
                     NS = NS > (max + qtrstep) ? min : NS;
                     NS = NS < (min - qtrstep) ? max : NS;
@@ -386,15 +370,15 @@ void AgCounter::process(
                 if (z != nullptr && z[i] >= 0.5f) lastA_ = min;
                 a[i] = lastA_;
             }
-        } else  {
+        } else {
             FloatVectorOperations::fill(a, min_, n);
         }
     }
 
     if (b != nullptr) {
-        if (y != nullptr)  {
+        if (y != nullptr) {
             for (auto i = 0; i < n; i++) {
-                int S = y[i] >= 0.5f ? 1  : ( y[i] <= -0.5f ? -1 : 0 );
+                int S = y[i] >= 0.5f ? 1 : (y[i] <= -0.5f ? -1 : 0);
                 if (lastYS_ != S) {
                     float NS = lastB_ + (S * step);
                     NS = NS > (max + qtrstep) ? min : NS;
@@ -405,13 +389,13 @@ void AgCounter::process(
                 if (z != nullptr && z[i] >= 0.5f) lastB_ = min;
                 b[i] = lastB_;
             }
-        } else  {
+        } else {
             FloatVectorOperations::fill(b, min_, n);
         }
     }
 }
 
-void AgCounter::paint (Graphics& g) {
+void AgCounter::paint(Graphics& g) {
     Algo::paint(g);
     unsigned space = 32;
     unsigned fh = 16 * COMPACT_UI_SCALE;
@@ -431,5 +415,3 @@ void AgCounter::paint (Graphics& g) {
     y += space;
     g.drawSingleLineText("B : " + String::formatted("%4.3f", float(lastB_)), x, y);
 }
-
-

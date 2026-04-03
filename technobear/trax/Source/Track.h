@@ -21,16 +21,16 @@ public:
     std::vector<Matrix::Wire> connections();
 
     void prepare(int sampleRate, int blockSize);
-    void process(juce::AudioSampleBuffer &ioBuffer);
+    void process(juce::AudioSampleBuffer& ioBuffer);
 
-    void getStateInformation(juce::XmlElement &outStream);
-    void setStateInformation(juce::XmlElement &inStream);
+    void getStateInformation(juce::XmlElement& outStream);
+    void setStateInformation(juce::XmlElement& inStream);
 
-    bool requestModuleChange(unsigned midx, const std::string &mn);
-    bool requestMatrixConnect(const Matrix::Jack &src, const Matrix::Jack &dest, float gain = 1.0f,
+    bool requestModuleChange(unsigned midx, const std::string& mn);
+    bool requestMatrixConnect(const Matrix::Jack& src, const Matrix::Jack& dest, float gain = 1.0f,
                               float offset = 0.0f);
-    bool requestMatrixDisconnect(const Matrix::Jack &src, const Matrix::Jack &dest);
-    bool requestMatrixAttenuate(const Matrix::Jack &src, const Matrix::Jack &dest, bool isOffset, float delta);
+    bool requestMatrixDisconnect(const Matrix::Jack& src, const Matrix::Jack& dest);
+    bool requestMatrixAttenuate(const Matrix::Jack& src, const Matrix::Jack& dest, bool isOffset, float delta);
     bool requestClearTrack();
 
     enum ModuleIdx {
@@ -68,7 +68,7 @@ private:
     static constexpr int MAX_IO_OUT = 2;
     static constexpr int MAX_IO = std::max(MAX_IO_IN, MAX_IO_OUT);
 
-    bool loadModule(std::string, Module &m);
+    bool loadModule(std::string, Module& m);
     void alloc(int sampleRate, int blockSize);
     void free();
 

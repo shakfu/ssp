@@ -1,7 +1,8 @@
 #include "AgMusical.h"
-#include "Algos.h"
 
 #include <juce_audio_basics/juce_audio_basics.h>
+
+#include "Algos.h"
 
 using namespace juce;
 
@@ -9,20 +10,8 @@ using namespace juce;
 static constexpr unsigned MAX_TONICS = 12;
 
 static const char tonics[MAX_TONICS][3] = {
-    "C",
-    "C#",
-    "D",
-    "D#",
-    "E",
-    "F",
-    "F#",
-    "G",
-    "G#",
-    "A",
-    "A#",
-    "B",
+    "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
 };
-
 
 
 String noteString(int f) {
@@ -37,33 +26,34 @@ String noteString(int f) {
 
 // "A = X + Note A\n"
 // "B = Y + Note B\n"
-void AgTranspose::process(
-    const float* x, const float* y, const float* z,
-    float* a, float* b,
-    unsigned ns) {
-    int n=ns;
+void AgTranspose::process(const float* x, const float* y, const float* z, float* a, float* b, unsigned ns) {
+    int n = ns;
 
     NA_ = params_[0]->floatVal();
     NB_ = params_[1]->floatVal();
 
     if (a != nullptr) {
-        if (x) FloatVectorOperations::copy(a, x, n);
-        else FloatVectorOperations::fill(a, 0.0f, n);
+        if (x)
+            FloatVectorOperations::copy(a, x, n);
+        else
+            FloatVectorOperations::fill(a, 0.0f, n);
         FloatVectorOperations::add(a, pitch2Cv(NA_), n);
         lastA_ = a[0];
     }
 
 
     if (b != nullptr) {
-        if (y) FloatVectorOperations::copy(b, y, n);
-        else FloatVectorOperations::fill(b, 0.0f, n);
+        if (y)
+            FloatVectorOperations::copy(b, y, n);
+        else
+            FloatVectorOperations::fill(b, 0.0f, n);
         FloatVectorOperations::add(b, pitch2Cv(NB_), n);
         lastB_ = b[0];
     }
 }
 
 
-void AgTranspose::paint (Graphics& g) {
+void AgTranspose::paint(Graphics& g) {
     Algo::paint(g);
     unsigned space = 32;
     unsigned fh = 16 * COMPACT_UI_SCALE;
@@ -85,59 +75,54 @@ void AgTranspose::paint (Graphics& g) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-template<typename T> bool comparator(bool TS, T S1, T Th, T Hy ) {
+template <typename T>
+bool comparator(bool TS, T S1, T Th, T Hy) {
     return TS ? S1 >= (Th - Hy) : S1 >= Th;
 }
 
 // "A = gate (X > L  & X < H ) && Y\n"
 // "B = ! A\n"
 // "Z Hysteresis"
-void AgComparatorN::process(
-    const float* x, const float* y, const float* z,
-    float* a, float* b,
-    unsigned ns) {
-    int n=ns;
+void AgComparatorN::process(const float* x, const float* y, const float* z, float* a, float* b, unsigned ns) {
+    int n = ns;
 
     NL_ = params_[0]->floatVal();
     NH_ = params_[1]->floatVal();
-    H_  = params_[2]->floatVal();
+    H_ = params_[2]->floatVal();
 
-    float LOW_  = pitch2Cv(NL_);
-    float HIGH_  = pitch2Cv(NH_);
+    float LOW_ = pitch2Cv(NL_);
+    float HIGH_ = pitch2Cv(NH_);
 
     if (a != nullptr) {
         for (auto i = 0; i < n; i++) {
             bool yGate = y != nullptr ? y[i] > 0.5f : true;
             float TS = lastTS_;
             float S1 = x != nullptr ? x[i] : 0.0f;
-            float HY = z != nullptr ? z[i] + H_ : (float) H_;
+            float HY = z != nullptr ? z[i] + H_ : (float)H_;
 
             // high
             float HT = LOW_;
             bool Ha = comparator<float>(TS, S1, HT, HY);
 
-            // low 
+            // low
             float LT = HIGH_;
             bool La = comparator<float>(TS, LT, S1, HY);
 
             a[i] = (Ha && La) && yGate;
 
             lastTS_ = a[i] > 0.5f;
-            if (b != nullptr) {
-                b[i] = ! a[i];
-            }
+            if (b != nullptr) { b[i] = !a[i]; }
         }
     } else if (b != nullptr) {
-        FloatVectorOperations::fill(b, 0.0f , n);
+        FloatVectorOperations::fill(b, 0.0f, n);
     }
 
     lastA_ = a != nullptr ? a[0] : 0.0f;
     lastB_ = b != nullptr ? b[0] : 0.0f;
-
 }
 
 
-void AgComparatorN::paint (Graphics& g) {
+void AgComparatorN::paint(Graphics& g) {
     Algo::paint(g);
     unsigned space = 32;
     unsigned fh = 16 * COMPACT_UI_SCALE;
@@ -159,20 +144,15 @@ void AgComparatorN::paint (Graphics& g) {
 }
 
 
-
-
 ///////////////////////////////////////////////////////////////////////////////
 
 // "A = X : in range -> out range\n"
 // "B = Y : in range -> out range\n"
-void AgMapNV::process(
-    const float* x, const float* y, const float* z,
-    float* a, float* b,
-    unsigned ns) {
-    int n=ns;
+void AgMapNV::process(const float* x, const float* y, const float* z, float* a, float* b, unsigned ns) {
+    int n = ns;
 
-    minIn_  = params_[0]->floatVal();
-    maxIn_  = params_[1]->floatVal();
+    minIn_ = params_[0]->floatVal();
+    maxIn_ = params_[1]->floatVal();
     minOut_ = params_[2]->floatVal();
     maxOut_ = params_[3]->floatVal();
 
@@ -180,30 +160,28 @@ void AgMapNV::process(
     float minInCV = pitch2Cv(minIn_);
     float maxInCV = pitch2Cv(maxIn_);
 
-    float scale  =  (maxOut_ - minOut_) / (maxInCV - minInCV);
-    float offset = minOut_ - (minInCV * scale) ;
+    float scale = (maxOut_ - minOut_) / (maxInCV - minInCV);
+    float offset = minOut_ - (minInCV * scale);
 
     if (a != nullptr) {
-        if (x)  {
+        if (x) {
             FloatVectorOperations::copy(a, x, n);
             FloatVectorOperations::multiply(a, scale, n);
             FloatVectorOperations::add(a, offset, n);
             for (auto i = 0; i < n; i++) a[i] = constrain(a[i], minOut_, maxOut_);
-        }
-        else  {
+        } else {
             FloatVectorOperations::fill(a, minOut_, n);
         }
         lastA_ = a[0];
     }
 
     if (b != nullptr) {
-        if (y)  {
+        if (y) {
             FloatVectorOperations::copy(b, y, n);
             FloatVectorOperations::multiply(b, scale, n);
             FloatVectorOperations::add(b, offset, n);
             for (auto i = 0; i < n; i++) b[i] = constrain(b[i], minOut_, maxOut_);
-        }
-        else  {
+        } else {
             FloatVectorOperations::fill(b, minOut_, n);
         }
         lastB_ = b[0];
@@ -211,7 +189,7 @@ void AgMapNV::process(
 }
 
 
-void AgMapNV::paint (Graphics& g) {
+void AgMapNV::paint(Graphics& g) {
     Algo::paint(g);
     unsigned space = 32;
     unsigned fh = 16 * COMPACT_UI_SCALE;
@@ -240,14 +218,11 @@ void AgMapNV::paint (Graphics& g) {
 
 // "A = X : in range -> out range\n"
 // "B = Y : in range -> out range\n"
-void AgMapNN::process(
-    const float* x, const float* y, const float* z,
-    float* a, float* b,
-    unsigned ns) {
-    int n=ns;
+void AgMapNN::process(const float* x, const float* y, const float* z, float* a, float* b, unsigned ns) {
+    int n = ns;
 
-    minIn_  = params_[0]->floatVal();
-    maxIn_  = params_[1]->floatVal();
+    minIn_ = params_[0]->floatVal();
+    maxIn_ = params_[1]->floatVal();
     minOut_ = params_[2]->floatVal();
     maxOut_ = params_[3]->floatVal();
 
@@ -256,30 +231,28 @@ void AgMapNN::process(
     float minOutCV = pitch2Cv(minOut_);
     float maxOutCV = pitch2Cv(maxOut_);
 
-    float scale  =  (maxOutCV - minOutCV) / (maxInCV - minInCV);
-    float offset = minOutCV - (minInCV * scale) ;
+    float scale = (maxOutCV - minOutCV) / (maxInCV - minInCV);
+    float offset = minOutCV - (minInCV * scale);
 
     if (a != nullptr) {
-        if (x)  {
+        if (x) {
             FloatVectorOperations::copy(a, x, n);
             FloatVectorOperations::multiply(a, scale, n);
             FloatVectorOperations::add(a, offset, n);
             for (auto i = 0; i < n; i++) a[i] = constrain(a[i], minOutCV, maxOutCV);
-        }
-        else  {
+        } else {
             FloatVectorOperations::fill(a, minOut_, n);
         }
         lastA_ = a[0];
     }
 
     if (b != nullptr) {
-        if (y)  {
+        if (y) {
             FloatVectorOperations::copy(b, y, n);
             FloatVectorOperations::multiply(b, scale, n);
             FloatVectorOperations::add(b, offset, n);
             for (auto i = 0; i < n; i++) b[i] = constrain(b[i], minOutCV, maxOutCV);
-        }
-        else  {
+        } else {
             FloatVectorOperations::fill(b, minOut_, n);
         }
         lastB_ = b[0];
@@ -287,7 +260,7 @@ void AgMapNN::process(
 }
 
 
-void AgMapNN::paint (Graphics& g) {
+void AgMapNN::paint(Graphics& g) {
     Algo::paint(g);
     unsigned space = 32;
     unsigned fh = 16 * COMPACT_UI_SCALE;
@@ -310,7 +283,3 @@ void AgMapNN::paint (Graphics& g) {
     y += space;
     g.drawSingleLineText("B : " + noteString(lastB_), x, y);
 }
-
-
-
-

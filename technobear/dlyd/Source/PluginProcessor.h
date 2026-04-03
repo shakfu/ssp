@@ -1,54 +1,55 @@
 #pragma once
 
-#include "ssp/BaseProcessor.h"
-
 #include <daisysp.h>
 
-#include <atomic>
 #include <algorithm>
+#include <atomic>
+
+#include "ssp/BaseProcessor.h"
 #include "ssp/controls/RmsTrack.h"
 
 using namespace juce;
 
 namespace ID {
-#define PARAMETER_ID(str) constexpr const char* str { #str };
-constexpr const char *separator{":"};
+#define PARAMETER_ID(str) constexpr const char* str{ #str };
+constexpr const char* separator{ ":" };
 
 
-PARAMETER_ID (size)
-PARAMETER_ID (mix)
-PARAMETER_ID (in_level)
-PARAMETER_ID (out_level)
-PARAMETER_ID (freeze)
+PARAMETER_ID(size)
+PARAMETER_ID(mix)
+PARAMETER_ID(in_level)
+PARAMETER_ID(out_level)
+PARAMETER_ID(freeze)
 
 
 // tree taps:1-4:params
-PARAMETER_ID (taps)
+PARAMETER_ID(taps)
 
-PARAMETER_ID (time)
-PARAMETER_ID (pan)
-PARAMETER_ID (level)
-PARAMETER_ID (feedback)
-PARAMETER_ID (lpf)
-PARAMETER_ID (hpf)
-PARAMETER_ID (noise)
+PARAMETER_ID(time)
+PARAMETER_ID(pan)
+PARAMETER_ID(level)
+PARAMETER_ID(feedback)
+PARAMETER_ID(lpf)
+PARAMETER_ID(hpf)
+PARAMETER_ID(noise)
 
 
 #undef PARAMETER_ID
-}
+}  // namespace ID
 
 
 class PluginProcessor : public ssp::BaseProcessor {
 public:
     explicit PluginProcessor();
-    explicit PluginProcessor(const AudioProcessor::BusesProperties &ioLayouts, AudioProcessorValueTreeState::ParameterLayout layout);
+    explicit PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
+                             AudioProcessorValueTreeState::ParameterLayout layout);
     ~PluginProcessor();
 
     const String getName() const override { return JucePlugin_Name; }
 
-    void processBlock(AudioSampleBuffer &, MidiBuffer &) override;
+    void processBlock(AudioSampleBuffer&, MidiBuffer&) override;
 
-    AudioProcessorEditor *createEditor() override;
+    AudioProcessorEditor* createEditor() override;
 
     bool hasEditor() const override { return true; }
 
@@ -86,32 +87,32 @@ public:
 
     struct Tap {
         using Parameter = juce::RangedAudioParameter;
-        Tap(AudioProcessorValueTreeState &apvt, unsigned id);
+        Tap(AudioProcessorValueTreeState& apvt, unsigned id);
         unsigned id_;
-        String pid_; // e.g taps:1
-        Parameter &time;
-        Parameter &level;
-        Parameter &feedback;
-        Parameter &pan;
-        Parameter &lpf;
-        Parameter &hpf;
-        Parameter &noise;
+        String pid_;  // e.g taps:1
+        Parameter& time;
+        Parameter& level;
+        Parameter& feedback;
+        Parameter& pan;
+        Parameter& lpf;
+        Parameter& hpf;
+        Parameter& noise;
     };
 
     struct PluginParams {
         using Parameter = juce::RangedAudioParameter;
-        explicit PluginParams(juce::AudioProcessorValueTreeState &);
+        explicit PluginParams(juce::AudioProcessorValueTreeState&);
 
-        Parameter &size;
-        Parameter &mix;
-        Parameter &in_level;
-        Parameter &out_level;
-        Parameter &freeze;
+        Parameter& size;
+        Parameter& mix;
+        Parameter& in_level;
+        Parameter& out_level;
+        Parameter& freeze;
 
         std::vector<std::unique_ptr<Tap>> taps_;
     } params_;
 
-    Tap &getTap(unsigned t) {
+    Tap& getTap(unsigned t) {
         jassert(t < params_.taps_.size());
         return *(params_.taps_[t]);
     }
@@ -119,16 +120,12 @@ public:
 
     static BusesProperties getBusesProperties() {
         BusesProperties props;
-        for (auto i = 0; i < I_MAX; i++) {
-            props.addBus(true, getInputBusName(i), AudioChannelSet::mono());
-        }
-        for (auto i = 0; i < O_MAX; i++) {
-            props.addBus(false, getOutputBusName(i), AudioChannelSet::mono());
-        }
+        for (auto i = 0; i < I_MAX; i++) { props.addBus(true, getInputBusName(i), AudioChannelSet::mono()); }
+        for (auto i = 0; i < O_MAX; i++) { props.addBus(false, getOutputBusName(i), AudioChannelSet::mono()); }
         return props;
     }
 
-    void getRMS(float &lIn, float &rIn, float &lOut, float &rOut) {
+    void getRMS(float& lIn, float& rIn, float& lOut, float& rOut) {
         lIn = inRms_[0].lvl();
         rIn = inRms_[1].lvl();
         lOut = outRms_[0].lvl();
@@ -136,11 +133,7 @@ public:
     }
 
     float ioActivity(bool input, int bus) {
-        jassert(
-            (input == true && bus < I_MAX)
-            ||
-            (input == false && bus < O_MAX)
-        );
+        jassert((input == true && bus < I_MAX) || (input == false && bus < O_MAX));
         return input ? inActivity_[bus] : outActivity_[bus];
     }
 
@@ -148,18 +141,16 @@ protected:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
 private:
-    bool isBusesLayoutSupported(const BusesLayout &layouts) const override {
-        return true;
-    }
+    bool isBusesLayoutSupported(const BusesLayout& layouts) const override { return true; }
 
     static const String getInputBusName(int channelIndex);
     static const String getOutputBusName(int channelIndex);
 
-    inline float normValue(RangedAudioParameter &p) { return p.convertFrom0to1(p.getValue()); }
+    inline float normValue(RangedAudioParameter& p) { return p.convertFrom0to1(p.getValue()); }
 
 
     // initial time with delay line from daisysp
-    static constexpr unsigned MAX_DELAY = 48000 * 60; // 60 seconds
+    static constexpr unsigned MAX_DELAY = 48000 * 60;  // 60 seconds
     static constexpr unsigned N_DLY_LINES = 2;
     struct DelayLine {
         daisysp::DelayLine<float, MAX_DELAY> line_;
@@ -178,7 +169,5 @@ private:
     unsigned activityCount_ = 0;
     static constexpr unsigned ACTIVITY_PERIOD = 10;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)
 };
-
-

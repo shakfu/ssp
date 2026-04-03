@@ -11,7 +11,7 @@ namespace ssp {
 static constexpr unsigned btnTopY = 380 - 1;
 static constexpr unsigned btnSpaceY = 50;
 
-SystemFullEditor::SystemFullEditor(BaseProcessor *p)
+SystemFullEditor::SystemFullEditor(BaseProcessor* p)
     : SystemEditor(p),
       leftBtn_("PG-", nullptr, 32, Colours::red),
       rightBtn_("PG+", nullptr, 16 * COMPACT_UI_SCALE, Colours::red),
@@ -19,7 +19,6 @@ SystemFullEditor::SystemFullEditor(BaseProcessor *p)
       downBtn_("EN+", nullptr, 16 * COMPACT_UI_SCALE, Colours::red),
       leftShiftBtn_("LS", nullptr, 32, Colours::grey, Colours::black),
       rightShiftBtn_("RS", nullptr, 16 * COMPACT_UI_SCALE, Colours::grey, Colours::black) {
-
     setButtonBounds(leftShiftBtn_, 0, 4);
     setButtonBounds(upBtn_, 0, 5);
     setButtonBounds(rightShiftBtn_, 0, 6);
@@ -36,12 +35,12 @@ SystemFullEditor::SystemFullEditor(BaseProcessor *p)
 SystemFullEditor::~SystemFullEditor() {
 }
 
-void SystemFullEditor::paint(Graphics &g) {
+void SystemFullEditor::paint(Graphics& g) {
     drawView(g);
 }
 
 
-void SystemFullEditor::drawButtonBox(Graphics &g) {
+void SystemFullEditor::drawButtonBox(Graphics& g) {
     unsigned butTopY = btnTopY;
     unsigned butLeftX = 900 - 1;
     float x = butLeftX;
@@ -54,13 +53,13 @@ void SystemFullEditor::drawButtonBox(Graphics &g) {
 }
 
 
-void SystemFullEditor::drawView(Graphics &g) {
+void SystemFullEditor::drawView(Graphics& g) {
     // display 1600x 480
     // x= left/right (0..1599)
     // y= top/bottom (0..479)
     drawButtonBox(g);
 
-    if(mode() == M_PARAM) {
+    if (mode() == M_PARAM) {
         drawLabel(g, "Param", 0);
         drawLabel(g, "Scale", 1);
         drawLabel(g, "Offset", 2);
@@ -76,8 +75,8 @@ void SystemFullEditor::drawView(Graphics &g) {
     g.setColour(Colours::white);
     int y = 60;
 
-    int xparam =20;
-    int xch =250;
+    int xparam = 20;
+    int xch = 250;
     int xtype = 420;
     int xnum = 490;
     int xscale = 540;
@@ -93,8 +92,8 @@ void SystemFullEditor::drawView(Graphics &g) {
 
     y += fh;
 
-    auto &plist = baseProcessor_->getParameters();
-    auto &am = baseProcessor_->midiAutomation();
+    auto& plist = baseProcessor_->getParameters();
+    auto& am = baseProcessor_->midiAutomation();
 
     if (am.empty()) return;
 
@@ -129,7 +128,7 @@ void SystemFullEditor::drawView(Graphics &g) {
         g.drawSingleLineText(type, xtype, y);
         g.drawSingleLineText(String(a.midi_.num_), xnum, y);
 
-        String scaling = String("x ") + String(a.scale_,2,false) + " + " + String(a.offset_,2,false);
+        String scaling = String("x ") + String(a.scale_, 2, false) + " + " + String(a.offset_, 2, false);
         g.drawSingleLineText(scaling, xscale, y);
 
         if (ai != am.end()) ai++;
@@ -142,7 +141,7 @@ static constexpr unsigned paramTopY = 380 - 1;
 static constexpr unsigned paramSpaceY = 50;
 
 
-void SystemFullEditor::drawLabel(Graphics &g, const std::string &str, unsigned int idx) {
+void SystemFullEditor::drawLabel(Graphics& g, const std::string& str, unsigned int idx) {
     const int fh = 16 * COMPACT_UI_SCALE;
     g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), fh, Font::plain)));
     g.setColour(Colours::red);
@@ -155,7 +154,7 @@ void SystemFullEditor::drawLabel(Graphics &g, const std::string &str, unsigned i
     g.drawSingleLineText(str, x, y);
 }
 
-void SystemFullEditor::setButtonBounds(ValueButton &btn, unsigned r, unsigned c) {
+void SystemFullEditor::setButtonBounds(ValueButton& btn, unsigned r, unsigned c) {
     const int w = 100;
     const int h = btnSpaceY;
     unsigned x = 900 + (c * w);

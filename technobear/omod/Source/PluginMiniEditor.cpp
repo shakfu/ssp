@@ -6,7 +6,7 @@
 using pcontrol_type = ssp::MiniControl;
 using bcontrol_type = ssp::ParamButton;
 
-PluginMiniEditor::PluginMiniEditor(PluginProcessor &p)
+PluginMiniEditor::PluginMiniEditor(PluginProcessor& p)
     : base_type(&p), processor_(p), resetButton_("Reset", nullptr, 16 * COMPACT_UI_SCALE, Colours::yellow) {
     auto view = std::make_shared<ssp::MiniParamView>(&p);
 
@@ -16,7 +16,7 @@ PluginMiniEditor::PluginMiniEditor(PluginProcessor &p)
     addParam(std::make_shared<pcontrol_type>(processor_.params_.phase, 10.0f, 0.1));
 
     for (unsigned oid = 0; oid < PluginProcessor::MAX_S_OSC; oid++) {
-        auto &op = processor_.getSlaveOscParam(oid);
+        auto& op = processor_.getSlaveOscParam(oid);
         addParam(std::make_shared<pcontrol_type>(op.ratio, 0.1f, 0.01f));
         addParam(std::make_shared<pcontrol_type>(op.wave, 1.0, 1.0f));
         addParam(std::make_shared<pcontrol_type>(op.amp, 0.1, 0.01));

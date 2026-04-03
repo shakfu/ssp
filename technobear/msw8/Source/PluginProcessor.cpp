@@ -1,4 +1,5 @@
 #include "PluginProcessor.h"
+
 #include "PluginEditor.h"
 #include "PluginMiniEditor.h"
 #include "ssp/EditorHost.h"
@@ -7,12 +8,11 @@ inline float constrain(float v, float vMin, float vMax) {
     return std::max<float>(vMin, std::min<float>(vMax, v));
 }
 
-PluginProcessor::PluginProcessor()
-    : PluginProcessor(getBusesProperties(), createParameterLayout()) {}
+PluginProcessor::PluginProcessor() : PluginProcessor(getBusesProperties(), createParameterLayout()) {
+}
 
-PluginProcessor::PluginProcessor(
-    const AudioProcessor::BusesProperties &ioLayouts,
-    AudioProcessorValueTreeState::ParameterLayout layout)
+PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
+                                 AudioProcessorValueTreeState::ParameterLayout layout)
     : BaseProcessor(ioLayouts, std::move(layout)), params_(vts()) {
     init();
     lastInIdx_ = 0;
@@ -25,11 +25,11 @@ PluginProcessor::~PluginProcessor() {
 }
 
 
-PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState &apvt) :
-    inSel(*apvt.getParameter(ID::inSel)),
-    outSel(*apvt.getParameter(ID::outSel)),
-    active(*apvt.getParameter(ID::active)),
-    soft(*apvt.getParameter(ID::soft)) {
+PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState& apvt)
+    : inSel(*apvt.getParameter(ID::inSel)),
+      outSel(*apvt.getParameter(ID::outSel)),
+      active(*apvt.getParameter(ID::active)),
+      soft(*apvt.getParameter(ID::soft)) {
 }
 
 
@@ -46,16 +46,7 @@ AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLa
 
 const String PluginProcessor::getInputBusName(int channelIndex) {
     static String inBusName[I_MAX] = {
-        "InSel",
-        "OutSel",
-        "In 1",
-        "In 2",
-        "In 3",
-        "In 4",
-        "In 5",
-        "In 6",
-        "In 7",
-        "In 8"
+        "InSel", "OutSel", "In 1", "In 2", "In 3", "In 4", "In 5", "In 6", "In 7", "In 8"
     };
     if (channelIndex < I_MAX) { return inBusName[channelIndex]; }
     return "ZZIn-" + String(channelIndex);
@@ -63,16 +54,7 @@ const String PluginProcessor::getInputBusName(int channelIndex) {
 
 
 const String PluginProcessor::getOutputBusName(int channelIndex) {
-    static String outBusName[O_MAX] = {
-        "Out A",
-        "Out B",
-        "Out C",
-        "Out D",
-        "Out E",
-        "Out F",
-        "Out G",
-        "Out H"
-    };
+    static String outBusName[O_MAX] = { "Out A", "Out B", "Out C", "Out D", "Out E", "Out F", "Out G", "Out H" };
     if (channelIndex < O_MAX) { return outBusName[channelIndex]; }
     return "ZZOut-" + String(channelIndex);
 }
@@ -94,12 +76,13 @@ void PluginProcessor::onOutputChanged(unsigned i, bool b) {
 }
 
 void PluginProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
-    BaseProcessor::prepareToPlay(sampleRate,samplesPerBlock);
+    BaseProcessor::prepareToPlay(sampleRate, samplesPerBlock);
     inputBuffer_.setSize(1, samplesPerBlock);
     lastBuffer_.setSize(1, samplesPerBlock);
 }
 
-void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
     unsigned n = buffer.getNumSamples();
     unsigned n2 = n / 2;
     float cvInS = buffer.getSample(I_IN_SEL, 0);
@@ -110,23 +93,21 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
     float inSel = (params_.inSel.getValue() * 2.0f) - 1.0f;
     float outSel = (params_.outSel.getValue() * 2.0f) - 1.0f;
     bool useActive = params_.active.getValue();
-    unsigned inSIdx = unsigned(((constrain(inSel + cvInS, -1.0f, 0.999f) + 1.0f) * (useActive ? inCount_ : 8.0f)) / 2.0f);
-    unsigned outSIdx = unsigned(((constrain(outSel + cvOutS, -1.0f, 0.999f) + 1.0f) * (useActive ? outCount_ : 8.0f)) / 2.0f);
+    unsigned inSIdx =
+        unsigned(((constrain(inSel + cvInS, -1.0f, 0.999f) + 1.0f) * (useActive ? inCount_ : 8.0f)) / 2.0f);
+    unsigned outSIdx =
+        unsigned(((constrain(outSel + cvOutS, -1.0f, 0.999f) + 1.0f) * (useActive ? outCount_ : 8.0f)) / 2.0f);
 
     if (useActive) {
         for (unsigned x = 0; x < 8; x++) {
             if (inputEnabled[I_SIG_1 + x]) {
-                if (inSIdx == iIdx) {
-                    break;
-                }
+                if (inSIdx == iIdx) { break; }
                 iIdx++;
             }
         }
         for (unsigned y = 0; y < 8; y++) {
             if (outputEnabled[O_SIG_A + y] > 0.5f) {
-                if (outSIdx == oIdx) {
-                    break;
-                }
+                if (outSIdx == oIdx) { break; }
                 oIdx++;
             }
         }
@@ -163,32 +144,28 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
     }
 
     if (ramps) {
-        lastBuffer_.applyGainRamp(0, 0, n2, 1.0f, 0.0f); // ramp down
+        lastBuffer_.applyGainRamp(0, 0, n2, 1.0f, 0.0f);  // ramp down
         lastBuffer_.applyGain(0, n2, n2, 0.0f);
 
         inputBuffer_.applyGain(0, 0, n2, 0.0f);
-        inputBuffer_.applyGainRamp(0, n2, n2, 0.f, 1.0f);// ramp up
+        inputBuffer_.applyGainRamp(0, n2, n2, 0.f, 1.0f);  // ramp up
     }
 
     buffer.clear();
 
     if (oActive) {
         buffer.copyFrom(O_SIG_A + oIdx, 0, inputBuffer_, 0, 0, n);
-        if (iIdx != lastInIdx_) {
-            buffer.addFrom(O_SIG_A + oIdx, 0, lastBuffer_, 0, 0, n2);
-        }
+        if (iIdx != lastInIdx_) { buffer.addFrom(O_SIG_A + oIdx, 0, lastBuffer_, 0, 0, n2); }
     }
 
-    if (oIdx != lastOutIdx_ && loActive) {
-        buffer.copyFrom(O_SIG_A + lastOutIdx_, 0, lastBuffer_, 0, 0, n);
-    }
+    if (oIdx != lastOutIdx_ && loActive) { buffer.copyFrom(O_SIG_A + lastOutIdx_, 0, lastBuffer_, 0, 0, n); }
 
     lastInIdx_ = iIdx;
     lastOutIdx_ = oIdx;
 }
 
 
-AudioProcessorEditor *PluginProcessor::createEditor() {
+AudioProcessorEditor* PluginProcessor::createEditor() {
 #ifdef FORCE_COMPACT_UI
     return new ssp::EditorHost(this, new PluginMiniEditor(*this), true);
 #else
@@ -201,6 +178,6 @@ AudioProcessorEditor *PluginProcessor::createEditor() {
 #endif
 }
 
-AudioProcessor *JUCE_CALLTYPE createPluginFilter() {
+AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new PluginProcessor();
 }

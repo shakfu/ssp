@@ -1,9 +1,10 @@
 #pragma once
 
+#include <memory>
+#include <vector>
+
 #include "PluginProcessor.h"
 #include "ssp/editors/MultiView.h"
-#include <vector>
-#include <memory>
 
 
 class TrackEditor;
@@ -13,18 +14,19 @@ class PerformanceEditor;
 
 class PluginEditor : public ssp::MultiView<ssp::BaseView> {
 public:
-    explicit PluginEditor(PluginProcessor &);
+    explicit PluginEditor(PluginProcessor&);
     ~PluginEditor() override = default;
 
 protected:
-    void eventButton(unsigned btn,bool longPress) override;
+    void eventButton(unsigned btn, bool longPress) override;
     void eventUp(bool longPress) override;
     void eventDown(bool longPress) override;
     void eventButtonHeld(unsigned btn) override;
+
 private:
     using base_type = ssp::MultiView<ssp::BaseView>;
 
-    PluginProcessor &processor_;
+    PluginProcessor& processor_;
 
     std::shared_ptr<MixerView> mixerView_;
     std::shared_ptr<TrackEditor> trackEditor_;

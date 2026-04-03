@@ -5,17 +5,16 @@
 
 class PluginMiniEditor : public ssp::BaseView {
 public:
-    explicit PluginMiniEditor(PluginProcessor &);
+    explicit PluginMiniEditor(PluginProcessor&);
     ~PluginMiniEditor() override = default;
 
 protected:
-    void drawView(Graphics &g) override;
+    void drawView(Graphics& g) override;
     void onSSPTimer() override;
 
     using base_type = ssp::BaseView;
 
 private:
-
     struct Msg {
         String channel_;
         String type_;
@@ -30,6 +29,6 @@ private:
     unsigned wrPos_ = 0;
     bool clock_ = false;
 
-    PluginProcessor &processor_;
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginMiniEditor)
+    PluginProcessor& processor_;
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginMiniEditor)
 };

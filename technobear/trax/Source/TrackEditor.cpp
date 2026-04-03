@@ -6,7 +6,7 @@
 #include "TrackView.h"
 
 
-TrackEditor::TrackEditor(PluginProcessor &p) : base_type(&p, false), processor_(p) {
+TrackEditor::TrackEditor(PluginProcessor& p) : base_type(&p, false), processor_(p) {
     trackView_ = std::make_shared<TrackView>(processor_);
     trackViewIdx_ = addView(trackView_);
 

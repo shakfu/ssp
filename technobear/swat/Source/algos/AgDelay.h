@@ -1,10 +1,10 @@
 #pragma once
 
+#include <juce_gui_basics/juce_gui_basics.h>
+
 #include <atomic>
 
 #include "../Algo.h"
-
-#include <juce_gui_basics/juce_gui_basics.h>
 using namespace juce;
 
 // msec delay
@@ -16,7 +16,7 @@ public:
         size_ = params_[0]->floatVal();
         delayTime_ = params_[1]->floatVal();
         if (delayTime_ > size_) {
-            delayTime_ = (float) size_;
+            delayTime_ = (float)size_;
             params_[1]->floatVal(delayTime_);
         }
 
@@ -32,22 +32,20 @@ public:
     std::string name() override { return "Delay (Time)"; }
 
     std::string description() override {
-        return
-            "X = Signal\n"
-            "Y = Delay (% buffer)\n"
-            "A = Delayed X ( Delay + Y) \n"
-            "B = Delayed X ( Delay + Y) + X\n";
+        return "X = Signal\n"
+               "Y = Delay (% buffer)\n"
+               "A = Delayed X ( Delay + Y) \n"
+               "B = Delayed X ( Delay + Y) + X\n";
     }
 
-    virtual void process(const float *x, const float *y, const float *z,
-                         float *a, float *b, unsigned n) override;
-    void paint(Graphics &g) override;
+    virtual void process(const float* x, const float* y, const float* z, float* a, float* b, unsigned n) override;
+    void paint(Graphics& g) override;
 
 private:
     std::atomic<float> size_;
     std::atomic<float> delayTime_;
 
-    float *delayLine_;
+    float* delayLine_;
     unsigned delayLineSz_;
     unsigned writePos_;
 
@@ -64,7 +62,7 @@ public:
         size_ = params_[0]->floatVal();
         delayTime_ = params_[1]->floatVal();
         if (delayTime_ > size_) {
-            delayTime_ = (float) size_;
+            delayTime_ = (float)size_;
             params_[1]->floatVal(delayTime_);
         }
 
@@ -80,22 +78,20 @@ public:
     std::string name() override { return "Delay (Sample)"; }
 
     std::string description() override {
-        return
-            "X = Signal\n"
-            "Y = Delay (% buffer)\n"
-            "A = Delayed X ( Delay + Y) \n"
-            "B = Delayed X ( Delay + Y) + X\n";
+        return "X = Signal\n"
+               "Y = Delay (% buffer)\n"
+               "A = Delayed X ( Delay + Y) \n"
+               "B = Delayed X ( Delay + Y) + X\n";
     }
 
-    virtual void process(const float *x, const float *y, const float *z,
-                         float *a, float *b, unsigned n) override;
-    void paint(Graphics &g) override;
+    virtual void process(const float* x, const float* y, const float* z, float* a, float* b, unsigned n) override;
+    void paint(Graphics& g) override;
 
 private:
     std::atomic<float> size_;
     std::atomic<float> delayTime_;
 
-    float *delayLine_;
+    float* delayLine_;
     unsigned delayLineSz_;
     unsigned writePos_;
 

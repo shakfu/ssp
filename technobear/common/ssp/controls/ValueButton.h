@@ -11,13 +11,13 @@ namespace ssp {
 
 class ValueButton : public juce::Component {
 public:
-    ValueButton(const String &label, std::function<void(bool v)> cb, unsigned fh = 16 * COMPACT_UI_SCALE,
+    ValueButton(const String& label, std::function<void(bool v)> cb, unsigned fh = 16 * COMPACT_UI_SCALE,
                 const juce::Colour fg = juce::Colours::white, const juce::Colour bg = juce::Colours::black,
                 bool def = false);
 
-    void label(const juce::String &str) { label(str, fh_); }
+    void label(const juce::String& str) { label(str, fh_); }
 
-    void label(const juce::String &str, int fh) {
+    void label(const juce::String& str, int fh) {
         label_ = str;
         fh_ = fh;
     }
@@ -25,7 +25,7 @@ public:
 
     void onButton(bool v) {
         if (isToggle_) {
-            if(!v) value(!value_);
+            if (!v) value(!value_);
         } else {
             value(v);
         }
@@ -35,13 +35,13 @@ public:
     bool value() { return value_; }
     void setToggle(bool b) { isToggle_ = b; }
     void visibilityChanged() override {
-        if(!isToggle_) value(false);
+        if (!isToggle_) value(false);
     }
 
 private:
     void valueChanged(bool b);
 
-    void paint(juce::Graphics &g) override;
+    void paint(juce::Graphics& g) override;
     std::function<void(bool value)> callback_;
 
     bool isToggle_ = false;

@@ -14,12 +14,12 @@ class EditorHost;
 
 class BaseView : public juce::Component, public SSPActions {
 public:
-    explicit BaseView(BaseProcessor *p, bool compactUI);
+    explicit BaseView(BaseProcessor* p, bool compactUI);
     virtual ~BaseView();
 
     void resized() override;
 
-    virtual void drawView(juce::Graphics &g);
+    virtual void drawView(juce::Graphics& g);
 
     virtual void editorShown() {}
     virtual void editorHidden() {}
@@ -50,14 +50,14 @@ public:
     friend class EditorHost;
 
 protected:
-    BaseProcessor *baseProcessor_;
+    BaseProcessor* baseProcessor_;
 
 
     juce::Colour defaultBg_ = juce::Colour(0xff111111);
     bool compactUI_ = false;
 
 private:
-    void paint(juce::Graphics &) override;
+    void paint(juce::Graphics&) override;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BaseView)
 };

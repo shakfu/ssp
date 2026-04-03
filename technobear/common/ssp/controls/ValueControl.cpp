@@ -12,7 +12,7 @@ inline juce::String toString(float v) {
 }
 
 
-BaseValueControl::BaseValueControl(const std::string &name, const std::string &label, float min, float max, float def)
+BaseValueControl::BaseValueControl(const std::string& name, const std::string& label, float min, float max, float def)
     : name_(name), label_(label), value_(def), min_(min), max_(max), active_(false) {
 }
 
@@ -30,7 +30,7 @@ void BaseValueControl::valueChanged(float) {
 }
 
 
-SimpleValueControl::SimpleValueControl(const std::string &name, const std::string &label,
+SimpleValueControl::SimpleValueControl(const std::string& name, const std::string& label,
                                        std::function<void(float v)> cb, float min, float max, float def, float coarse,
                                        float fine)
     : BaseValueControl(name, label, min, max, def), callback_(cb), coarseInc_(coarse), fineInc_(fine) {
@@ -61,12 +61,12 @@ void SimpleValueControl::valueChanged(float v) {
     if (callback_) callback_(v);
 }
 
-void SimpleValueControl::paint(juce::Graphics &g) {
+void SimpleValueControl::paint(juce::Graphics& g) {
     static constexpr unsigned fh = 16 * COMPACT_UI_SCALE;
     int h = getHeight();
     int w = getWidth();
 
-    g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(),  fh, juce::Font::plain)));
+    g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), fh, juce::Font::plain)));
 
     g.setColour(fg_);
     g.drawText(name_, 0, 0, w, fh, juce::Justification::centred);
@@ -78,16 +78,16 @@ void SimpleValueControl::paint(juce::Graphics &g) {
 }
 
 
-LineValueControl::LineValueControl(const std::string &name, const std::string &label, std::function<void(float v)> cb,
+LineValueControl::LineValueControl(const std::string& name, const std::string& label, std::function<void(float v)> cb,
                                    float min, float max, float def, float coarse, float fine)
-    : SimpleValueControl(name, label, cb, min, max, def, coarse, fine){};
+    : SimpleValueControl(name, label, cb, min, max, def, coarse, fine) {};
 
-void LineValueControl::paint(juce::Graphics &g) {
+void LineValueControl::paint(juce::Graphics& g) {
     static constexpr unsigned fh = 16 * COMPACT_UI_SCALE;
     int h = getHeight();
     int w = getWidth();
 
-    g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(),  fh, juce::Font::plain)));
+    g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), fh, juce::Font::plain)));
 
     g.setColour(active() ? fg_ : juce::Colours::grey);
     g.drawText(name_, 0, 0, w, fh, juce::Justification::centred);
@@ -99,16 +99,16 @@ void LineValueControl::paint(juce::Graphics &g) {
 }
 
 
-BarValueControl::BarValueControl(const std::string &name, const std::string &label, std::function<void(float v)> cb,
+BarValueControl::BarValueControl(const std::string& name, const std::string& label, std::function<void(float v)> cb,
                                  float min, float max, float def, float coarse, float fine)
-    : SimpleValueControl(name, label, cb, min, max, def, coarse, fine){};
+    : SimpleValueControl(name, label, cb, min, max, def, coarse, fine) {};
 
-void BarValueControl::paint(juce::Graphics &g) {
+void BarValueControl::paint(juce::Graphics& g) {
     static constexpr unsigned fh = 16 * COMPACT_UI_SCALE;
     int h = getHeight();
     int w = getWidth();
 
-    g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(),  fh, juce::Font::plain)));
+    g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), fh, juce::Font::plain)));
 
     g.setColour(active() ? fg_ : juce::Colours::grey);
     g.drawText(name_, 0, 0, w, fh, juce::Justification::centred);
@@ -138,16 +138,16 @@ void BarValueControl::paint(juce::Graphics &g) {
     g.drawVerticalLine(be + 2, int(h / 2) + 2, int(h / 2) + 2 + fh - 4);
 
 
-    if(displayValue_ && active()) {
+    if (displayValue_ && active()) {
         g.setColour(active() ? juce::Colours::white : juce::Colours::lightgrey);
         auto val = toString(value_);
         if (!label_.empty()) { val = val + " " + label_; }
         g.drawText(val, 1, (h / 2) + 1, w - 2, fh - 2, juce::Justification::centred);
     }
 }
- 
 
-ListValueControl::ListValueControl(const std::string &name, std::function<void(float idx, const std::string &str)> cb,
+
+ListValueControl::ListValueControl(const std::string& name, std::function<void(float idx, const std::string& str)> cb,
                                    std::vector<std::string> values, float def, int fh)
     : BaseValueControl(name, "", values.empty() ? 0 : 1, values.size(), values.empty() ? 0 : def),
       callback_(cb),
@@ -167,7 +167,7 @@ void ListValueControl::reset() {
     set(default_);
 }
 
-void ListValueControl::setValues(std::vector<std::string> &v, int selIdx) {
+void ListValueControl::setValues(std::vector<std::string>& v, int selIdx) {
     values_ = v;
     min_ = 0;
     max_ = v.size() - 1;
@@ -185,11 +185,11 @@ void ListValueControl::valueChanged(float nv) {
     if (callback_) callback_(nv, val);
 }
 
-void ListValueControl::paint(juce::Graphics &g) {
+void ListValueControl::paint(juce::Graphics& g) {
     int h = getHeight();
     int w = getWidth();
 
-    g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(),  fh_, juce::Font::plain)));
+    g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), fh_, juce::Font::plain)));
 
     g.setColour(fg_);
     g.drawText(name_, 0, 0, w, fh_, juce::Justification::centred);

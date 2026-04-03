@@ -6,7 +6,7 @@
 #include "SSPApiEditor.h"
 #include "ssp/editors/MultiView.h"
 
-PluginEditor::PluginEditor(PluginProcessor &p) : base_type(&p, false), processor_(p) {
+PluginEditor::PluginEditor(PluginProcessor& p) : base_type(&p, false), processor_(p) {
     dualView_ = std::make_shared<DualView>(p);
     loadView_ = std::make_shared<LoadModuleView>(p, true);
     dualViewIdx_ = addView(dualView_);

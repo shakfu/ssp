@@ -15,10 +15,10 @@ public:
     explicit TextControl();
     virtual ~TextControl();
 
-    void paint(juce::Graphics &g) override;
+    void paint(juce::Graphics& g) override;
 
     std::string getText();
-    void setText(const std::string &txt);
+    void setText(const std::string& txt);
 
     void copy() { copyBuffer_ = text_; }
 
@@ -29,7 +29,7 @@ public:
     void onDelete();
     void onSelect();
 
-    int nCols() { return nCols_;}
+    int nCols() { return nCols_; }
 
 private:
     void resized() override;

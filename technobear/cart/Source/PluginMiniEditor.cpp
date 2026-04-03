@@ -20,15 +20,15 @@ static constexpr unsigned MAX_STEPS = PluginProcessor::MAX_STEPS;
 static const unsigned MAX_X = 4, MAX_Y = 4;
 
 
-PluginMiniEditor::PluginMiniEditor(PluginProcessor &p) : base_type(&p), processor_(p) {
+PluginMiniEditor::PluginMiniEditor(PluginProcessor& p) : base_type(&p), processor_(p) {
     static constexpr unsigned fh = 12 * COMPACT_UI_SCALE;
 
     for (unsigned layer = 0; layer < MAX_LAYERS; layer++) {
-        auto &l = processor_.params_.layers_[layer % MAX_LAYERS];
+        auto& l = processor_.params_.layers_[layer % MAX_LAYERS];
         Colour clr = LAYER_COLOURS[layer % MAX_LAYERS];
         for (unsigned i = 0; i < MAX_STEPS / MAX_Y; i++) {
             int pi = i * MAX_X;
-            auto &scale = processor_.params_.layers_[layer]->scale;
+            auto& scale = processor_.params_.layers_[layer]->scale;
 
             addParamPage(std::make_shared<scontrol_type>(l->steps_[pi + 0]->cv, scale),
                          std::make_shared<scontrol_type>(l->steps_[pi + 1]->cv, scale),
@@ -86,14 +86,14 @@ void PluginMiniEditor::resized() {
     base_type::resized();
 }
 
-void PluginMiniEditor::drawView(Graphics &g) {
+void PluginMiniEditor::drawView(Graphics& g) {
     base_type::drawView(g);
     unsigned xP, yP, cP;
     float cv[3];
     bool gates[3];
     processor_.getActiveData(xP, yP, cP, cv[0], cv[1], cv[2], gates[0], gates[1], gates[2]);
 
-    for (auto &cell : cells_) { cell->activeStep(xP, yP, cP); }
+    for (auto& cell : cells_) { cell->activeStep(xP, yP, cP); }
 
     const int tstartX = canvasX() + 200 * COMPACT_UI_SCALE;
     const int startX = tstartX + (15 * COMPACT_UI_SCALE), startY = (25 * COMPACT_UI_SCALE);
@@ -115,7 +115,7 @@ void PluginMiniEditor::drawView(Graphics &g) {
         bool gate = gates[i];
         int y = startY + (sp * i);
 
-        auto &l = processor_.params_.layers_[i % MAX_LAYERS];
+        auto& l = processor_.params_.layers_[i % MAX_LAYERS];
         if (l->scale.getValue() == 0.0f) {
             if (v >= 0) {
                 g.setColour(Colours::green);

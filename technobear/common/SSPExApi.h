@@ -1,8 +1,8 @@
 #pragma once
 
-#include "../../ssp-sdk/Percussa.h"
-
 #include <juce_gui_basics/juce_gui_basics.h>
+
+#include "../../ssp-sdk/Percussa.h"
 
 
 namespace SSPExtendedApi {
@@ -24,14 +24,14 @@ public:
     virtual void useCompactUI(bool b) = 0;
     virtual unsigned numberOfParameters() = 0;
     virtual bool parameterDesc(unsigned idx, ParameterDesc& desc) = 0;
-    virtual float parameterValue(unsigned idx) = 0; 
-    virtual bool parameterValue(unsigned idx, float v) = 0; 
+    virtual float parameterValue(unsigned idx) = 0;
+    virtual bool parameterValue(unsigned idx, float v) = 0;
 };
 
 class PluginEditorInterface : public Percussa::SSP::PluginEditorInterface {
 public:
     ~PluginEditorInterface() override = default;
-    virtual juce::Component* editorComponent() { return nullptr;}
+    virtual juce::Component* editorComponent() { return nullptr; }
 };
 
 
@@ -40,10 +40,10 @@ struct PluginDescriptor : public Percussa::SSP::PluginDescriptor {
     std::vector<std::string> categories_;
 };
 
-static const char *apiExtensionsName = "apiExtensions";
-static const char *createExDescriptorName = "createExtendedDescriptor";
+static const char* apiExtensionsName = "apiExtensions";
+static const char* createExDescriptorName = "createExtendedDescriptor";
 
 typedef bool (*apiExtensionFun)();
-typedef PluginDescriptor *(*descriptorExFun)();
+typedef PluginDescriptor* (*descriptorExFun)();
 
-}
+}  // namespace SSPExtendedApi

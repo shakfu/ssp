@@ -31,16 +31,16 @@ public:
     void encoderTurned(int n, int val) override {}
     void inputEnabled(int n, bool val) override {}
     void outputEnabled(int n, bool val) override {}
-    void getState(void** buffer, size_t* size) override {*buffer = nullptr, *size = 0;}
+    void getState(void** buffer, size_t* size) override { *buffer = nullptr, *size = 0; }
     void setState(void* buffer, size_t size) override {}
     void prepare(double sampleRate, int samplesPerBlock) override {};
     void process(float** channelData, int numChannels, int numSamples) override {}
 
     void useCompactUI(bool b) override {};
-    unsigned numberOfParameters() override { return 0;}
-    bool parameterDesc(unsigned idx, ParameterDesc& desc) override { return false;}
-    float parameterValue(unsigned idx) override { return 0.f;}
-    bool parameterValue(unsigned idx, float v) override { return false;}
+    unsigned numberOfParameters() override { return 0; }
+    bool parameterDesc(unsigned idx, ParameterDesc& desc) override { return false; }
+    float parameterValue(unsigned idx) override { return 0.f; }
+    bool parameterValue(unsigned idx, float v) override { return false; }
 
     static SSPExtendedApi::PluginDescriptor* createDescriptor() { return new OutputModule::PluginDescriptor(); }
 };

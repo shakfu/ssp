@@ -8,7 +8,7 @@ static constexpr unsigned btnTopY = 380 - 1;
 static constexpr unsigned btnSpaceY = 50;
 
 
-FileBrowser::FileBrowser(BaseProcessor *p, const String &defDir) : BaseEditor(p), baseDir_(defDir) {
+FileBrowser::FileBrowser(BaseProcessor* p, const String& defDir) : BaseEditor(p), baseDir_(defDir) {
     setSize(1600, 480);
     int bfh = 48;
     upBtn_.label("^", bfh);
@@ -21,7 +21,8 @@ FileBrowser::FileBrowser(BaseProcessor *p, const String &defDir) : BaseEditor(p)
 
     leftShiftBtn_.setVisible(false);
     rightShiftBtn_.label("Sel");
-    addAndMakeVisible(rightShiftBtn_);}
+    addAndMakeVisible(rightShiftBtn_);
+}
 
 
 FileBrowser::~FileBrowser() {
@@ -32,7 +33,7 @@ void FileBrowser::selectFile() {
     // used for directories
     if (selected_ == -1) return;
     int idx = 0;
-    for (auto iter: fileList_) {
+    for (auto iter : fileList_) {
         if (idx == selected_) {
             auto file = iter.second;
             if (file.isDirectory()) {
@@ -52,7 +53,7 @@ String FileBrowser::selectedFile() {
     if (selected_ == -1) return "";
 
     int idx = 0;
-    for (auto& iter: fileList_) {
+    for (auto& iter : fileList_) {
         if (idx == selected_) {
             auto file = iter.second;
             if (file.isDirectory()) return "";
@@ -64,8 +65,7 @@ String FileBrowser::selectedFile() {
 }
 
 
-
-void FileBrowser::setFile(String &fullname) {
+void FileBrowser::setFile(String& fullname) {
     File f(fullname);
     if (!f.exists()) return;
 
@@ -79,10 +79,8 @@ void FileBrowser::setFile(String &fullname) {
         scanDir();
         selected_ = -1;
         int idx = 0;
-        for (auto& iter: fileList_) {
-            if (iter.second == f) {
-                selected_ = idx;
-            }
+        for (auto& iter : fileList_) {
+            if (iter.second == f) { selected_ = idx; }
             idx++;
         }
 
@@ -102,17 +100,13 @@ void FileBrowser::scanDir() {
     fileList_.clear();
     fileList_[".."] = File(baseDir_).getParentDirectory();
 
-    for (DirectoryEntry entry: RangedDirectoryIterator(File(baseDir_),
-                                                       false, "*",
-                                                       File::findFilesAndDirectories)) {
-        if (!entry.isHidden()) {
-            fileList_[entry.getFile().getFileName().toStdString()] = entry.getFile();
-        }
+    for (DirectoryEntry entry : RangedDirectoryIterator(File(baseDir_), false, "*", File::findFilesAndDirectories)) {
+        if (!entry.isHidden()) { fileList_[entry.getFile().getFileName().toStdString()] = entry.getFile(); }
     }
 }
 
 
-void FileBrowser::drawView(Graphics &g) {
+void FileBrowser::drawView(Graphics& g) {
     // display 1600x 480
     // x= left/right (0..1599)
     // y= top/bottom (0..479)
@@ -120,7 +114,7 @@ void FileBrowser::drawView(Graphics &g) {
 
     int idx = 0;
 
-    for (auto iter: fileList_) {
+    for (auto iter : fileList_) {
         String name = iter.first;
         bool isDir = iter.second.isDirectory();
         drawEntry(g, idx, selected_ == idx, name, isDir);
@@ -129,14 +123,11 @@ void FileBrowser::drawView(Graphics &g) {
 }
 
 
-void FileBrowser::drawEntry(Graphics &g,
-                            unsigned fidx, bool selected,
-                            const String &name, bool isDir) {
+void FileBrowser::drawEntry(Graphics& g, unsigned fidx, bool selected, const String& name, bool isDir) {
     float w = 200;
     float h = 25;
 
-    if (fidx < offset_ || fidx > (offset_ + (nFilePerCol * nMaxCols)))
-        return;
+    if (fidx < offset_ || fidx > (offset_ + (nFilePerCol * nMaxCols))) return;
 
     int idx = fidx - offset_;
     int r = idx % nFilePerCol;
@@ -159,12 +150,9 @@ void FileBrowser::drawEntry(Graphics &g,
 
     String fname = name;
     if (fidx < fileList_.size()) {
-        if (isDir) {
-            fname = "[" + name + "]";
-        }
+        if (isDir) { fname = "[" + name + "]"; }
         g.drawText(fname, x + 2, y + 2, w - 4, h - 4, Justification::bottomLeft);
     }
-
 }
 
 
@@ -180,25 +168,23 @@ void FileBrowser::editorHidden() {
 void FileBrowser::onEncoder(unsigned id, float v) {
     base_type::onEncoder(id, v);
     switch (id) {
-        case 0 : {
+        case 0: {
             if (v > 0) {
-                if (selected_ == -1) selected_ = 0;
+                if (selected_ == -1)
+                    selected_ = 0;
                 else {
                     if (selected_ + 1 < fileList_.size()) {
                         selected_++;
-                        if ((selected_ - offset_) >= nPageEntries_) {
-                            offset_ += nFilePerCol;
-                        }
+                        if ((selected_ - offset_) >= nPageEntries_) { offset_ += nFilePerCol; }
                     }
                 }
             } else {
-                if (selected_ == -1) selected_ = 0;
+                if (selected_ == -1)
+                    selected_ = 0;
                 else {
                     if (selected_ > 0) {
                         selected_--;
-                        if ((selected_ - offset_) < 0) {
-                            offset_ -= nFilePerCol;
-                        }
+                        if ((selected_ - offset_) < 0) { offset_ -= nFilePerCol; }
                     }
                 }
             }
@@ -212,7 +198,7 @@ void FileBrowser::onEncoderSwitch(unsigned id, bool v) {
     base_type::onEncoderSwitch(id, v);
     if (v) return;
     switch (id) {
-        case 0 : {
+        case 0: {
             selectFile();
             break;
         }
@@ -223,14 +209,11 @@ void FileBrowser::onEncoderSwitch(unsigned id, bool v) {
 void FileBrowser::eventUp(bool v) {
     base_type::eventUp(v);
     if (!v) {
-        if (selected_ == -1) selected_ = 0;
+        if (selected_ == -1)
+            selected_ = 0;
         else {
-            if (selected_ > 0) {
-                selected_--;
-            }
-            if ((selected_ - offset_) < 0) {
-                offset_ -= nFilePerCol;
-            }
+            if (selected_ > 0) { selected_--; }
+            if ((selected_ - offset_) < 0) { offset_ -= nFilePerCol; }
         }
     }
 }
@@ -238,13 +221,12 @@ void FileBrowser::eventUp(bool v) {
 void FileBrowser::eventDown(bool v) {
     base_type::eventDown(v);
     if (!v) {
-        if (selected_ == -1) selected_ = 0;
+        if (selected_ == -1)
+            selected_ = 0;
         else {
             if (selected_ + 1 < fileList_.size()) {
                 selected_++;
-                if ((selected_ - offset_) >= nPageEntries_) {
-                    offset_ += nFilePerCol;
-                }
+                if ((selected_ - offset_) >= nPageEntries_) { offset_ += nFilePerCol; }
             }
         }
     }
@@ -254,14 +236,11 @@ void FileBrowser::eventDown(bool v) {
 void FileBrowser::eventLeft(bool v) {
     base_type::eventLeft(v);
     if (!v) {
-        if (selected_ == -1) selected_ = 0;
+        if (selected_ == -1)
+            selected_ = 0;
         else {
-            if (selected_ - nFilePerCol >= 0) {
-                selected_ -= nFilePerCol;
-            }
-            if (offset_ > 0 && (selected_ - offset_) < 0) {
-                offset_ -= nFilePerCol;
-            }
+            if (selected_ - nFilePerCol >= 0) { selected_ -= nFilePerCol; }
+            if (offset_ > 0 && (selected_ - offset_) < 0) { offset_ -= nFilePerCol; }
         }
     }
 }
@@ -269,25 +248,19 @@ void FileBrowser::eventLeft(bool v) {
 void FileBrowser::eventRight(bool v) {
     base_type::onRightButton(v);
     if (!v) {
-        if (selected_ == -1) selected_ = 0;
+        if (selected_ == -1)
+            selected_ = 0;
         else {
-            if (selected_ + nFilePerCol < fileList_.size()) {
-                selected_ += nFilePerCol;
-            }
-            if ((selected_ - offset_) >= nPageEntries_) {
-                offset_ += nFilePerCol;
-            }
+            if (selected_ + nFilePerCol < fileList_.size()) { selected_ += nFilePerCol; }
+            if ((selected_ - offset_) >= nPageEntries_) { offset_ += nFilePerCol; }
         }
     }
 }
 
- void FileBrowser::eventRightShift(bool v) {
-     base_type::eventRightShift(v);
-     if(!v) {
-         selectFile();
-     }
- }
-
-
-
+void FileBrowser::eventRightShift(bool v) {
+    base_type::eventRightShift(v);
+    if (!v) { selectFile(); }
 }
+
+
+}  // namespace ssp

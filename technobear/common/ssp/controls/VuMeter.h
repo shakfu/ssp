@@ -10,9 +10,9 @@ class VuMeter : public juce::Component {
 public:
     VuMeter() : active_(false) { ; }
 
-    void init(const juce::String &label, bool drawGainLevel=false) {
+    void init(const juce::String& label, bool drawGainLevel = false) {
         label_ = label;
-        drawGainLevel_=drawGainLevel;
+        drawGainLevel_ = drawGainLevel;
     }
 
     void active(bool);
@@ -23,21 +23,21 @@ public:
 
     bool enabled() { return enabled_; }
 
-    void paint(juce::Graphics &g);
+    void paint(juce::Graphics& g);
 
     void level(float lvl);
-    float level()  {return level_;}
+    float level() { return level_; }
 
     void gainLevel(float lvl);
-    float gainLevel()  {return gainLevel_;}
+    float gainLevel() { return gainLevel_; }
 
 private:
     String label_;
     bool active_ = false;
     bool enabled_ = false;
     float level_ = 0.0f;
-    float gainLevel_=0.0f;
-    bool drawGainLevel_=false;
+    float gainLevel_ = 0.0f;
+    bool drawGainLevel_ = false;
     juce_UseDebuggingNewOperator
 };
 
@@ -46,9 +46,9 @@ class MonoVuMeter : public juce::Component {
 public:
     MonoVuMeter();
 
-    void init(const juce::String &label,bool drawGainLevel=false) {
+    void init(const juce::String& label, bool drawGainLevel = false) {
         label_ = label;
-        channel_.init(label,drawGainLevel);
+        channel_.init(label, drawGainLevel);
     }
 
     void active(bool b) { channel_.active(b); }
@@ -60,9 +60,9 @@ public:
     bool enabled() { return channel_.enabled(); }
 
     void level(float lvl) { channel_.level(lvl); }
-    void gainLevel(float lvl) {channel_.gainLevel(lvl);}
+    void gainLevel(float lvl) { channel_.gainLevel(lvl); }
 
-    void paint(juce::Graphics &) override;
+    void paint(juce::Graphics&) override;
     void resized() override;
     void labelColour(juce::Colour clr) { labelClr_ = clr; }
 
@@ -78,10 +78,10 @@ class StereoVuMeter : public juce::Component {
 public:
     StereoVuMeter();
 
-    void init(const juce::String &label,bool drawGainLevel=false) {
+    void init(const juce::String& label, bool drawGainLevel = false) {
         label_ = label;
-        lChannel_.init(label,drawGainLevel);
-        rChannel_.init("",drawGainLevel);
+        lChannel_.init(label, drawGainLevel);
+        rChannel_.init("", drawGainLevel);
     }
 
     // note left is considered 'lead' channel, for mono purposes
@@ -110,8 +110,9 @@ public:
     }
     void labelColour(juce::Colour clr) { labelClr_ = clr; }
 
-    void paint(juce::Graphics &) override;
+    void paint(juce::Graphics&) override;
     void resized() override;
+
 private:
     juce::String label_;
     VuMeter lChannel_;
@@ -122,4 +123,4 @@ private:
 };
 
 
-}// ssp
+}  // namespace ssp

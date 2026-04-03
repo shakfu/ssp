@@ -7,7 +7,7 @@ class PerfParamComponent;
 
 class PerformanceView : public ssp::MiniBasicView {
 public:
-    PerformanceView(PluginProcessor &p);
+    PerformanceView(PluginProcessor& p);
     ~PerformanceView() override;
 
 protected:
@@ -20,7 +20,7 @@ protected:
 
     void editorShown() override;
     void onSSPTimer() override;
-    void drawView(juce::Graphics &g) override;
+    void drawView(juce::Graphics& g) override;
 
 private:
     static constexpr int fh = 12 * COMPACT_UI_SCALE;
@@ -29,5 +29,5 @@ private:
     static constexpr unsigned paramsPerPage = 4;
     unsigned page_ = 0;
 
-    PluginProcessor &processor_;
+    PluginProcessor& processor_;
 };

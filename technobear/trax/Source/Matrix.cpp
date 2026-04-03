@@ -21,14 +21,14 @@ void Matrix::getStateInformation(juce::XmlElement& outStream) {
 
 void Matrix::setStateInformation(juce::XmlElement& inStream) {
     connections_.clear();
-    
+
     for (auto xmlWire : inStream.getChildIterator()) {
         int srcMod = xmlWire->getIntAttribute("srcMod");
         int srcCh = xmlWire->getIntAttribute("srcCh");
         int destMod = xmlWire->getIntAttribute("destMod");
         int destCh = xmlWire->getIntAttribute("destCh");
-        float gain = xmlWire->getDoubleAttribute("gain",1.0f);
-        float offset = xmlWire->getDoubleAttribute("offset",0.0f);
+        float gain = xmlWire->getDoubleAttribute("gain", 1.0f);
+        float offset = xmlWire->getDoubleAttribute("offset", 0.0f);
         connect(Jack(srcMod, srcCh), Jack(destMod, destCh));
         connections_.back().applyGainOffset(gain, offset);
     }

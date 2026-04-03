@@ -1,58 +1,55 @@
 #pragma once
 
+#include <algorithm>
+#include <atomic>
+
 #include "Quantizer.h"
 #include "ssp/BaseProcessor.h"
 
-#include <atomic>
-#include <algorithm>
-
 using namespace juce;
 
-//root
-//scale
-//quant
+// root
+// scale
+// quant
 
 namespace ID {
-#define PARAMETER_ID(str) constexpr const char* str { #str };
+#define PARAMETER_ID(str) constexpr const char* str{ #str };
 
-PARAMETER_ID (root)
-PARAMETER_ID (scale)
-PARAMETER_ID (quant)
+PARAMETER_ID(root)
+PARAMETER_ID(scale)
+PARAMETER_ID(quant)
 #undef PARAMETER_ID
-}
+}  // namespace ID
 
 
 class PluginProcessor : public ssp::BaseProcessor {
 public:
     explicit PluginProcessor();
-    explicit PluginProcessor(const AudioProcessor::BusesProperties &ioLayouts, AudioProcessorValueTreeState::ParameterLayout layout);
+    explicit PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
+                             AudioProcessorValueTreeState::ParameterLayout layout);
     ~PluginProcessor() override = default;
 
     const String getName() const override { return JucePlugin_Name; }
 
-    void processBlock(AudioSampleBuffer &, MidiBuffer &) override;
+    void processBlock(AudioSampleBuffer&, MidiBuffer&) override;
 
-    AudioProcessorEditor *createEditor() override;
+    AudioProcessorEditor* createEditor() override;
 
     bool hasEditor() const override { return true; }
 
     struct PluginParams {
         using Parameter = juce::RangedAudioParameter;
-        explicit PluginParams(juce::AudioProcessorValueTreeState &);
+        explicit PluginParams(juce::AudioProcessorValueTreeState&);
 
-        Parameter &root;
-        Parameter &scale;
-        Parameter &quant;
+        Parameter& root;
+        Parameter& scale;
+        Parameter& quant;
     } params_;
 
     static BusesProperties getBusesProperties() {
         BusesProperties props;
-        for (auto i = 0; i < I_MAX; i++) {
-            props.addBus(true, getInputBusName(i), AudioChannelSet::mono());
-        }
-        for (auto i = 0; i < O_MAX; i++) {
-            props.addBus(false, getOutputBusName(i), AudioChannelSet::mono());
-        }
+        for (auto i = 0; i < I_MAX; i++) { props.addBus(true, getInputBusName(i), AudioChannelSet::mono()); }
+        for (auto i = 0; i < O_MAX; i++) { props.addBus(false, getOutputBusName(i), AudioChannelSet::mono()); }
         return props;
     }
 
@@ -98,13 +95,10 @@ private:
     Quantizer quantizer_;
 
 
-    bool isBusesLayoutSupported(const BusesLayout &layouts) const override {
-        return true;
-    }
+    bool isBusesLayoutSupported(const BusesLayout& layouts) const override { return true; }
 
     static const String getInputBusName(int channelIndex);
     static const String getOutputBusName(int channelIndex);
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)
 };
-

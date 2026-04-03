@@ -1,43 +1,44 @@
 #pragma once
 
-#include "ssp/BaseProcessor.h"
-
-#include <atomic>
 #include <algorithm>
+#include <atomic>
+
+#include "ssp/BaseProcessor.h"
 
 
 using namespace juce;
 
 namespace ID {
-#define PARAMETER_ID(str) constexpr const char* str { #str };
-constexpr const char *separator{":"};
+#define PARAMETER_ID(str) constexpr const char* str{ #str };
+constexpr const char* separator{ ":" };
 
 
-PARAMETER_ID (select)
-PARAMETER_ID (slew)
-PARAMETER_ID (morph)
+PARAMETER_ID(select)
+PARAMETER_ID(slew)
+PARAMETER_ID(morph)
 
 
 // tree layers:1-9:volts:1-16:val
-PARAMETER_ID (layers)
-PARAMETER_ID (volts)
-PARAMETER_ID (val)
+PARAMETER_ID(layers)
+PARAMETER_ID(volts)
+PARAMETER_ID(val)
 
 #undef PARAMETER_ID
-}
+}  // namespace ID
 
 
 class PluginProcessor : public ssp::BaseProcessor {
 public:
     explicit PluginProcessor();
-    explicit PluginProcessor(const AudioProcessor::BusesProperties &ioLayouts, AudioProcessorValueTreeState::ParameterLayout layout);
+    explicit PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
+                             AudioProcessorValueTreeState::ParameterLayout layout);
     ~PluginProcessor();
 
     const String getName() const override { return JucePlugin_Name; }
 
-    void processBlock(AudioSampleBuffer &, MidiBuffer &) override;
+    void processBlock(AudioSampleBuffer&, MidiBuffer&) override;
 
-    AudioProcessorEditor *createEditor() override;
+    AudioProcessorEditor* createEditor() override;
 
     bool hasEditor() const override { return true; }
 
@@ -90,33 +91,33 @@ public:
 
     struct VoltParam {
         using Parameter = juce::RangedAudioParameter;
-        VoltParam(AudioProcessorValueTreeState &apvt, unsigned lid, unsigned id);
+        VoltParam(AudioProcessorValueTreeState& apvt, unsigned lid, unsigned id);
         unsigned id_ = 0;
         unsigned lid_ = 0;
-        String pid_; // e.g. layers:1:volts:1
-        Parameter &val;
+        String pid_;  // e.g. layers:1:volts:1
+        Parameter& val;
     };
 
     struct Layer {
         using Parameter = juce::RangedAudioParameter;
-        Layer(AudioProcessorValueTreeState &apvt, unsigned id);
+        Layer(AudioProcessorValueTreeState& apvt, unsigned id);
         unsigned id_ = 0;
-        String pid_; // e.g layers:1
+        String pid_;  // e.g layers:1
         std::vector<std::unique_ptr<VoltParam>> volts_;
     };
 
     struct PluginParams {
         using Parameter = juce::RangedAudioParameter;
-        explicit PluginParams(juce::AudioProcessorValueTreeState &);
+        explicit PluginParams(juce::AudioProcessorValueTreeState&);
 
-        Parameter &slew;
-        Parameter &select;
-        Parameter &morph;
+        Parameter& slew;
+        Parameter& select;
+        Parameter& morph;
 
         std::vector<std::unique_ptr<Layer>> layers_;
     } params_;
 
-    Layer &getLayer(unsigned layer) {
+    Layer& getLayer(unsigned layer) {
         jassert(layer < params_.layers_.size());
         return *(params_.layers_[layer]);
     }
@@ -124,30 +125,22 @@ public:
 
     static BusesProperties getBusesProperties() {
         BusesProperties props;
-        for (auto i = 0; i < I_MAX; i++) {
-            props.addBus(true, getInputBusName(i), AudioChannelSet::mono());
-        }
-        for (auto i = 0; i < O_MAX; i++) {
-            props.addBus(false, getOutputBusName(i), AudioChannelSet::mono());
-        }
+        for (auto i = 0; i < I_MAX; i++) { props.addBus(true, getInputBusName(i), AudioChannelSet::mono()); }
+        for (auto i = 0; i < O_MAX; i++) { props.addBus(false, getOutputBusName(i), AudioChannelSet::mono()); }
         return props;
     }
 
 protected:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
-    float getCurrentVolt(float layer, unsigned volt,bool morph);
+    float getCurrentVolt(float layer, unsigned volt, bool morph);
 
 private:
-    bool isBusesLayoutSupported(const BusesLayout &layouts) const override {
-        return true;
-    }
+    bool isBusesLayoutSupported(const BusesLayout& layouts) const override { return true; }
     static const String getInputBusName(int channelIndex);
     static const String getOutputBusName(int channelIndex);
 
     float lastVolt_[MAX_SIG_OUT];
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)
 };
-
-

@@ -7,7 +7,7 @@ using namespace juce;
 
 class PluginEditor : public ssp::MultiBarEditor {
 public:
-    explicit PluginEditor(PluginProcessor &);
+    explicit PluginEditor(PluginProcessor&);
     ~PluginEditor() override = default;
 
 protected:
@@ -15,6 +15,6 @@ protected:
 
 protected:
 private:
-    PluginProcessor &processor_;
+    PluginProcessor& processor_;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginEditor)
 };

@@ -1,24 +1,22 @@
 #pragma once
 
-#include "ssp/BaseProcessor.h"
-
-#include <atomic>
 #include <algorithm>
+#include <atomic>
 
 #include "daisysp.h"
+#include "ssp/BaseProcessor.h"
 
-//daisysp::AnalogBassDrum analogBassDrum_;
-//daisysp::SyntheticSnareDrum syntheticBassDrum_;
-//daisysp::AnalogSnareDrum analogSnareDrum_;
-//daisysp::SyntheticSnareDrum syntheticSnareDrum_;
-//daisysp::HiHat<daisysp::SquareNoise> hiHat1_;
-//daisysp::HiHat<daisysp::RingModNoise> hiHat2_;
-
+// daisysp::AnalogBassDrum analogBassDrum_;
+// daisysp::SyntheticSnareDrum syntheticBassDrum_;
+// daisysp::AnalogSnareDrum analogSnareDrum_;
+// daisysp::SyntheticSnareDrum syntheticSnareDrum_;
+// daisysp::HiHat<daisysp::SquareNoise> hiHat1_;
+// daisysp::HiHat<daisysp::RingModNoise> hiHat2_;
 
 
 namespace ID {
-#define PARAMETER_ID(str) constexpr const char* str { #str };
-constexpr const char *separator{":"};
+#define PARAMETER_ID(str) constexpr const char* str{ #str };
+constexpr const char* separator{ ":" };
 
 
 PARAMETER_ID(AB)
@@ -34,7 +32,7 @@ PARAMETER_ID(HH2)
 PARAMETER_ID(Sustain)
 PARAMETER_ID(Accent)
 PARAMETER_ID(Freq)
-PARAMETER_ID(Tone) // not SS, SB
+PARAMETER_ID(Tone)  // not SS, SB
 PARAMETER_ID(Decay)
 PARAMETER_ID(Gain)
 
@@ -57,7 +55,7 @@ PARAMETER_ID(HH1_Noise)
 PARAMETER_ID(HH2_Noise)
 
 #undef PARAMETER_ID
-}
+}  // namespace ID
 
 
 using namespace juce;
@@ -65,14 +63,15 @@ using namespace juce;
 class PluginProcessor : public ssp::BaseProcessor {
 public:
     explicit PluginProcessor();
-    explicit PluginProcessor(const AudioProcessor::BusesProperties &ioLayouts, AudioProcessorValueTreeState::ParameterLayout layout);
+    explicit PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
+                             AudioProcessorValueTreeState::ParameterLayout layout);
     ~PluginProcessor();
 
     const String getName() const override { return JucePlugin_Name; }
 
-    void processBlock(AudioSampleBuffer &, MidiBuffer &) override;
+    void processBlock(AudioSampleBuffer&, MidiBuffer&) override;
 
-    AudioProcessorEditor *createEditor() override;
+    AudioProcessorEditor* createEditor() override;
 
     bool hasEditor() const override { return true; }
 
@@ -105,53 +104,53 @@ public:
 
     struct DrumBaseParam {
         using Parameter = juce::RangedAudioParameter;
-        DrumBaseParam(AudioProcessorValueTreeState &apvt, StringRef pre);
-        Parameter &Sustain;
-        Parameter &Accent;
-        Parameter &Freq;
-        Parameter &Tone;
-        Parameter &Decay;
-        Parameter &Gain;
+        DrumBaseParam(AudioProcessorValueTreeState& apvt, StringRef pre);
+        Parameter& Sustain;
+        Parameter& Accent;
+        Parameter& Freq;
+        Parameter& Tone;
+        Parameter& Decay;
+        Parameter& Gain;
     };
 
     struct ABParam : public DrumBaseParam {
-        ABParam(AudioProcessorValueTreeState &apvt, StringRef id);
-        Parameter &AB_AttackFM;
-        Parameter &AB_SelfFM;
+        ABParam(AudioProcessorValueTreeState& apvt, StringRef id);
+        Parameter& AB_AttackFM;
+        Parameter& AB_SelfFM;
     };
 
     struct SBParam : public DrumBaseParam {
-        SBParam(AudioProcessorValueTreeState &apvt, StringRef id);
-        Parameter &SB_Dirt;
-        Parameter &SB_EnvFM;
-        Parameter &SB_FMDecay;
+        SBParam(AudioProcessorValueTreeState& apvt, StringRef id);
+        Parameter& SB_Dirt;
+        Parameter& SB_EnvFM;
+        Parameter& SB_FMDecay;
     };
 
     struct ASParam : public DrumBaseParam {
-        ASParam(AudioProcessorValueTreeState &apvt, StringRef id);
-        Parameter &AS_Snappy;
+        ASParam(AudioProcessorValueTreeState& apvt, StringRef id);
+        Parameter& AS_Snappy;
     };
 
 
     struct SSParam : public DrumBaseParam {
-        SSParam(AudioProcessorValueTreeState &apvt, StringRef id);
-        Parameter &SS_FM;
-        Parameter &SS_Snappy;
+        SSParam(AudioProcessorValueTreeState& apvt, StringRef id);
+        Parameter& SS_FM;
+        Parameter& SS_Snappy;
     };
 
     struct HH1Param : public DrumBaseParam {
-        HH1Param(AudioProcessorValueTreeState &apvt, StringRef id);
-        Parameter &HH1_Noise;
+        HH1Param(AudioProcessorValueTreeState& apvt, StringRef id);
+        Parameter& HH1_Noise;
     };
     struct HH2Param : public DrumBaseParam {
-        HH2Param(AudioProcessorValueTreeState &apvt, StringRef id);
-        Parameter &HH2_Noise;
+        HH2Param(AudioProcessorValueTreeState& apvt, StringRef id);
+        Parameter& HH2_Noise;
     };
 
 
     struct PluginParams {
         using Parameter = juce::RangedAudioParameter;
-        explicit PluginParams(juce::AudioProcessorValueTreeState &);
+        explicit PluginParams(juce::AudioProcessorValueTreeState&);
 
         ABParam ab_;
         SBParam sb_;
@@ -164,12 +163,8 @@ public:
 
     static BusesProperties getBusesProperties() {
         BusesProperties props;
-        for (auto i = 0; i < I_MAX; i++) {
-            props.addBus(true, getInputBusName(i), AudioChannelSet::mono());
-        }
-        for (auto i = 0; i < O_MAX; i++) {
-            props.addBus(false, getOutputBusName(i), AudioChannelSet::mono());
-        }
+        for (auto i = 0; i < I_MAX; i++) { props.addBus(true, getInputBusName(i), AudioChannelSet::mono()); }
+        for (auto i = 0; i < O_MAX; i++) { props.addBus(false, getOutputBusName(i), AudioChannelSet::mono()); }
         return props;
     }
 
@@ -179,19 +174,14 @@ protected:
     float getCurrentVolt(float layer, unsigned volt, bool morph);
 
 private:
-    bool isBusesLayoutSupported(const BusesLayout &layouts) const override {
-        return true;
-    }
+    bool isBusesLayoutSupported(const BusesLayout& layouts) const override { return true; }
 
-    inline float normValue(RangedAudioParameter &p) {
-        return p.convertFrom0to1(p.getValue());
-    }
+    inline float normValue(RangedAudioParameter& p) { return p.convertFrom0to1(p.getValue()); }
 
     static const String getInputBusName(int channelIndex);
     static const String getOutputBusName(int channelIndex);
 
-    bool trig_[O_MAX] = { false, false, false,
-                          false, false, false };
+    bool trig_[O_MAX] = { false, false, false, false, false, false };
 
     daisysp::AnalogBassDrum analogBassDrum_;
     daisysp::SyntheticBassDrum syntheticBassDrum_;
@@ -200,7 +190,5 @@ private:
     daisysp::HiHat<daisysp::SquareNoise> hiHat1_;
     daisysp::HiHat<daisysp::RingModNoise> hiHat2_;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)
 };
-
-

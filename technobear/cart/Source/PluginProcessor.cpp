@@ -14,7 +14,7 @@ Snakes PluginProcessor::snakes_;
 PluginProcessor::PluginProcessor() : PluginProcessor(getBusesProperties(), createParameterLayout()) {
 }
 
-PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties &ioLayouts,
+PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
                                  AudioProcessorValueTreeState::ParameterLayout layout)
     : BaseProcessor(ioLayouts, std::move(layout)), params_(vts()) {
     init();
@@ -24,7 +24,7 @@ PluginProcessor::~PluginProcessor() {
 }
 
 String layerID(unsigned ln) {
-    static const char *layerChar[] = { "x", "y", "c" };
+    static const char* layerChar[] = { "x", "y", "c" };
     return layerChar[ln];
 }
 
@@ -41,7 +41,7 @@ String getLayerStepPID(unsigned ln, unsigned n) {
 }
 
 
-PluginProcessor::LayerStep::LayerStep(AudioProcessorValueTreeState &apvt, unsigned ln, unsigned sn)
+PluginProcessor::LayerStep::LayerStep(AudioProcessorValueTreeState& apvt, unsigned ln, unsigned sn)
     : cv(*apvt.getParameter(getLayerStepPID(ln, sn) + ID::cv)),
       access(*apvt.getParameter(getLayerStepPID(ln, sn) + ID::access)),
       gate(*apvt.getParameter(getLayerStepPID(ln, sn) + ID::gate)),
@@ -49,7 +49,7 @@ PluginProcessor::LayerStep::LayerStep(AudioProcessorValueTreeState &apvt, unsign
     ;
 }
 
-PluginProcessor::Layer::Layer(AudioProcessorValueTreeState &apvt, unsigned ln)
+PluginProcessor::Layer::Layer(AudioProcessorValueTreeState& apvt, unsigned ln)
     : snake(*apvt.getParameter(getLayerPID(ln) + ID::snake)),
       scale(*apvt.getParameter(getLayerPID(ln) + ID::scale)),
       root(*apvt.getParameter(getLayerPID(ln) + ID::root)),
@@ -61,7 +61,7 @@ PluginProcessor::Layer::Layer(AudioProcessorValueTreeState &apvt, unsigned ln)
 }
 
 
-PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState &apvt) {
+PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState& apvt) {
     for (unsigned i = 0; i < MAX_LAYER; i++) {
         auto layer = std::make_unique<Layer>(apvt, i);
         for (unsigned n = 0; n < 16; n++) { layer->steps_.push_back(std::make_unique<LayerStep>(apvt, i, n)); }
@@ -94,7 +94,7 @@ AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLa
     cvModes.add("Snake");
     cvModes.add("S&H");
 
-    auto &q = quantizer_;
+    auto& q = quantizer_;
     StringArray tonics;
     for (auto i = 0; i < MAX_TONICS; i++) { tonics.add(q.getTonicName(i)); }
     params.add(std::make_unique<ssp::BaseChoiceParameter>(ID::root, "Root", tonics, 0));
@@ -164,7 +164,8 @@ float PluginProcessor::quantizeCv(unsigned scale, unsigned root, float voctIn) {
 }
 
 
-void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
     unsigned sz = buffer.getNumSamples();
 
     static constexpr unsigned O_L_OFFSET = O_Y_CV - O_X_CV;
@@ -179,8 +180,8 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
             //            bool enabled = outputEnabled[(layer * O_L_OFFSET) + O_X_CV] || outputEnabled[(layer *
             //            O_L_OFFSET) + O_X_GATE];
 
-            auto &ld = layerData_[layer];
-            auto &layerParam = *params_.layers_[layer];
+            auto& ld = layerData_[layer];
+            auto& layerParam = *params_.layers_[layer];
             float o_cv = 0.0f;
             bool o_gate = false;
 
@@ -192,8 +193,8 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
                 processLayer(clkIn, modIn, cvIn, layerParam.steps_, ld, o_cv, o_gate);
 
             } else {
-                auto &xld = layerData_[PluginParams::X];
-                auto &yld = layerData_[PluginParams::Y];
+                auto& xld = layerData_[PluginParams::X];
+                auto& yld = layerData_[PluginParams::Y];
                 processCartLayer(layerParam.steps_, ld, xld, yld, o_cv, o_gate);
             }
 
@@ -205,8 +206,8 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
 }
 
 
-void PluginProcessor::getActiveData(unsigned &xp, unsigned &yp, unsigned &cp, float &xCv, float &yCv, float &cCv,
-                                    bool &xGate, bool &yGate, bool &cGate) const {
+void PluginProcessor::getActiveData(unsigned& xp, unsigned& yp, unsigned& cp, float& xCv, float& yCv, float& cCv,
+                                    bool& xGate, bool& yGate, bool& cGate) const {
     xp = layerData_[PluginParams::X].pos_;
     xGate = layerData_[PluginParams::X].gate_;
     xCv = layerData_[PluginParams::X].cv_;
@@ -221,7 +222,7 @@ void PluginProcessor::getActiveData(unsigned &xp, unsigned &yp, unsigned &cp, fl
 }
 
 
-AudioProcessorEditor *PluginProcessor::createEditor() {
+AudioProcessorEditor* PluginProcessor::createEditor() {
 #ifdef FORCE_COMPACT_UI
     return new ssp::EditorHost(this, new PluginMiniEditor(*this), true);
 #else
@@ -235,6 +236,6 @@ AudioProcessorEditor *PluginProcessor::createEditor() {
 }
 
 
-AudioProcessor *JUCE_CALLTYPE createPluginFilter() {
+AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new PluginProcessor();
 }

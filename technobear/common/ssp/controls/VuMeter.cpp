@@ -1,6 +1,5 @@
 #include "VuMeter.h"
 
-
 #include <iostream>
 
 namespace ssp {
@@ -13,11 +12,11 @@ inline float constrain(float v, float vMin, float vMax) {
     return std::max<float>(vMin, std::min<float>(vMax, v));
 }
 
-void VuMeter::paint(Graphics &g) {
+void VuMeter::paint(Graphics& g) {
     float lvl = level();
     bool mute = false;
 
-    static constexpr float dbMin = -70.0f, dbMax = 6.0f; // db range for meter
+    static constexpr float dbMin = -70.0f, dbMax = 6.0f;  // db range for meter
     static constexpr float dbRed = 0.0f, dbYellow = -6.0f;
     static constexpr float lvlRed = rescale(dbRed, dbMin, dbMax, 0.0f, 1.0f);
     static constexpr float lvlYellow = rescale(dbYellow, dbMin, dbMax, 0.0f, 1.0f);
@@ -66,7 +65,7 @@ void VuMeter::paint(Graphics &g) {
 
     // 0db line
     g.setColour(Colours::darkgrey);
-    g.fillRect(bx - 5, barbase - rpos - 2 , bw + 10, 2);
+    g.fillRect(bx - 5, barbase - rpos - 2, bw + 10, 2);
 
     if (drawGainLevel_) {
         float lvlSlider = gainLevel_;
@@ -111,7 +110,7 @@ MonoVuMeter::MonoVuMeter() {
     addAndMakeVisible(channel_);
 }
 
-void MonoVuMeter::paint(Graphics &g) {
+void MonoVuMeter::paint(Graphics& g) {
     static constexpr int fh = 8 * COMPACT_UI_SCALE;
     int h = getHeight();
     int w = getWidth();
@@ -158,7 +157,7 @@ StereoVuMeter::StereoVuMeter() {
     addAndMakeVisible(rChannel_);
 }
 
-void StereoVuMeter::paint(Graphics &g) {
+void StereoVuMeter::paint(Graphics& g) {
     static constexpr int fh = 8 * COMPACT_UI_SCALE;
     int h = getHeight();
     int w = getWidth();
@@ -201,5 +200,4 @@ void StereoVuMeter::resized() {
 }
 
 
-} // namespace
-
+}  // namespace ssp

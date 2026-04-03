@@ -9,7 +9,7 @@ using pcontrol_type = ssp::BarParamControl;
 using bcontrol_type = ssp::ParamButton;
 
 
-PluginMiniEditor::PluginMiniEditor(PluginProcessor &p)
+PluginMiniEditor::PluginMiniEditor(PluginProcessor& p)
     : base_type(&p), processor_(p), clrs_{ Colours::green, Colours::blue, Colours::red, Colours::yellow } {
     memset(dataBuf_, 0, sizeof(dataBuf_));
 
@@ -27,13 +27,12 @@ PluginMiniEditor::PluginMiniEditor(PluginProcessor &p)
     addButtonPage(
         std::make_shared<bcontrol_type>(processor_.params_.freeze, 12 * COMPACT_UI_SCALE, Colours::lightskyblue),
         std::make_shared<bcontrol_type>(processor_.params_.ab_xy, 12 * COMPACT_UI_SCALE, clrs_[0]),
-        std::make_shared<bcontrol_type>(processor_.params_.cd_xy, 12 * COMPACT_UI_SCALE, clrs_[2]), 
-        nullptr,
+        std::make_shared<bcontrol_type>(processor_.params_.cd_xy, 12 * COMPACT_UI_SCALE, clrs_[2]), nullptr,
         std::make_shared<bcontrol_type>(processor_.params_.sigparams_[0]->show, 12 * COMPACT_UI_SCALE, clrs_[0]),
         std::make_shared<bcontrol_type>(processor_.params_.sigparams_[1]->show, 12 * COMPACT_UI_SCALE, clrs_[1]),
         std::make_shared<bcontrol_type>(processor_.params_.sigparams_[2]->show, 12 * COMPACT_UI_SCALE, clrs_[2]),
         std::make_shared<bcontrol_type>(processor_.params_.sigparams_[3]->show, 12 * COMPACT_UI_SCALE, clrs_[3]));
-        
+
     {
         // clear queue, when we create a new editor
         PluginProcessor::DataMsg msg;
@@ -57,7 +56,7 @@ PluginMiniEditor::PluginMiniEditor(PluginProcessor &p)
     addChildComponent(xyScope_[1]);
 
     for (int i = 0; i < MAX_SIG; i++) {
-        auto &sParam = *processor_.params_.sigparams_[i];
+        auto& sParam = *processor_.params_.sigparams_[i];
         bool vis = processor_.isInputEnabled(PluginProcessor::I_SIG_A + i) && sParam.show.getValue() > 0.5f;
         mainScope_.signalVisible(i, vis);
     }
@@ -103,7 +102,7 @@ void PluginMiniEditor::onSSPTimer() {
     }
 
     for (int i = 0; i < MAX_SIG; i++) {
-        auto &sParam = *processor_.params_.sigparams_[i];
+        auto& sParam = *processor_.params_.sigparams_[i];
 
         bool vis = processor_.isInputEnabled(PluginProcessor::I_SIG_A + i) && sParam.show.getValue() > 0.5f;
         mainScope_.signalVisible(i, vis);
@@ -136,7 +135,7 @@ void PluginMiniEditor::onSSPTimer() {
 }
 
 
-void PluginMiniEditor::drawView(Graphics &g) {
+void PluginMiniEditor::drawView(Graphics& g) {
     base_type::drawView(g);
 }
 

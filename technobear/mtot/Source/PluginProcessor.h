@@ -1,69 +1,66 @@
 #pragma once
 
-#include "ssp/BaseProcessor.h"
-
-#include <atomic>
 #include <algorithm>
+#include <atomic>
+
+#include "ssp/BaseProcessor.h"
 
 
 using namespace juce;
 
 namespace ID {
-#define PARAMETER_ID(str) constexpr const char* str { #str };
+#define PARAMETER_ID(str) constexpr const char* str{ #str };
 
-PARAMETER_ID (cv_a)
-PARAMETER_ID (cv_b)
-PARAMETER_ID (cv_c)
-PARAMETER_ID (cv_d)
-PARAMETER_ID (cv_e)
-PARAMETER_ID (cv_f)
-PARAMETER_ID (cv_g)
-PARAMETER_ID (cv_h)
+PARAMETER_ID(cv_a)
+PARAMETER_ID(cv_b)
+PARAMETER_ID(cv_c)
+PARAMETER_ID(cv_d)
+PARAMETER_ID(cv_e)
+PARAMETER_ID(cv_f)
+PARAMETER_ID(cv_g)
+PARAMETER_ID(cv_h)
 
-PARAMETER_ID (pb_range)
+PARAMETER_ID(pb_range)
 
 #undef PARAMETER_ID
-}
+}  // namespace ID
 
 
 class PluginProcessor : public ssp::BaseProcessor {
 public:
     explicit PluginProcessor();
-    explicit PluginProcessor(const AudioProcessor::BusesProperties &ioLayouts, AudioProcessorValueTreeState::ParameterLayout layout);
+    explicit PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
+                             AudioProcessorValueTreeState::ParameterLayout layout);
     ~PluginProcessor() override = default;
 
     const String getName() const override { return JucePlugin_Name; }
 
-    void processBlock(AudioSampleBuffer &, MidiBuffer &) override;
+    void processBlock(AudioSampleBuffer&, MidiBuffer&) override;
 
-    AudioProcessorEditor *createEditor() override;
+    AudioProcessorEditor* createEditor() override;
 
     bool hasEditor() const override { return true; }
 
     struct PluginParams {
         using Parameter = juce::RangedAudioParameter;
-        explicit PluginParams(juce::AudioProcessorValueTreeState &);
+        explicit PluginParams(juce::AudioProcessorValueTreeState&);
 
-        Parameter &cv_a;
-        Parameter &cv_b;
-        Parameter &cv_c;
-        Parameter &cv_d;
-        Parameter &cv_e;
-        Parameter &cv_f;
-        Parameter &cv_g;
-        Parameter &cv_h;
+        Parameter& cv_a;
+        Parameter& cv_b;
+        Parameter& cv_c;
+        Parameter& cv_d;
+        Parameter& cv_e;
+        Parameter& cv_f;
+        Parameter& cv_g;
+        Parameter& cv_h;
 
-        Parameter &pb_range;
+        Parameter& pb_range;
     } params_;
 
     static BusesProperties getBusesProperties() {
         BusesProperties props;
-        for (auto i = 0; i < I_MAX; i++) {
-            props.addBus(true, getInputBusName(i), AudioChannelSet::mono());
-        }
-        for (auto i = 0; i < O_MAX; i++) {
-            props.addBus(false, getOutputBusName(i), AudioChannelSet::mono());
-        }
+        for (auto i = 0; i < I_MAX; i++) { props.addBus(true, getInputBusName(i), AudioChannelSet::mono()); }
+        for (auto i = 0; i < O_MAX; i++) { props.addBus(false, getOutputBusName(i), AudioChannelSet::mono()); }
         return props;
     }
 
@@ -88,10 +85,9 @@ protected:
     enum {
         O_MAX
     };
+
 private:
-    bool isBusesLayoutSupported(const BusesLayout &layouts) const override {
-        return true;
-    }
+    bool isBusesLayoutSupported(const BusesLayout& layouts) const override { return true; }
 
     static const String getInputBusName(int channelIndex);
     static const String getOutputBusName(int channelIndex);
@@ -100,11 +96,7 @@ private:
     int getCCNum(int idx);
 
     int lastMidi_[I_MAX];
-    int pitchbend_=8192;
+    int pitchbend_ = 8192;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)
 };
-
-
-
-

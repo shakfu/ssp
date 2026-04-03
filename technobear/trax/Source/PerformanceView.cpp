@@ -2,14 +2,14 @@
 
 #include "components/PerfParamComponent.h"
 
-PerformanceView::PerformanceView(PluginProcessor &p) : base_type(&p), processor_(p) {
+PerformanceView::PerformanceView(PluginProcessor& p) : base_type(&p), processor_(p) {
 }
 
 PerformanceView::~PerformanceView() {
 }
 
 
-void PerformanceView::drawView(juce::Graphics &g) {
+void PerformanceView::drawView(juce::Graphics& g) {
     base_type::drawView(g);
     g.setColour(juce::Colours::yellow);
     g.setFont(fh);
@@ -34,7 +34,7 @@ void PerformanceView::editorShown() {
     int py = y;
 
     int idx = 0;
-    for (auto &param : processor_.performanceParams()) {
+    for (auto& param : processor_.performanceParams()) {
         int pidx = idx % paramsPerPage;
         int page = idx / paramsPerPage;
         auto c = std::make_shared<PerfParamComponent>(processor_, param, clrs[page % MAX_CLRS]);
@@ -100,7 +100,7 @@ void PerformanceView::onSSPTimer() {
     int eidx = sidx + paramsPerPage;
     if (eidx > params_.size()) eidx = params_.size();
     for (int i = sidx; i < eidx; i++) {
-        auto &c = params_[i];
+        auto& c = params_[i];
         if (c->active()) c->onSSPTimer();
     }
 }
@@ -109,7 +109,7 @@ void PerformanceView::onEncoder(unsigned id, float v) {
     int sidx = page_ * paramsPerPage;
     int pidx = sidx + id;
     if (pidx < params_.size()) {
-        auto &c = params_[pidx];
+        auto& c = params_[pidx];
         if (c->active()) c->onEncoder(v);
     }
 
@@ -120,7 +120,7 @@ void PerformanceView::onEncoderSwitch(unsigned id, bool v) {
     int sidx = page_ * paramsPerPage;
     int pidx = sidx + id;
     if (pidx < params_.size()) {
-        auto &c = params_[pidx];
+        auto& c = params_[pidx];
         if (c->active()) c->onEncoderSwitch(v);
     }
 

@@ -5,12 +5,12 @@ MonoChannel::MonoChannel() {
     addAndMakeVisible(vuMeter_);
 }
 
-inline float normValue(RangedAudioParameter &p) {
+inline float normValue(RangedAudioParameter& p) {
     return p.convertFrom0to1(p.getValue());
 }
 
 
-void MonoChannel::paint(Graphics &g) {
+void MonoChannel::paint(Graphics& g) {
     static constexpr int fh = 8 * COMPACT_UI_SCALE;
     int w = getWidth();
 
