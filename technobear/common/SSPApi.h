@@ -43,7 +43,7 @@ void SSP_defaultDescriptor(Percussa::SSP::PluginDescriptor* desc) {
     desc->name = JucePlugin_Name;
     desc->descriptiveName = JucePlugin_Desc;
     desc->manufacturerName = JucePlugin_Manufacturer;
-    desc->version = JucePlugin_VersionString;
+    desc->version = TB_BUILD_DATE;
     desc->uid = (int)JucePlugin_VSTUniqueID;
     desc->inputChannelNames = inNames;
     desc->outputChannelNames = outNames;

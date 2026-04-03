@@ -109,7 +109,7 @@ void EditorHost::drawBasicPanel(Graphics& g) {
             10, 30);
 
         g.setColour(Colours::grey);
-        g.drawSingleLineText("v " + String(JucePlugin_VersionString), 1505, 30);
+        g.drawSingleLineText("v" + String(TB_BUILD_DATE), 1505, 30);
 
         drawMenuBox(g);
         drawButtonBox(g);

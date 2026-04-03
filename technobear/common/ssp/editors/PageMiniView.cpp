@@ -16,7 +16,7 @@ void PageMiniView::drawView(Graphics& g) {
         gap * 2);
 
     g.setColour(Colours::grey);
-    g.drawSingleLineText("v " + String(JucePlugin_VersionString), 270 * COMPACT_UI_SCALE, gap * 2);
+    g.drawSingleLineText("v" + String(TB_BUILD_DATE), 270 * COMPACT_UI_SCALE, gap * 2);
 
     drawButtonBox(g);
     // drawIO(g);
