@@ -1,7 +1,7 @@
 cd ~/projects/SSP.private
 cp ./technobear/README.txt ./releases
 cp ~/projects/SSP.private/build.xmx/technobear/*/*/Release/VST3/*.vst3/Contents/*/*.so ./releases/xmx/plugins
-/opt/homebrew/bin/arm-linux-gnueabihf-strip --strip-unneeded ./releases/xmx/plugins/*
+/opt/homebrew/bin/aarch64-elf-strip --strip-unneeded ./releases/xmx/plugins/*
 
 rm -rf tmp
 mkdir -p tmp
