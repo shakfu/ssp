@@ -3,7 +3,7 @@
 #include "Module.h"
 #include "Track.h"
 
-PerformanceAdd::PerformanceAdd(PluginProcessor &p) : base_type(&p), processor_(p) {
+PerformanceAdd::PerformanceAdd(PluginProcessor& p) : base_type(&p), processor_(p) {
     addAndMakeVisible(trackList_);
     addAndMakeVisible(moduleList_);
     addAndMakeVisible(paramList_);
@@ -13,7 +13,7 @@ PerformanceAdd::~PerformanceAdd() {
 }
 
 
-void PerformanceAdd::drawView(juce::Graphics &g) {
+void PerformanceAdd::drawView(juce::Graphics& g) {
     base_type::drawView(g);
     g.setColour(juce::Colours::yellow);
     g.setFont(fh);

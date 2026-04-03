@@ -7,8 +7,9 @@ using namespace juce;
 
 class PluginEditor : public ssp::MultiBarEditor {
 public:
-    explicit PluginEditor(PluginProcessor &);
+    explicit PluginEditor(PluginProcessor&);
     ~PluginEditor() override = default;
+
 protected:
     using base_type = ssp::MultiBarEditor;
 
@@ -22,9 +23,6 @@ protected:
 
 private:
     ssp::ValueButton resetButton_;
-    PluginProcessor &processor_;
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginEditor)
+    PluginProcessor& processor_;
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginEditor)
 };
-
-
-

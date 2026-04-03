@@ -6,7 +6,7 @@
 
 class PerformanceAdd : public ssp::MiniBasicView {
 public:
-    PerformanceAdd(PluginProcessor &p);
+    PerformanceAdd(PluginProcessor& p);
     ~PerformanceAdd() override;
 
 protected:
@@ -16,7 +16,7 @@ protected:
 
     void resized() override;
     void editorShown() override;
-    void drawView(juce::Graphics &g) override;
+    void drawView(juce::Graphics& g) override;
 
 private:
     static constexpr int fh = 12 * COMPACT_UI_SCALE;
@@ -27,7 +27,7 @@ private:
     int curTrackIdx_ = 0;
     int curModuleIdx_ = 0;
 
-    PluginProcessor &processor_;
+    PluginProcessor& processor_;
 
     ssp::ListControl<> trackList_;
     ssp::ListControl<> moduleList_;

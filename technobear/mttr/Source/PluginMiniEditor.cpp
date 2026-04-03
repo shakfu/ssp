@@ -6,7 +6,7 @@
 using pcontrol_type = ssp::MiniControl;
 using bcontrol_type = ssp::ParamButton;
 
-PluginMiniEditor::PluginMiniEditor(PluginProcessor &p) : base_type(&p), processor_(p) {
+PluginMiniEditor::PluginMiniEditor(PluginProcessor& p) : base_type(&p), processor_(p) {
     auto view = std::make_shared<ssp::MiniParamView>(&p);
 
     view->addParam(std::make_shared<pcontrol_type>(processor_.params_.tr_a, 1.0f, 1.0f));

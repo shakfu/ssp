@@ -23,7 +23,7 @@ PerformanceEdit::~PerformanceEdit() {
 
 void PerformanceEdit::resized() {
     base_type::resized();
-    paramList_.setBounds(canvasX(),canvasY(),canvasWidth(),canvasHeight());
+    paramList_.setBounds(canvasX(), canvasY(), canvasWidth(), canvasHeight());
 }
 
 void PerformanceEdit::editorShown() {

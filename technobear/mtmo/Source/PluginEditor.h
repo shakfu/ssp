@@ -8,17 +8,18 @@ using namespace juce;
 
 class PluginEditor : public ssp::BaseEditor {
 public:
-    explicit PluginEditor(PluginProcessor &);
+    explicit PluginEditor(PluginProcessor&);
     ~PluginEditor() override = default;
 
-    void drawView(Graphics &) override;
+    void drawView(Graphics&) override;
+
 protected:
     void onSSPTimer() override;
 
 
     using base_type = ssp::BaseEditor;
-private:
 
+private:
     struct Msg {
         String channel_;
         String type_;
@@ -33,8 +34,6 @@ private:
     unsigned wrPos_ = 0;
     bool clock_ = false;
 
-    PluginProcessor &processor_;
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginEditor)
+    PluginProcessor& processor_;
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginEditor)
 };
-
-

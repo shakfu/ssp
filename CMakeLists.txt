@@ -18,6 +18,9 @@ endif ()
 
 add_subdirectory(juce)
 
+string(TIMESTAMP TB_BUILD_DATE "%y%m%d")
+add_definitions(-DTB_BUILD_DATE="${TB_BUILD_DATE}")
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DJUCE_DISABLE_JUCE_VERSION_PRINTING=1")
 
 if(DEFINED ENV{TARGET_XMX} OR TARGET_XMX)

@@ -1,35 +1,21 @@
-#include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-#include "ssp/controls/ParamControl.h"
+#include "PluginProcessor.h"
 #include "ssp/controls/ParamButton.h"
+#include "ssp/controls/ParamControl.h"
 
-//using pcontrol_type = ssp::SimpleParamControl;
-//using pcontrol_type = ssp::LineParamControl;
+// using pcontrol_type = ssp::SimpleParamControl;
+// using pcontrol_type = ssp::LineParamControl;
 using pcontrol_type = ssp::BarParamControl;
 using bcontrol_type = ssp::ParamButton;
 
-PluginEditor::PluginEditor(PluginProcessor &p)
-    : base_type(&p),
-      processor_(p) {
+PluginEditor::PluginEditor(PluginProcessor& p) : base_type(&p), processor_(p) {
+    addParamPage(std::make_shared<pcontrol_type>(processor_.params_.mix),
+                 std::make_shared<pcontrol_type>(processor_.params_.feedback),
+                 std::make_shared<pcontrol_type>(processor_.params_.lpfreq, 100, 5), nullptr);
 
-    addParamPage(
-        std::make_shared<pcontrol_type>(processor_.params_.mix),
-        std::make_shared<pcontrol_type>(processor_.params_.feedback),
-        std::make_shared<pcontrol_type>(processor_.params_.lpfreq, 100, 5),
-        nullptr
-    );
-
-    addButtonPage(
-        std::make_shared<bcontrol_type>(processor_.params_.freeze, 24, Colours::lightskyblue),
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr
-    );
+    addButtonPage(std::make_shared<bcontrol_type>(processor_.params_.freeze, 24, Colours::lightskyblue), nullptr,
+                  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
 
     inVu_.init("In");
     outVu_.init("Out");
@@ -43,7 +29,7 @@ PluginEditor::PluginEditor(PluginProcessor &p)
     addAndMakeVisible(outVu_);
 }
 
-void PluginEditor::drawView(Graphics &g) {
+void PluginEditor::drawView(Graphics& g) {
     float inL, inR, outL, outR;
     processor_.getRMS(inL, inR, outL, outR);
     inVu_.level(inL, inR);

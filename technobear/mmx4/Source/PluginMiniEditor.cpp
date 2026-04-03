@@ -1,9 +1,9 @@
 
-#include "PluginProcessor.h"
 #include "PluginMiniEditor.h"
 
-#include "ssp/controls/ParamControl.h"
+#include "PluginProcessor.h"
 #include "ssp/controls/ParamButton.h"
+#include "ssp/controls/ParamControl.h"
 
 inline float constrain(float v, float vMin, float vMax) {
     return std::max<float>(vMin, std::min<float>(vMax, v));
@@ -13,23 +13,18 @@ using pcontrol_type = ssp::BarParamControl;
 using bcontrol_type = ssp::ParamButton;
 
 
-PluginMiniEditor::PluginMiniEditor(PluginProcessor &p)
-    : base_type(&p),
-      processor_(p) {
-
+PluginMiniEditor::PluginMiniEditor(PluginProcessor& p) : base_type(&p), processor_(p) {
     for (unsigned p = 0; p < PluginProcessor::MAX_SIG_OUT; p++) {
-        addParamPage(
-            std::make_shared<pcontrol_type>(processor_.params_.vca[p][0],0.1f),
-            std::make_shared<pcontrol_type>(processor_.params_.vca[p][1],0.1f),
-            std::make_shared<pcontrol_type>(processor_.params_.vca[p][2],0.1f),
-            std::make_shared<pcontrol_type>(processor_.params_.vca[p][3],0.1f)
-        );
+        addParamPage(std::make_shared<pcontrol_type>(processor_.params_.vca[p][0], 0.1f),
+                     std::make_shared<pcontrol_type>(processor_.params_.vca[p][1], 0.1f),
+                     std::make_shared<pcontrol_type>(processor_.params_.vca[p][2], 0.1f),
+                     std::make_shared<pcontrol_type>(processor_.params_.vca[p][3], 0.1f));
     }
 }
 
-void PluginMiniEditor::drawGrid(Graphics &g) {
+void PluginMiniEditor::drawGrid(Graphics& g) {
     int startX = canvasX() + 40 * COMPACT_UI_SCALE;
-    int y = canvasY(); 
+    int y = canvasY();
     int fh = 9 * COMPACT_UI_SCALE;
     int lsz = 35 * COMPACT_UI_SCALE;
 
@@ -116,7 +111,7 @@ void PluginMiniEditor::drawGrid(Graphics &g) {
 }
 
 
-void PluginMiniEditor::drawView(Graphics &g) {
+void PluginMiniEditor::drawView(Graphics& g) {
     base_type::drawView(g);
     drawGrid(g);
 }
@@ -125,5 +120,3 @@ void PluginMiniEditor::drawView(Graphics &g) {
 void PluginMiniEditor::resized() {
     base_type::resized();
 }
-
-

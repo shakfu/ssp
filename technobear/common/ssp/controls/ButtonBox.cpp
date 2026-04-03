@@ -8,7 +8,7 @@ ButtonBox::ButtonBox() {
     for (int i = 0; i < maxUserBtns; i++) buttons_[i] = nullptr;
 }
 
-void ButtonBox::paint(juce::Graphics &g) {
+void ButtonBox::paint(juce::Graphics& g) {
     drawButtonBox(g);
 }
 
@@ -34,7 +34,7 @@ void ButtonBox::resized() {
     }
 }
 
-void ButtonBox::drawButtonBox(juce::Graphics &g) {
+void ButtonBox::drawButtonBox(juce::Graphics& g) {
     static constexpr unsigned gap = 5 * scale;
     unsigned barW = getWidth();
     unsigned barH = getHeight();
@@ -48,7 +48,7 @@ void ButtonBox::drawButtonBox(juce::Graphics &g) {
     for (int i = 0; i < 5; i++) { g.drawVerticalLine(i * gw - (i > 0 ? 1 : 0), 0, barH - 1); }
 }
 
-void ButtonBox::addButton(unsigned idx, const std::shared_ptr<ValueButton> &p) {
+void ButtonBox::addButton(unsigned idx, const std::shared_ptr<ValueButton>& p) {
     if (idx < maxUserBtns) {
         buttons_[idx] = p;
         addAndMakeVisible(*buttons_[idx]);
@@ -62,7 +62,7 @@ std::shared_ptr<ValueButton> ButtonBox::getButton(unsigned idx) {
 
 void ButtonBox::onButton(unsigned id, bool v) {
     if (id >= maxUserBtns || buttons_[id] == nullptr) return;
-    auto &btn = buttons_[id];
+    auto& btn = buttons_[id];
     btn->onButton(v);
 }
 

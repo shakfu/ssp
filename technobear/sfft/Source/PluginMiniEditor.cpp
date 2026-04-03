@@ -6,10 +6,10 @@
 using pcontrol_type = ssp::MiniControl;
 using bcontrol_type = ssp::ParamButton;
 
-PluginMiniEditor::PluginMiniEditor(PluginProcessor &p) : base_type(&p), processor_(p) {
+PluginMiniEditor::PluginMiniEditor(PluginProcessor& p) : base_type(&p), processor_(p) {
     auto view = std::make_shared<ssp::MiniParamView>(&p);
 
-    for (const auto &param : processor_.params_.rnboParams_) {
+    for (const auto& param : processor_.params_.rnboParams_) {
         float inc = 1.0f;
         float finc = 0.01f;
         if (param->info_.enumValues != nullptr) {

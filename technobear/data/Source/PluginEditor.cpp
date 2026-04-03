@@ -1,48 +1,36 @@
 
-#include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-#include "ssp/controls/ParamControl.h"
+#include "PluginProcessor.h"
 #include "ssp/controls/ParamButton.h"
+#include "ssp/controls/ParamControl.h"
 
 using pcontrol_type = ssp::BarParamControl;
 using bcontrol_type = ssp::ParamButton;
 
 
-PluginEditor::PluginEditor(PluginProcessor &p)
-    : base_type(&p),
-      processor_(p), clrs_{Colours::green, Colours::blue, Colours::red, Colours::yellow} {
-    memset(dataBuf_,0,sizeof (dataBuf_));
+PluginEditor::PluginEditor(PluginProcessor& p)
+    : base_type(&p), processor_(p), clrs_{ Colours::green, Colours::blue, Colours::red, Colours::yellow } {
+    memset(dataBuf_, 0, sizeof(dataBuf_));
 
-    addParamPage(
-        std::make_shared<pcontrol_type>(processor_.params_.t_scale, 1),
-        nullptr,
-        std::make_shared<pcontrol_type>(processor_.params_.trig_src, 1),
-        std::make_shared<pcontrol_type>(processor_.params_.trig_lvl, 0.25),
-        juce::Colours::lightskyblue
-    );
+    addParamPage(std::make_shared<pcontrol_type>(processor_.params_.t_scale, 1), nullptr,
+                 std::make_shared<pcontrol_type>(processor_.params_.trig_src, 1),
+                 std::make_shared<pcontrol_type>(processor_.params_.trig_lvl, 0.25), juce::Colours::lightskyblue);
 
 
     for (unsigned sig = 0; sig < MAX_SIG; sig++) {
-        addParamPage(
-            std::make_shared<pcontrol_type>(processor_.params_.sigparams_[sig]->y_scale, 0.25),
-            std::make_shared<pcontrol_type>(processor_.params_.sigparams_[sig]->y_offset, 0.25),
-            nullptr,
-            nullptr,
-            clrs_[sig]
-        );
+        addParamPage(std::make_shared<pcontrol_type>(processor_.params_.sigparams_[sig]->y_scale, 0.25),
+                     std::make_shared<pcontrol_type>(processor_.params_.sigparams_[sig]->y_offset, 0.25), nullptr,
+                     nullptr, clrs_[sig]);
     }
 
-    addButtonPage(
-        std::make_shared<bcontrol_type>(processor_.params_.freeze, 24, Colours::lightskyblue),
-        nullptr,
-        std::make_shared<bcontrol_type>(processor_.params_.ab_xy, 24, clrs_[0]),
-        std::make_shared<bcontrol_type>(processor_.params_.cd_xy, 24, clrs_[2]),
-        std::make_shared<bcontrol_type>(processor_.params_.sigparams_[0]->show, 24, clrs_[0]),
-        std::make_shared<bcontrol_type>(processor_.params_.sigparams_[1]->show, 24, clrs_[1]),
-        std::make_shared<bcontrol_type>(processor_.params_.sigparams_[2]->show, 24, clrs_[2]),
-        std::make_shared<bcontrol_type>(processor_.params_.sigparams_[3]->show, 24, clrs_[3])
-    );
+    addButtonPage(std::make_shared<bcontrol_type>(processor_.params_.freeze, 24, Colours::lightskyblue), nullptr,
+                  std::make_shared<bcontrol_type>(processor_.params_.ab_xy, 24, clrs_[0]),
+                  std::make_shared<bcontrol_type>(processor_.params_.cd_xy, 24, clrs_[2]),
+                  std::make_shared<bcontrol_type>(processor_.params_.sigparams_[0]->show, 24, clrs_[0]),
+                  std::make_shared<bcontrol_type>(processor_.params_.sigparams_[1]->show, 24, clrs_[1]),
+                  std::make_shared<bcontrol_type>(processor_.params_.sigparams_[2]->show, 24, clrs_[2]),
+                  std::make_shared<bcontrol_type>(processor_.params_.sigparams_[3]->show, 24, clrs_[3]));
 
     setSize(1600, 480);
 
@@ -57,7 +45,6 @@ PluginEditor::PluginEditor(PluginProcessor &p)
         mainScope_.initSignal(i, title, dataBuf_[i], MAX_DATA, MAX_DISP, clrs_[i]);
 
         miniScope_[i / 2].initSignal(i % 2, title, dataBuf_[i], MAX_DATA, MAX_DISP, clrs_[i]);
-
     }
 
     xyScope_[0].init("In A", dataBuf_[0], MAX_DATA, "In B", dataBuf_[1], MAX_DATA, MAX_DISP, clrs_[0]);
@@ -70,11 +57,10 @@ PluginEditor::PluginEditor(PluginProcessor &p)
     addChildComponent(xyScope_[1]);
 
     for (int i = 0; i < MAX_SIG; i++) {
-        auto &sParam = *processor_.params_.sigparams_[i];
+        auto& sParam = *processor_.params_.sigparams_[i];
         bool vis = processor_.isInputEnabled(PluginProcessor::I_SIG_A + i) && sParam.show.getValue() > 0.5f;
         mainScope_.signalVisible(i, vis);
     }
-
 
 
     bool abxy = processor_.params_.ab_xy.getValue() > 0.5f;
@@ -88,13 +74,10 @@ PluginEditor::PluginEditor(PluginProcessor &p)
     mainScope_.setVisible(main);
 }
 
-ssp::BaseEditor::ControlPage PluginEditor::addParamPage(
-    std::shared_ptr<ssp::BaseParamControl> c1,
-    std::shared_ptr<ssp::BaseParamControl> c2,
-    std::shared_ptr<ssp::BaseParamControl> c3,
-    std::shared_ptr<ssp::BaseParamControl> c4,
-    juce::Colour clr
-) {
+ssp::BaseEditor::ControlPage PluginEditor::addParamPage(std::shared_ptr<ssp::BaseParamControl> c1,
+                                                        std::shared_ptr<ssp::BaseParamControl> c2,
+                                                        std::shared_ptr<ssp::BaseParamControl> c3,
+                                                        std::shared_ptr<ssp::BaseParamControl> c4, juce::Colour clr) {
     if (c1) c1->fg(clr);
     if (c2) c2->fg(clr);
     if (c3) c3->fg(clr);
@@ -105,12 +88,10 @@ ssp::BaseEditor::ControlPage PluginEditor::addParamPage(
 
 void PluginEditor::onSSPTimer() {
     base_type::onSSPTimer();
-    
+
     PluginProcessor::DataMsg msg;
     while (processor_.messageQueue().try_dequeue(msg)) {
-        for (int i = 0; i < MAX_SIG; i++) {
-            dataBuf_[i][wrPos_] = msg.sample_[i];
-        }
+        for (int i = 0; i < MAX_SIG; i++) { dataBuf_[i][wrPos_] = msg.sample_[i]; }
         dataBuf_[MAX_SIG][wrPos_] = msg.trig_;
         wrPos_ = (wrPos_ + 1) % MAX_DATA;
     }
@@ -133,7 +114,7 @@ void PluginEditor::onSSPTimer() {
     }
 
     for (int i = 0; i < MAX_SIG; i++) {
-        auto &sParam = *processor_.params_.sigparams_[i];
+        auto& sParam = *processor_.params_.sigparams_[i];
 
         bool vis = processor_.isInputEnabled(PluginProcessor::I_SIG_A + i) && sParam.show.getValue() > 0.5f;
         mainScope_.signalVisible(i, vis);
@@ -147,8 +128,8 @@ void PluginEditor::onSSPTimer() {
         miniScope_[i / 2].pos(i % 2, syncPos_);
         miniScope_[i / 2].pos(i % 2, syncPos_);
 
-//        miniScope_[i / 2].scaleOffset(i % 2, scale, offset);
-//        xyScope_[i / 2].scaleOffset(i % 2, scale, offset);
+        //        miniScope_[i / 2].scaleOffset(i % 2, scale, offset);
+        //        xyScope_[i / 2].scaleOffset(i % 2, scale, offset);
     }
 
     bool abxy = processor_.params_.ab_xy.getValue() > 0.5f;
@@ -166,7 +147,7 @@ void PluginEditor::onSSPTimer() {
 }
 
 
-void PluginEditor::drawView(Graphics &g) {
+void PluginEditor::drawView(Graphics& g) {
     base_type::drawView(g);
     drawValueDisplay(g);
 }
@@ -177,8 +158,8 @@ void PluginEditor::resized() {
     static constexpr int x = 10, y = 50, w = 900 - 2 * x, h = 400 - 2 * y;
     mainScope_.setBounds(x, y, w, h);
 
-    //replace main scope
-    // with miniscope or xyscope is displayed
+    // replace main scope
+    //  with miniscope or xyscope is displayed
     unsigned sp = 20;
     unsigned xy_w = h;
     unsigned ms_w = w - xy_w - sp;
@@ -193,36 +174,25 @@ void PluginEditor::resized() {
 static constexpr unsigned MAX_TONICS = 12;
 
 static const char tonics[MAX_TONICS][3] = {
-    "C ",
-    "C#",
-    "D ",
-    "D#",
-    "E ",
-    "F ",
-    "F#",
-    "G ",
-    "G#",
-    "A ",
-    "A#",
-    "B ",
+    "C ", "C#", "D ", "D#", "E ", "F ", "F#", "G ", "G#", "A ", "A#", "B ",
 };
 
-String  PluginEditor::getNoteValue(float f) const {
-    float voct = cv2Pitch(f) + 60.0f; // -5v = 0
-    voct += 0.005f; // so we round up fractions of cent
+String PluginEditor::getNoteValue(float f) const {
+    float voct = cv2Pitch(f) + 60.0f;  // -5v = 0
+    voct += 0.005f;                    // so we round up fractions of cent
     int oct = voct / 12;
     unsigned note = unsigned(voct) % MAX_TONICS;
     int cents = ((voct - floorf(voct)) * 100.0f);
     if (cents > 50) {
-        cents = 50-cents;
+        cents = 50 - cents;
         note = (note + 1) % MAX_TONICS;
-        oct += (note==0);
+        oct += (note == 0);
     }
-    String cts=String::formatted("%+02d", cents);
+    String cts = String::formatted("%+02d", cents);
     return String(tonics[note] + String(oct - (note < 3))) + " " + cts;
 }
 
-void PluginEditor::drawValueDisplay(Graphics &g) {
+void PluginEditor::drawValueDisplay(Graphics& g) {
     unsigned space = 32;
     unsigned fh = 12 * COMPACT_UI_SCALE;
     int x = 1000;
@@ -240,9 +210,7 @@ void PluginEditor::drawValueDisplay(Graphics &g) {
     g.drawText("Note", x + fldw * 3, y, fldw, fh, Justification::left);
 
     for (unsigned i = 0; i < MAX_SIG; i++) {
-
         if (processor_.isInputEnabled(PluginProcessor::I_SIG_A + i)) {
-
             float min = 0.0f, max = 0.0f, sum = 0.0f, avg = 0.0f;
             for (unsigned idx = 0; idx < MAX_DISP; idx++) {
                 unsigned didx = (syncPos_ - idx + MAX_DATA) % MAX_DATA;

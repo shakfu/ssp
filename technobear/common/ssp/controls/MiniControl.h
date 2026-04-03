@@ -6,12 +6,13 @@ namespace ssp {
 // this is very similar to BarParamControl but more compact
 class MiniControl : public ssp::SimpleParamControl {
 public:
-    MiniControl(Parameter &p, float coarse = 1.0f, float fine = 0.01f, juce::Colour fg = juce::Colours::white);
+    MiniControl(Parameter& p, float coarse = 1.0f, float fine = 0.01f, juce::Colour fg = juce::Colours::white);
+
 protected:
-    void paint(juce::Graphics &g) override;
+    void paint(juce::Graphics& g) override;
     juce_UseDebuggingNewOperator
 
-    static constexpr unsigned scale = COMPACT_UI_SCALE;
+        static constexpr unsigned scale = COMPACT_UI_SCALE;
 };
 
-}
+}  // namespace ssp

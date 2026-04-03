@@ -3,7 +3,7 @@
 #include "ssp/Log.h"
 
 // This has to be inline since it uses PluginProcessor which is part of the Plugin Project
-SSP_PluginInterface::SSP_PluginInterface(PluginProcessor *p) : processor_(p), editor_(nullptr) {
+SSP_PluginInterface::SSP_PluginInterface(PluginProcessor* p) : processor_(p), editor_(nullptr) {
 // #ifdef JUCE_DEBUG
 #if 1
     juceInitialiser_ = new ScopedJuceInitialiser_GUI();
@@ -17,7 +17,7 @@ SSP_PluginInterface::SSP_PluginInterface(PluginProcessor *p) : processor_(p), ed
     // }
 
 
-// force editor creation
+    // force editor creation
     // auto* editor = getEditor();
     // if(processor_->useCompactUI()) {
     //     editor->renderToImage(nullptr, SSP_COMPACT_WIDTH, SSP_COMPACT_HEIGHT);
@@ -34,9 +34,9 @@ SSP_PluginInterface::~SSP_PluginInterface() {
 }
 
 // editor interaction
-Percussa::SSP::PluginEditorInterface *SSP_PluginInterface::getEditor() {
+Percussa::SSP::PluginEditorInterface* SSP_PluginInterface::getEditor() {
     if (editor_ == nullptr) {
-        ssp::EditorHost *pluginEditor = static_cast<ssp::EditorHost *>(processor_->createEditor());
+        ssp::EditorHost* pluginEditor = static_cast<ssp::EditorHost*>(processor_->createEditor());
         editor_ = new SSP_PluginEditorInterface(pluginEditor);
     }
     return editor_;
@@ -64,7 +64,7 @@ void SSP_PluginInterface::outputEnabled(int n, bool val) {
     processor_->onOutputChanged(n, val);
 }
 
-void SSP_PluginInterface::getState(void **buffer, size_t *size) {
+void SSP_PluginInterface::getState(void** buffer, size_t* size) {
     MemoryBlock state;
     processor_->getStateInformation(state);
     *size = state.getSize();
@@ -72,7 +72,7 @@ void SSP_PluginInterface::getState(void **buffer, size_t *size) {
     state.copyTo(*buffer, 0, *size);
 }
 
-void SSP_PluginInterface::setState(void *buffer, size_t size) {
+void SSP_PluginInterface::setState(void* buffer, size_t size) {
     processor_->setStateInformation(buffer, size);
 }
 
@@ -89,7 +89,7 @@ void SSP_PluginInterface::prepare(double sampleRate, int samplesPerBlock) {
     processor_->prepareToPlay(sampleRate, samplesPerBlock);
 }
 
-void SSP_PluginInterface::process(float **channelData, int numChannels, int numSamples) {
+void SSP_PluginInterface::process(float** channelData, int numChannels, int numSamples) {
     MidiBuffer midiBuffer;
     AudioSampleBuffer buffer(channelData, numChannels, numSamples);
     processor_->processBlock(buffer, midiBuffer);
@@ -101,15 +101,15 @@ void SSP_PluginInterface::useCompactUI(bool b) {
 
 
 unsigned SSP_PluginInterface::numberOfParameters() {
-    auto &params = processor_->getParameters();
+    auto& params = processor_->getParameters();
     return params.size();
 }
 
-bool SSP_PluginInterface::parameterDesc(unsigned idx, ParameterDesc &desc) {
-    auto &params = processor_->getParameters();
+bool SSP_PluginInterface::parameterDesc(unsigned idx, ParameterDesc& desc) {
+    auto& params = processor_->getParameters();
     if (idx >= params.size()) return false;
 
-    auto param = (juce::RangedAudioParameter*) params[idx];
+    auto param = (juce::RangedAudioParameter*)params[idx];
 
     desc.id_ = param->getParameterID().toStdString();
     desc.name_ = param->getName(128).toStdString();
@@ -124,18 +124,18 @@ bool SSP_PluginInterface::parameterDesc(unsigned idx, ParameterDesc &desc) {
 }
 
 float SSP_PluginInterface::parameterValue(unsigned idx) {
-    auto &params = processor_->getParameters();
+    auto& params = processor_->getParameters();
     if (idx >= params.size()) return 0.0f;
 
-    auto p = (juce::RangedAudioParameter*) params[idx];
+    auto p = (juce::RangedAudioParameter*)params[idx];
     return p->convertFrom0to1(p->getValue());
 }
 
 bool SSP_PluginInterface::parameterValue(unsigned idx, float val) {
-    auto &params = processor_->getParameters();
+    auto& params = processor_->getParameters();
     if (idx >= params.size()) return false;
 
-    auto p = (juce::RangedAudioParameter*) params[idx];
+    auto p = (juce::RangedAudioParameter*)params[idx];
     float norm = p->convertTo0to1(val);
     if (p->getValue() != norm) {
         p->beginChangeGesture();

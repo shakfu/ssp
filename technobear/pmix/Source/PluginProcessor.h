@@ -1,47 +1,47 @@
 #pragma once
 
 
+#include <algorithm>
+#include <atomic>
+
 #include "ssp/BaseProcessor.h"
 #include "ssp/controls/RmsTrack.h"
-
-#include <atomic>
-#include <algorithm>
 
 using namespace juce;
 
 namespace ID {
-constexpr const char *separator{":"};
+constexpr const char* separator{ ":" };
 
-#define PARAMETER_ID(str) constexpr const char* str { #str };
-PARAMETER_ID (in)
-PARAMETER_ID (out)
+#define PARAMETER_ID(str) constexpr const char* str{ #str };
+PARAMETER_ID(in)
+PARAMETER_ID(out)
 
-PARAMETER_ID (level)
-PARAMETER_ID (pan)
-PARAMETER_ID (gain)
-PARAMETER_ID (mute)
-PARAMETER_ID (solo)
-PARAMETER_ID (cue)
-PARAMETER_ID (ac)
+PARAMETER_ID(level)
+PARAMETER_ID(pan)
+PARAMETER_ID(gain)
+PARAMETER_ID(mute)
+PARAMETER_ID(solo)
+PARAMETER_ID(cue)
+PARAMETER_ID(ac)
 #undef PARAMETER_ID
-}
+}  // namespace ID
 
 
-//level
-//pan
-//gain
-//mute
-//solo
-//cue
-//ac
+// level
+// pan
+// gain
+// mute
+// solo
+// cue
+// ac
 
 
 struct TrackData {
     using Parameter = juce::RangedAudioParameter;
-    explicit TrackData(juce::AudioProcessorValueTreeState &, StringRef io, unsigned tn);
-//    TrackData() {
-//        init();
-//    }
+    explicit TrackData(juce::AudioProcessorValueTreeState&, StringRef io, unsigned tn);
+    //    TrackData() {
+    //        init();
+    //    }
 
     void makeFollow(unsigned f) {
         dummy_ = true;
@@ -60,16 +60,16 @@ struct TrackData {
 
 
     std::reference_wrapper<Parameter> level[OUT_TRACKS];
-    Parameter &pan;
-    Parameter &gain;
-    Parameter &mute;
-    Parameter &solo;
-    Parameter &cue;
-    Parameter &ac;
+    Parameter& pan;
+    Parameter& gain;
+    Parameter& mute;
+    Parameter& solo;
+    Parameter& cue;
+    Parameter& ac;
 
     // currently cannot be changed in ui
-    bool dummy_=false;
-    unsigned follows_=0; // dummy
+    bool dummy_ = false;
+    unsigned follows_ = 0;  // dummy
     // hpf/dc block
     float dcX1_ = 0.0f, dcY1_ = 0.0f;
     ssp::RmsTrack rms_;
@@ -79,25 +79,27 @@ struct TrackData {
 class PluginProcessor : public ssp::BaseProcessor {
 public:
     explicit PluginProcessor();
-    explicit PluginProcessor(const AudioProcessor::BusesProperties &ioLayouts, AudioProcessorValueTreeState::ParameterLayout layout);
+    explicit PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
+                             AudioProcessorValueTreeState::ParameterLayout layout);
     ~PluginProcessor() override = default;
 
     const String getName() const override { return JucePlugin_Name; }
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 
-    void processBlock(AudioSampleBuffer &, MidiBuffer &) override;
+    void processBlock(AudioSampleBuffer&, MidiBuffer&) override;
 
-    AudioProcessorEditor *createEditor() override;
+    AudioProcessorEditor* createEditor() override;
 
     bool hasEditor() const override { return true; }
 
-    TrackData &inputTrack(unsigned t) { return t < IN_T_MAX ? *inTracks_[t] : *inTracks_[IN_T_MAX - 1]; }
+    TrackData& inputTrack(unsigned t) { return t < IN_T_MAX ? *inTracks_[t] : *inTracks_[IN_T_MAX - 1]; }
 
-    TrackData &outputTrack(unsigned t) { return t < OUT_T_MAX ? *outTracks_[t] : *outTracks_[OUT_T_MAX - 1]; }
+    TrackData& outputTrack(unsigned t) { return t < OUT_T_MAX ? *outTracks_[t] : *outTracks_[OUT_T_MAX - 1]; }
 
 protected:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
 private:
     enum {
         I_IN_1,
@@ -124,8 +126,7 @@ private:
     };
 
 public:
-
-    //TODO - clear up  OUT_T_MAX/2 = number of stereo channels vs O_MAX audio channels
+    // TODO - clear up  OUT_T_MAX/2 = number of stereo channels vs O_MAX audio channels
     static constexpr unsigned IN_T_MAX = I_MAX;
     static constexpr unsigned OUT_T_MAX = O_MAX;
 
@@ -135,25 +136,18 @@ public:
 
     static BusesProperties getBusesProperties() {
         BusesProperties props;
-        for (auto i = 0; i < I_MAX; i++) {
-            props.addBus(true, getInputBusName(i), AudioChannelSet::mono());
-        }
-        for (auto i = 0; i < O_MAX; i++) {
-            props.addBus(false, getOutputBusName(i), AudioChannelSet::mono());
-        }
+        for (auto i = 0; i < I_MAX; i++) { props.addBus(true, getInputBusName(i), AudioChannelSet::mono()); }
+        for (auto i = 0; i < O_MAX; i++) { props.addBus(false, getOutputBusName(i), AudioChannelSet::mono()); }
         return props;
     }
 
 private:
-
-    bool isBusesLayoutSupported(const BusesLayout &layouts) const override {
-        return true;
-    }
+    bool isBusesLayoutSupported(const BusesLayout& layouts) const override { return true; }
 
     static const String getInputBusName(int channelIndex);
     static const String getOutputBusName(int channelIndex);
 
-    inline void dcBlock(float x, float &x1, float &y, float &y1) {
+    inline void dcBlock(float x, float& x1, float& y, float& y1) {
         // y[n] = x[n] - x[n-1] + a * y[n-1]
         // example usage
         // dcBlock(curSample, lastIn, curOut, lastOut)
@@ -171,7 +165,5 @@ private:
     AudioSampleBuffer outputBuffers_;
 
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)
 };
-
-

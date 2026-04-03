@@ -1,8 +1,9 @@
 #include "PluginProcessor.h"
-#include "PluginEditor.h"
-#include "ssp/EditorHost.h"
 
 #include <cmath>
+
+#include "PluginEditor.h"
+#include "ssp/EditorHost.h"
 
 inline float constrain(float v, float vMin, float vMax) {
     return std::max<float>(vMin, std::min<float>(vMax, v));
@@ -28,18 +29,17 @@ inline float panGain(bool left, float p) {
     float pan = (p + 1.0f) / 2.0f;
     if (left) {
         return cosf(pan * PIdiv2);
-        //return std::cosf(pan * PIdiv2);
+        // return std::cosf(pan * PIdiv2);
     }
     return sinf(pan * PIdiv2);
-    //return std::sinf(pan * PIdiv2);
+    // return std::sinf(pan * PIdiv2);
 }
 
-PluginProcessor::PluginProcessor()
-    : PluginProcessor(getBusesProperties(), createParameterLayout()) {}
+PluginProcessor::PluginProcessor() : PluginProcessor(getBusesProperties(), createParameterLayout()) {
+}
 
-PluginProcessor::PluginProcessor(
-    const AudioProcessor::BusesProperties &ioLayouts,
-    AudioProcessorValueTreeState::ParameterLayout layout)
+PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
+                                 AudioProcessorValueTreeState::ParameterLayout layout)
     : BaseProcessor(ioLayouts, std::move(layout)) {
     init();
     initTracks();
@@ -50,21 +50,19 @@ String getPID(StringRef io, unsigned tn, StringRef id) {
 }
 
 
-TrackData::TrackData(AudioProcessorValueTreeState &apvt, StringRef io, unsigned tn) :
-    level{
-        (*apvt.getParameter(getPID(io, tn, ID::level) + ":0")),
-        (*apvt.getParameter(getPID(io, tn, ID::level) + ":1")),
-        (*apvt.getParameter(getPID(io, tn, ID::level) + ":2")),
-        (*apvt.getParameter(getPID(io, tn, ID::level) + ":3"))
-    },
-    pan(*apvt.getParameter(getPID(io, tn, ID::pan))),
-    gain(*apvt.getParameter(getPID(io, tn, ID::gain))),
-    mute(*apvt.getParameter(getPID(io, tn, ID::mute))),
-    solo(*apvt.getParameter(getPID(io, tn, ID::solo))),
-    cue(*apvt.getParameter(getPID(io, tn, ID::cue))),
-    ac(*apvt.getParameter(getPID(io, tn, ID::ac))) {
-    dummy_=false;
-    follows_=0;
+TrackData::TrackData(AudioProcessorValueTreeState& apvt, StringRef io, unsigned tn)
+    : level{ (*apvt.getParameter(getPID(io, tn, ID::level) + ":0")),
+             (*apvt.getParameter(getPID(io, tn, ID::level) + ":1")),
+             (*apvt.getParameter(getPID(io, tn, ID::level) + ":2")),
+             (*apvt.getParameter(getPID(io, tn, ID::level) + ":3")) },
+      pan(*apvt.getParameter(getPID(io, tn, ID::pan))),
+      gain(*apvt.getParameter(getPID(io, tn, ID::gain))),
+      mute(*apvt.getParameter(getPID(io, tn, ID::mute))),
+      solo(*apvt.getParameter(getPID(io, tn, ID::solo))),
+      cue(*apvt.getParameter(getPID(io, tn, ID::cue))),
+      ac(*apvt.getParameter(getPID(io, tn, ID::ac))) {
+    dummy_ = false;
+    follows_ = 0;
 }
 
 
@@ -72,23 +70,18 @@ AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLa
     AudioProcessorValueTreeState::ParameterLayout params;
     BaseProcessor::addBaseParameters(params);
 
-    static const char *lvllabel[TrackData::OUT_TRACKS] = {
-        "Level",
-        "Cue",
-        "Aux 1",
-        "Aux 2"
-    };
+    static const char* lvllabel[TrackData::OUT_TRACKS] = { "Level", "Cue", "Aux 1", "Aux 2" };
     {
         auto ts = std::make_unique<AudioProcessorParameterGroup>(ID::in, "Input", ID::separator);
         for (unsigned tn = 0; tn < IN_T_MAX; tn++) {
-            String tid =  ts->getID() + ts->getSeparator() + String(tn);
+            String tid = ts->getID() + ts->getSeparator() + String(tn);
             auto t = std::make_unique<AudioProcessorParameterGroup>(tid, String(tn), ID::separator);
             String prefix = t->getID() + ts->getSeparator();
 
             String lid = prefix + ID::level;
             auto lg = std::make_unique<AudioProcessorParameterGroup>(lid, "Levels", ":");
             for (unsigned i = 0; i < TrackData::OUT_TRACKS; i++) {
-                float lvl = i <2 ? 1.0f : 0.0f;
+                float lvl = i < 2 ? 1.0f : 0.0f;
                 String id = lg->getID() + lg->getSeparator() + String(i);
                 lg->addChild(std::make_unique<ssp::BaseFloatParameter>(id, lvllabel[i], 0.0, 4.0f, lvl));
             }
@@ -107,14 +100,14 @@ AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLa
     {
         auto ts = std::make_unique<AudioProcessorParameterGroup>(ID::out, "Output", ":");
         for (unsigned tn = 0; tn < OUT_T_MAX; tn++) {
-            String tid =  ts->getID() + ts->getSeparator() + String(tn);
+            String tid = ts->getID() + ts->getSeparator() + String(tn);
             auto t = std::make_unique<AudioProcessorParameterGroup>(tid, String(tn), ID::separator);
             String prefix = t->getID() + ts->getSeparator();
 
             String lid = prefix + ID::level;
             auto lg = std::make_unique<AudioProcessorParameterGroup>(lid, "Levels", ":");
             for (unsigned i = 0; i < TrackData::OUT_TRACKS; i++) {
-                float lvl = i < 1  ? 1.0f : 0.0f;
+                float lvl = i < 1 ? 1.0f : 0.0f;
                 String id = lg->getID() + lg->getSeparator() + String(i);
                 lg->addChild(std::make_unique<ssp::BaseFloatParameter>(id, lvllabel[i], 0.0, 4.0f, lvl));
             }
@@ -141,48 +134,40 @@ const String PluginProcessor::getInputBusName(int channelIndex) {
 
 const String PluginProcessor::getOutputBusName(int channelIndex) {
     static String outBusName[O_MAX] = {
-        "Main L",
-        "Main R",
-        "Cue L",
-        "Cue R",
-        "Aux 1 L",
-        "Aux 1 R",
-        "Aux 2 L",
-        "Aux 2 R"
+        "Main L", "Main R", "Cue L", "Cue R", "Aux 1 L", "Aux 1 R", "Aux 2 L", "Aux 2 R"
     };
     if (channelIndex < O_MAX) { return outBusName[channelIndex]; }
     return "ZZOut-" + String(channelIndex);
 }
 
 void PluginProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
-    BaseProcessor::prepareToPlay(sampleRate,samplesPerBlock);
+    BaseProcessor::prepareToPlay(sampleRate, samplesPerBlock);
     inputBuffers_.setSize(I_MAX, samplesPerBlock);
     outputBuffers_.setSize(O_MAX, samplesPerBlock);
 
     // reset the RMS
     for (unsigned ich = 0; ich < I_MAX; ich++) {
-        auto &d = *inTracks_[ich];
+        auto& d = *inTracks_[ich];
         d.rms_.clear();
     }
 
     for (unsigned och = 0; och < O_MAX; och++) {
-        auto &d = *outTracks_[och];
+        auto& d = *outTracks_[och];
         d.rms_.clear();
     }
 }
 
-inline float normValue(RangedAudioParameter &p) {
+inline float normValue(RangedAudioParameter& p) {
     return p.convertFrom0to1(p.getValue());
 }
 
-void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
     unsigned n = buffer.getNumSamples();
     bool insoloed = false;
     bool outsoloed = false;
 
-    for (unsigned ich = 0; ich < I_MAX; ich++) {
-        insoloed |= bool(inTracks_[ich]->solo.getValue());
-    }
+    for (unsigned ich = 0; ich < I_MAX; ich++) { insoloed |= bool(inTracks_[ich]->solo.getValue()); }
 
     for (int och = 0; och < O_MAX; och++) {
         outsoloed |= bool(outTracks_[och]->solo.getValue());
@@ -192,16 +177,16 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
     for (unsigned ich = 0; ich < I_MAX; ich++) {
         bool inEnabled = inputEnabled[ich];
         if (!inEnabled) {
-            auto &inTrack = *inTracks_[ich];
+            auto& inTrack = *inTracks_[ich];
             // zero rms
             inTrack.rms_.process(0.0f);
             continue;
         }
 
-        //process input channels
-        auto &inTrack = *inTracks_[ich];
+        // process input channels
+        auto& inTrack = *inTracks_[ich];
         unsigned inLeadCh = inTrack.dummy_ ? inTrack.follows_ : ich;
-        auto &inLead = *inTracks_[inLeadCh];
+        auto& inLead = *inTracks_[inLeadCh];
 
 
         bool inMuted = inLead.mute.getValue() || (insoloed && !inLead.solo.getValue());
@@ -228,13 +213,11 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
                 continue;
             }
 
-            bool masterCue =
-                o > TrackData::CUE
-                || (o == TrackData::CUE && inLead.cue.getValue())
-                || (o == TrackData::MASTER && !inLead.cue.getValue());
+            bool masterCue = o > TrackData::CUE || (o == TrackData::CUE && inLead.cue.getValue()) ||
+                             (o == TrackData::MASTER && !inLead.cue.getValue());
 
             if (!inMuted && masterCue) {
-                auto &outTL = *outTracks_[o * 2];
+                auto& outTL = *outTracks_[o * 2];
                 float outGain = normValue(outTL.gain) * normValue(outTL.level[0]);
                 float lOutGain = panGain(true, normValue(outTL.pan));
                 float rOutGain = panGain(false, normValue(outTL.pan));
@@ -266,16 +249,16 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
         bool outEnabled = outputEnabled[och];
         if (!outEnabled) {
             // zero rms
-            auto &trk = *outTracks_[och];
+            auto& trk = *outTracks_[och];
             trk.rms_.process(0.0f);
             // zero output
             buffer.applyGain(och, 0, n, 0.0f);
             continue;
         }
 
-        auto &trk = *outTracks_[och];
+        auto& trk = *outTracks_[och];
         unsigned outLead = trk.dummy_ ? trk.follows_ : och;
-        auto &ltrk = *outTracks_[outLead];
+        auto& ltrk = *outTracks_[outLead];
         bool outMuted = ltrk.mute.getValue() || (outsoloed && !ltrk.solo.getValue());
 
         trk.rms_.process(outputBuffers_, och);
@@ -289,26 +272,22 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
     }
 }
 
-AudioProcessorEditor *PluginProcessor::createEditor() {
-    return new ssp::EditorHost(this,new PluginEditor(*this));
+AudioProcessorEditor* PluginProcessor::createEditor() {
+    return new ssp::EditorHost(this, new PluginEditor(*this));
 }
 
-AudioProcessor *JUCE_CALLTYPE createPluginFilter() {
+AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new PluginProcessor();
 }
 
 
 void PluginProcessor::initTracks() {
-    for (unsigned i = 0; i < IN_T_MAX; i++) {
-        inTracks_.push_back(std::make_unique<TrackData>(vts(), ID::in, i));
-    }
-    for (unsigned i = 0; i < OUT_T_MAX; i++) {
-        outTracks_.push_back(std::make_unique<TrackData>(vts(), ID::out, i));
-    }
+    for (unsigned i = 0; i < IN_T_MAX; i++) { inTracks_.push_back(std::make_unique<TrackData>(vts(), ID::in, i)); }
+    for (unsigned i = 0; i < OUT_T_MAX; i++) { outTracks_.push_back(std::make_unique<TrackData>(vts(), ID::out, i)); }
 
-//    for (unsigned ich = 0; ich < I_MAX; ich++) {
-//        auto &inTrack = *inTracks_[ich];
-//    }
+    //    for (unsigned ich = 0; ich < I_MAX; ich++) {
+    //        auto &inTrack = *inTracks_[ich];
+    //    }
 
     // outTracks_[0]// main
     outTracks_[1]->makeFollow(0);
@@ -322,4 +301,3 @@ void PluginProcessor::initTracks() {
     // outTracks_[6]// aux 2
     outTracks_[7]->makeFollow(6);
 }
-

@@ -11,7 +11,7 @@ inline float constrain(float v, float vMin, float vMax) {
 PluginProcessor::PluginProcessor() : PluginProcessor(getBusesProperties(), createParameterLayout()) {
 }
 
-PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties &ioLayouts,
+PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
                                  AudioProcessorValueTreeState::ParameterLayout layout)
     : BaseProcessor(ioLayouts, std::move(layout)), params_(vts()) {
     init();
@@ -42,7 +42,7 @@ PluginProcessor::~PluginProcessor() {
 }
 
 
-PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState &apvt)
+PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState& apvt)
     : pitch(*apvt.getParameter(ID::pitch)),
       structure(*apvt.getParameter(ID::structure)),
       brightness(*apvt.getParameter(ID::brightness)),
@@ -135,7 +135,8 @@ void PluginProcessor::initPart(bool force) {
     }
 }
 
-void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
     if (activityCount_ == 0) {
         for (int i = 0; i < I_MAX; i++) { inActivity_[i] = buffer.getSample(i, 0); }
     }
@@ -167,7 +168,7 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
         // control rate
         static constexpr float RngsPitchOffset = 30.f - 6.0f;  // 30 is normal, but 6. makes it in turn at 12 oclock
         float transpose = params_.pitch.convertFrom0to1(params_.pitch.getValue()) + RngsPitchOffset +
-                          (noteInput_ ? noteInputTranspose_ : 0.0f);
+                          (noteInput() ? noteInputTranspose_ : 0.0f);
 
         float note = cv2Pitch(buffer.getSample(I_VOCT, bidx));
         float fm = cv2Pitch(buffer.getSample(I_FM, bidx));
@@ -243,13 +244,13 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
     activityCount_ = (activityCount_ + 1) % ACTIVITY_PERIOD;
 }
 
-void PluginProcessor::setStateInformation(const void *data, int sizeInBytes) {
+void PluginProcessor::setStateInformation(const void* data, int sizeInBytes) {
     ssp::BaseProcessor::setStateInformation(data, sizeInBytes);
     initPart(true);
 }
 
 
-AudioProcessorEditor *PluginProcessor::createEditor() {
+AudioProcessorEditor* PluginProcessor::createEditor() {
 #ifdef FORCE_COMPACT_UI
     return new ssp::EditorHost(this, new PluginMiniEditor(*this), true);
 #else
@@ -262,6 +263,6 @@ AudioProcessorEditor *PluginProcessor::createEditor() {
 #endif
 }
 
-AudioProcessor *JUCE_CALLTYPE createPluginFilter() {
+AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new PluginProcessor();
 }

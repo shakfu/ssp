@@ -15,7 +15,7 @@ inline float constrain(float v, float vMin, float vMax) {
 PluginProcessor::PluginProcessor() : PluginProcessor(getBusesProperties(), createParameterLayout()) {
 }
 
-PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties &ioLayouts,
+PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
                                  AudioProcessorValueTreeState::ParameterLayout layout)
     : BaseProcessor(ioLayouts, std::move(layout)), params_(vts()) {
     init();
@@ -32,7 +32,7 @@ String getSlaveOscParamId(unsigned tid, StringRef id) {
     return getSlaveOscPid(tid) + String(ID::separator) + id;
 }
 
-PluginProcessor::SlaveOscParams::SlaveOscParams(AudioProcessorValueTreeState &apvt, unsigned id)
+PluginProcessor::SlaveOscParams::SlaveOscParams(AudioProcessorValueTreeState& apvt, unsigned id)
     : id_(id),
       pid_(getSlaveOscPid(id)),
       wave(*apvt.getParameter(getSlaveOscParamId(id, ID::wave))),
@@ -42,7 +42,7 @@ PluginProcessor::SlaveOscParams::SlaveOscParams(AudioProcessorValueTreeState &ap
 }
 
 
-PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState &apvt)
+PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState& apvt)
     : wave(*apvt.getParameter(ID::wave)),
       freq(*apvt.getParameter(ID::freq)),
       amp(*apvt.getParameter(ID::amp)),
@@ -124,7 +124,8 @@ void PluginProcessor::prepareToPlay(double newSampleRate, int estimatedSamplesPe
 }
 
 
-void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
     unsigned sz = buffer.getNumSamples();
     float freqmult = (params_.lfo.getValue() > 0.5f) ? 0.01f : 1.0f;
 
@@ -153,8 +154,8 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
     for (int oid = 0; oid < MAX_S_OSC; oid++) {
         if (!isOutputEnabled(O_OUT_A + oid)) continue;
 
-        auto &soscparams = params_.slaveOscsParams_[oid];
-        auto &sosc = slaveOscs_[oid];
+        auto& soscparams = params_.slaveOscsParams_[oid];
+        auto& sosc = slaveOscs_[oid];
         float ratio = normValue(soscparams->ratio);
         float wave = normValue(soscparams->wave);
         float amp = normValue(soscparams->amp);
@@ -230,8 +231,8 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
         for (int oid = 0; oid < MAX_S_OSC; oid++) {
             if (!(isOutputEnabled(O_OUT_A + oid) || (isOutputEnabled(O_EOC_A + oid)))) { continue; };
 
-            auto &sosc = slaveOscs_[oid];
-            auto &soscparam = slavevalues[oid];
+            auto& sosc = slaveOscs_[oid];
+            auto& soscparam = slavevalues[oid];
 
             float freq = mainoscfreq * soscparam.ratio_;
             if (freq != sosc.freq_) {
@@ -256,7 +257,7 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
 }
 
 
-AudioProcessorEditor *PluginProcessor::createEditor() {
+AudioProcessorEditor* PluginProcessor::createEditor() {
 #ifdef FORCE_COMPACT_UI
     return new ssp::EditorHost(this, new PluginMiniEditor(*this), true);
 #else
@@ -269,6 +270,6 @@ AudioProcessorEditor *PluginProcessor::createEditor() {
 #endif
 }
 
-AudioProcessor *JUCE_CALLTYPE createPluginFilter() {
+AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new PluginProcessor();
 }

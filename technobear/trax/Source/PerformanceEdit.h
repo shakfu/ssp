@@ -6,7 +6,7 @@
 
 class PerformanceEdit : public ssp::MiniBasicView {
 public:
-    PerformanceEdit(PluginProcessor &p);
+    PerformanceEdit(PluginProcessor& p);
     ~PerformanceEdit() override;
 
 protected:
@@ -17,11 +17,11 @@ protected:
 
     void resized() override;
     void editorShown() override;
-    void drawView(juce::Graphics &g) override;
+    void drawView(juce::Graphics& g) override;
 
 private:
     static constexpr int fh = 12 * COMPACT_UI_SCALE;
     void refreshParamList();
-    PluginProcessor &processor_;
+    PluginProcessor& processor_;
     ssp::ListControl<> paramList_;
 };

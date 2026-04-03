@@ -1,9 +1,9 @@
 
-#include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-#include "ssp/controls/ParamControl.h"
+#include "PluginProcessor.h"
 #include "ssp/controls/ParamButton.h"
+#include "ssp/controls/ParamControl.h"
 
 inline float constrain(float v, float vMin, float vMax) {
     return std::max<float>(vMin, std::min<float>(vMax, v));
@@ -13,27 +13,23 @@ using pcontrol_type = ssp::BarParamControl;
 using bcontrol_type = ssp::ParamButton;
 
 
-PluginEditor::PluginEditor(PluginProcessor &p)
-    : base_type(&p),
-      processor_(p) {
-
+PluginEditor::PluginEditor(PluginProcessor& p) : base_type(&p), processor_(p) {
     for (unsigned p = 0; p < PluginProcessor::MAX_SIG_OUT; p++) {
-        addParamPage(
-            std::make_shared<pcontrol_type>(processor_.params_.vca[p][0],0.1f),
-            std::make_shared<pcontrol_type>(processor_.params_.vca[p][1],0.1f),
-            std::make_shared<pcontrol_type>(processor_.params_.vca[p][2],0.1f),
-            std::make_shared<pcontrol_type>(processor_.params_.vca[p][3],0.1f)
-        );
+        addParamPage(std::make_shared<pcontrol_type>(processor_.params_.vca[p][0], 0.1f),
+                     std::make_shared<pcontrol_type>(processor_.params_.vca[p][1], 0.1f),
+                     std::make_shared<pcontrol_type>(processor_.params_.vca[p][2], 0.1f),
+                     std::make_shared<pcontrol_type>(processor_.params_.vca[p][3], 0.1f));
     }
 
     setSize(1600, 480);
 }
 
-void PluginEditor::drawGrid(Graphics &g) {
+void PluginEditor::drawGrid(Graphics& g) {
     int startX = 1000;
     int y = 30;
     int fh = 9 * COMPACT_UI_SCALE;
-    int lsz = 75;;
+    int lsz = 75;
+    ;
 
     int szx = fh * 4;
     int szy = szx;
@@ -118,7 +114,7 @@ void PluginEditor::drawGrid(Graphics &g) {
 }
 
 
-void PluginEditor::drawView(Graphics &g) {
+void PluginEditor::drawView(Graphics& g) {
     base_type::drawView(g);
     drawGrid(g);
 }
@@ -127,5 +123,3 @@ void PluginEditor::drawView(Graphics &g) {
 void PluginEditor::resized() {
     base_type::resized();
 }
-
-

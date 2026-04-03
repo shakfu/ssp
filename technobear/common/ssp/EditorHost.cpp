@@ -3,9 +3,8 @@
 
 #include "BaseProcessor.h"
 #include "BaseView.h"
-#include "SSP.h"
-
 #include "Log.h"
+#include "SSP.h"
 
 namespace ssp {
 
@@ -13,7 +12,7 @@ static constexpr unsigned menuTopY = 200 - 1;
 static constexpr unsigned btnTopY = 380 - 1;
 static constexpr unsigned btnSpaceY = 50;
 
-EditorHost::EditorHost(BaseProcessor *p, BaseView *e, bool compactUI, bool enableSysEditor, bool drawDefaults)
+EditorHost::EditorHost(BaseProcessor* p, BaseView* e, bool compactUI, bool enableSysEditor, bool drawDefaults)
     : AudioProcessorEditor(p),
       processor_(p),
       editor_(e),
@@ -88,7 +87,7 @@ void EditorHost::resized() {
     if (sspui_) sspui_->resized();
 }
 
-void EditorHost::setMenuBounds(ValueButton &btn, unsigned r) {
+void EditorHost::setMenuBounds(ValueButton& btn, unsigned r) {
     const int w = 70;
     const int h = 45;
     unsigned x = 1530 + 1;
@@ -96,19 +95,21 @@ void EditorHost::setMenuBounds(ValueButton &btn, unsigned r) {
     btn.setBounds(x, y, w, h);
 }
 
-void EditorHost::drawBasicPanel(Graphics &g) {
+void EditorHost::drawBasicPanel(Graphics& g) {
     g.fillAll(defaultBg_);
 
 
     if (drawDefaults_) {
         // title
-        g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), 12 * COMPACT_UI_SCALE, Font::plain)));
+        g.setFont(juce::Font(
+            juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), 12 * COMPACT_UI_SCALE, Font::plain)));
         g.setColour(Colours::yellow);
-        g.drawSingleLineText(String(JucePlugin_Name) + " : " + String(JucePlugin_Desc) + String(" @ thetechnobear"), 10,
-                             30);
+        g.drawSingleLineText(
+            String(JucePlugin_Name) + " : " + String(JucePlugin_Desc) + String(" @ ") + String(JucePlugin_Manufacturer),
+            10, 30);
 
         g.setColour(Colours::grey);
-        g.drawSingleLineText("v " + String(JucePlugin_VersionString), 1505, 30);
+        g.drawSingleLineText("v" + String(TB_BUILD_DATE), 1505, 30);
 
         drawMenuBox(g);
         drawButtonBox(g);
@@ -116,7 +117,7 @@ void EditorHost::drawBasicPanel(Graphics &g) {
 }
 
 
-void EditorHost::drawMenuBox(Graphics &g) {
+void EditorHost::drawMenuBox(Graphics& g) {
     unsigned y = menuTopY - 1;
     unsigned x = 1530 - 1;
     unsigned butTopY = btnTopY;
@@ -126,7 +127,7 @@ void EditorHost::drawMenuBox(Graphics &g) {
     for (int i = 0; i < 5; i++) { g.drawHorizontalLine(y + i * 45, x, 1600 - 1); }
 }
 
-void EditorHost::drawButtonBox(Graphics &g) {
+void EditorHost::drawButtonBox(Graphics& g) {
     unsigned butTopY = btnTopY;
     unsigned butLeftX = 900 - 1;
     float x = butLeftX;
@@ -140,7 +141,7 @@ void EditorHost::drawButtonBox(Graphics &g) {
 
 void EditorHost::sysEditor(bool sysEditor) {
     if (!system_) return;
-    if(sysEditor == sysActive_) return;
+    if (sysEditor == sysActive_) return;
 
     sysActive_ = sysEditor;
     editor_->setVisible(!sysActive_);
@@ -278,10 +279,11 @@ void EditorHost::eventButtonCombo(unsigned btn, unsigned comboBtn, bool longPres
         editor_->eventButtonCombo(btn, comboBtn, longPress);
 
     if (compactUI_) {
-        if ((comboBtn == SSP_Up && btn == SSP_Down) || (comboBtn == SSP_Down && btn == SSP_Up)) { 
-            ssp::log("system editor btn:" + std::to_string(btn) + " combo:" + std::to_string(comboBtn) + " lp:" + std::to_string(longPress));
-            ssp::log("matching up "+std::to_string(SSP_Up)+" down "+std::to_string(SSP_Down));
-            sysEditor(!sysActive_); 
+        if ((comboBtn == SSP_Up && btn == SSP_Down) || (comboBtn == SSP_Down && btn == SSP_Up)) {
+            ssp::log("system editor btn:" + std::to_string(btn) + " combo:" + std::to_string(comboBtn) +
+                     " lp:" + std::to_string(longPress));
+            ssp::log("matching up " + std::to_string(SSP_Up) + " down " + std::to_string(SSP_Down));
+            sysEditor(!sysActive_);
         }
     }
 }
@@ -327,7 +329,7 @@ bool EditorHost::keyStateChanged(bool isKeyDown) {
     return ret;
 }
 
-void EditorHost::modifierKeysChanged(const ModifierKeys &modifiers) {
+void EditorHost::modifierKeysChanged(const ModifierKeys& modifiers) {
     int ks = 3;
     bool ls = false;
     bool ns = false;

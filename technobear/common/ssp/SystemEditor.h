@@ -4,15 +4,14 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_gui_basics/juce_gui_basics.h>
 
+
 using namespace juce;
 
+#include "SSP.h"
 #include "SSPActions.h"
+#include "controls/ButtonBox.h"
 #include "controls/ValueButton.h"
 #include "controls/ValueControl.h"
-
-#include "controls/ButtonBox.h"
-
-#include "SSP.h"
 
 namespace ssp {
 
@@ -22,7 +21,7 @@ class SystemEditor : public juce::Component,
                      // public juce::Timer,
                      public SSPActions {
 public:
-    explicit SystemEditor(BaseProcessor *p);
+    explicit SystemEditor(BaseProcessor* p);
     virtual ~SystemEditor();
 
     void midiLearn(bool b);
@@ -55,21 +54,21 @@ public:
     void eventButtonHeld(unsigned btn) override {}
 
 protected:
-    enum UI_Mode{
-        M_PARAM, 
-        M_DEVICE
-    } mode_;
+    enum UI_Mode { M_PARAM, M_DEVICE } mode_;
 
     virtual void mode(UI_Mode m);
-    UI_Mode mode() { return mode_;}
+    UI_Mode mode() { return mode_; }
 
-    BaseProcessor *baseProcessor_;
+    BaseProcessor* baseProcessor_;
 
     ListValueControl midiInCtrl_, midiOutCtrl_, midiChannelCtrl_;
 
-    void midiInCallback(float idx, const std::string &dev);
-    void midiOutCallback(float idx, const std::string &dev);
-    void midiChannelCallback(float idx, const std::string &ch);
+    void midiInCallback(float idx, const std::string& dev);
+    void midiOutCallback(float idx, const std::string& dev);
+    void midiChannelCallback(float idx, const std::string& ch);
+
+    void populateMidiDevices();
+    void visibilityChanged() override;
 
 
     static constexpr unsigned MAX_SHOWN = 12;
@@ -85,6 +84,7 @@ private:
     std::vector<MidiDeviceInfo> inDevices_;
     std::vector<MidiDeviceInfo> outDevices_;
 
+    juce::MidiDeviceListConnection mdlConnection_;
 
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SystemEditor)
@@ -93,7 +93,7 @@ private:
 
 class SystemFullEditor : public SystemEditor {
 public:
-    explicit SystemFullEditor(BaseProcessor *p);
+    explicit SystemFullEditor(BaseProcessor* p);
     virtual ~SystemFullEditor();
 
     void resized() override;
@@ -105,21 +105,22 @@ public:
     void onRightShiftButton(bool v) override;
 
 protected:
-    void paint(Graphics &g) override;
-    virtual void drawView(Graphics &g);
-    void setButtonBounds(ValueButton &btn, unsigned r, unsigned c);
+    void paint(Graphics& g) override;
+    virtual void drawView(Graphics& g);
+    void setButtonBounds(ValueButton& btn, unsigned r, unsigned c);
 
-    void drawButtonBox(Graphics &g); 
+    void drawButtonBox(Graphics& g);
+
 private:
     ValueButton leftBtn_, rightBtn_, upBtn_, downBtn_;
     ValueButton leftShiftBtn_, rightShiftBtn_;
-    void drawLabel(Graphics &, const std::string &str, unsigned idx);
+    void drawLabel(Graphics&, const std::string& str, unsigned idx);
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SystemFullEditor)
 };
 
 class SystemMiniEditor : public SystemEditor {
 public:
-    explicit SystemMiniEditor(BaseProcessor *p);
+    explicit SystemMiniEditor(BaseProcessor* p);
     virtual ~SystemMiniEditor();
 
     void resized() override;
@@ -138,16 +139,15 @@ protected:
     static constexpr unsigned paramHeight = 32 * COMPACT_UI_SCALE;
 
     void mode(UI_Mode m) override;
-    void paint(Graphics &g) override;
-    virtual void drawView(Graphics &g);
-    void drawButtonBox(Graphics &g); 
-    void setButtonBounds(ValueButton &btn, unsigned r, unsigned c);
+    void paint(Graphics& g) override;
+    virtual void drawView(Graphics& g);
+    void drawButtonBox(Graphics& g);
+    void setButtonBounds(ValueButton& btn, unsigned r, unsigned c);
 
 private:
-    void drawLabel(Graphics &, const std::string &str, unsigned idx);
+    void drawLabel(Graphics&, const std::string& str, unsigned idx);
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SystemMiniEditor)
 };
-
 
 
 }  // namespace ssp

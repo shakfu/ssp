@@ -1,8 +1,7 @@
 #include "OptionView.h"
 
 
-
-OptionView::OptionView(PluginProcessor &p) : base_type(&p, nullptr), processor_(p) {
+OptionView::OptionView(PluginProcessor& p) : base_type(&p, nullptr), processor_(p) {
     addButton(0, std::make_shared<ssp::ValueButton>("Load Pr", [&](bool b) {}));
     addButton(1, std::make_shared<ssp::ValueButton>("Save Pr", [&](bool b) {}));
 }
@@ -11,7 +10,7 @@ OptionView::~OptionView() {
 }
 
 
-void OptionView::drawView(Graphics &g) {
+void OptionView::drawView(Graphics& g) {
     base_type::drawView(g);
     int x = 30;
     int y = 30;

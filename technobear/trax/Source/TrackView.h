@@ -12,17 +12,18 @@
 
 class TrackView : public ssp::MiniBasicView {
 public:
-    TrackView(PluginProcessor &p);
+    TrackView(PluginProcessor& p);
     ~TrackView() override;
 
     void trackIdx(unsigned t);
+
 protected:
-    void drawView(juce::Graphics &g) override;
+    void drawView(juce::Graphics& g) override;
     void resized() override;
 
 private:
     using base_type = ssp::MiniBasicView;
     unsigned trackIdx_;
-    PluginProcessor &processor_;
+    PluginProcessor& processor_;
     std::vector<std::shared_ptr<ModuleComponent>> modules_;
 };

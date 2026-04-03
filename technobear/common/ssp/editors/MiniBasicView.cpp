@@ -4,12 +4,12 @@
 
 namespace ssp {
 
-MiniBasicView::MiniBasicView(BaseProcessor *p, ioActivity cb) : base_type(p, true), ioCallback_(cb) {
+MiniBasicView::MiniBasicView(BaseProcessor* p, ioActivity cb) : base_type(p, true), ioCallback_(cb) {
     buttonBox_ = std::make_shared<ssp::ButtonBox>();
     addAndMakeVisible(buttonBox_.get());
 }
 
-void MiniBasicView::addButton(unsigned idx, const std::shared_ptr<ValueButton> &p) {
+void MiniBasicView::addButton(unsigned idx, const std::shared_ptr<ValueButton>& p) {
     buttonBox_->addButton(idx, p);
 }
 

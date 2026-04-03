@@ -6,12 +6,13 @@
 using pcontrol_type = ssp::MiniControl;
 using bcontrol_type = ssp::ParamButton;
 
-PluginMiniEditor::PluginMiniEditor(PluginProcessor &p)
+PluginMiniEditor::PluginMiniEditor(PluginProcessor& p)
     : base_type(&p),
       processor_(p),
       runButton_("Run", nullptr, 16 * COMPACT_UI_SCALE, Colours::green),
       resetButton_("Reset", nullptr, 16 * COMPACT_UI_SCALE, Colours::yellow),
-      useTrigsButton_("TrigSync", nullptr, 10 * COMPACT_UI_SCALE, Colours::cyan) {
+      useTrigsButton_("TrigSync", nullptr, 10 * COMPACT_UI_SCALE, Colours::cyan),
+      transButton_(processor_.params_.midiTransport, 12 * SSP_COMPACT_SCALE, Colours::lightskyblue) {
     addParam(std::make_shared<pcontrol_type>(processor_.params_.source, 1.0f, 1.0f));
     addParam(std::make_shared<pcontrol_type>(processor_.params_.clkindiv, 1.0f, 0.25f));
     addParam(std::make_shared<pcontrol_type>(processor_.params_.bpm, 10.0f, 0.1f));
@@ -25,10 +26,12 @@ PluginMiniEditor::PluginMiniEditor(PluginProcessor &p)
     setButtonBounds(BN_RUN, &runButton_);
     setButtonBounds(BN_RESET, &resetButton_);
     setButtonBounds(BN_USETRIGS, &useTrigsButton_);
+    setButtonBounds(BN_TRANS, &transButton_);
 
     addAndMakeVisible(runButton_);
     addAndMakeVisible(resetButton_);
     addAndMakeVisible(useTrigsButton_);
+    addAndMakeVisible(transButton_);
 }
 
 

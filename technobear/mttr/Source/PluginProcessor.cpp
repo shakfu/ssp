@@ -1,33 +1,32 @@
 #include "PluginProcessor.h"
+
 #include "PluginEditor.h"
 #include "PluginMiniEditor.h"
 #include "ssp/EditorHost.h"
 
 
-PluginProcessor::PluginProcessor()
-    : PluginProcessor(getBusesProperties(), createParameterLayout()) {}
+PluginProcessor::PluginProcessor() : PluginProcessor(getBusesProperties(), createParameterLayout()) {
+}
 
-PluginProcessor::PluginProcessor(
-    const AudioProcessor::BusesProperties &ioLayouts,
-    AudioProcessorValueTreeState::ParameterLayout layout)
+PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
+                                 AudioProcessorValueTreeState::ParameterLayout layout)
     : BaseProcessor(ioLayouts, std::move(layout)), params_(vts()) {
     init();
     for (int i = 0; i < (O_MAX / 2); i++) {
         nextTR_[i] = false;
         nextVel_[i] = 0.0f;
     }
-
 }
 
-PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState &apvt) :
-    tr_a(*apvt.getParameter(ID::tr_a)),
-    tr_b(*apvt.getParameter(ID::tr_b)),
-    tr_c(*apvt.getParameter(ID::tr_c)),
-    tr_d(*apvt.getParameter(ID::tr_d)),
-    tr_e(*apvt.getParameter(ID::tr_e)),
-    tr_f(*apvt.getParameter(ID::tr_f)),
-    tr_g(*apvt.getParameter(ID::tr_g)),
-    tr_h(*apvt.getParameter(ID::tr_h)) {
+PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState& apvt)
+    : tr_a(*apvt.getParameter(ID::tr_a)),
+      tr_b(*apvt.getParameter(ID::tr_b)),
+      tr_c(*apvt.getParameter(ID::tr_c)),
+      tr_d(*apvt.getParameter(ID::tr_d)),
+      tr_e(*apvt.getParameter(ID::tr_e)),
+      tr_f(*apvt.getParameter(ID::tr_f)),
+      tr_g(*apvt.getParameter(ID::tr_g)),
+      tr_h(*apvt.getParameter(ID::tr_h)) {
 }
 
 
@@ -55,44 +54,29 @@ const String PluginProcessor::getInputBusName(int channelIndex) {
 
 const String PluginProcessor::getOutputBusName(int channelIndex) {
     switch (channelIndex) {
-        case O_TR_A:
-            return "Trig A";
-        case O_VEL_A:
-            return "Vel A";
-        case O_TR_B:
-            return "Trig B";
-        case O_VEL_B:
-            return "Vel B";
-        case O_TR_C:
-            return "Trig C";
-        case O_VEL_C:
-            return "Vel C";
-        case O_TR_D:
-            return "Trig D";
-        case O_VEL_D:
-            return "Vel D";
-        case O_TR_E:
-            return "Trig E";
-        case O_VEL_E:
-            return "Vel E";
-        case O_TR_F:
-            return "Trig F";
-        case O_VEL_F:
-            return "Vel F";
-        case O_TR_G:
-            return "Trig G";
-        case O_VEL_G:
-            return "Vel G";
-        case O_TR_H:
-            return "Trig H";
-        case O_VEL_H:
-            return "Vel H";
+        case O_TR_A: return "Trig A";
+        case O_VEL_A: return "Vel A";
+        case O_TR_B: return "Trig B";
+        case O_VEL_B: return "Vel B";
+        case O_TR_C: return "Trig C";
+        case O_VEL_C: return "Vel C";
+        case O_TR_D: return "Trig D";
+        case O_VEL_D: return "Vel D";
+        case O_TR_E: return "Trig E";
+        case O_VEL_E: return "Vel E";
+        case O_TR_F: return "Trig F";
+        case O_VEL_F: return "Vel F";
+        case O_TR_G: return "Trig G";
+        case O_VEL_G: return "Vel G";
+        case O_TR_H: return "Trig H";
+        case O_VEL_H: return "Vel H";
         default:;
     }
     return "ZZOut-" + String(channelIndex);
 }
 
-void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
     unsigned sz = buffer.getNumSamples();
 
     static constexpr unsigned max_cc = O_TR_H - O_TR_A;
@@ -101,7 +85,7 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
         if (!isOutputEnabled(bidx)) continue;
         int smp = 0;
         bool tr = nextTR_[i];
-        float v = nextVel_[i]; 
+        float v = nextVel_[i];
         if (tr) {
             for (; smp < 64; smp++) {
                 buffer.setSample(bidx, smp, tr);
@@ -118,10 +102,10 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
 
 #define GET_P_VAL(x) x.convertFrom0to1(x.getValue())
 
-void PluginProcessor::handleIncomingMidiMessage(MidiInput *source, const MidiMessage &msg) {
+void PluginProcessor::handleIncomingMidiMessage(MidiInput* source, const MidiMessage& msg) {
     BaseProcessor::handleIncomingMidiMessage(source, msg);
-    if (midiChannel_ == 0 || msg.getChannel() == midiChannel_) {
-        if (msg.isNoteOn()) { // only care about note on
+    if (midiChannel() == 0 || msg.getChannel() == midiChannel()) {
+        if (msg.isNoteOn()) {  // only care about note on
             auto note = msg.getNoteNumber();
             if (note == GET_P_VAL(params_.tr_a)) {
                 nextTR_[0] = true;
@@ -153,9 +137,9 @@ void PluginProcessor::handleIncomingMidiMessage(MidiInput *source, const MidiMes
 }
 
 
-AudioProcessorEditor *PluginProcessor::createEditor() {
+AudioProcessorEditor* PluginProcessor::createEditor() {
 #ifdef FORCE_COMPACT_UI
-    return new ssp::EditorHost(this, new PluginMiniEditor(*this),true);
+    return new ssp::EditorHost(this, new PluginMiniEditor(*this), true);
 #else
     if (useCompactUI()) {
         return new ssp::EditorHost(this, new PluginMiniEditor(*this), useCompactUI());
@@ -165,7 +149,6 @@ AudioProcessorEditor *PluginProcessor::createEditor() {
     }
 #endif
 }
-AudioProcessor *JUCE_CALLTYPE createPluginFilter() {
+AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new PluginProcessor();
 }
-

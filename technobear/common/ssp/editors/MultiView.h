@@ -15,7 +15,7 @@ class BaseProcessor;
 template <class T>
 class MultiView : public BaseView {
 public:
-    explicit MultiView(BaseProcessor *p, bool compactUI);
+    explicit MultiView(BaseProcessor* p, bool compactUI);
 
     void onEncoder(unsigned id, float v) override;
     void onEncoderSwitch(unsigned id, bool v) override;
@@ -45,7 +45,7 @@ public:
     void onSSPTimer() override;
 
 protected:
-    void drawView(juce::Graphics &g) override;
+    void drawView(juce::Graphics& g) override;
     void resized() override;
     unsigned addView(std::shared_ptr<T>);
 
@@ -64,12 +64,12 @@ private:
 
 
 template <class T>
-MultiView<T>::MultiView(BaseProcessor *p, bool compactUI) : base_type(p, compactUI) {
+MultiView<T>::MultiView(BaseProcessor* p, bool compactUI) : base_type(p, compactUI) {
 }
 
 template <class T>
 void MultiView<T>::onSSPTimer() {
-    for (auto &v : views_) { v->onSSPTimer(); }
+    for (auto& v : views_) { v->onSSPTimer(); }
 }
 
 
@@ -77,14 +77,14 @@ template <class T>
 void MultiView<T>::setView(unsigned newView) {
     // do not setVisible outside message thread !
     if (view_ >= 0) {
-        auto &view = views_[view_];
+        auto& view = views_[view_];
         view->setVisible(false);
         view->editorHidden();
     }
 
     if (newView < views_.size()) {
         view_ = newView;
-        auto &view = views_[view_];
+        auto& view = views_[view_];
         view->setVisible(true);
         view->editorShown();
     }
@@ -111,7 +111,7 @@ unsigned MultiView<T>::addView(std::shared_ptr<T> view) {
 }
 
 template <class T>
-void MultiView<T>::drawView(Graphics &g) {
+void MultiView<T>::drawView(Graphics& g) {
     base_type::drawView(g);
     if (view_ < 0) return;
     views_[view_]->drawView(g);

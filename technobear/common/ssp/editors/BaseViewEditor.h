@@ -12,7 +12,7 @@ class BaseProcessor;
 
 class BaseViewEditor : public BaseEditor {
 public:
-    explicit BaseViewEditor(BaseProcessor *p);
+    explicit BaseViewEditor(BaseProcessor* p);
 
     void onEncoder(unsigned id, float v) override;
     void onEncoderSwitch(unsigned id, bool v) override;
@@ -42,7 +42,7 @@ public:
 protected:
     using view_type = BaseEditor;
 
-    void drawView(juce::Graphics &g) override;
+    void drawView(juce::Graphics& g) override;
     void resized() override;
     unsigned addView(std::shared_ptr<view_type>);
 

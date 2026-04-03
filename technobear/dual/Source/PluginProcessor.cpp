@@ -13,7 +13,7 @@
 PluginProcessor::PluginProcessor() : PluginProcessor(getBusesProperties(), createParameterLayout()) {
 }
 
-PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties &ioLayouts,
+PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
                                  AudioProcessorValueTreeState::ParameterLayout layout)
     : BaseProcessor(ioLayouts, std::move(layout)) {
     init();
@@ -43,9 +43,9 @@ const String PluginProcessor::getOutputBusName(int channelIndex) {
     return bname;
 }
 
-bool PluginProcessor::requestModuleChange(unsigned t, unsigned m, const std::string &mn) {
+bool PluginProcessor::requestModuleChange(unsigned t, unsigned m, const std::string& mn) {
     if (t >= MAX_TRACKS || m >= Track::M_MAX) return false;
-    auto &track = tracks_[t];
+    auto& track = tracks_[t];
     bool ret = track.requestModuleChange(m, mn);
     return ret;
 }
@@ -72,7 +72,8 @@ void PluginProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
     tracks_[0].prepare(sampleRate, samplesPerBlock);
 }
 
-void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
+void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages) {
+    BaseProcessor::processBlock(buffer, midiMessages);
     tracks_[0].process(buffer);
 }
 
@@ -106,16 +107,16 @@ void PluginProcessor::onOutputChanged(unsigned i, bool b) {
 
 static constexpr int checkBytes = 0x1FF1;
 static constexpr int protoVersion = 0x0002;
-static const char *DUAL_XML_TAG = "DUAL";
-static const char *TRACKS_XML_TAG = "Tracks";
-static const char *TRACK_XML_TAG = "Track";
+static const char* DUAL_XML_TAG = "DUAL";
+static const char* TRACKS_XML_TAG = "Tracks";
+static const char* TRACK_XML_TAG = "Track";
 
 
-void PluginProcessor::getStateInformation(MemoryBlock &destData) {
+void PluginProcessor::getStateInformation(MemoryBlock& destData) {
     std::unique_ptr<juce::XmlElement> xmlDual = std::make_unique<juce::XmlElement>(DUAL_XML_TAG);
 
     std::unique_ptr<juce::XmlElement> xmlTracks = std::make_unique<juce::XmlElement>(TRACKS_XML_TAG);
-    for (auto &track : tracks_) {
+    for (auto& track : tracks_) {
         std::unique_ptr<juce::XmlElement> xmlTrack = std::make_unique<juce::XmlElement>(TRACK_XML_TAG);
         track.getStateInformation(*xmlTrack);
         xmlTracks->addChildElement(xmlTrack.release());
@@ -127,7 +128,7 @@ void PluginProcessor::getStateInformation(MemoryBlock &destData) {
 }
 
 
-void PluginProcessor::setStateInformation(const void *data, int sizeInBytes) {
+void PluginProcessor::setStateInformation(const void* data, int sizeInBytes) {
     while (!tracks_[0].requestClearTrack()) {}
 
     loadSupportedModules();
@@ -152,11 +153,11 @@ void PluginProcessor::setStateInformation(const void *data, int sizeInBytes) {
     }
 }
 
-AudioProcessorEditor *PluginProcessor::createEditor() {
+AudioProcessorEditor* PluginProcessor::createEditor() {
     static constexpr bool useSysEditor = false, defaultDraw = false;
     return new ssp::EditorHost(this, new PluginEditor(*this), useCompactUI(), useSysEditor, defaultDraw);
 }
 
-AudioProcessor *JUCE_CALLTYPE createPluginFilter() {
+AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new PluginProcessor();
 }

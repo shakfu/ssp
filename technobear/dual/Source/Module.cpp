@@ -10,18 +10,18 @@
 
 #ifdef __APPLE__
 const static int dlopenmode = RTLD_LOCAL | RTLD_NOW;
-const char *pluginSuffix = ".vst3/Contents/MacOS/";
+const char* pluginSuffix = ".vst3/Contents/MacOS/";
 
 #ifdef FORCE_COMPACT_UI
-const char *pluginPath = "plugins/";
+const char* pluginPath = "plugins/";
 #else   // use full UI
-const char *pluginPath = "~/Library/Audio/Plug-Ins/VST3/";
+const char* pluginPath = "~/Library/Audio/Plug-Ins/VST3/";
 #endif  // FORCE_COMPACT_UI
 
 #else
 // linux
 const static int dlopenmode = RTLD_LOCAL | RTLD_NOW | RTLD_DEEPBIND;
-const char *pluginPath = "plugins/";
+const char* pluginPath = "plugins/";
 #endif
 
 Module::Module() {
@@ -30,15 +30,15 @@ Module::Module() {
     audioBuffer_.setSize(16, 128);
 }
 
-void Module::alloc(const std::string &pname, SSPExtendedApi::PluginInterface *p, SSPExtendedApi::PluginDescriptor *d,
-                   void *h) {
+void Module::alloc(const std::string& pname, SSPExtendedApi::PluginInterface* p, SSPExtendedApi::PluginDescriptor* d,
+                   void* h) {
     pluginName_ = pname;
     plugin_ = p;
     descriptor_ = d;
     dlHandle_ = h;
     requestedModule_ = pluginName_;
 
-    editor_ = nullptr; // load when needed!
+    editor_ = nullptr;  // load when needed!
 
     if (descriptor_) {
         int inSz = descriptor_->inputChannelNames.size();
@@ -86,16 +86,16 @@ void Module::prepare(int sampleRate, int blockSize) {
 }
 
 
-void Module::process(juce::AudioSampleBuffer &buffer) {
+void Module::process(juce::AudioSampleBuffer& buffer) {
     if (!plugin_) return;
 
-    float *const *buffers = buffer.getArrayOfWritePointers();
+    float* const* buffers = buffer.getArrayOfWritePointers();
     // juce has changed, to using a const pointer to float*
     // now inconsistent with ssp sdk, but will work fine
-    plugin_->process((float **)buffers, buffer.getNumChannels(), buffer.getNumSamples());
+    plugin_->process((float**)buffers, buffer.getNumChannels(), buffer.getNumSamples());
 }
 
-std::string Module::getPluginFile(const std::string &mname) {
+std::string Module::getPluginFile(const std::string& mname) {
     std::string file;
 #ifdef __APPLE__
     juce::File plugInDir(pluginPath);
@@ -141,7 +141,7 @@ bool Module::loadModule(std::string mn) {
                 if (supported) {
                     // log(std::string("Loaded modulule : "+ mn));
                     auto pluginInterace = fnCreateInterface();
-                    auto *plugin = (SSPExtendedApi::PluginInterface *)pluginInterace;
+                    auto* plugin = (SSPExtendedApi::PluginInterface*)pluginInterace;
                     plugin->useCompactUI(true);
                     alloc(mn, plugin, desc, fHandle);
                     return true;
@@ -154,7 +154,7 @@ bool Module::loadModule(std::string mn) {
     return false;
 }
 
-bool Module::checkPlugin(const std::string &mn, ModuleDesc &md) {
+bool Module::checkPlugin(const std::string& mn, ModuleDesc& md) {
     bool supported = false;
     std::string f = getPluginFile(mn);
     // ssp::log(f);
@@ -180,12 +180,12 @@ bool Module::checkPlugin(const std::string &mn, ModuleDesc &md) {
 }
 
 
-void Module::scanPlugins(std::vector<ModuleDesc> &supportedModules) {
+void Module::scanPlugins(std::vector<ModuleDesc>& supportedModules) {
     supportedModules.clear();
     // build list of modules to consider
     std::vector<std::string> moduleList;
 #ifdef __APPLE__
-    for (const juce::DirectoryEntry &entry :
+    for (const juce::DirectoryEntry& entry :
          juce::RangedDirectoryIterator(juce::File(pluginPath), false, "*.vst3", juce::File::findDirectories)) {
         if (!entry.isHidden()) {
             auto mname = entry.getFile().getFileNameWithoutExtension().toStdString();
@@ -202,7 +202,7 @@ void Module::scanPlugins(std::vector<ModuleDesc> &supportedModules) {
     }
 #endif
     // check for modules supporting compact ui
-    for (const auto &mname : moduleList) {
+    for (const auto& mname : moduleList) {
         // log(std::string("Checking plugin : " + mname));
         ModuleDesc md;
         if (mname == JucePlugin_Name) continue;
@@ -210,17 +210,17 @@ void Module::scanPlugins(std::vector<ModuleDesc> &supportedModules) {
     }
 
     // log("plugin scan : COMPLETED");
-    for (const auto &module : supportedModules) {
+    for (const auto& module : supportedModules) {
         // log(std::string("supported plugin : " + module));
     }
     saveSupportedModules(supportedModules);
 }
 
-static const char *MODLIST_XML_TAG = "ModuleList";
+static const char* MODLIST_XML_TAG = "ModuleList";
 
 
-bool Module::loadSupportedModules(std::vector<ModuleDesc> &supportedModules) {
-    auto xmlModList = juce::XmlDocument::parse(juce::File(juce::String("./")+JucePlugin_Name+"_modules.xml"));
+bool Module::loadSupportedModules(std::vector<ModuleDesc>& supportedModules) {
+    auto xmlModList = juce::XmlDocument::parse(juce::File(juce::String("./") + JucePlugin_Name + "_modules.xml"));
     if (xmlModList != nullptr && xmlModList->hasTagName(MODLIST_XML_TAG)) {
         supportedModules.clear();
         for (auto xmlMod : xmlModList->getChildIterator()) {
@@ -241,17 +241,17 @@ bool Module::loadSupportedModules(std::vector<ModuleDesc> &supportedModules) {
     return false;
 }
 
-bool Module::saveSupportedModules(std::vector<ModuleDesc> &supportedModules) {
+bool Module::saveSupportedModules(std::vector<ModuleDesc>& supportedModules) {
     std::unique_ptr<juce::XmlElement> xmlModList = std::make_unique<juce::XmlElement>(MODLIST_XML_TAG);
-    for (auto &md : supportedModules) {
+    for (auto& md : supportedModules) {
         std::unique_ptr<juce::XmlElement> xmlMod = std::make_unique<juce::XmlElement>("Module");
         xmlMod->setAttribute("name", md.name);
         xmlMod->setAttribute("desc", md.description);
         std::string catstr;
-        for (auto &cat : md.categories) { catstr += cat + ","; }
+        for (auto& cat : md.categories) { catstr += cat + ","; }
         xmlMod->setAttribute("cat", catstr);
         xmlModList->addChildElement(xmlMod.release());
     }
-    juce::File(juce::String("./")+JucePlugin_Name+"_modules.xml").replaceWithText(xmlModList->toString());
+    juce::File(juce::String("./") + JucePlugin_Name + "_modules.xml").replaceWithText(xmlModList->toString());
     return true;
 }

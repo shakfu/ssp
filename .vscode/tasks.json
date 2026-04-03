@@ -102,6 +102,28 @@
 		},
 		{
 			"type": "cmake",
+			"label": "build MTIN_VST3",
+			"command": "build",
+			"targets": [
+				"MTIN_VST3"
+			],
+			"group": "build",
+			"problemMatcher": [],
+			"detail": "MTIN_VST3"
+		},
+		{
+			"type": "cmake",
+			"label": "build CLKD_VST3",
+			"command": "build",
+			"targets": [
+				"CLKD_VST3"
+			],
+			"group": "build",
+			"problemMatcher": [],
+			"detail": "CLKD_VST3"
+		},
+		{
+			"type": "cmake",
 			"label": "build CART_VST3",
 			"command": "build",
 			"targets": [

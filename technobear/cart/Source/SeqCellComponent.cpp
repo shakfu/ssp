@@ -2,7 +2,7 @@
 
 juce::Colour SeqCellComponent::LAYER_COLOURS[L_CLRS] = { Colours::red, Colours::green, Colours::orange };
 
-SeqCellComponent::SeqCellComponent(PluginProcessor::PluginParams &params, unsigned step)
+SeqCellComponent::SeqCellComponent(PluginProcessor::PluginParams& params, unsigned step)
     : params_(params), step_(step), activeX_(false), activeY_(false), activeC_(false) {
 }
 
@@ -12,7 +12,7 @@ void SeqCellComponent::activeStep(unsigned xP, unsigned yP, unsigned cP) {
     activeC_ = step_ == cP;
 }
 
-void SeqCellComponent::paint(Graphics &g) {
+void SeqCellComponent::paint(Graphics& g) {
     const int sp = 3, ls = 3;
     int sz = getHeight() - (2 * (sp * 2));
     int pos = 2 * sp;
@@ -44,7 +44,7 @@ void SeqCellComponent::paint(Graphics &g) {
 
     // draw cell values
     for (int i = 0; i < 3; i++) {
-        auto &s = params_.layers_[i]->steps_[step_];
+        auto& s = params_.layers_[i]->steps_[step_];
         float v = (s->cv.getValue() * 2.0f) - 1.0f;
         bool gate = s->gate.getValue() > 0.5;
         if (v >= 0) {

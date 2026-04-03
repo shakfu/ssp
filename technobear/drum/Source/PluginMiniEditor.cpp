@@ -6,7 +6,7 @@
 using pcontrol_type = ssp::MiniControl;
 using bcontrol_type = ssp::ParamButton;
 
-PluginMiniEditor::PluginMiniEditor(PluginProcessor &p) : base_type(&p), processor_(p) {
+PluginMiniEditor::PluginMiniEditor(PluginProcessor& p) : base_type(&p), processor_(p) {
     static constexpr unsigned L_CLRS = PluginProcessor::O_MAX;
     static juce::Colour clrs[L_CLRS] = { Colours::cyan,  Colours::red,  Colours::orange,
                                          Colours::green, Colours::blue, Colours::yellow };

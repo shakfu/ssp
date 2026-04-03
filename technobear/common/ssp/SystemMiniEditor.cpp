@@ -6,7 +6,7 @@
 
 namespace ssp {
 
-SystemMiniEditor::SystemMiniEditor(BaseProcessor *p) : SystemEditor(p) {
+SystemMiniEditor::SystemMiniEditor(BaseProcessor* p) : SystemEditor(p) {
     midiInCtrl_.setFontHeight(14 * COMPACT_UI_SCALE);
     midiOutCtrl_.setFontHeight(14 * COMPACT_UI_SCALE);
     midiChannelCtrl_.setFontHeight(14 * COMPACT_UI_SCALE);
@@ -17,11 +17,11 @@ SystemMiniEditor::SystemMiniEditor(BaseProcessor *p) : SystemEditor(p) {
 SystemMiniEditor::~SystemMiniEditor() {
 }
 
-void SystemMiniEditor::paint(Graphics &g) {
+void SystemMiniEditor::paint(Graphics& g) {
     drawView(g);
 }
 
-void SystemMiniEditor::drawButtonBox(Graphics &g) {
+void SystemMiniEditor::drawButtonBox(Graphics& g) {
     g.setColour(Colours::darkgrey);
     unsigned singleButtonH = buttonBarH / 2;
     g.drawHorizontalLine(SSP_COMPACT_HEIGHT - buttonBarH - 1, gap, SSP_COMPACT_WIDTH - gap);
@@ -34,7 +34,7 @@ void SystemMiniEditor::drawButtonBox(Graphics &g) {
     }
 }
 
-void SystemMiniEditor::setButtonBounds(ValueButton &btn, unsigned r, unsigned c) {
+void SystemMiniEditor::setButtonBounds(ValueButton& btn, unsigned r, unsigned c) {
     int offset = gap + (gap / 2);
     int w = paramWidth;
     int h = buttonBarH / 2;
@@ -44,7 +44,7 @@ void SystemMiniEditor::setButtonBounds(ValueButton &btn, unsigned r, unsigned c)
 }
 
 
-void SystemMiniEditor::drawView(Graphics &g) {
+void SystemMiniEditor::drawView(Graphics& g) {
     drawButtonBox(g);
     if (SystemEditor::mode() == M_PARAM) {
         drawLabel(g, "Param", 0);
@@ -79,8 +79,8 @@ void SystemMiniEditor::drawView(Graphics &g) {
 
     y += fh;
 
-    auto &plist = baseProcessor_->getParameters();
-    auto &am = baseProcessor_->midiAutomation();
+    auto& plist = baseProcessor_->getParameters();
+    auto& am = baseProcessor_->midiAutomation();
 
     if (am.empty()) return;
 
@@ -124,7 +124,7 @@ void SystemMiniEditor::drawView(Graphics &g) {
 }
 
 
-void SystemMiniEditor::drawLabel(Graphics &g, const std::string &str, unsigned int idx) {
+void SystemMiniEditor::drawLabel(Graphics& g, const std::string& str, unsigned int idx) {
     static constexpr int fh = 14 * COMPACT_UI_SCALE;
     const int btnTop = SSP_COMPACT_HEIGHT - (fh * 2);
 
@@ -137,7 +137,6 @@ void SystemMiniEditor::drawLabel(Graphics &g, const std::string &str, unsigned i
 
     g.drawSingleLineText(str, x, y);
 }
-
 
 
 void SystemMiniEditor::resized() {

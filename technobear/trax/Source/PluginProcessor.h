@@ -12,8 +12,8 @@
 using namespace juce;
 
 namespace ID {
-#define PARAMETER_ID(str) constexpr const char *str{ #str };
-constexpr const char *separator{ ":" };
+#define PARAMETER_ID(str) constexpr const char* str{ #str };
+constexpr const char* separator{ ":" };
 
 PARAMETER_ID(main)
 
@@ -23,7 +23,7 @@ PARAMETER_ID(main)
 class PluginProcessor : public ssp::BaseProcessor {
 public:
     explicit PluginProcessor();
-    explicit PluginProcessor(const AudioProcessor::BusesProperties &ioLayouts,
+    explicit PluginProcessor(const AudioProcessor::BusesProperties& ioLayouts,
                              AudioProcessorValueTreeState::ParameterLayout layout);
     ~PluginProcessor();
 
@@ -31,9 +31,9 @@ public:
 
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
-    void processBlock(AudioSampleBuffer &, MidiBuffer &) override;
+    void processBlock(AudioSampleBuffer&, MidiBuffer&) override;
 
-    AudioProcessorEditor *createEditor() override;
+    AudioProcessorEditor* createEditor() override;
 
     bool hasEditor() const override { return true; }
 
@@ -50,63 +50,63 @@ public:
 
     std::string getLoadedPlugin(unsigned t, unsigned m) {
         if (t >= MAX_TRACKS || m >= Track::M_MAX) return "";
-        auto &track = tracks_[t];
+        auto& track = tracks_[t];
         return track.modules_[m].pluginName_;
     };
 
-    SSPExtendedApi::PluginEditorInterface *getEditor(unsigned t, unsigned m) {
+    SSPExtendedApi::PluginEditorInterface* getEditor(unsigned t, unsigned m) {
         if (t >= MAX_TRACKS || m >= Track::M_MAX) return nullptr;
-        auto &track = tracks_[t];
-        auto &module = track.modules_[m];
+        auto& track = tracks_[t];
+        auto& module = track.modules_[m];
 
         if (module.plugin_ != nullptr && module.editor_ == nullptr) {
-            module.editor_ = (SSPExtendedApi::PluginEditorInterface *)module.plugin_->getEditor();
+            module.editor_ = (SSPExtendedApi::PluginEditorInterface*)module.plugin_->getEditor();
         }
         return module.editor_;
     };
 
-    SSPExtendedApi::PluginInterface *getPlugin(unsigned t, unsigned m) {
+    SSPExtendedApi::PluginInterface* getPlugin(unsigned t, unsigned m) {
         if (t >= MAX_TRACKS || m >= Track::M_MAX) return nullptr;
-        auto &track = tracks_[t];
+        auto& track = tracks_[t];
         return track.modules_[m].plugin_;
     };
 
-    SSPExtendedApi::PluginDescriptor *getDescriptor(unsigned t, unsigned m) {
+    SSPExtendedApi::PluginDescriptor* getDescriptor(unsigned t, unsigned m) {
         if (t >= MAX_TRACKS || m >= Track::M_MAX) return nullptr;
-        auto &track = tracks_[t];
+        auto& track = tracks_[t];
         return track.modules_[m].descriptor_;
     };
 
-    void getStateInformation(MemoryBlock &destData) override;
-    void setStateInformation(const void *data, int sizeInBytes) override;
+    void getStateInformation(MemoryBlock& destData) override;
+    void setStateInformation(const void* data, int sizeInBytes) override;
     void onInputChanged(unsigned i, bool b) override;
     void onOutputChanged(unsigned i, bool b) override;
 
-    const std::vector<ModuleDesc> &getSupportedModules() { return supportedModules_; }
+    const std::vector<ModuleDesc>& getSupportedModules() { return supportedModules_; }
 
-    bool requestModuleChange(unsigned t, unsigned m, const std::string &mn);
+    bool requestModuleChange(unsigned t, unsigned m, const std::string& mn);
     void loadSupportedModules(bool forceScan = false);
 
-    Track &track(unsigned t) { return tracks_[t]; }
+    Track& track(unsigned t) { return tracks_[t]; }
 
-    void rmsLevels(unsigned t, float &lLevel, float &rLevel) {
+    void rmsLevels(unsigned t, float& lLevel, float& rLevel) {
         lLevel = rmsData_[t][0].lvl();
         rLevel = rmsData_[t][1].lvl();
     }
 
     static constexpr unsigned MAX_TRACKS = 4;
 
-    void presetName(const String &n) { presetName_ = n; }
+    void presetName(const String& n) { presetName_ = n; }
     String presetName() const { return presetName_; }
 
 
-    void presetLoadRequest(const String &n) {
+    void presetLoadRequest(const String& n) {
         requestedPreset_ = n;
         requestPresetLoad_ = true;
         loadPreset();
     }
 
-    void presetSaveRequest(const String &n) {
+    void presetSaveRequest(const String& n) {
         requestedPreset_ = n;
         requestPresetSave_ = true;
         savePreset();
@@ -138,8 +138,8 @@ public:
 
     class PerformanceParam {
     public:
-        PerformanceParam(unsigned t, unsigned m, unsigned p, const std::string &pluginName,
-                         const std::string &paramName, float min = 0.f, float max = 1.f, float def = 0.5f,
+        PerformanceParam(unsigned t, unsigned m, unsigned p, const std::string& pluginName,
+                         const std::string& paramName, float min = 0.f, float max = 1.f, float def = 0.5f,
                          int numSteps = 127, bool isDescrete = false)
             : trackIdx_(t),
               moduleIdx_(m),
@@ -158,8 +158,8 @@ public:
         unsigned moduleIdx() const { return moduleIdx_; }
         unsigned paramIdx() const { return paramIdx_; }
 
-        const std::string &pluginName() const { return pluginName_; }
-        const std::string &paramName() const { return paramName_; }
+        const std::string& pluginName() const { return pluginName_; }
+        const std::string& paramName() const { return paramName_; }
         float min() const { return min_; }
         float max() const { return max_; }
         float def() const { return def_; }
@@ -186,21 +186,21 @@ public:
         float value_;
     };
 
-    bool addPerformanceParam(const PerformanceParam &p);
-    bool removePerformanceParam(const PerformanceParam &p);
+    bool addPerformanceParam(const PerformanceParam& p);
+    bool removePerformanceParam(const PerformanceParam& p);
     bool removePerformanceParam(unsigned t);
     bool removePerformanceParam(unsigned t, unsigned m);
 
-    std::vector<PerformanceParam> &performanceParams() { return performanceParams_; }
+    std::vector<PerformanceParam>& performanceParams() { return performanceParams_; }
 
 
 protected:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
 private:
-    void prepareTrack(Track &track, double sampleRate, int samplesPerBlock);
-    void processTrack(Track &track, AudioSampleBuffer &ioBuffer);
-    bool isBusesLayoutSupported(const BusesLayout &layouts) const override { return true; }
+    void prepareTrack(Track& track, double sampleRate, int samplesPerBlock);
+    void processTrack(Track& track, AudioSampleBuffer& ioBuffer);
+    bool isBusesLayoutSupported(const BusesLayout& layouts) const override { return true; }
 
     std::vector<ModuleDesc> supportedModules_;
 

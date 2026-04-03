@@ -4,7 +4,7 @@
 
 class PerfParamComponent : public juce::Component {
 public:
-    PerfParamComponent(PluginProcessor &p, PluginProcessor::PerformanceParam &param,
+    PerfParamComponent(PluginProcessor& p, PluginProcessor::PerformanceParam& param,
                        juce::Colour fg = juce::Colours::red);
 
     void onSSPTimer();
@@ -14,7 +14,7 @@ public:
     bool active() const { return active_; }
 
 protected:
-    void paint(juce::Graphics &g) override;
+    void paint(juce::Graphics& g) override;
     void sendToPlugin(float V);
 
 private:
@@ -29,6 +29,6 @@ private:
     bool encReset = false;
     bool active_ = false;
     juce::Colour fg_ = juce::Colours::red;
-    PluginProcessor &processor_;
-    PluginProcessor::PerformanceParam &param_;
+    PluginProcessor& processor_;
+    PluginProcessor::PerformanceParam& param_;
 };

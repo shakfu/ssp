@@ -1,6 +1,7 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+
 #include "BaseEditor.h"
 
 
@@ -12,12 +13,9 @@ class BaseParamControl;
 
 class ParamButton;
 
-class MultiViewEditor :
-    public BaseEditor {
-
+class MultiViewEditor : public BaseEditor {
 public:
-    explicit MultiViewEditor(BaseProcessor *p,
-                             unsigned maxView);
+    explicit MultiViewEditor(BaseProcessor* p, unsigned maxView);
 
     void onEncoder(unsigned enc, float v) override;
     void onEncoderSwitch(unsigned enc, bool v) override;
@@ -39,26 +37,14 @@ protected:
     virtual void chgView(int delta);
     virtual void setView(unsigned v);
 
-    virtual ControlPage addParamPage(
-        std::shared_ptr<BaseParamControl> c1,
-        std::shared_ptr<BaseParamControl> c2,
-        std::shared_ptr<BaseParamControl> c3,
-        std::shared_ptr<BaseParamControl> c4,
-        unsigned view,
-        juce::Colour clr=Colours::red
-    );
+    virtual ControlPage addParamPage(std::shared_ptr<BaseParamControl> c1, std::shared_ptr<BaseParamControl> c2,
+                                     std::shared_ptr<BaseParamControl> c3, std::shared_ptr<BaseParamControl> c4,
+                                     unsigned view, juce::Colour clr = Colours::red);
 
-    void addButtonPage(
-        std::shared_ptr<ParamButton> c1,
-        std::shared_ptr<ParamButton> c2,
-        std::shared_ptr<ParamButton> c3,
-        std::shared_ptr<ParamButton> c4,
-        std::shared_ptr<ParamButton> c5,
-        std::shared_ptr<ParamButton> c6,
-        std::shared_ptr<ParamButton> c7,
-        std::shared_ptr<ParamButton> c8,
-        unsigned view
-    );
+    void addButtonPage(std::shared_ptr<ParamButton> c1, std::shared_ptr<ParamButton> c2,
+                       std::shared_ptr<ParamButton> c3, std::shared_ptr<ParamButton> c4,
+                       std::shared_ptr<ParamButton> c5, std::shared_ptr<ParamButton> c6,
+                       std::shared_ptr<ParamButton> c7, std::shared_ptr<ParamButton> c8, unsigned view);
 
     struct View {
         std::vector<ControlPage> controlPages_;
@@ -66,7 +52,7 @@ protected:
     };
     std::vector<View> views_;
 
-    bool encoderFine[4] = {false, false, false, false};
+    bool encoderFine[4] = { false, false, false, false };
 
     unsigned view_ = 0;
     unsigned paramPage_ = 0;
@@ -74,11 +60,7 @@ protected:
 
 private:
     using base_type = BaseEditor;
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MultiViewEditor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MultiViewEditor)
 };
 
-}
-
-
-
-
+}  // namespace ssp
