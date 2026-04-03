@@ -191,7 +191,7 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
         float pitch =
             params_.pitch.convertFrom0to1(params_.pitch.getValue())
             + cv2Pitch(buffer.getSample(I_VOCT, bidx))
-            + (noteInput_ ? noteInputTranspose_ : 0.0f);
+            + (noteInput() ? noteInputTranspose_ : 0.0f);
 
         float position = params_.position.getValue() + buffer.getSample(I_POS, bidx);
         float size = params_.size.getValue() + buffer.getSample(I_SIZE, bidx);

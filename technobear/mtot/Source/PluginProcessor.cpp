@@ -111,9 +111,7 @@ int PluginProcessor::getCCNum(int idx) {
 
 void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMessages) {
     BaseProcessor::processBlock(buffer, midiMessages);
-    if (midiOutDevice_ == nullptr || !(midiOutDevice_->isBackgroundThreadRunning())) {
-        return;
-    }
+    if (! isConnectedMidiOut(getMidiOutName())) return;
 
     unsigned sz = buffer.getNumSamples();
 
@@ -186,7 +184,7 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
     }
 
     if (!midimsgs.isEmpty()) {
-        midiOutDevice_->sendBlockOfMessagesNow(midimsgs);
+        sendMidiMessagesNow(midimsgs);
     }
 }
 

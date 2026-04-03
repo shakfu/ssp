@@ -115,8 +115,8 @@ static const char *MIDI_TAG_NOTE_INPUT = "MIDI_NOTE_IN";
 void BaseProcessor::midiFromXml(juce::XmlElement *xml) {
     auto midiin = xml->getStringAttribute(MIDI_TAG_IN_DEV).toStdString();
     auto midiout = xml->getStringAttribute(MIDI_TAG_OUT_DEV).toStdString();
-    connectMidiIn(midiin);
-    connectMidiOut(midiout);
+    setMidiInDevice(midiin);
+    setMidiOutDevice(midiout);
 
     midiChannel_ = xml->getIntAttribute(MIDI_TAG_CHANNEL, 0);
     noteInput_ = xml->getBoolAttribute(MIDI_TAG_NOTE_INPUT, false);
@@ -289,8 +289,101 @@ std::string BaseProcessor::getMidiOutputDeviceId(const std::string &name) {
     return "";
 }
 
+void BaseProcessor::setMidiInDevice(const std::string &name) {
+    while(!midiDeviceChangeLock.test_and_set()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(MIDI_CHECK_SLEEP_MS / 10));
+    }
+    // user function, so we wait until we reconnect thread is done.
+    connectMidiInDevice(name);
+    createAsyncThreadIfNeeded();
+    midiDeviceChangeLock.clear();
+}
 
-void BaseProcessor::connectMidiIn(const std::string &name) {
+void BaseProcessor::setMidiOutDevice(const std::string &name) {
+    // user function, so we wait until we reconnect thread is done.
+    while(!midiDeviceChangeLock.test_and_set()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(MIDI_CHECK_SLEEP_MS / 10));
+    }
+    connectMidiOutDevice(name);
+    createAsyncThreadIfNeeded();
+    midiDeviceChangeLock.clear();
+}
+
+
+void BaseProcessor::onAsyncThread() {
+#ifdef __APPLE__
+        ssp::log("BaseProcessor::onAsyncThread created");
+#else
+        // place aync thread on UI thread
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(0, &cpuset);
+        int rc = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+        if (rc == 0) {
+            ssp::log("BaseProcessor::onAsyncThread created on UI core");
+        } else {
+            ssp::log("BaseProcessor::onAsyncThread created, failed to push to UI core");
+        }           
+#endif
+
+    while(asyncActive_) {
+        midiCheckCounter_ -= 1;
+        if(midiCheckCounter_ <= 0 ) {
+#ifdef __APPLE__
+            juce::MessageManager::callAsync( [this] {
+                checkMidiDevices();
+            });
+#else
+        checkMidiDevices();
+#endif            
+            midiCheckCounter_ = MIDI_CHECK_FREQ;
+        };
+        std::this_thread::sleep_for(std::chrono::milliseconds(MIDI_CHECK_SLEEP_MS));
+    }
+    ssp::log("BaseProcessor::onAsyncThread destroyed");
+}
+
+
+void BaseProcessor::checkMidiDevices() {
+    if(!midiDeviceChangeLock.test_and_set()) return;
+    // if we cannot grab lock, just backoff until later!
+
+    if(!midiInDeviceName_.empty()) {
+        if(midiInDevice_!=nullptr) {
+            // we are connnected, still ok?
+            auto deviceId = getMidiInputDeviceId(midiInDeviceName_);
+            if(deviceId.empty()) {
+                midiInDevice_->stop();
+                midiInDevice_.reset();
+                midiInStatusChange(false);
+                ssp::log("midi in disconnected : " + midiInDeviceName_);
+            } // else still connected
+        } else {
+            // we are disconncted, reconnect?
+            connectMidiInDevice(midiInDeviceName_);
+        }
+    }
+    if(!midiOutDeviceName_.empty()) {
+        if(midiOutDevice_!=nullptr) {
+            // we are connnected, still ok?
+            auto deviceId = getMidiInputDeviceId(midiOutDeviceName_);
+            if(deviceId.empty()) {
+                midiOutDevice_->stopBackgroundThread();
+                midiOutDevice_.reset();
+                midiOutStatusChange(false);
+                ssp::log("midi out disconnected : " + midiOutDeviceName_);
+            } // else still connected
+        } else {
+            // we are disconncted, reconnect?
+            connectMidiOutDevice(midiOutDeviceName_);
+        }
+    }
+    // imperative we fall thru, don't return so we clear lock
+    midiDeviceChangeLock.clear();
+}
+
+
+void BaseProcessor::connectMidiInDevice(const std::string &name) {
     if (name == midiInDeviceName_ && midiInDevice_ != nullptr) return;
 
     if (midiInDevice_) {
@@ -301,7 +394,6 @@ void BaseProcessor::connectMidiIn(const std::string &name) {
     if (!name.empty() && !isInternalMidi(name) ) {
 
         midiInDeviceName_ = name;
-        createAsyncThreadIfNeeded();
         std::string id = getMidiInputDeviceId(name);
         if (!id.empty()) {
             midiInDevice_ = juce::MidiInput::openDevice(id, this);
@@ -322,7 +414,8 @@ void BaseProcessor::connectMidiIn(const std::string &name) {
     }
 }
 
-void BaseProcessor::connectMidiOut(const std::string &name) {
+
+void BaseProcessor::connectMidiOutDevice(const std::string &name) {
     if (name == midiOutDeviceName_ && midiOutDevice_ != nullptr) return;
 
     if (midiOutDevice_) {
@@ -354,72 +447,8 @@ void BaseProcessor::connectMidiOut(const std::string &name) {
     }
 }
 
-void BaseProcessor::onAsyncThread() {
-#ifdef __APPLE__
-        ssp::log("BaseProcessor::onAsyncThread created");
-#else
-        cpu_set_t cpuset;
-        CPU_ZERO(&cpuset);
-        CPU_SET(0, &cpuset);
-        int rc = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
-        if (rc == 0) {
-            ssp::log("BaseProcessor::onAsyncThread created on UI core");
-        } else {
-            ssp::log("BaseProcessor::onAsyncThread created, failed to push to UI core");
-        }           
-#endif
-
-    while(asyncActive_) {
-        midiCheckCounter_ -= 1;
-        if(midiCheckCounter_ <= 0 ) {
-#ifdef __APPLE__
-            juce::MessageManager::callAsync( [this] {
-                checkMidiDevices();
-            });
-#else
-        checkMidiDevices();
-#endif            
-            midiCheckCounter_ = MIDI_CHECK_FREQ;
-        };
-        std::this_thread::sleep_for(std::chrono::milliseconds(MIDI_CHECK_SLEEP_MS));
-    }
-    ssp::log("BaseProcessor::onAsyncThread destroyed");
-}
-
-
-void BaseProcessor::checkMidiDevices() {
-
-    if(!midiInDeviceName_.empty()) {
-        if(midiInDevice_!=nullptr) {
-            // we are connnected, still ok?
-            auto deviceId = getMidiInputDeviceId(midiInDeviceName_);
-            if(deviceId.empty()) {
-                midiInDevice_->stop();
-                midiInDevice_.reset();
-                midiInStatusChange(false);
-                ssp::log("midi in disconnected : " + midiInDeviceName_);
-            } // else still connected
-        } else {
-            // we are disconncted, reconnect?
-            connectMidiIn(midiInDeviceName_);
-        }
-    }
-    if(!midiOutDeviceName_.empty()) {
-        if(midiOutDevice_!=nullptr) {
-            // we are connnected, still ok?
-            auto deviceId = getMidiInputDeviceId(midiOutDeviceName_);
-            if(deviceId.empty()) {
-                midiOutDevice_->stopBackgroundThread();
-                midiOutDevice_.reset();
-                midiOutStatusChange(false);
-                ssp::log("midi out disconnected : " + midiOutDeviceName_);
-            } // else still connected
-        } else {
-            // we are disconncted, reconnect?
-            connectMidiOut(midiOutDeviceName_);
-        }
-    }
-
+void BaseProcessor::sendMidiMessagesNow(const juce::MidiBuffer& midimsgs) {
+    midiOutDevice_->sendBlockOfMessagesNow(midimsgs);
 }
 
 

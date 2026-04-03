@@ -168,7 +168,7 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
         // control rate
         static constexpr float RngsPitchOffset = 30.f - 6.0f;  // 30 is normal, but 6. makes it in turn at 12 oclock
         float transpose = params_.pitch.convertFrom0to1(params_.pitch.getValue()) + RngsPitchOffset +
-                          (noteInput_ ? noteInputTranspose_ : 0.0f);
+                          (noteInput() ? noteInputTranspose_ : 0.0f);
 
         float note = cv2Pitch(buffer.getSample(I_VOCT, bidx));
         float fm = cv2Pitch(buffer.getSample(I_FM, bidx));

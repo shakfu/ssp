@@ -94,8 +94,8 @@ void SystemEditor::populateMidiDevices() {
             if (baseProcessor_->isActiveMidiIn(name)) {
                 selIdx = idx + 1;  // none
                 // selected is valid, but not connected, attempt reconnect
-                if (!baseProcessor_->isConnectedMidiIn(name)){
-                    baseProcessor_->connectMidiIn(name);
+                if (!baseProcessor_->isConnectedMidiIn(name)){ // TODO - midi needed ?
+                    baseProcessor_->setMidiInDevice(name);
                 }
             }
             idx++;
@@ -125,8 +125,8 @@ void SystemEditor::populateMidiDevices() {
             if (baseProcessor_->isActiveMidiOut(name)) {
                 selIdx = idx + 1;  // none
                 // selected is valid, but not connected, attempt reconnect
-                if (!baseProcessor_->isConnectedMidiOut(name)){
-                    baseProcessor_->connectMidiOut(name);
+                if (!baseProcessor_->isConnectedMidiOut(name)){ // TODO - midi needed ?
+                    baseProcessor_->setMidiOutDevice(name);
                 }
             }
             idx++;
@@ -173,12 +173,12 @@ void SystemEditor::midiInCallback(float idx, const std::string &dev) {
     if (i > 0 && i < inDevices_.size() ) {  // 0 ==  NONE and available
         auto device = inDevices_[i - 1];
         if (!isInternalMidi(device.name)) {
-            baseProcessor_->connectMidiIn(device.name.toStdString());
+            baseProcessor_->setMidiInDevice(device.name.toStdString()); 
             return;
         }
     } else {
         // none, disconnect, unavailable leave 'as is', reconnect thread
-        if(i==0) baseProcessor_->connectMidiIn("");
+        if(i==0) baseProcessor_->setMidiInDevice("");
     }
 }
 
@@ -188,12 +188,12 @@ void SystemEditor::midiOutCallback(float idx, const std::string &dev) {
     if (i > 0 && i < outDevices_.size() ) {  // 0 ==  NONE and available
         auto device = outDevices_[i - 1];
         if (!isInternalMidi(device.name)) {
-            baseProcessor_->connectMidiOut(device.name.toStdString());
+            baseProcessor_->setMidiOutDevice(device.name.toStdString());
             return;
         }
     } else {
         // none, disconnect, unavailable leave 'as is', reconnect thread
-        if(i==0) baseProcessor_->connectMidiOut("");
+        if(i==0) baseProcessor_->setMidiOutDevice("");
     }
 }
 

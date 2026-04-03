@@ -158,7 +158,7 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
         static constexpr float PltsPitchOffset = 60.0f;
         float pitch =
             params_.pitch.convertFrom0to1(params_.pitch.getValue())
-            + (noteInput_ ? noteInputTranspose_ : 0.0f);
+            + (noteInput() ? noteInputTranspose_ : 0.0f);
 
         patch_.engine = (int) constrain(params_.model.convertFrom0to1(params_.model.getValue()),
                                         0.0f, PltsMaxEngine);

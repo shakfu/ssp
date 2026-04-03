@@ -160,7 +160,7 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
 
 void PluginProcessor::handleIncomingMidiMessage(MidiInput *source, const MidiMessage &msg) {
     BaseProcessor::handleIncomingMidiMessage(source, msg);
-    if (midiChannel_ == 0 || msg.getChannel() == midiChannel_) {
+    if (midiChannel() == 0 || msg.getChannel() == midiChannel()) {
         if (msg.isNoteOn()) {
             lastNote_ = msg.getNoteNumber();
             float voct = pitch2Cv(lastNote_ - 60.f) + pitchbend_;

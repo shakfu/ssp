@@ -53,7 +53,7 @@ void PluginProcessor::processBlock(AudioSampleBuffer &buffer, MidiBuffer &midiMe
 void PluginProcessor::handleIncomingMidiMessage(MidiInput *source, const MidiMessage &msg) {
     BaseProcessor::handleIncomingMidiMessage(source, msg);
 
-    if (midiChannel_ == 0 || msg.getChannel() == midiChannel_) {
+    if (midiChannel() == 0 || msg.getChannel() == midiChannel()) {
 //        Logger::writeToLog("handleIncomingMidiMessage -> " + msg.getDescription());
         if (msg.isNoteOnOrOff() || msg.isController() || msg.isPitchWheel()
             || msg.isAftertouch() || msg.isChannelPressure()
