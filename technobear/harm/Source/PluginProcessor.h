@@ -44,8 +44,18 @@ public:
 
     void prepareToPlay(double newSampleRate, int estimatedSamplesPerBlock) override;
 
-    enum { I_VOCT, I_AMP, I_CENTRE, I_SPREAD, I_AMOUNT, I_MAX };
-    enum { O_MAIN, O_MAX };
+    enum {
+        I_VOCT,
+        I_AMP,
+        I_CENTRE,
+        I_SPREAD,
+        I_AMOUNT,
+        I_MAX
+    };
+    enum {
+        O_MAIN,
+        O_MAX
+    };
 
     static constexpr unsigned MAX_HARMONICS = 16;
 

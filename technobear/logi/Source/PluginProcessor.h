@@ -60,9 +60,26 @@ public:
         return props;
     }
 
-    enum { I_IN_A1, I_IN_B1, I_IN_A2, I_IN_B2, I_IN_A3, I_IN_B3, I_IN_A4, I_IN_B4, I_MAX };
+    enum {
+        I_IN_A1,
+        I_IN_B1,
+        I_IN_A2,
+        I_IN_B2,
+        I_IN_A3,
+        I_IN_B3,
+        I_IN_A4,
+        I_IN_B4,
+        I_MAX
+    };
 
-    enum { O_OUT_ALL, O_OUT_1, O_OUT_2, O_OUT_3, O_OUT_4, O_MAX };
+    enum {
+        O_OUT_ALL,
+        O_OUT_1,
+        O_OUT_2,
+        O_OUT_3,
+        O_OUT_4,
+        O_MAX
+    };
 
 protected:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

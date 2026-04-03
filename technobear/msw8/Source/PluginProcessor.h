@@ -57,8 +57,30 @@ protected:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
 public:
-    enum { I_IN_SEL, I_OUT_SEL, I_SIG_1, I_SIG_2, I_SIG_3, I_SIG_4, I_SIG_5, I_SIG_6, I_SIG_7, I_SIG_8, I_MAX };
-    enum { O_SIG_A, O_SIG_B, O_SIG_C, O_SIG_D, O_SIG_E, O_SIG_F, O_SIG_G, O_SIG_H, O_MAX };
+    enum {
+        I_IN_SEL,
+        I_OUT_SEL,
+        I_SIG_1,
+        I_SIG_2,
+        I_SIG_3,
+        I_SIG_4,
+        I_SIG_5,
+        I_SIG_6,
+        I_SIG_7,
+        I_SIG_8,
+        I_MAX
+    };
+    enum {
+        O_SIG_A,
+        O_SIG_B,
+        O_SIG_C,
+        O_SIG_D,
+        O_SIG_E,
+        O_SIG_F,
+        O_SIG_G,
+        O_SIG_H,
+        O_MAX
+    };
 
     static BusesProperties getBusesProperties() {
         BusesProperties props;

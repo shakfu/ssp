@@ -1,40 +1,21 @@
 # thing left to do ...
-mainly concerned with refactoring ! 
 
+the refactoring was all complete and tested and released.
+really this todo is left to capture some ideas, ,and also for a few things to verify
+that came about whilst refactoring for the xmx, and so going over a lot of the code
 
-
-## refactor in progress !
-
-SSPActions - new events! 
-
-these events represent button clicks, and so 'gestures' and are an abstraction above onButton, which has up/down 
-in particular we can use to represent a consistent ui, e.g. action on release.
-also, we now have gestures like 'combo buttons' and long press
-its important plugins move to these to prevent oddities wwhen used in more complex ui in particular xmix/dmod 
-
-note : existing on.. calls will still work, and still do have uses
-(e.g. pressing a key and wanting user feedback)
-
-however, if pluging is going to be used within xmix it will need to use these new events.
+mostly, the idea is to reduce the complexity of the editors and views, 
+there are quite a few subtle variations.
 
 
 
 
 TO DO  - HIGH PRIO
 ------------------
-- BaseView has timer removed 
-this was moved to SSPUI, timer used to call onSSPTimer, and repaint.
-SSPUI calls onSSP however, we do not call repaint()
-- check DATA due to above (as it needs to repaint periodically)
 
 
 TO DO  - MED PRIO
 ------------------
-- Text Edit... test check working as intended, see belo (for TextControl)
-- retest all plugins on SSP look for 'oddities'
-- PMIX ... check is not broken, perhaps move to new events - but its complex! 
-- review editor/view classes, and refactor see below
-- review concept of 'close' for views, so that parent does not have to have handling code (see trax)
 
 
 
@@ -45,6 +26,8 @@ cart gate length is len of trig input... so ui may poll at 'wrong time' and neve
 we could 'cache' the gate, in processor for a while, so UI sees it.
 alt: support configurable gate length, or nearly as long as step?
 alt2: UI could just show the value of gate step... i.e. not the output (not nice !?)
+- seen this on clkd too
+perhaps, this might be something to do in DATA?
 
 
 OTHER

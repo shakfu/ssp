@@ -45,8 +45,26 @@ public:
 
     void prepareToPlay(double newSampleRate, int estimatedSamplesPerBlock) override;
 
-    enum { I_CLK, I_RESET, I_RUN, I_MIDICLK, I_MAX };
-    enum { O_CLK_1, O_CLK_2, O_CLK_3, O_CLK_4, O_CLK_5, O_CLK_6, O_CLK_7, O_CLK_8, O_RESET, O_RUN, O_MAX };
+    enum {
+        I_CLK,
+        I_RESET,
+        I_RUN,
+        I_MIDICLK,
+        I_MAX
+    };
+    enum {
+        O_CLK_1,
+        O_CLK_2,
+        O_CLK_3,
+        O_CLK_4,
+        O_CLK_5,
+        O_CLK_6,
+        O_CLK_7,
+        O_CLK_8,
+        O_RESET,
+        O_RUN,
+        O_MAX
+    };
 
     static constexpr unsigned MAX_CLK_OUT = (O_CLK_8 - O_CLK_1) + 1;
 

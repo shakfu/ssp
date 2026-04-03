@@ -92,7 +92,15 @@ public:
         I_HH2_ACCENT,
         I_MAX
     };
-    enum { O_AB, O_SB, O_AS, O_SS, O_HH1, O_HH2, O_MAX };
+    enum {
+        O_AB,
+        O_SB,
+        O_AS,
+        O_SS,
+        O_HH1,
+        O_HH2,
+        O_MAX
+    };
 
     struct DrumBaseParam {
         using Parameter = juce::RangedAudioParameter;
