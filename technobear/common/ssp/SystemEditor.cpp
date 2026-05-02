@@ -92,15 +92,16 @@ void SystemEditor::populateMidiDevices() {
     int idx = 0;
     for (int i = 0; i < in.size(); i++) {
         auto name = in[i].name.toStdString();
+        auto id = in[i].identifier.toStdString();
         // ssp::log(("Midi Input : " + name);
         if (!isInternalMidi(name)) {
             inDevices_.push_back(in[i]);
             midiInStr_.push_back(std::to_string(idx) + ":" + name);
-            if (baseProcessor_->isActiveMidiIn(name)) {
+            if (baseProcessor_->isActiveMidiIn(id)) {
                 selIdx = idx + 1;  // none
                 // selected is valid, but not connected, attempt reconnect
-                if (!baseProcessor_->isConnectedMidiIn(name)) {  // TODO - midi needed ?
-                    baseProcessor_->setMidiInDevice(name);
+                if (!baseProcessor_->isConnectedMidiIn(id)) {  // TODO - midi needed ?
+                    baseProcessor_->setMidiInDevice(id);
                 }
             }
             idx++;
@@ -108,9 +109,9 @@ void SystemEditor::populateMidiDevices() {
     }
 
     if (selIdx == -1) {
-        auto name = baseProcessor_->getMidiInName();
-        if (!name.empty()) {
-            midiInStr_.push_back(std::to_string(idx) + ":" + name + " ! ");
+        auto id = baseProcessor_->getMidiInId();
+        if (!id.empty()) {
+            midiInStr_.push_back(std::to_string(idx) + ":" + id + " ! ");
             selIdx = idx + 1;
         }
     }
@@ -123,24 +124,25 @@ void SystemEditor::populateMidiDevices() {
     midiOutStr_.push_back("NONE");
     for (int i = 0; i < out.size(); i++) {
         auto name = out[i].name.toStdString();
+        auto id = in[i].identifier.toStdString();
         // ssp::log(("Midi Output : " + mame);
         if (!isInternalMidi(name)) {
             outDevices_.push_back(out[i]);
             midiOutStr_.push_back(std::to_string(idx) + ":" + name);
-            if (baseProcessor_->isActiveMidiOut(name)) {
+            if (baseProcessor_->isActiveMidiOut(id)) {
                 selIdx = idx + 1;  // none
                 // selected is valid, but not connected, attempt reconnect
-                if (!baseProcessor_->isConnectedMidiOut(name)) {  // TODO - midi needed ?
-                    baseProcessor_->setMidiOutDevice(name);
+                if (!baseProcessor_->isConnectedMidiOut(id)) {  // TODO - midi needed ?
+                    baseProcessor_->setMidiOutDevice(id);
                 }
             }
             idx++;
         }
     }
     if (selIdx == -1) {
-        auto name = baseProcessor_->getMidiOutName();
-        if (!name.empty()) {
-            midiOutStr_.push_back(std::to_string(idx) + ":" + name + " ! ");
+        auto id = baseProcessor_->getMidiOutId();
+        if (!id.empty()) {
+            midiOutStr_.push_back(std::to_string(idx) + ":" + id + " ! ");
             selIdx = idx + 1;
         }
     }
@@ -172,31 +174,31 @@ void SystemEditor::mode(UI_Mode m) {
 
 void SystemEditor::midiInCallback(float idx, const std::string& dev) {
     //    Logger::writeToLog("midiInCallback -> " + String(idx) + " : " + dev);
-    unsigned i = idx;
-    if (i > 0 && i < inDevices_.size()) {  // 0 ==  NONE and available
-        auto device = inDevices_[i - 1];
+    int i = idx - 1; // 0 ==  NONE and available
+    if (i >= 0 && i < inDevices_.size()) { 
+        auto device = inDevices_[i];
         if (!isInternalMidi(device.name)) {
-            baseProcessor_->setMidiInDevice(device.name.toStdString());
+            baseProcessor_->setMidiInDevice(device.identifier.toStdString());
             return;
         }
     } else {
         // none, disconnect, unavailable leave 'as is', reconnect thread
-        if (i == 0) baseProcessor_->setMidiInDevice("");
+        if (idx == 0) baseProcessor_->setMidiInDevice("");
     }
 }
 
 void SystemEditor::midiOutCallback(float idx, const std::string& dev) {
     //    Logger::writeToLog("midiOutCallback -> " + String(idx) + " : " + dev);
-    unsigned i = idx;
-    if (i > 0 && i < outDevices_.size()) {  // 0 ==  NONE and available
-        auto device = outDevices_[i - 1];
+    int i = idx - 1; // 0 ==  NONE and available
+    if (i >= 0 && i < outDevices_.size()) {  
+        auto device = outDevices_[i];
         if (!isInternalMidi(device.name)) {
-            baseProcessor_->setMidiOutDevice(device.name.toStdString());
+            baseProcessor_->setMidiOutDevice(device.identifier.toStdString());
             return;
         }
     } else {
         // none, disconnect, unavailable leave 'as is', reconnect thread
-        if (i == 0) baseProcessor_->setMidiOutDevice("");
+        if (idx == 0) baseProcessor_->setMidiOutDevice("");
     }
 }
 
