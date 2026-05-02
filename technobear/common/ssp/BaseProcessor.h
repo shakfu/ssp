@@ -58,16 +58,16 @@ public:
 
     bool isInputEnabled(unsigned i) { return i < numIn && inputEnabled[i]; }
 
-    void setMidiInDevice(const std::string& name);
-    void setMidiOutDevice(const std::string& name);
+    void setMidiInDevice(const std::string& id);
+    void setMidiOutDevice(const std::string& id);
 
-    bool isActiveMidiIn(const std::string& name) { return midiInDeviceName_ == name; }
-    bool isConnectedMidiIn(const std::string& name) { return midiInDevice_ != nullptr && isActiveMidiIn(name); }
-    std::string getMidiInName() { return midiInDeviceName_; }
+    bool isActiveMidiIn(const std::string& id) { return midiInDeviceId_ == id; }
+    bool isConnectedMidiIn(const std::string& id) { return midiInDevice_ != nullptr && isActiveMidiIn(id); }
+    std::string getMidiInId() { return midiInDeviceId_; }
 
-    bool isActiveMidiOut(const std::string& name) { return midiOutDeviceName_ == name; }
-    bool isConnectedMidiOut(const std::string& name) { return midiOutDevice_ != nullptr && isActiveMidiOut(name); }
-    std::string getMidiOutName() { return midiOutDeviceName_; }
+    bool isActiveMidiOut(const std::string& id) { return midiOutDeviceId_ == id; }
+    bool isConnectedMidiOut(const std::string& id) { return midiOutDevice_ != nullptr && isActiveMidiOut(id); }
+    std::string getMidiOutId() { return midiOutDeviceId_; }
 
     void midiLearn(bool b);
 
@@ -117,6 +117,10 @@ public:
 
 
 protected:
+
+    bool isMidiInputDeviceIdValid(const std::string& id);
+    bool isMidiOutputDeviceIdValid(const std::string& id);
+
     friend class BaseEditor;
 
     friend class SystemEditor;
@@ -174,16 +178,16 @@ public:
     std::map<int, MidiAutomation>& midiAutomation() { return midiAutomation_; }
 
 private:
-    void connectMidiInDevice(const std::string& name);
-    void connectMidiOutDevice(const std::string& name);
+    void connectMidiInDevice(const std::string& id);
+    void connectMidiOutDevice(const std::string& id);
 
-    std::string getMidiInputDeviceId(const std::string& name);
-    std::string getMidiOutputDeviceId(const std::string& name);
+    std::string getMidiInputDeviceName(const std::string& id);
+    std::string getMidiOutputDeviceName(const std::string& id);
     void createAsyncThreadIfNeeded();
 
 
-    std::string midiInDeviceName_;
-    std::string midiOutDeviceName_;
+    std::string midiInDeviceId_;
+    std::string midiOutDeviceId_;
     std::unique_ptr<juce::MidiInput> midiInDevice_;
     std::unique_ptr<juce::MidiOutput> midiOutDevice_;
     int midiCheckCounter_ = 0;

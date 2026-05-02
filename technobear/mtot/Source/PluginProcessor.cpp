@@ -90,7 +90,7 @@ int PluginProcessor::getCCNum(int idx) {
 
 void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages) {
     BaseProcessor::processBlock(buffer, midiMessages);
-    if (!isConnectedMidiOut(getMidiOutName())) return;
+    if (!isConnectedMidiOut(getMidiOutId())) return;
 
     unsigned sz = buffer.getNumSamples();
 

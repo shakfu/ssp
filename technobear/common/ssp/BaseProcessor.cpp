@@ -124,8 +124,8 @@ void BaseProcessor::midiFromXml(juce::XmlElement* xml) {
 }
 
 void BaseProcessor::midiToXml(juce::XmlElement* xml) {
-    xml->setAttribute(MIDI_TAG_IN_DEV, midiInDeviceName_);
-    xml->setAttribute(MIDI_TAG_OUT_DEV, midiOutDeviceName_);
+    xml->setAttribute(MIDI_TAG_IN_DEV, midiInDeviceId_);
+    xml->setAttribute(MIDI_TAG_OUT_DEV, midiOutDeviceId_);
     xml->setAttribute(MIDI_TAG_CHANNEL, midiChannel_);
     xml->setAttribute(MIDI_TAG_NOTE_INPUT, noteInput_);
 
@@ -252,38 +252,38 @@ inline bool isInternalMidi(const juce::String& name) {
     return name.contains("Juce") || name.contains("Midi Through Port");
 }
 
-std::string BaseProcessor::getMidiInputDeviceId(const std::string& name) {
+bool BaseProcessor::isMidiInputDeviceIdValid(const std::string& id) {
     auto devs = juce::MidiInput::getAvailableDevices();
     for (int i = 0; i < devs.size(); i++) {
-        if (devs[i].name.toStdString() == name) { return devs[i].identifier.toStdString(); }
+        if (devs[i].identifier.toStdString() == id)  return true;
     }
-    return "";
+    return false;
 }
 
-std::string BaseProcessor::getMidiOutputDeviceId(const std::string& name) {
+bool BaseProcessor::isMidiOutputDeviceIdValid(const std::string& id) {
     auto devs = juce::MidiOutput::getAvailableDevices();
     for (int i = 0; i < devs.size(); i++) {
-        if (devs[i].name.toStdString() == name) { return devs[i].identifier.toStdString(); }
+        if (devs[i].identifier.toStdString() == id)  return true;
     }
-    return "";
+    return false;
 }
 
-void BaseProcessor::setMidiInDevice(const std::string& name) {
+void BaseProcessor::setMidiInDevice(const std::string& id) {
     while (!midiDeviceChangeLock.test_and_set()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(MIDI_CHECK_SLEEP_MS / 10));
     }
     // user function, so we wait until we reconnect thread is done.
-    connectMidiInDevice(name);
+    connectMidiInDevice(id);
     createAsyncThreadIfNeeded();
     midiDeviceChangeLock.clear();
 }
 
-void BaseProcessor::setMidiOutDevice(const std::string& name) {
+void BaseProcessor::setMidiOutDevice(const std::string& id) {
     // user function, so we wait until we reconnect thread is done.
     while (!midiDeviceChangeLock.test_and_set()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(MIDI_CHECK_SLEEP_MS / 10));
     }
-    connectMidiOutDevice(name);
+    connectMidiOutDevice(id);
     createAsyncThreadIfNeeded();
     midiDeviceChangeLock.clear();
 }
@@ -325,34 +325,33 @@ void BaseProcessor::checkMidiDevices() {
     if (!midiDeviceChangeLock.test_and_set()) return;
     // if we cannot grab lock, just backoff until later!
 
-    if (!midiInDeviceName_.empty()) {
+    if (!midiInDeviceId_.empty()) {
         if (midiInDevice_ != nullptr) {
             // we are connnected, still ok?
-            auto deviceId = getMidiInputDeviceId(midiInDeviceName_);
-            if (deviceId.empty()) {
+            if (!isMidiInputDeviceIdValid(midiInDeviceId_)) {
                 midiInDevice_->stop();
                 midiInDevice_.reset();
                 midiInStatusChange(false);
-                ssp::log("midi in disconnected : " + midiInDeviceName_);
+                ssp::log("midi in disconnected : " + midiInDeviceId_);
             }  // else still connected
         } else {
             // we are disconncted, reconnect?
-            connectMidiInDevice(midiInDeviceName_);
+            connectMidiInDevice(midiInDeviceId_);
         }
     }
-    if (!midiOutDeviceName_.empty()) {
+
+    if (!midiOutDeviceId_.empty()) {
         if (midiOutDevice_ != nullptr) {
             // we are connnected, still ok?
-            auto deviceId = getMidiInputDeviceId(midiOutDeviceName_);
-            if (deviceId.empty()) {
+            if (!isMidiOutputDeviceIdValid(midiOutDeviceId_)) {
                 midiOutDevice_->stopBackgroundThread();
                 midiOutDevice_.reset();
                 midiOutStatusChange(false);
-                ssp::log("midi out disconnected : " + midiOutDeviceName_);
+                ssp::log("midi out disconnected : " + midiOutDeviceId_);
             }  // else still connected
         } else {
             // we are disconncted, reconnect?
-            connectMidiOutDevice(midiOutDeviceName_);
+            connectMidiOutDevice(midiOutDeviceId_);
         }
     }
     // imperative we fall thru, don't return so we clear lock
@@ -360,66 +359,64 @@ void BaseProcessor::checkMidiDevices() {
 }
 
 
-void BaseProcessor::connectMidiInDevice(const std::string& name) {
-    if (name == midiInDeviceName_ && midiInDevice_ != nullptr) return;
+void BaseProcessor::connectMidiInDevice(const std::string& id) {
+    if (id == midiInDeviceId_ && midiInDevice_ != nullptr) return;
 
     if (midiInDevice_) {
         midiInDevice_->stop();
         midiInDevice_ = nullptr;
     }
 
-    if (!name.empty() && !isInternalMidi(name)) {
-        midiInDeviceName_ = name;
-        std::string id = getMidiInputDeviceId(name);
-        if (!id.empty()) {
-            midiInDevice_ = juce::MidiInput::openDevice(id, this);
-            if (midiInDevice_ && midiInDevice_->getIdentifier().toStdString() == id) {
-                midiInDevice_->start();
-                // Logger::writeToLog(getName() + ": MIDI IN OPEN -> " + id);
-                ssp::log("midi in connected : " + midiInDeviceName_);
-                midiInStatusChange(true);
-                return;
-            } else {
-                ssp::log("midi in failed to connect : " + midiInDeviceName_);
-                // Logger::writeToLog(getName() + ": MIDI IN FAILED -> " + id);
-            }
+    // std::string name = getMidiInputDeviceId(id);
+    // if (!id.empty() && !isInternalMidi(name)) { 
+    // lets assume front end filter internal midi devices, so we dont have to look up name
+    if (!id.empty()) {
+        midiInDeviceId_ = id;
+        midiInDevice_ = juce::MidiInput::openDevice(midiInDeviceId_, this);
+        if (midiInDevice_ && midiInDevice_->getIdentifier().toStdString() == midiInDeviceId_) {
+            midiInDevice_->start();
+            // Logger::writeToLog(getName() + ": MIDI IN OPEN -> " + id);
+            ssp::log("midi in connected : " + midiInDeviceId_);
+            midiInStatusChange(true);
+            return;
+        } else {
+            ssp::log("midi in failed to connect : " + midiInDeviceId_);
+            // Logger::writeToLog(getName() + ": MIDI IN FAILED -> " + id);
         }
     } else {
         midiInDevice_ = nullptr;
-        midiInDeviceName_ = "";
+        midiInDeviceId_ = "";
     }
 }
 
 
-void BaseProcessor::connectMidiOutDevice(const std::string& name) {
-    if (name == midiOutDeviceName_ && midiOutDevice_ != nullptr) return;
+void BaseProcessor::connectMidiOutDevice(const std::string& id) {
+    if (id == midiOutDeviceId_ && midiOutDevice_ != nullptr) return;
 
     if (midiOutDevice_) {
         midiOutDevice_->stopBackgroundThread();
         midiOutDevice_ = nullptr;
     }
 
-    if (!name.empty() && !isInternalMidi(name)) {
-        midiOutDeviceName_ = name;
+    // std::string name = getMidiOutputDeviceId(name);
+    // if (!id.empty() && !isInternalMidi(name)) { 
+    // lets assume front end filter internal midi devices, so we dont have to look up name
+    if (!id.empty()) {
+        midiOutDeviceId_ = id;
         createAsyncThreadIfNeeded();
-        std::string id = getMidiOutputDeviceId(name);
-        if (!id.empty()) {
-            midiOutDevice_ = juce::MidiOutput::openDevice(id);
-            if (midiOutDevice_ && midiOutDevice_->getIdentifier().toStdString() == id) {
-                midiOutDevice_->startBackgroundThread();
-                // Logger::writeToLog(getName() + ": MIDI OUT OPEN -> " + id);
-                ssp::log("midi out connected : " + midiOutDeviceName_);
-                midiOutStatusChange(true);
-                return;
-            } else {
-                ssp::log("midi out failed to connect : " + midiOutDeviceName_);
-            }
+        midiOutDevice_ = juce::MidiOutput::openDevice(midiOutDeviceId_);
+        if (midiOutDevice_ && midiOutDevice_->getIdentifier().toStdString() == midiOutDeviceId_) {
+            midiOutDevice_->startBackgroundThread();
+            // Logger::writeToLog(getName() + ": MIDI OUT OPEN -> " + id);
+            ssp::log("midi out connected : " + midiOutDeviceId_);
+            midiOutStatusChange(true);
+            return;
         } else {
-            // Logger::writeToLog(getName() + ": MIDI OUT FAILED -> " + id);
+            ssp::log("midi out failed to connect : " + midiOutDeviceId_);
         }
     } else {
         midiOutDevice_ = nullptr;
-        midiOutDeviceName_ = "";
+        midiOutDeviceId_ = "";
     }
 }
 
