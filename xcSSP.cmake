@@ -15,7 +15,10 @@ if(DEFINED ENV{SSP_BUILDROOT})
 elseif (DEFINED ENV{BUILDROOT})
     set(BUILDROOT $ENV{BUILDROOT})
 else ()
-    message("warning: BUILDROOT environment variable missing")
+    set(BUILDROOT ${CMAKE_CURRENT_LIST_DIR}/buildroot/arm-rockchip-linux-gnueabihf_sdk-buildroot)
+    if (NOT EXISTS ${BUILDROOT})
+        message(FATAL_ERROR "set SSP_BUILDROOT, or extract the SSP buildroot to ${BUILDROOT}")
+    endif ()
 endif ()
 
 set(CMAKE_SYSROOT ${BUILDROOT}/arm-rockchip-linux-gnueabihf/sysroot)
@@ -23,15 +26,15 @@ set(CMAKE_SYSROOT ${BUILDROOT}/arm-rockchip-linux-gnueabihf/sysroot)
 if (DEFINED ENV{TOOLSROOT})
     set(TOOLSROOT $ENV{TOOLSROOT})
 else ()
-    # sensible defaults
-    if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    # sensible defaults; CMAKE_SYSTEM_NAME is still empty on the first toolchain pass
+    if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
         # assume we are using homebrew
         if (${CMAKE_HOST_SYSTEM_PROCESSOR} MATCHES "arm64")        
             set(TOOLSROOT /opt/homebrew/opt/llvm/bin)
         else ()
             set(TOOLSROOT /usr/local/opt/llvm/bin)
         endif()
-    elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    elseif (CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
         set(TOOLSROOT "/usr/bin")
     endif ()
 endif ()
@@ -53,9 +56,9 @@ set(CMAKE_C_COMPILER_TARGET ${triple})
 set(CMAKE_CXX_COMPILER_TARGET ${triple})
 
 
-set(ENV{PKG_CONFIG_DIR} "")
-set(ENV{PKG_CONFIG_LIBDIR} "${CMAKE_SYSROOT}/usr/lib/pkgconfig:${CMAKE_SYSROOT}/usr/share/pkgconfig")
-set(ENV{PKG_CONFIG_SYSROOT_DIR} ${CMAKE_SYSROOT})
+# pass sysroot settings inside ENV{PKG_CONFIG}, which JUCE unsets for its host juceaide build;
+# plain PKG_CONFIG_SYSROOT_DIR leaks into that build and adds sysroot headers on Linux hosts
+set(ENV{PKG_CONFIG} "${CMAKE_COMMAND} -E env --unset=PKG_CONFIG_PATH PKG_CONFIG_LIBDIR=${CMAKE_SYSROOT}/usr/lib/pkgconfig:${CMAKE_SYSROOT}/usr/share/pkgconfig PKG_CONFIG_SYSROOT_DIR=${CMAKE_SYSROOT} pkg-config")
 
 
 set(SSP_LINK_FLAGS "${SSP_LINK_FLAGS} -L${CMAKE_SYSROOT}/lib -B${CMAKE_SYSROOT}/lib")

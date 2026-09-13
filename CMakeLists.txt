@@ -3,6 +3,13 @@ project(sspdev)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# every plugin compiles its own copy of the JUCE modules; ccache makes clean rebuilds cheap
+find_program(CCACHE_PROGRAM ccache)
+if (CCACHE_PROGRAM AND NOT CMAKE_CXX_COMPILER_LAUNCHER)
+    set(CMAKE_C_COMPILER_LAUNCHER ${CCACHE_PROGRAM})
+    set(CMAKE_CXX_COMPILER_LAUNCHER ${CCACHE_PROGRAM})
+endif ()
 #set(CMAKE_CXX_EXTENSIONS OFF)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
@@ -46,7 +53,7 @@ set(INSTALL_PLUGIN 0)
 endif()
 
 
-add_subdirectory(daisySP)
+add_subdirectory(DaisySP)
 add_subdirectory(technobear)
 #add_subdirectory(apps)
 
