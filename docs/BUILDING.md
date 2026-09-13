@@ -59,6 +59,36 @@ similar, it may be you can get a cross-compilation running under windows, since 
 
 
 
+## cross compile on Linux
+
+Tested on Ubuntu 24.04 with clang 18 and CMake 3.28.
+
+```
+sudo apt install cmake clang lld pkg-config curl zip \
+    libx11-dev libxext-dev libxrandr-dev libxinerama-dev libxcursor-dev \
+    libxrender-dev libxcomposite-dev libfreetype-dev libfontconfig1-dev
+make
+```
+
+On first run, `make` downloads the SSP buildroot (608 MB) into `./buildroot`.
+It then configures with the `ssp toolchain` preset and builds into `build.cmake.ssp`.
+Plugins land in `build.cmake.ssp/technobear/*/*_artefacts/Release/VST3/*.vst3/Contents/armv7l-linux/*.so`.
+
+The X11, freetype and fontconfig headers are for `juceaide`.
+JUCE builds this tool for the host during configure.
+
+| target | action |
+|-|-|
+| `make` | build all plugins |
+| `make release` | strip into `releases/ssp/plugins`, package `tb_plugins_ssp.zip` |
+| `make deploy` | copy all plugins to `SSP_HOST` |
+| `make deploy-mod MOD=attn` | copy one plugin to `SSP_HOST` |
+| `make clean` | remove `build.cmake.ssp` |
+
+Variables: `SSP_BUILDROOT` (use an existing buildroot), `SSP_HOST` (default `root@192.168.0.150`), `JOBS`.
+`make help` lists all targets.
+
+
 ## testing
 I do a good amount of the development on macOS, so you can build the plugins under macOS using cmake. I use Jetbrain's CLion which can import the cmake project and 
 
