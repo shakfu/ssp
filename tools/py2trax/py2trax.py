@@ -11,6 +11,7 @@ Schema, commands and limits: see README.md.
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import pathlib
 import re
@@ -29,6 +30,12 @@ XML_HEADER = '<?xml version="1.0" encoding="UTF-8"?> '
 # MemoryBlock::toBase64Encoding - JUCE's own table, not RFC 4648.
 B64_TABLE = ".ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+"
 B64_DECODE = {c: i for i, c in enumerate(B64_TABLE)}
+
+
+BUILTIN_CHANNELS = {
+    M_IN: {"outputs": [f"In {i}" for i in range(8)], "inputs": []},
+    M_OUT: {"inputs": [f"Out {i}" for i in range(2)], "outputs": []},
+}
 
 
 class PresetError(Exception):
@@ -128,11 +135,11 @@ def slot_name(index: int) -> str:
     return {M_IN: "in", M_OUT: "out"}.get(index, str(index))
 
 
-def parse_jack(text: str) -> tuple[int, int]:
+def parse_jack(text: str) -> tuple[int, str]:
     slot, sep, channel = str(text).partition(":")
-    if not sep or not channel.strip().isdigit():
+    if not sep or not channel.strip():
         raise PresetError(f"bad jack {text!r}: expected '<slot>:<channel>', e.g. '1:0'")
-    return slot_index(slot), int(channel)
+    return slot_index(slot), channel.strip()
 
 
 def format_jack(slot: int, channel: int) -> str:
@@ -162,6 +169,12 @@ def parse_wire(wire) -> dict:
     }
 
 
+def channel_names(slot: int, module: str | None, direction: str, manifest: dict | None) -> list | None:
+    if slot in BUILTIN_CHANNELS:
+        return BUILTIN_CHANNELS[slot][direction]
+    return (manifest or {}).get(module, {}).get(direction)
+
+
 def format_number(value) -> str:
     """Values pass through as strings so a decoded preset re-encodes unchanged."""
     if isinstance(value, str):
@@ -172,6 +185,9 @@ def format_number(value) -> str:
 
 
 # --- parameter manifest ------------------------------------------------------
+
+BUS_RE = re.compile(r"static\s+String\s+(in|out)BusName\s*\[[^\]]*\]\s*=\s*\{(.*?)\}\s*;", re.S)
+QUOTED_RE = re.compile(r'"([^"]*)"')
 
 PARAM_RE = re.compile(
     r"make_unique<\s*ssp::Base(Float|Bool|Choice|Int)Parameter\s*>\s*\(\s*ID::(\w+)\s*,\s*\"([^\"]*)\""
@@ -200,8 +216,33 @@ def scan_modules(root: pathlib.Path) -> dict:
                 continue
             params[name] = symbol
         skipped = len(COMPOSED_RE.findall(text)) + len(unresolved)
-        manifest[module] = {"params": params, "skipped": skipped}
+
+        # Channel names, where the module declares them as a literal array. loop, gra4 and
+        # pmix build theirs from the index, so those stay unknown and go unvalidated.
+        channels = {direction: QUOTED_RE.findall(body) for direction, body in BUS_RE.findall(text)}
+        manifest[module] = {
+            "params": params,
+            "skipped": skipped,
+            "inputs": channels.get("in"),
+            "outputs": channels.get("out"),
+        }
     return manifest
+
+
+def resolve_channel(channel: str, names: list | None, label: str) -> int:
+    """A channel is an index, or one of the module's own channel names."""
+    if channel.isdigit():
+        index = int(channel)
+        if names is not None and index >= len(names):
+            raise PresetError(f"{label} {index} does not exist: there are {len(names)}")
+        return index
+
+    if names is None:
+        raise PresetError(f"cannot resolve {label} {channel!r}: this module's channel names are not known")
+    lowered = [name.lower() for name in names]
+    if channel.lower() not in lowered:
+        raise PresetError(f"no {label} named {channel!r}")
+    return lowered.index(channel.lower())
 
 
 def resolve_param(module: str, key: str, manifest: dict | None) -> str:
@@ -271,9 +312,10 @@ def _encode_track(element: ET.Element, track: dict, manifest: dict | None) -> No
 
     modules = {slot_index(k): v for k, v in track.get("modules", {}).items()}
     params = {slot_index(k): v for k, v in track.get("params", {}).items()}
-    for slot in params:
+    states = {slot_index(k): v for k, v in track.get("state", {}).items()}
+    for slot in set(params) | set(states):
         if slot not in modules:
-            raise PresetError(f"params for slot {slot_name(slot)} but no module loaded there")
+            raise PresetError(f"params or state for slot {slot_name(slot)} but no module loaded there")
 
     xml_modules = ET.SubElement(element, "Modules")
     for slot in range(M_MAX):
@@ -286,7 +328,7 @@ def _encode_track(element: ET.Element, track: dict, manifest: dict | None) -> No
             continue
         # Track::setStateInformation only loads a module when dataSz > 0, so every
         # occupied slot carries a <data> block even when no parameters are set.
-        state = _module_state(name, params.get(slot, {}), manifest)
+        state = _module_state(name, params.get(slot, {}), states.get(slot), manifest)
         blob = wrap_xml(ET.tostring(state, encoding="unicode"))
         xml_module = ET.SubElement(xml_modules, "Module", {"pluginName": name, "dataSz": str(len(blob))})
         ET.SubElement(xml_module, "data").append(state)
@@ -294,33 +336,64 @@ def _encode_track(element: ET.Element, track: dict, manifest: dict | None) -> No
     xml_matrix = ET.SubElement(element, "Matrix")
     for wire in track.get("wires", []):
         parsed = parse_wire(wire)
-        for jack in ("src", "dest"):
-            if parsed[jack + "Mod"] not in modules and parsed[jack + "Mod"] not in (M_IN, M_OUT):
-                raise PresetError(f"wire {wire!r} touches empty slot {slot_name(parsed[jack + 'Mod'])}")
+        resolved = {}
+        for jack, direction in (("src", "outputs"), ("dest", "inputs")):
+            slot = parsed[jack + "Mod"]
+            if slot not in modules and slot not in BUILTIN_CHANNELS:
+                raise PresetError(f"wire {wire!r} touches empty slot {slot_name(slot)}")
+            names = channel_names(slot, modules.get(slot), direction, manifest)
+            label = f"slot {slot_name(slot)} {direction[:-1]}"
+            try:
+                resolved[jack] = resolve_channel(parsed[jack + "Ch"], names, label)
+            except PresetError as error:
+                raise PresetError(f"wire {wire!r}: {error}") from None
+
         ET.SubElement(
             xml_matrix,
             "Wire",
             {
                 "srcMod": str(parsed["srcMod"]),
-                "srcCh": str(parsed["srcCh"]),
+                "srcCh": str(resolved["src"]),
                 "destMod": str(parsed["destMod"]),
-                "destCh": str(parsed["destCh"]),
+                "destCh": str(resolved["dest"]),
                 "gain": format_number(parsed["gain"]),
                 "offset": format_number(parsed["offset"]),
             },
         )
 
 
-def _module_state(module: str, params: dict, manifest: dict | None) -> ET.Element:
+def _module_state(module: str, params: dict, state: str | None, manifest: dict | None) -> ET.Element:
     """A BaseProcessor state tree. Omitted parameters keep the plugin's own defaults."""
-    vst = ET.Element("VST")
-    state = ET.SubElement(vst, "state")
+    if state is None:
+        vst = ET.Element("VST")
+    else:
+        # Settings a module keeps outside its parameters, exactly as trax wrote them.
+        vst = ET.fromstring(unwrap_xml(base64.b64decode(state)))
+        if vst.tag != "VST":
+            raise PresetError(f"slot state for {module!r} is not a module state blob")
+        for stale in vst.findall("state"):
+            vst.remove(stale)
+
+    xml_state = ET.SubElement(vst, "state")
     for key, value in params.items():
-        ET.SubElement(state, "PARAM", {"id": resolve_param(module, key, manifest), "value": format_number(value)})
+        ET.SubElement(xml_state, "PARAM", {"id": resolve_param(module, key, manifest), "value": format_number(value)})
     return vst
 
 
 # --- decode ------------------------------------------------------------------
+
+
+def _non_parameter_state(vst: ET.Element | None) -> str | None:
+    """What a module keeps outside its parameters, base64'd exactly as trax writes it."""
+    if vst is None:
+        return None
+    kept = ET.Element(vst.tag, vst.attrib)
+    for child in vst:
+        if child.tag != "state" and (len(child) or child.attrib):
+            kept.append(child)
+    if not len(kept):
+        return None
+    return base64.b64encode(wrap_xml(ET.tostring(kept, encoding="unicode"))).decode("ascii")
 
 
 def decode(blob: bytes) -> dict:
@@ -330,7 +403,7 @@ def decode(blob: bytes) -> dict:
 
     tracks = []
     for xml_track in root.findall("./Tracks/Track"):
-        modules, params = {}, {}
+        modules, params, states = {}, {}, {}
         for slot, xml_module in enumerate(xml_track.findall("./Modules/Module")):
             name = xml_module.get("pluginName", "")
             if slot in (M_IN, M_OUT) or not name:
@@ -342,6 +415,9 @@ def decode(blob: bytes) -> dict:
             }
             if values:
                 params[slot_name(slot)] = values
+            opaque = _non_parameter_state(xml_module.find("./data/VST"))
+            if opaque:
+                states[slot_name(slot)] = opaque
 
         wires = [
             f"{format_jack(int(w.get('srcMod')), int(w.get('srcCh')))}"
@@ -362,6 +438,8 @@ def decode(blob: bytes) -> dict:
         track.update({"modules": modules, "wires": wires})
         if params:
             track["params"] = params
+        if states:
+            track["state"] = states
         tracks.append(track)
 
     doc = {"trax": 1, "tracks": tracks}

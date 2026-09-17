@@ -21,16 +21,25 @@ juce::String slotName(int index) {
     return juce::String(index);
 }
 
+int channelIndex(const juce::String& channel, const std::vector<std::string>& names) {
+    if (channel.containsOnly("0123456789") && channel.isNotEmpty()) {
+        int index = channel.getIntValue();
+        return index < (int)names.size() ? index : BAD_INDEX;
+    }
+
+    for (size_t index = 0; index < names.size(); index++) {
+        if (channel.equalsIgnoreCase(names[index].c_str())) return (int)index;
+    }
+    return BAD_INDEX;
+}
+
 Jack parseJack(const juce::String& text) {
     Jack jack;
     int colon = text.indexOfChar(':');
     if (colon < 0) return jack;
 
-    auto channel = text.substring(colon + 1).trim();
-    if (channel.isEmpty() || !channel.containsOnly("0123456789")) return jack;
-
     jack.slot = slotIndex(text.substring(0, colon));
-    jack.channel = channel.getIntValue();
+    jack.channel = text.substring(colon + 1).trim();
     return jack;
 }
 
@@ -65,6 +74,10 @@ bool isJsonFile(const juce::File& file) {
         if (!juce::CharacterFunctions::isWhitespace(c)) return c == '{';
     }
     return false;
+}
+
+bool isJsonName(const juce::String& name) {
+    return name.endsWithIgnoreCase(".json");
 }
 
 void logError(const juce::String& message) {

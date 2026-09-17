@@ -15,6 +15,10 @@ FIXTURE = REPO / "resources" / "test" / "trax.filtergraph"
 EXAMPLE = pathlib.Path(__file__).resolve().parents[1] / "examples" / "two_track" / "two_track.json"
 
 
+def manifest() -> dict:
+    return py2trax.scan_modules(REPO / "technobear")
+
+
 def fixture_state() -> bytes:
     text = FIXTURE.read_text()
     blocks = re.findall(r"<STATE>(.*?)</STATE>", text, re.S)
@@ -87,11 +91,12 @@ def test_decodes_real_parameters_by_id():
 
 def test_encode_decode_round_trip():
     doc = json.loads(EXAMPLE.read_text())
-    assert py2trax.decode(py2trax.encode(doc))["tracks"][0]["modules"] == doc["tracks"]["1"]["modules"]
+    built = py2trax.decode(py2trax.encode(doc, manifest()))
+    assert built["tracks"][0]["modules"] == doc["tracks"]["1"]["modules"]
 
 
 def test_round_trip_is_stable():
-    once = py2trax.decode(py2trax.encode(json.loads(EXAMPLE.read_text())))
+    once = py2trax.decode(py2trax.encode(json.loads(EXAMPLE.read_text()), manifest()))
     assert py2trax.decode(py2trax.encode(once)) == once
 
 
@@ -102,7 +107,7 @@ def test_decoded_real_preset_re_encodes():
 
 def test_occupied_slots_get_nonzero_datasz():
     # Track::setStateInformation skips any module whose dataSz is 0.
-    xml = ET.fromstring(py2trax.unwrap_xml(py2trax.encode(json.loads(EXAMPLE.read_text()))))
+    xml = ET.fromstring(py2trax.unwrap_xml(py2trax.encode(json.loads(EXAMPLE.read_text()), manifest())))
     modules = xml.findall("./Tracks/Track")[0].findall("./Modules/Module")
     assert [m.get("pluginName") for m in modules][:3] == ["IN", "omod", "drum"]
     assert all(int(m.get("dataSz")) > 0 for m in modules[1:3])
@@ -197,3 +202,96 @@ def test_incompletely_scanned_module_accepts_ids():
     doc = {"tracks": [{"modules": {"1": "omod"}, "params": {"1": {"Freq": 800.0, "slaveosc:0:ratio": 0.5}}}]}
     params = py2trax.decode(py2trax.encode(doc, manifest))["tracks"][0]["params"]["1"]
     assert params == {"freq": "800.0", "slaveosc:0:ratio": "0.5"}
+
+
+# --- channel names and range checking ---
+
+
+def test_channel_names_resolve_to_indices():
+    doc = {
+        "tracks": [
+            {
+                "modules": {"1": "omod", "2": "drum"},
+                "wires": ["1:Main -> 2:AS Trig", "2:A Snare -> out:Out 0"],
+            }
+        ]
+    }
+    assert py2trax.decode(py2trax.encode(doc, manifest()))["tracks"][0]["wires"] == [
+        "1:0 -> 2:4",
+        "2:2 -> out:0",
+    ]
+
+
+def test_channel_names_are_case_insensitive():
+    doc = {"tracks": [{"modules": {"1": "clds"}, "wires": ["in:0 -> 1:in l"]}]}
+    assert py2trax.decode(py2trax.encode(doc, manifest()))["tracks"][0]["wires"] == ["in:0 -> 1:0"]
+
+
+def test_channel_out_of_range_is_rejected():
+    doc = {"tracks": [{"modules": {"1": "srvb"}, "wires": ["in:0 -> 1:9"]}]}
+    with pytest.raises(py2trax.PresetError, match="does not exist"):
+        py2trax.encode(doc, manifest())
+
+
+def test_unknown_channel_name_is_rejected():
+    doc = {"tracks": [{"modules": {"1": "drum"}, "wires": ["in:0 -> 1:Cowbell"]}]}
+    with pytest.raises(py2trax.PresetError, match="Cowbell"):
+        py2trax.encode(doc, manifest())
+
+
+def test_track_output_has_two_channels():
+    doc = {"tracks": [{"modules": {"1": "clds"}, "wires": ["1:0 -> out:2"]}]}
+    with pytest.raises(py2trax.PresetError, match="does not exist"):
+        py2trax.encode(doc, manifest())
+
+
+def test_module_without_known_channels_still_takes_indices():
+    # pmix builds its channel names from the index, so the scan cannot list them.
+    doc = {"tracks": [{"modules": {"1": "pmix"}, "wires": ["in:0 -> 1:3"]}]}
+    assert py2trax.decode(py2trax.encode(doc, manifest()))["tracks"][0]["wires"] == ["in:0 -> 1:3"]
+
+
+def test_module_without_known_channels_rejects_names():
+    doc = {"tracks": [{"modules": {"1": "pmix"}, "wires": ["in:0 -> 1:IN 4"]}]}
+    with pytest.raises(py2trax.PresetError, match="not known"):
+        py2trax.encode(doc, manifest())
+
+
+def test_channels_are_unchecked_without_a_manifest():
+    doc = {"tracks": [{"modules": {"1": "srvb"}, "wires": ["in:0 -> 1:9"]}]}
+    assert py2trax.decode(py2trax.encode(doc))["tracks"][0]["wires"] == ["in:0 -> 1:9"]
+
+
+# --- state a module keeps outside its parameters ---
+
+
+def test_real_preset_carries_non_parameter_state():
+    doc = py2trax.decode(fixture_state())
+    assert sorted(doc["tracks"][0]["state"]) == ["1", "2", "3"]
+
+
+def test_non_parameter_state_round_trips():
+    doc = py2trax.decode(fixture_state())
+    assert py2trax.decode(py2trax.encode(doc))["tracks"][0]["state"] == doc["tracks"][0]["state"]
+
+
+def test_state_holds_no_parameters():
+    import base64
+
+    doc = py2trax.decode(fixture_state())
+    vst = ET.fromstring(py2trax.unwrap_xml(base64.b64decode(doc["tracks"][0]["state"]["1"])))
+    assert vst.find("state") is None and vst.find("MIDI") is not None
+
+
+def test_state_for_an_empty_slot_is_rejected():
+    doc = py2trax.decode(fixture_state())
+    doc["tracks"][0]["state"]["7"] = doc["tracks"][0]["state"]["1"]
+    with pytest.raises(py2trax.PresetError, match="slot 7"):
+        py2trax.encode(doc)
+
+
+def test_parameters_win_over_state():
+    doc = py2trax.decode(fixture_state())
+    doc["tracks"][0]["params"]["1"]["freq"] = 999.0
+    rebuilt = py2trax.decode(py2trax.encode(doc))
+    assert rebuilt["tracks"][0]["params"]["1"]["freq"] == "999.0"

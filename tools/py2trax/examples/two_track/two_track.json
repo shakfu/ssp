@@ -3,17 +3,20 @@
   "tracks": {
     "1": {
       "level": 1.0,
-      "modules": { "1": "omod", "2": "drum" },
+      "modules": {
+        "1": "omod",
+        "2": "drum"
+      },
       "wires": [
-        "1:0 -> 2:8",
-        "1:1 -> 2:4",
-        "1:2 -> 2:0",
-        "2:4 -> out:0",
-        "2:4 -> out:1",
-        "2:2 -> out:0",
-        "2:2 -> out:1",
-        "2:0 -> out:0",
-        "2:0 -> out:1"
+        "1:Main -> 2:HH1 Trig",
+        "1:Out A -> 2:AS Trig",
+        "1:Out B -> 2:AB Trig",
+        "2:Hi Hat 1 -> out:0",
+        "2:Hi Hat 1 -> out:1",
+        "2:A Snare -> out:0",
+        "2:A Snare -> out:1",
+        "2:A BD -> out:0",
+        "2:A BD -> out:1"
       ],
       "params": {
         "1": {
@@ -29,19 +32,38 @@
     },
     "2": {
       "level": 0.8,
-      "modules": { "1": "clds" },
+      "modules": {
+        "1": "clds"
+      },
       "wires": [
-        "in:0 -> 1:0",
-        "in:1 -> 1:1",
-        { "from": "1:0", "to": "out:0", "gain": 0.5 },
-        { "from": "1:1", "to": "out:1", "gain": 0.5 }
+        "in:0 -> 1:In L",
+        "in:1 -> 1:In R",
+        {
+          "from": "1:Out L",
+          "to": "out:0",
+          "gain": 0.5
+        },
+        {
+          "from": "1:Out R",
+          "to": "out:1",
+          "gain": 0.5
+        }
       ],
       "params": {
-        "1": { "Position": 25.0, "Size": 70.0, "Density": -20.0, "Mix": 100.0 }
+        "1": {
+          "Position": 25.0,
+          "Size": 70.0,
+          "Density": -20.0,
+          "Mix": 100.0
+        }
       }
     }
   },
   "performance": [
-    { "track": 1, "slot": "1", "param": 1 }
+    {
+      "track": 1,
+      "slot": "1",
+      "param": 1
+    }
   ]
 }

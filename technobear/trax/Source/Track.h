@@ -24,6 +24,7 @@ public:
     void process(juce::AudioSampleBuffer& ioBuffer);
 
     void getStateInformation(juce::XmlElement& outStream);
+    void getStateInformation(juce::var& out);
     void setStateInformation(juce::XmlElement& inStream);
     void setStateInformation(const juce::var& track, int trackIdx);
 
