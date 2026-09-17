@@ -38,6 +38,7 @@ target_sources(TRAX
         Source/Track.cpp
         Source/Module.cpp
         Source/Matrix.cpp
+        Source/JsonPreset.cpp
  
         Source/PluginProcessor.cpp
 

@@ -1,5 +1,7 @@
 #include "Track.h"
 
+#include "JsonPreset.h"
+
 #include "ssp/Log.h"
 
 Track::Track() {
@@ -314,4 +316,120 @@ void Track::clearModuleConnections(int midx) {
         std::remove_if(wires.begin(), wires.end(),
                        [&](const Matrix::Wire& w) { return w.src_.modIdx_ == midx || w.dest_.modIdx_ == midx; }),
         wires.end());
+}
+
+// --- JSON presets ------------------------------------------------------------
+// The XML path above restores a preset trax wrote, so it can trust it. A JSON preset is
+// hand-written, so every lookup here reports what it rejected rather than dropping it.
+
+static bool setParameter(SSPExtendedApi::PluginInterface* plugin, const juce::String& key, float value,
+                         const juce::String& where) {
+    unsigned count = plugin->numberOfParameters();
+    int byId = -1, byLowerCaseName = -1;
+
+    for (unsigned idx = 0; idx < count; idx++) {
+        SSPExtendedApi::PluginInterface::ParameterDesc desc;
+        if (!plugin->parameterDesc(idx, desc)) continue;
+
+        if (key == desc.name_.c_str()) {
+            plugin->parameterValue(idx, value);
+            return true;
+        }
+        if (byId < 0 && key == desc.id_.c_str()) byId = (int)idx;
+        if (byLowerCaseName < 0 && key.equalsIgnoreCase(desc.name_.c_str())) byLowerCaseName = (int)idx;
+    }
+
+    int idx = byId >= 0 ? byId : byLowerCaseName;
+    if (idx < 0) {
+        jsonpreset::logError(where + " : no parameter named " + key.quoted());
+        return false;
+    }
+    plugin->parameterValue((unsigned)idx, value);
+    return true;
+}
+
+void Track::setStateInformation(const juce::var& track, int trackIdx) {
+    juce::String where = "track " + juce::String(trackIdx + 1);
+
+    auto* object = track.getDynamicObject();
+    if (object == nullptr) {
+        jsonpreset::logError(where + " : expected an object");
+        return;
+    }
+
+    mute_ = (bool)object->getProperty("mute");
+    level_ = object->hasProperty("level") ? (float)(double)object->getProperty("level") : 1.0f;
+
+    // Modules load first: both the matrix and the parameters need the plugin instance.
+    auto moduleList = object->getProperty("modules");
+    if (auto* modules = moduleList.getDynamicObject()) {
+        for (const auto& entry : modules->getProperties()) {
+            auto key = entry.name.toString();
+            int midx = jsonpreset::slotIndex(key);
+            if (midx == jsonpreset::BAD_INDEX || midx == M_IN || midx == M_OUT) {
+                jsonpreset::logError(where + " : cannot load a module into slot " + key.quoted());
+                continue;
+            }
+            auto name = entry.value.toString();
+            while (!requestModuleChange(midx, name.toStdString())) {}
+            if (modules_[midx].plugin_ == nullptr) {
+                jsonpreset::logError(where + " slot " + key + " : cannot load module " + name.quoted());
+            }
+        }
+    }
+
+    auto paramList = object->getProperty("params");
+    if (auto* params = paramList.getDynamicObject()) {
+        for (const auto& entry : params->getProperties()) {
+            auto key = entry.name.toString();
+            int midx = jsonpreset::slotIndex(key);
+            auto* plugin = (midx == jsonpreset::BAD_INDEX) ? nullptr : modules_[midx].plugin_;
+            if (plugin == nullptr) {
+                jsonpreset::logError(where + " : parameters for slot " + key.quoted() + " with no module loaded");
+                continue;
+            }
+            auto* values = entry.value.getDynamicObject();
+            if (values == nullptr) {
+                jsonpreset::logError(where + " slot " + key + " : params must be an object");
+                continue;
+            }
+            for (const auto& param : values->getProperties()) {
+                setParameter(plugin, param.name.toString(), (float)(double)param.value,
+                             where + " slot " + key);
+            }
+        }
+    }
+
+    auto wires = object->getProperty("wires");
+    if (auto* list = wires.getArray()) {
+        for (const auto& item : *list) {
+            auto wire = jsonpreset::parseWire(item);
+            if (!wire.valid()) {
+                jsonpreset::logError(where + " : cannot read wire " + item.toString().quoted());
+                continue;
+            }
+
+            // requestMatrixConnect drops an out-of-range channel without a word, so check here.
+            auto& src = modules_[wire.src.slot];
+            auto& dest = modules_[wire.dest.slot];
+            if (src.descriptor_ == nullptr || wire.src.channel >= (int)src.descriptor_->outputChannelNames.size()) {
+                jsonpreset::logError(where + " : no output " + juce::String(wire.src.channel) + " on slot " +
+                                     jsonpreset::slotName(wire.src.slot));
+                continue;
+            }
+            if (dest.descriptor_ == nullptr || wire.dest.channel >= (int)dest.descriptor_->inputChannelNames.size()) {
+                jsonpreset::logError(where + " : no input " + juce::String(wire.dest.channel) + " on slot " +
+                                     jsonpreset::slotName(wire.dest.slot));
+                continue;
+            }
+
+            Matrix::Jack srcJack(wire.src.slot, wire.src.channel);
+            Matrix::Jack destJack(wire.dest.slot, wire.dest.channel);
+            while (!requestMatrixConnect(srcJack, destJack, wire.gain, wire.offset)) {}
+        }
+    } else if (!wires.isVoid()) {
+        jsonpreset::logError(where + " : wires must be an array");
+    }
+
+    for (int midx = 0; midx < M_MAX; midx++) { resetModuleConnections(midx); }
 }

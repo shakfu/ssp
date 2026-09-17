@@ -219,8 +219,11 @@ def resolve_param(module: str, key: str, manifest: dict | None) -> str:
     lowered = {name.lower(): pid for name, pid in params.items()}
     if key.lower() in lowered:
         return lowered[key.lower()]
-    hint = f" ({entry['skipped']} parameters could not be read from source)" if entry["skipped"] else ""
-    raise PresetError(f"module {module!r} has no parameter named or id'd {key!r}{hint}")
+    if entry["skipped"]:
+        # The scan could not read every parameter of this module, so an unrecognised key
+        # cannot be shown to be wrong. Pass it through as an id and let trax judge it.
+        return key
+    raise PresetError(f"module {module!r} has no parameter named or id'd {key!r}")
 
 
 # --- encode ------------------------------------------------------------------

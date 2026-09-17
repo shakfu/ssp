@@ -1,6 +1,7 @@
 
 #include "PluginProcessor.h"
 
+#include "JsonPreset.h"
 #include "Matrix.h"
 #include "PluginEditor.h"
 #include "ssp/EditorHost.h"
@@ -259,26 +260,7 @@ void PluginProcessor::setStateInformation(const void* data, int sizeInBytes) {
                 unsigned m = xmlParam->getIntAttribute("module");
                 unsigned p = xmlParam->getIntAttribute("param");
 
-                auto pluginName = getLoadedPlugin(t, m);
-                auto plugin = getPlugin(t, m);
-                if (plugin) {
-                    if (p < plugin->numberOfParameters()) {
-                        SSPExtendedApi::PluginInterface::ParameterDesc desc;
-                        if (plugin->parameterDesc(p, desc)) {
-                            PluginProcessor::PerformanceParam param(t, m, p, pluginName, desc.name_, desc.min_,
-                                                                    desc.max_, desc.def_, desc.numSteps_,
-                                                                    desc.isDescrete_);
-                            addPerformanceParam(param);
-                        }
-                    } else {
-                        ssp::log(
-                            "setStateInformation : cannot add performance param, param index out of range for track " +
-                            std::to_string(t) + " module " + std::to_string(m));
-                    }
-                } else {
-                    ssp::log("setStateInformation : cannot add performance param, no plugin for track " +
-                             std::to_string(t) + " module " + std::to_string(m));
-                }
+                addPerformanceParam(t, m, p, "setStateInformation");
             }
         } else {
             ssp::log("setStateInformation : no PERF_XML_TAG tag");
@@ -317,15 +299,98 @@ void PluginProcessor::loadPreset() {
     requestPresetLoad_ = false;
 
     File f(presetName_);
-    if (f.exists()) {
-        MemoryMappedFile mmf(f, MemoryMappedFile::AccessMode::readOnly, false);
-        setStateInformation(mmf.getData(), mmf.getSize());
+    if (!f.exists()) return;
+
+    if (jsonpreset::isJsonFile(f)) {
+        auto doc = JSON::parse(f);
+        if (doc.isVoid()) {
+            jsonpreset::logError("cannot parse " + f.getFileName());
+            return;
+        }
+        loadJsonPreset(doc);
+        return;
+    }
+
+    MemoryMappedFile mmf(f, MemoryMappedFile::AccessMode::readOnly, false);
+    setStateInformation(mmf.getData(), mmf.getSize());
+}
+
+
+// Hand-written presets, described in tools/py2trax/README.md. Unlike the XML above this is
+// not a preset trax wrote, so each track reports what it could not apply rather than
+// failing the whole load.
+void PluginProcessor::loadJsonPreset(const juce::var& doc) {
+    initPreset();
+    loadSupportedModules();
+
+    auto tracks = doc["tracks"];
+    if (auto* list = tracks.getArray()) {
+        for (int trackIdx = 0; trackIdx < list->size() && trackIdx < (int)MAX_TRACKS; trackIdx++) {
+            tracks_[trackIdx].setStateInformation((*list)[trackIdx], trackIdx);
+        }
+        if (list->size() > (int)MAX_TRACKS) {
+            jsonpreset::logError(String(list->size()) + " tracks : trax has " + String((int)MAX_TRACKS));
+        }
+    } else if (auto* object = tracks.getDynamicObject()) {
+        for (const auto& entry : object->getProperties()) {
+            auto key = entry.name.toString();
+            int trackIdx = key.getIntValue() - 1;
+            if (!key.containsOnly("0123456789") || trackIdx < 0 || trackIdx >= (int)MAX_TRACKS) {
+                jsonpreset::logError("no track " + key.quoted());
+                continue;
+            }
+            tracks_[trackIdx].setStateInformation(entry.value, trackIdx);
+        }
+    } else if (!tracks.isVoid()) {
+        jsonpreset::logError("tracks must be an array or an object");
+    }
+
+    auto performance = doc["performance"];
+    if (auto* list = performance.getArray()) {
+        for (const auto& item : *list) {
+            auto* entry = item.getDynamicObject();
+            if (entry == nullptr) {
+                jsonpreset::logError("performance : expected an object");
+                continue;
+            }
+            int t = (int)entry->getProperty("track") - 1;
+            int m = jsonpreset::slotIndex(entry->getProperty("slot").toString());
+            int p = (int)entry->getProperty("param");
+            if (t < 0 || t >= (int)MAX_TRACKS || m == jsonpreset::BAD_INDEX || p < 0) {
+                jsonpreset::logError("performance : bad track, slot or param");
+                continue;
+            }
+            addPerformanceParam(t, m, p, "json preset");
+        }
+    } else if (!performance.isVoid()) {
+        jsonpreset::logError("performance must be an array");
     }
 }
 
 
 bool PluginProcessor::addPerformanceParam(const PerformanceParam& p) {
     performanceParams_.push_back(p);
+    return true;
+}
+
+bool PluginProcessor::addPerformanceParam(unsigned t, unsigned m, unsigned p, const juce::String& where) {
+    auto plugin = getPlugin(t, m);
+    if (!plugin) {
+        ssp::log(where.toStdString() + " : cannot add performance param, no plugin for track " + std::to_string(t) +
+                 " module " + std::to_string(m));
+        return false;
+    }
+    if (p >= plugin->numberOfParameters()) {
+        ssp::log(where.toStdString() + " : cannot add performance param, param index out of range for track " +
+                 std::to_string(t) + " module " + std::to_string(m));
+        return false;
+    }
+
+    SSPExtendedApi::PluginInterface::ParameterDesc desc;
+    if (!plugin->parameterDesc(p, desc)) return false;
+
+    addPerformanceParam(PerformanceParam(t, m, p, getLoadedPlugin(t, m), desc.name_, desc.min_, desc.max_, desc.def_,
+                                         desc.numSteps_, desc.isDescrete_));
     return true;
 }
 bool PluginProcessor::removePerformanceParam(const PerformanceParam& p) {

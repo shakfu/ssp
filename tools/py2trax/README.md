@@ -1,10 +1,16 @@
 # py2trax
 
-Generate trax preset files from JSON, offline. No changes to trax.
+Read and write trax presets from the command line.
 
-trax saves presets with `PluginProcessor::savePreset` as JUCE binary-wrapped XML in
-`trax_presets`. `py2trax.py encode` writes that format, so a patch can be authored on a
-desktop and copied to the SSP instead of being built encoder-by-encoder on the device.
+trax loads a JSON preset directly (`PluginProcessor::loadJsonPreset`), so the usual route
+is to write the `.json` and copy it to the SSP. This tool remains useful for two things:
+
+- `decode`, which reads the binary presets trax saves, and the JUCE `.filtergraph` files
+  the desktop plugin host writes.
+- `encode`, which converts a JSON preset to that binary format, for a device running a
+  trax build without the JSON loader.
+
+Both formats describe the same patch, and `examples/two_track/` holds one of each.
 
 ## Commands
 
@@ -15,9 +21,6 @@ desktop and copied to the SSP instead of being built encoder-by-encoder on the d
 
 `decode` also reads a JUCE `.filtergraph`, so a patch saved from the desktop plugin host
 can be dumped directly.
-
-A worked example, with its source, manifest and generated preset, is in
-`examples/two_track/`.
 
 ## Schema
 
@@ -60,9 +63,13 @@ as skipped, not guessed. Coverage across the 32 modules is 134 named, 110 skippe
 Skipped parameters are still reachable by id, which `decode` prints. `omod`'s oscillator
 ratios, for example, are `slaveosc:3:ratio`.
 
-This limit is an artifact of working offline. Loading the module and calling
-`parameterDesc` (`SSPExtendedApi::PluginInterface`) returns every name and id, which is
-what an in-trax JSON loader would do.
+An unrecognised key is an error for a module the scan read completely, and is passed through
+as an id for one it did not. The manifest records which is which, so a typo is still caught
+wherever it can be.
+
+This limit is an artifact of working offline, and applies to `encode` only. trax resolves
+names against the loaded plugin through `parameterDesc`, so every parameter is reachable by
+name when the JSON is loaded on the device.
 
 ## Limits
 
