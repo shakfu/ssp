@@ -17,7 +17,7 @@ BUILDROOT_DEP := $(BUILDROOT_DIR)
 endif
 
 .DEFAULT_GOAL := ssp
-.PHONY: ssp configure buildroot release deploy deploy-mod clean help
+.PHONY: ssp configure buildroot release deploy deploy-mod test clean help
 
 help:
 	@echo "make [ssp]              download buildroot if needed, configure, build all plugins"
@@ -26,6 +26,7 @@ help:
 	@echo "make release            build, strip into releases/ssp/plugins, zip tb_plugins_ssp.zip"
 	@echo "make deploy             build, copy all plugins to SSP_HOST"
 	@echo "make deploy-mod MOD=x   build, copy one plugin to SSP_HOST"
+	@echo "make test               run the python tool tests"
 	@echo "make clean              remove $(BUILD_DIR)"
 	@echo "variables: SSP_BUILDROOT, SSP_HOST (root@192.168.0.150), JOBS ($(JOBS))"
 
@@ -57,6 +58,9 @@ deploy: ssp
 
 deploy-mod: ssp
 	scripts/copymod.ssp.sh $(MOD)
+
+test:
+	uv run --quiet --with pytest pytest tools -q
 
 clean:
 	rm -rf $(BUILD_DIR)
