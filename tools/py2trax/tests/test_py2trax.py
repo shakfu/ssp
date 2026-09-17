@@ -104,8 +104,9 @@ def test_occupied_slots_get_nonzero_datasz():
     # Track::setStateInformation skips any module whose dataSz is 0.
     xml = ET.fromstring(py2trax.unwrap_xml(py2trax.encode(json.loads(EXAMPLE.read_text()))))
     modules = xml.findall("./Tracks/Track")[0].findall("./Modules/Module")
-    assert [m.get("pluginName") for m in modules][:4] == ["IN", "omod", "drum", "plts"]
-    assert all(int(m.get("dataSz")) > 0 for m in modules[1:4])
+    assert [m.get("pluginName") for m in modules][:3] == ["IN", "omod", "drum"]
+    assert all(int(m.get("dataSz")) > 0 for m in modules[1:3])
+    assert all(int(m.get("dataSz")) == 0 for m in modules[3:])
     assert modules[0].get("dataSz") == "0" and modules[9].get("dataSz") == "0"
 
 
@@ -188,3 +189,11 @@ def test_ids_pass_through_without_a_manifest():
     doc = {"tracks": [{"modules": {"1": "omod"}, "params": {"1": {"slaveosc:3:ratio": 0.33}}}]}
     params = py2trax.decode(py2trax.encode(doc))["tracks"][0]["params"]["1"]
     assert params == {"slaveosc:3:ratio": "0.33"}
+
+
+def test_incompletely_scanned_module_accepts_ids():
+    # omod builds its sub-oscillator ids at runtime, so the manifest cannot list them.
+    manifest = py2trax.scan_modules(REPO / "technobear")
+    doc = {"tracks": [{"modules": {"1": "omod"}, "params": {"1": {"Freq": 800.0, "slaveosc:0:ratio": 0.5}}}]}
+    params = py2trax.decode(py2trax.encode(doc, manifest))["tracks"][0]["params"]["1"]
+    assert params == {"freq": "800.0", "slaveosc:0:ratio": "0.5"}

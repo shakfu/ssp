@@ -115,6 +115,7 @@ public:
     void initPreset();
     void savePreset();
     void loadPreset();
+    void loadJsonPreset(const juce::var& doc);
 
     void muteTrack(unsigned t, bool mute) {
         if (t >= MAX_TRACKS) return;
@@ -187,6 +188,7 @@ public:
     };
 
     bool addPerformanceParam(const PerformanceParam& p);
+    bool addPerformanceParam(unsigned t, unsigned m, unsigned p, const juce::String& where);
     bool removePerformanceParam(const PerformanceParam& p);
     bool removePerformanceParam(unsigned t);
     bool removePerformanceParam(unsigned t, unsigned m);

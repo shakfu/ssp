@@ -25,6 +25,7 @@ public:
 
     void getStateInformation(juce::XmlElement& outStream);
     void setStateInformation(juce::XmlElement& inStream);
+    void setStateInformation(const juce::var& track, int trackIdx);
 
     bool requestModuleChange(unsigned midx, const std::string& mn);
     bool requestMatrixConnect(const Matrix::Jack& src, const Matrix::Jack& dest, float gain = 1.0f,
