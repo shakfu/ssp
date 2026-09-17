@@ -36,8 +36,13 @@ python3 tools/py2trax/py2trax.py encode \
 
 ## Using it
 
-Copy `two_track` into trax's `trax_presets` directory, then load it from the options page.
-The filename is the preset name, so it carries no extension.
+Copy it into `trax_presets` at the root of the SSP's root filesystem. With the SD card
+mounted:
+
+    sudo cp tools/py2trax/examples/two_track/two_track /media/sa/rootfs/trax_presets/
+
+Then load it from trax's options page. The filename is the preset name, so it carries no
+extension.
 
 ## Reading it back
 

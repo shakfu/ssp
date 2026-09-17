@@ -68,8 +68,8 @@ what an in-trax JSON loader would do.
 
 - Load-only. trax still saves in its own binary format; `decode` reads those back.
 - `trax_presets` is resolved against the working directory of the process hosting trax
-  (`OptionEditor.cpp`), not an absolute path. Confirm where that lands on the SSP before
-  copying files in.
+  (`OptionEditor.cpp`), not an absolute path. On the SSP, Synthor runs with cwd `/`, so the
+  directory is `/trax_presets`.
 - Module state beyond parameters is not written. Anything a module keeps outside its APVTS
   (MIDI assignments, file selections) is left at its default.
 - Nothing is validated against the modules themselves. A wire to a channel the module does
