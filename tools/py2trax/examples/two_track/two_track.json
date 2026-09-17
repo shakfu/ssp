@@ -1,0 +1,35 @@
+{
+  "trax": 1,
+  "tracks": {
+    "1": {
+      "level": 1.0,
+      "modules": { "1": "omod", "2": "drum", "3": "plts" },
+      "wires": [
+        "1:0 -> 2:4",
+        "1:0 -> 3:1",
+        "2:2 -> out:0",
+        "3:0 -> out:0",
+        "3:0 -> out:1"
+      ],
+      "params": {
+        "1": { "Freq": 50.0, "Wave": 4 }
+      }
+    },
+    "2": {
+      "level": 0.8,
+      "modules": { "1": "clds" },
+      "wires": [
+        "in:0 -> 1:0",
+        "in:1 -> 1:1",
+        { "from": "1:0", "to": "out:0", "gain": 0.5 },
+        { "from": "1:1", "to": "out:1", "gain": 0.5 }
+      ],
+      "params": {
+        "1": { "Position": 25.0, "Size": 70.0, "Density": -20.0, "Mix": 100.0 }
+      }
+    }
+  },
+  "performance": [
+    { "track": 1, "slot": "3", "param": 0 }
+  ]
+}

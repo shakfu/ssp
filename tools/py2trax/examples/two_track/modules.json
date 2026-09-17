@@ -1,0 +1,285 @@
+{
+  "attn": {
+    "params": {
+      "Slew": "slew"
+    },
+    "skipped": 1
+  },
+  "cart": {
+    "params": {
+      "Root": "root"
+    },
+    "skipped": 11
+  },
+  "clds": {
+    "params": {
+      "Density": "density",
+      "Feedback": "feedback",
+      "Freeze": "freeze",
+      "In Gain": "in_gain",
+      "Mix": "mix",
+      "Mode": "mode",
+      "Pitch": "pitch",
+      "Position": "position",
+      "Reverb": "reverb",
+      "Size": "size",
+      "Spread": "spread",
+      "Texture": "texture"
+    },
+    "skipped": 0
+  },
+  "clkd": {
+    "params": {
+      "Clk Div": "clkindiv",
+      "Clock": "source",
+      "Int BPM": "bpm",
+      "M Trans.": "midiTransport",
+      "Midi PPQN": "midippqn",
+      "UseTrigs": "usetrigs"
+    },
+    "skipped": 1
+  },
+  "comp": {
+    "params": {
+      "Attack": "attack",
+      "AutoM": "automakeup",
+      "Makeup": "makeup",
+      "Ratio": "ratio",
+      "Release": "release",
+      "Threshold": "threshold"
+    },
+    "skipped": 0
+  },
+  "data": {
+    "params": {
+      "AB XY": "ab_xy",
+      "CD XY": "cd_xy",
+      "Freeze": "freeze",
+      "Time": "t_scale",
+      "Trig": "trig_src",
+      "Trig Lvl": "trig_lvl"
+    },
+    "skipped": 3
+  },
+  "dlyd": {
+    "params": {
+      "Freeze": "freeze",
+      "In Lvl": "in_level",
+      "Mix": "mix",
+      "Out Lvl": "out_level",
+      "Size": "size"
+    },
+    "skipped": 7
+  },
+  "drum": {
+    "params": {},
+    "skipped": 46
+  },
+  "dual": {
+    "params": {},
+    "skipped": 0
+  },
+  "gra4": {
+    "params": {},
+    "skipped": 4
+  },
+  "harm": {
+    "params": {
+      "H.First": "first",
+      "Pitch": "pitch",
+      "T.Amount": "amount",
+      "T.Centre": "centre",
+      "T.Spread": "spread"
+    },
+    "skipped": 1
+  },
+  "ldrf": {
+    "params": {},
+    "skipped": 2
+  },
+  "logi": {
+    "params": {
+      "Operator": "oper",
+      "Trig Level": "triglevel"
+    },
+    "skipped": 1
+  },
+  "loop": {
+    "params": {},
+    "skipped": 4
+  },
+  "mmx4": {
+    "params": {
+      "VCA 1A": "vca_1a",
+      "VCA 1B": "vca_1b",
+      "VCA 1C": "vca_1c",
+      "VCA 1D": "vca_1d",
+      "VCA 2A": "vca_2a",
+      "VCA 2B": "vca_2b",
+      "VCA 2C": "vca_2c",
+      "VCA 2D": "vca_2d",
+      "VCA 3A": "vca_3a",
+      "VCA 3B": "vca_3b",
+      "VCA 3C": "vca_3c",
+      "VCA 3D": "vca_3d",
+      "VCA 4A": "vca_4a",
+      "VCA 4B": "vca_4b",
+      "VCA 4C": "vca_4c",
+      "VCA 4D": "vca_4d"
+    },
+    "skipped": 0
+  },
+  "msw8": {
+    "params": {
+      "Active": "active",
+      "In Sel": "inSel",
+      "Out Sel": "outSel",
+      "Soft": "soft"
+    },
+    "skipped": 0
+  },
+  "mtin": {
+    "params": {
+      "CC A": "cv_a",
+      "CC B": "cv_b",
+      "CC C": "cv_c",
+      "CC D": "cv_d",
+      "CC E": "cv_e",
+      "CC F": "cv_f",
+      "CC G": "cv_g",
+      "CC H": "cv_h",
+      "Clock": "clock",
+      "PB Range": "pb_range",
+      "Slew CC": "slew",
+      "Trans": "transport"
+    },
+    "skipped": 0
+  },
+  "mtmo": {
+    "params": {
+      "dummy": "dummy"
+    },
+    "skipped": 0
+  },
+  "mtot": {
+    "params": {
+      "CC A": "cv_a",
+      "CC B": "cv_b",
+      "CC C": "cv_c",
+      "CC D": "cv_d",
+      "CC E": "cv_e",
+      "CC F": "cv_f",
+      "CC G": "cv_g",
+      "CC H": "cv_h",
+      "PB Range": "pb_range"
+    },
+    "skipped": 0
+  },
+  "mttr": {
+    "params": {
+      "NOTE A": "tr_a",
+      "NOTE B": "tr_b",
+      "NOTE C": "tr_c",
+      "NOTE D": "tr_d",
+      "NOTE E": "tr_e",
+      "NOTE F": "tr_f",
+      "NOTE G": "tr_g",
+      "NOTE H": "tr_h"
+    },
+    "skipped": 0
+  },
+  "omod": {
+    "params": {
+      "Amp": "amp",
+      "Freq": "freq",
+      "Lfo": "lfo",
+      "Phase": "phase",
+      "Wave": "wave"
+    },
+    "skipped": 4
+  },
+  "plts": {
+    "params": {
+      "Freq Mod": "freq_mod",
+      "Harmonics": "harmonics",
+      "LPG": "lpg",
+      "Level": "enable_level",
+      "Model": "model",
+      "Morph": "morph",
+      "Morph Mod": "morph_mod",
+      "Pitch": "pitch",
+      "Timbre": "timbre",
+      "Timbre Mod": "timbre_mod",
+      "Trig": "enable_trig",
+      "VCA": "vca"
+    },
+    "skipped": 0
+  },
+  "pmix": {
+    "params": {},
+    "skipped": 14
+  },
+  "pvca": {
+    "params": {},
+    "skipped": 2
+  },
+  "rngs": {
+    "params": {
+      "Brightness": "brightness",
+      "Damping": "damping",
+      "In": "enable_in",
+      "In Gain": "in_gain",
+      "Model": "model",
+      "Pitch": "pitch",
+      "Polyphony": "polyphony",
+      "Position": "position",
+      "Structure": "structure",
+      "Strum": "enable_strum",
+      "VOct": "enable_voct",
+      "bypass": "bypass",
+      "easter_egg": "easter_egg"
+    },
+    "skipped": 0
+  },
+  "sfft": {
+    "params": {},
+    "skipped": 4
+  },
+  "sflt": {
+    "params": {},
+    "skipped": 4
+  },
+  "shq": {
+    "params": {
+      "Quant": "quant",
+      "Root": "root",
+      "Scale": "scale"
+    },
+    "skipped": 0
+  },
+  "srvb": {
+    "params": {
+      "Feedback": "feedback",
+      "Freeze": "freeze",
+      "LP Freq": "lpfreq",
+      "Mix": "mix"
+    },
+    "skipped": 0
+  },
+  "swat": {
+    "params": {},
+    "skipped": 0
+  },
+  "trax": {
+    "params": {},
+    "skipped": 0
+  },
+  "vost": {
+    "params": {
+      "Morph": "morph",
+      "Select": "select",
+      "Slew": "slew"
+    },
+    "skipped": 1
+  }
+}
