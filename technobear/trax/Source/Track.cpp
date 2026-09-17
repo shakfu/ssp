@@ -378,6 +378,29 @@ void Track::setStateInformation(const juce::var& track, int trackIdx) {
         }
     }
 
+    // Applied before the named parameters, which override it. Written by the JSON save for
+    // settings that are not parameters, such as MIDI assignments.
+    auto stateList = object->getProperty("state");
+    if (auto* states = stateList.getDynamicObject()) {
+        for (const auto& entry : states->getProperties()) {
+            auto key = entry.name.toString();
+            int midx = jsonpreset::slotIndex(key);
+            auto* plugin = (midx == jsonpreset::BAD_INDEX) ? nullptr : modules_[midx].plugin_;
+            if (plugin == nullptr) {
+                jsonpreset::logError(where + " : state for slot " + key.quoted() + " with no module loaded");
+                continue;
+            }
+            juce::MemoryBlock blob;
+            juce::MemoryOutputStream stream(blob, false);
+            if (!juce::Base64::convertFromBase64(stream, entry.value.toString())) {
+                jsonpreset::logError(where + " slot " + key + " : state is not valid base64");
+                continue;
+            }
+            stream.flush();
+            plugin->setState(blob.getData(), blob.getSize());
+        }
+    }
+
     auto paramList = object->getProperty("params");
     if (auto* params = paramList.getDynamicObject()) {
         for (const auto& entry : params->getProperties()) {
@@ -409,27 +432,117 @@ void Track::setStateInformation(const juce::var& track, int trackIdx) {
                 continue;
             }
 
-            // requestMatrixConnect drops an out-of-range channel without a word, so check here.
+            // requestMatrixConnect drops an out-of-range channel without a word, so resolve
+            // and report here. A channel is an index or one of the module's channel names.
             auto& src = modules_[wire.src.slot];
             auto& dest = modules_[wire.dest.slot];
-            if (src.descriptor_ == nullptr || wire.src.channel >= (int)src.descriptor_->outputChannelNames.size()) {
-                jsonpreset::logError(where + " : no output " + juce::String(wire.src.channel) + " on slot " +
-                                     jsonpreset::slotName(wire.src.slot));
-                continue;
-            }
-            if (dest.descriptor_ == nullptr || wire.dest.channel >= (int)dest.descriptor_->inputChannelNames.size()) {
-                jsonpreset::logError(where + " : no input " + juce::String(wire.dest.channel) + " on slot " +
-                                     jsonpreset::slotName(wire.dest.slot));
+            if (src.descriptor_ == nullptr || dest.descriptor_ == nullptr) {
+                jsonpreset::logError(where + " : wire " + item.toString().quoted() + " touches an empty slot");
                 continue;
             }
 
-            Matrix::Jack srcJack(wire.src.slot, wire.src.channel);
-            Matrix::Jack destJack(wire.dest.slot, wire.dest.channel);
-            while (!requestMatrixConnect(srcJack, destJack, wire.gain, wire.offset)) {}
+            int srcCh = jsonpreset::channelIndex(wire.src.channel, src.descriptor_->outputChannelNames);
+            int destCh = jsonpreset::channelIndex(wire.dest.channel, dest.descriptor_->inputChannelNames);
+            if (srcCh == jsonpreset::BAD_INDEX) {
+                jsonpreset::logError(where + " : slot " + jsonpreset::slotName(wire.src.slot) + " has no output " +
+                                     wire.src.channel.quoted());
+                continue;
+            }
+            if (destCh == jsonpreset::BAD_INDEX) {
+                jsonpreset::logError(where + " : slot " + jsonpreset::slotName(wire.dest.slot) + " has no input " +
+                                     wire.dest.channel.quoted());
+                continue;
+            }
+
+            while (!requestMatrixConnect(Matrix::Jack(wire.src.slot, srcCh), Matrix::Jack(wire.dest.slot, destCh),
+                                         wire.gain, wire.offset)) {}
         }
     } else if (!wires.isVoid()) {
         jsonpreset::logError(where + " : wires must be an array");
     }
 
     for (int midx = 0; midx < M_MAX; midx++) { resetModuleConnections(midx); }
+}
+
+
+// Anything the module holds that is not a parameter: MIDI assignments, and whatever a module
+// writes through customToXml. The parameters are dropped, because the preset carries those by
+// name; what is left is opaque, so it goes in as base64. Empty when there is nothing to keep.
+static juce::String nonParameterState(SSPExtendedApi::PluginInterface* plugin) {
+    void* data = nullptr;
+    size_t size = 0;
+    plugin->getState(&data, &size);
+    if (data == nullptr || size == 0) return {};
+
+    auto xml = juce::AudioProcessor::getXmlFromBinary(data, (int)size);
+    delete[] (char*)data;
+    if (xml == nullptr) return {};
+
+    xml->deleteAllChildElementsWithTagName("state");
+
+    bool empty = true;
+    for (auto* child : xml->getChildIterator()) {
+        if (child->getNumAttributes() + child->getNumChildElements() > 0) empty = false;
+    }
+    if (empty) return {};
+
+    juce::MemoryBlock blob;
+    juce::AudioProcessor::copyXmlToBinary(*xml, blob);
+    return juce::Base64::toBase64(blob.getData(), blob.getSize());
+}
+
+void Track::getStateInformation(juce::var& out) {
+    auto object = new juce::DynamicObject();
+    object->setProperty("level", level_);
+    if (mute_) object->setProperty("mute", true);
+
+    auto modules = new juce::DynamicObject();
+    auto params = new juce::DynamicObject();
+    // held in a var from the start: it is only attached to the track when it has content
+    juce::var states(new juce::DynamicObject());
+
+    for (int midx = M_SLOT_1; midx < M_OUT; midx++) {
+        auto& module = modules_[midx];
+        auto* plugin = module.plugin_;
+        if (plugin == nullptr) continue;
+
+        auto key = jsonpreset::slotName(midx);
+        modules->setProperty(key, juce::String(module.pluginName_));
+
+        auto values = new juce::DynamicObject();
+        unsigned count = plugin->numberOfParameters();
+        for (unsigned idx = 0; idx < count; idx++) {
+            SSPExtendedApi::PluginInterface::ParameterDesc desc;
+            if (!plugin->parameterDesc(idx, desc)) continue;
+            auto name = desc.name_.empty() ? desc.id_ : desc.name_;
+            values->setProperty(juce::String(name), plugin->parameterValue(idx));
+        }
+        params->setProperty(key, juce::var(values));
+
+        auto state = nonParameterState(plugin);
+        if (state.isNotEmpty()) states.getDynamicObject()->setProperty(key, state);
+    }
+
+    object->setProperty("modules", juce::var(modules));
+
+    juce::Array<juce::var> wires;
+    for (auto& w : matrix_.connections_) {
+        auto from = jsonpreset::slotName(w.src_.modIdx_) + ":" + juce::String(w.src_.chIdx_);
+        auto to = jsonpreset::slotName(w.dest_.modIdx_) + ":" + juce::String(w.dest_.chIdx_);
+        if (w.gain_ == 1.0f && w.offset_ == 0.0f) {
+            wires.add(from + " -> " + to);
+        } else {
+            auto wire = new juce::DynamicObject();
+            wire->setProperty("from", from);
+            wire->setProperty("to", to);
+            wire->setProperty("gain", w.gain_);
+            wire->setProperty("offset", w.offset_);
+            wires.add(juce::var(wire));
+        }
+    }
+    object->setProperty("wires", wires);
+    object->setProperty("params", juce::var(params));
+    if (states.getDynamicObject()->getProperties().size() > 0) object->setProperty("state", states);
+
+    out = juce::var(object);
 }

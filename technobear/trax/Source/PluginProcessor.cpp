@@ -287,10 +287,45 @@ void PluginProcessor::savePreset() {
 
     File f(presetName_);
 
+    if (jsonpreset::isJsonName(presetName_)) {
+        saveJsonPreset(f);
+        return;
+    }
+
     MemoryBlock destData;
     getStateInformation(destData);
 
     f.replaceWithData(destData.getData(), destData.getSize());
+}
+
+
+// Chosen by naming the preset with a .json suffix. The binary format stays the default
+// because it is what trax has always written, and an older build cannot read JSON.
+void PluginProcessor::saveJsonPreset(const File& f) {
+    auto doc = new DynamicObject();
+    doc->setProperty("trax", 1);
+
+    Array<var> tracks;
+    for (auto& track : tracks_) {
+        var entry;
+        track.getStateInformation(entry);
+        tracks.add(entry);
+    }
+    doc->setProperty("tracks", tracks);
+
+    Array<var> performance;
+    for (auto& param : performanceParams_) {
+        auto entry = new DynamicObject();
+        entry->setProperty("track", (int)param.trackIdx() + 1);
+        entry->setProperty("slot", jsonpreset::slotName(param.moduleIdx()));
+        entry->setProperty("param", (int)param.paramIdx());
+        performance.add(var(entry));
+    }
+    if (!performance.isEmpty()) doc->setProperty("performance", performance);
+
+    if (!f.replaceWithText(JSON::toString(var(doc)) + "\n")) {
+        jsonpreset::logError("cannot write " + f.getFileName());
+    }
 }
 
 void PluginProcessor::loadPreset() {
@@ -316,7 +351,7 @@ void PluginProcessor::loadPreset() {
 }
 
 
-// Hand-written presets, described in tools/py2trax/README.md. Unlike the XML above this is
+// Hand-written presets, described in ../README.md. Unlike the XML above this is
 // not a preset trax wrote, so each track reports what it could not apply rather than
 // failing the whole load.
 void PluginProcessor::loadJsonPreset(const juce::var& doc) {

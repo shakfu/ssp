@@ -116,6 +116,7 @@ public:
     void savePreset();
     void loadPreset();
     void loadJsonPreset(const juce::var& doc);
+    void saveJsonPreset(const juce::File& f);
 
     void muteTrack(unsigned t, bool mute) {
         if (t >= MAX_TRACKS) return;
