@@ -2,13 +2,11 @@
 
 Read and write trax presets from the command line.
 
-trax loads and saves JSON itself, so writing a `.json` and copying it to the SSP needs no tool at all. The format is documented in `technobear/trax/README.md`. This tool adds three things that only make sense off the device:
+trax loads and saves JSON itself, so writing a `.json` and copying it to the SSP needs no tool at all. The format is documented in `technobear/trax/README.md`. This tool adds one thing that only makes sense off the device:
 
 - **Checking a preset before it gets there.** Module and channel names are verified against the plugin sources, so a typo is an error at your desk instead of a line in `dmesg`.
 
-- **Converting to the binary format**, for a trax build without the JSON loader.
-
-- **Reading a binary preset**, including the JUCE `.filtergraph` files the desktop plugin host writes.
+It also converts between JSON and trax's binary format, for builds predating the JSON loader. That half reads the byte layout and is expected to break; see Limits.
 
 `examples/two_track/` holds one patch in both formats.
 
@@ -45,10 +43,12 @@ None of this constrains trax. It resolves both against the loaded module, so eve
 
 - Module names are not checked. The manifest lists what the sources build, not what is installed on the card.
 
-- `decode` on a `.filtergraph` reads the state JUCE's plugin host saved, which is the same preset wrapped in a VST3 chunk.
+- The binary format is not a specification. Upstream states that preset layout and module state may change between releases ([forum](https://forum.percussa.com/t/can-you-add-support-for-human-readable-presets-in-json/2084)), and `encode` and `decode` will break when they do. Prefer JSON, which trax resolves against the loaded module rather than against fixed offsets.
+
+- `.filtergraph` is not a trax input. It is what JUCE's desktop plugin host writes when it saves a graph, with each module's state as a VST3 chunk. trax is an SSP module host, not a VST host; upstream's modules build as VSTs only as a development convenience. `decode` accepts a filtergraph because it makes a convenient test fixture.
 
 ## Tests
 
-    make test
+    make test        # from the repo root
 
-Decoding is checked against `resources/test/trax.filtergraph`, which holds a preset trax itself wrote: three modules, five wires, two performance parameters, and MIDI state for every module.
+Decoding is checked against `resources/test/trax.filtergraph`, a fixture holding a preset trax itself wrote: three modules, five wires, two performance parameters, and MIDI state for every module.
