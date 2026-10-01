@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(SFCT VERSION 1.0.0)
+project(SFCT VERSION 0.1.0)  # see CHANGELOG.md
 
 set(SOFTCUT_DIR "${PROJECT_SOURCE_DIR}/../../external/softcut-lib")
 
@@ -7,12 +7,12 @@ include_directories("${PROJECT_SOURCE_DIR}/../common")
 include_directories("${SOFTCUT_DIR}/include")
 
 juce_add_plugin(SFCT
-        COMPANY_NAME "Technobear"
-        COMPANY_WEBSITE "www.technobear.com"
-        COMPANY_EMAIL "mharris@technobear.com"
+        COMPANY_NAME "shakfu"
+        COMPANY_WEBSITE "github.com/shakfu"
+        COMPANY_EMAIL "shakfu@users.noreply.github.com"
         DESCRIPTION "softcut 4 track looper"
         COPY_PLUGIN_AFTER_BUILD FALSE
-        PLUGIN_MANUFACTURER_CODE TB00
+        PLUGIN_MANUFACTURER_CODE SF00
         PLUGIN_CODE SFCT
         FORMATS VST3
         VST3_AUTO_MANIFEST FALSE
@@ -40,7 +40,8 @@ target_compile_definitions(SFCT
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
         JUCE_VST3_CAN_REPLACE_VST2=0
-        SSP_TITLE_NO_MANUFACTURER=1)
+        SSP_TITLE_NO_MANUFACTURER=1
+        SSP_VERSION_FROM_PROJECT=1)
 
 target_link_libraries(SFCT PRIVATE
         juce::juce_audio_utils)

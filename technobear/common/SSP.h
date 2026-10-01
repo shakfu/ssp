@@ -9,6 +9,14 @@
 #define SSP_TITLE_SUFFIX " @ " JucePlugin_Manufacturer
 #endif
 
+// Version on screen and in the descriptor: the build date, or the CMake project version for a
+// plugin built with SSP_VERSION_FROM_PROJECT.
+#ifdef SSP_VERSION_FROM_PROJECT
+#define SSP_VERSION_STRING JucePlugin_VersionString
+#else
+#define SSP_VERSION_STRING TB_BUILD_DATE
+#endif
+
 
 enum SSPButtons {
     SSP_Soft_1,

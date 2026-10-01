@@ -35,6 +35,9 @@ static constexpr unsigned SCAN_BUDGET = 4096;  // a 4 s view refreshes in 0.25 s
 
 enum Mode : int { SHARED = 0, PER_TRACK = 1 };
 
+// What a voice records: its own side's input (L voices In L, R voices In R), one input, or their mean.
+enum InputSrc : int { IN_OWN = 0, IN_L = 1, IN_R = 2, IN_MIX = 3 };
+
 inline unsigned bufferFor(Mode m, unsigned v) {
     return m == SHARED ? v % SHARED_BUFFERS : v;
 }
@@ -54,8 +57,33 @@ struct VoiceParams {
     float level = 0.8f;
     float pan = 0.0f;
     float inputGain = 0.0f;
+    int input = IN_OWN;
+    // output filter: cutoff, 1/Q, and the levels of each response and of the dry signal
     float postFc = 8000.0f;
-    float postLp = 0.0f;  // lowpass mix; dry is 1 - postLp
+    float postRq = 4.0f;
+    float postLp = 0.0f;
+    float postHp = 0.0f;
+    float postBp = 0.0f;
+    float postBr = 0.0f;
+    float postDry = 1.0f;
+    // input filter, likewise; preFcMod scales the cutoff down with |rate| (0 none, 1 fully)
+    float preFc = 16000.0f;
+    float preRq = 4.0f;
+    float preFcMod = 1.0f;
+    float preLp = 1.0f;
+    float preHp = 0.0f;
+    float preBp = 0.0f;
+    float preBr = 0.0f;
+    float preDry = 0.0f;
+    // crossfade curves (softcut::FadeCurves::Shape) and their timing, as fractions of the fade
+    int recShape = softcut::FadeCurves::Raised;
+    int preShape = softcut::FadeCurves::Linear;
+    float recDelay = 1.0f / 128.0f;
+    float preWindow = 1.0f / 8.0f;
+    float recOffset = -8.0f / 48000.0f;  // seconds the write head trails the read head
+    // phase reporting: position rounded down to multiples of phaseQuant s, shifted by phaseOffset s
+    float phaseQuant = 0.0f;
+    float phaseOffset = 0.0f;
 };
 
 // Voices 2k and 2k+1 form a stereo pair, L and R.
@@ -116,6 +144,8 @@ public:
         float start = std::clamp(std::min(p.loopStart, p.loopEnd), 0.0f, maxT);
         float end = std::clamp(std::max(p.loopStart, p.loopEnd), 0.0f, maxT);
 
+        auto changed = [all](auto a, auto b) { return all || a != b; };
+
         if (all || p.rate != o.rate) v.setRate(p.rate);
         if (all || p.loopStart != o.loopStart || p.loopEnd != o.loopEnd) {
             v.setLoopStart(start);
@@ -126,11 +156,29 @@ public:
         if (all || p.rateSlew != o.rateSlew) v.setRateSlewTime(p.rateSlew);
         if (all || p.recLevel != o.recLevel) v.setRecLevel(p.recLevel);
         if (all || p.preLevel != o.preLevel) v.setPreLevel(p.preLevel);
-        if (all || p.postFc != o.postFc) v.setPostFilterFc(p.postFc);
-        if (all || p.postLp != o.postLp) {
-            v.setPostFilterLp(p.postLp);
-            v.setPostFilterDry(1.0f - p.postLp);
-        }
+        if (changed(p.postFc, o.postFc)) v.setPostFilterFc(p.postFc);
+        if (changed(p.postRq, o.postRq)) v.setPostFilterRq(p.postRq);
+        if (changed(p.postLp, o.postLp)) v.setPostFilterLp(p.postLp);
+        if (changed(p.postHp, o.postHp)) v.setPostFilterHp(p.postHp);
+        if (changed(p.postBp, o.postBp)) v.setPostFilterBp(p.postBp);
+        if (changed(p.postBr, o.postBr)) v.setPostFilterBr(p.postBr);
+        if (changed(p.postDry, o.postDry)) v.setPostFilterDry(p.postDry);
+        if (changed(p.preRq, o.preRq)) v.setPreFilterRq(p.preRq);
+        if (changed(p.preLp, o.preLp)) v.setPreFilterLp(p.preLp);
+        if (changed(p.preHp, o.preHp)) v.setPreFilterHp(p.preHp);
+        if (changed(p.preBp, o.preBp)) v.setPreFilterBp(p.preBp);
+        if (changed(p.preBr, o.preBr)) v.setPreFilterBr(p.preBr);
+        if (changed(p.preDry, o.preDry)) v.setPreFilterDry(p.preDry);
+        // setPreFilterFcMod does not recompute the cutoff; setPreFilterFc does
+        if (changed(p.preFcMod, o.preFcMod)) v.setPreFilterFcMod(p.preFcMod);
+        if (changed(p.preFc, o.preFc) || changed(p.preFcMod, o.preFcMod)) v.setPreFilterFc(p.preFc);
+        if (changed(p.recShape, o.recShape)) v.setRecFadeShape(softcut::FadeCurves::Shape(p.recShape));
+        if (changed(p.preShape, o.preShape)) v.setPreFadeShape(softcut::FadeCurves::Shape(p.preShape));
+        if (changed(p.recDelay, o.recDelay)) v.setRecDelayRatio(p.recDelay);
+        if (changed(p.preWindow, o.preWindow)) v.setPreWindowRatio(p.preWindow);
+        if (changed(p.recOffset, o.recOffset)) v.setRecOffset(p.recOffset);
+        if (changed(p.phaseQuant, o.phaseQuant)) v.setPhaseQuant(p.phaseQuant);
+        if (changed(p.phaseOffset, o.phaseOffset)) v.setPhaseOffset(p.phaseOffset);
         bool wasRunning = !all && (o.play || o.rec);
         if (all || p.play != o.play) v.setPlayFlag(p.play);
         if (all || p.rec != o.rec) v.setRecFlag(p.rec);
@@ -141,6 +189,14 @@ public:
     }
 
     void cut(unsigned vi, float sec) { voices_[vi].cutToPos(sec); }
+
+    // Audio thread. Records one pass, from the voice's next cut or loop point. A stopped voice is
+    // started at its loop start, which is that cut.
+    void recOnce(unsigned vi) {
+        auto& p = params_[vi];
+        voices_[vi].setRecOnceFlag(true);
+        if (!p.play && !p.rec) voices_[vi].cutToPos(std::clamp(std::min(p.loopStart, p.loopEnd), 0.0f, bufferSeconds()));
+    }
 
     // Audio thread. fb[src][dst]: gain from voice src's output (before level) into voice dst's input,
     // one CHUNK later.
@@ -214,6 +270,27 @@ public:
         commitLoad(mask);
     }
     Mode mode() const { return Mode(mode_.load(std::memory_order_relaxed)); }
+
+    // Control thread. Silences the shared buffers, releases the per-track ones and switches to
+    // SHARED, in one swap at the next process(). The old buffers wait in staging for
+    // reclaimStaging(), so the audio thread does no clearing or freeing.
+    void requestClearAll() {
+        beginLoad();
+        unsigned mask = 0;
+        for (unsigned b = 0; b < BUFFERS; b++) {
+            if (b < SHARED_BUFFERS) {
+                float* d = staging(b);
+                std::fill(d, d + BUFFER_FRAMES, 0.0f);
+            } else {
+                if (!allocated_[b]) continue;
+                std::vector<float>().swap(staging_[b]);  // swapped in, this leaves the buffer unallocated
+                allocated_[b] = false;
+            }
+            mask |= 1u << b;
+        }
+        pendingMode_ = SHARED;
+        commitLoad(mask);
+    }
 
     // Snapshot for saving, for one control thread. The audio thread copies the first `frames` of the
     // buffers in `mask`, SNAPSHOT_BUDGET frames per block, so a voice recording meanwhile leaves
@@ -296,6 +373,8 @@ public:
             unsigned len = std::min(CHUNK, n - off);
             for (unsigned c = 0; c < INPUTS; c++)
                 for (unsigned i = 0; i < len; i++) chunkIn_[c][i] = in[c][off + i];
+            // halved, so two full-scale inputs do not clip
+            for (unsigned i = 0; i < len; i++) chunkMix_[i] = 0.5f * (chunkIn_[0][i] + chunkIn_[1][i]);
             for (unsigned i = 0; i < len; i++) mix[0][off + i] = mix[1][off + i] = 0.0f;
             for (unsigned vi = 0; vi < VOICES; vi++) {
                 const auto& p = params_[vi];
@@ -305,7 +384,10 @@ public:
                     std::fill(curOut_[vi], curOut_[vi] + CHUNK, 0.0f);
                     continue;
                 }
-                const float* src = chunkIn_[vi % INPUTS];
+                const float* src = p.input == IN_L     ? chunkIn_[0]
+                                    : p.input == IN_R   ? chunkIn_[1]
+                                    : p.input == IN_MIX ? chunkMix_
+                                                        : chunkIn_[vi % INPUTS];
                 for (unsigned i = 0; i < len; i++) scratchIn_[i] = src[i] * p.inputGain;
                 for (unsigned s = 0; s < VOICES; s++) {
                     float g = fb_[s][vi];
@@ -407,6 +489,7 @@ private:
     bool applied_[VOICES] = {};
     float sampleRate_ = 48000.0f;
     float chunkIn_[INPUTS][CHUNK];
+    float chunkMix_[CHUNK];
     float scratchIn_[CHUNK];
     float curOut_[VOICES][CHUNK] = {};   // each voice's output this chunk, before level
     float prevOut_[VOICES][CHUNK] = {};  // and the previous chunk's, which feedback reads
