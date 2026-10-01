@@ -1,6 +1,6 @@
 ## message manager issues
 
-these are noticed when running debug versions of vsts on SSP we get various assertions 
+these are noticed when running debug versions of vsts on SSP we get various assertions
 
 
 it should be noted, that these assertions seem harmless when run not run in debug
@@ -48,25 +48,15 @@ it should be noted, that these assertions seem harmless when run not run in debu
 
 ```
 
-also... 
-JUCE Assertion failure in juce_Component.cpp:1917
-JUCE Assertion failure in juce_AsyncUpdater.cpp:66
+also... JUCE Assertion failure in juce_Component.cpp:1917 JUCE Assertion failure in juce_AsyncUpdater.cpp:66
 
-theere are cause bu AudioProcessorValueTreeState, and ParameterAttachment attempting to use MessageManager.
-the assertion is basically a check that MessageManager exists.
+theere are cause bu AudioProcessorValueTreeState, and ParameterAttachment attempting to use MessageManager. the assertion is basically a check that MessageManager exists.
 
 
-the way this usually works is any instance of a plugin will create ONE instance of the message manager with its own thread.
-(e.g. 5 copies of DATA would all use same instance, but 1 DATA + 1 CLDS creates two)
+the way this usually works is any instance of a plugin will create ONE instance of the message manager with its own thread. (e.g. 5 copies of DATA would all use same instance, but 1 DATA + 1 CLDS creates two)
 
-no real way around this....
-we could call MessageManager::Instance... so that juce believes its there, but it'll just never get serviced.
-(so basically, it'll just please the assertion, but not do anytihng )
+no real way around this.... we could call MessageManager::Instance... so that juce believes its there, but it'll just never get serviced. (so basically, it'll just please the assertion, but not do anytihng )
 
-also the MessageManager function runDispatchLoop() (?) is blocking so has to be in its own thread.
-and there are no methods to do this 'manually', since that code is all hidden away in the platform specifc implementation of the message manager.
-(so this have 'private' messages queues)
-... similarly, you cannot do anything about the posting to that queue, since that is done in MessageBase::post , which posts via (again) a platform specific method.
+also the MessageManager function runDispatchLoop() (?) is blocking so has to be in its own thread. and there are no methods to do this 'manually', since that code is all hidden away in the platform specifc implementation of the message manager. (so this have 'private' messages queues) ... similarly, you cannot do anything about the posting to that queue, since that is done in MessageBase::post , which posts via (again) a platform specific method.
 
-(basically JUCE, likes to declare functions in MessageMaanger.h and similar ) but then implement them in the platform layer...
-this means they cannot be overriden, without implementing an entire new OS platform ! (which is not practicl ) 
+(basically JUCE, likes to declare functions in MessageMaanger.h and similar ) but then implement them in the platform layer... this means they cannot be overriden, without implementing an entire new OS platform ! (which is not practicl )
