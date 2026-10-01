@@ -78,17 +78,40 @@ PluginProcessor::Voice::Voice(AudioProcessorValueTreeState& apvt, unsigned v)
       slew(*apvt.getParameter(getVoiceParamId(v, ID::slew))),
       lpf(*apvt.getParameter(getVoiceParamId(v, ID::lpf))),
       lp_mix(*apvt.getParameter(getVoiceParamId(v, ID::lp_mix))),
+      post_rq(*apvt.getParameter(getVoiceParamId(v, ID::post_rq))),
+      post_hp(*apvt.getParameter(getVoiceParamId(v, ID::post_hp))),
+      post_bp(*apvt.getParameter(getVoiceParamId(v, ID::post_bp))),
+      post_br(*apvt.getParameter(getVoiceParamId(v, ID::post_br))),
+      post_dry(*apvt.getParameter(getVoiceParamId(v, ID::post_dry))),
+      pre_fc(*apvt.getParameter(getVoiceParamId(v, ID::pre_fc))),
+      pre_rq(*apvt.getParameter(getVoiceParamId(v, ID::pre_rq))),
+      pre_fc_mod(*apvt.getParameter(getVoiceParamId(v, ID::pre_fc_mod))),
+      pre_dry(*apvt.getParameter(getVoiceParamId(v, ID::pre_dry))),
+      pre_lp(*apvt.getParameter(getVoiceParamId(v, ID::pre_lp))),
+      pre_hp(*apvt.getParameter(getVoiceParamId(v, ID::pre_hp))),
+      pre_bp(*apvt.getParameter(getVoiceParamId(v, ID::pre_bp))),
+      pre_br(*apvt.getParameter(getVoiceParamId(v, ID::pre_br))),
+      rec_shape(*apvt.getParameter(getVoiceParamId(v, ID::rec_shape))),
+      pre_shape(*apvt.getParameter(getVoiceParamId(v, ID::pre_shape))),
+      rec_delay(*apvt.getParameter(getVoiceParamId(v, ID::rec_delay))),
+      pre_window(*apvt.getParameter(getVoiceParamId(v, ID::pre_window))),
+      rec_offset(*apvt.getParameter(getVoiceParamId(v, ID::rec_offset))),
       link(*apvt.getParameter(getLinkId(v / 2))) {
 }
 
 std::vector<RangedAudioParameter*> PluginProcessor::Voice::params() {
     return { &on,        &play,      &rec,     &loop, &cut,  &rate, &start, &end,   &level,
-             &rec_level, &pre_level, &in_gain, &pan,  &fade, &slew, &lpf,   &lp_mix };
+             &rec_level, &pre_level, &in_gain, &pan,  &fade, &slew, &lpf,   &lp_mix,
+             &post_rq, &post_hp, &post_bp, &post_br, &post_dry, &pre_fc, &pre_rq, &pre_fc_mod, &pre_dry, &pre_lp, &pre_hp, &pre_bp, &pre_br, &rec_shape, &pre_shape, &rec_delay, &pre_window, &rec_offset };
 }
 
 PluginProcessor::Track::Track(AudioProcessorValueTreeState& apvt, unsigned t)
     : fb_src(*apvt.getParameter(getTrackParamId(t, ID::fb_src))),
-      fb_amt(*apvt.getParameter(getTrackParamId(t, ID::fb_amt))) {
+      fb_amt(*apvt.getParameter(getTrackParamId(t, ID::fb_amt))),
+      sync(*apvt.getParameter(getTrackParamId(t, ID::sync))),
+      phase_q(*apvt.getParameter(getTrackParamId(t, ID::phase_q))),
+      phase_off(*apvt.getParameter(getTrackParamId(t, ID::phase_off))),
+      input(*apvt.getParameter(getTrackParamId(t, ID::input))) {
 }
 
 PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState& apvt) {
@@ -134,8 +157,31 @@ AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLa
         grp->addChild(std::make_unique<ssp::BaseFloatParameter>(id(ID::slew), desc + "Slew", 0.0f, 4.0f, 0.1f));
         grp->addChild(std::make_unique<ssp::BaseFloatParameter>(id(ID::lpf), desc + "LPF", 20.0f, 20000.0f,
                                                                 lowpass ? 2000.0f : 8000.0f));
-        grp->addChild(std::make_unique<ssp::BaseFloatParameter>(id(ID::lp_mix), desc + "LP Mix", 0.0f, 1.0f,
+        grp->addChild(std::make_unique<ssp::BaseFloatParameter>(id(ID::lp_mix), desc + "LP", 0.0f, 1.0f,
                                                                 lowpass ? 1.0f : 0.0f));
+        // softcut's own defaults, except the output filter's dry level, which complements lp
+        auto flt = [&](StringRef pid, const String& name, float lo, float hi, float def) {
+            grp->addChild(std::make_unique<ssp::BaseFloatParameter>(id(pid), desc + name, lo, hi, def));
+        };
+        flt(ID::post_rq, "Q", 0.05f, 4.0f, 4.0f);
+        flt(ID::post_hp, "HP", 0.0f, 1.0f, 0.0f);
+        flt(ID::post_bp, "BP", 0.0f, 1.0f, 0.0f);
+        flt(ID::post_br, "BR", 0.0f, 1.0f, 0.0f);
+        flt(ID::post_dry, "Dry", 0.0f, 1.0f, lowpass ? 0.0f : 1.0f);
+        flt(ID::pre_fc, "In FC", 20.0f, 20000.0f, 16000.0f);
+        flt(ID::pre_rq, "In Q", 0.05f, 4.0f, 4.0f);
+        flt(ID::pre_fc_mod, "In Track", 0.0f, 1.0f, 1.0f);
+        flt(ID::pre_dry, "In Dry", 0.0f, 1.0f, 0.0f);
+        flt(ID::pre_lp, "In LP", 0.0f, 1.0f, 1.0f);
+        flt(ID::pre_hp, "In HP", 0.0f, 1.0f, 0.0f);
+        flt(ID::pre_bp, "In BP", 0.0f, 1.0f, 0.0f);
+        flt(ID::pre_br, "In BR", 0.0f, 1.0f, 0.0f);
+        StringArray shapes{ "linear", "sine", "raised" };
+        grp->addChild(std::make_unique<ssp::BaseChoiceParameter>(id(ID::rec_shape), desc + "Rec Shape", shapes, 2));
+        grp->addChild(std::make_unique<ssp::BaseChoiceParameter>(id(ID::pre_shape), desc + "Pre Shape", shapes, 0));
+        flt(ID::rec_delay, "Rec Delay", 0.0f, 0.5f, 1.0f / 128.0f);
+        flt(ID::pre_window, "Pre Window", 0.0f, 1.0f, 1.0f / 8.0f);
+        flt(ID::rec_offset, "Rec Ofs ms", -10.0f, 10.0f, -8.0f / 48.0f);  // softcut's -8 frames at 48 kHz
         params.add(std::move(grp));
     }
     for (unsigned pair = 0; pair < PAIRS; pair++) {
@@ -149,6 +195,16 @@ AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLa
                                                               StringArray{ "off", "T1", "T2", "T3", "T4" }, 0));
         params.add(
             std::make_unique<ssp::BaseFloatParameter>(getTrackParamId(t, ID::fb_amt), desc + "FB Amt", 0.0f, 1.0f, 0.5f));
+        StringArray beats{ "off" };
+        for (int i = 1; i < int(std::size(SYNC_BEATS)); i++) beats.add(String(SYNC_BEATS[i]));
+        params.add(std::make_unique<ssp::BaseChoiceParameter>(getTrackParamId(t, ID::sync), desc + "Sync", beats, 0));
+        params.add(std::make_unique<ssp::BaseFloatParameter>(getTrackParamId(t, ID::phase_q), desc + "Phase Q", 0.0f,
+                                                             16.0f, 0.0f));
+        params.add(std::make_unique<ssp::BaseFloatParameter>(getTrackParamId(t, ID::phase_off), desc + "Phase Ofs",
+                                                             0.0f, MAX_SECONDS, 0.0f));
+        // index order matches sfct::InputSrc: stereo is each side's own input
+        params.add(std::make_unique<ssp::BaseChoiceParameter>(getTrackParamId(t, ID::input), desc + "Input",
+                                                              StringArray{ "stereo", "L", "R", "L+R" }, 0));
     }
     return params;
 }
@@ -167,7 +223,8 @@ const String PluginProcessor::getInputBusName(int channelIndex) {
 const String PluginProcessor::getOutputBusName(int channelIndex) {
     if (channelIndex == O_OUT_L) return "Out L";
     if (channelIndex == O_OUT_R) return "Out R";
-    if (channelIndex < O_MAX) return "Voice " + String(channelIndex - O_VOICE_1 + 1);
+    if (channelIndex < O_PHASE_1) return "Voice " + String(channelIndex - O_VOICE_1 + 1);
+    if (channelIndex < O_MAX) return "T" + String(channelIndex - O_PHASE_1 + 1) + " Phase";
     return "ZZOut-" + String(channelIndex);
 }
 
@@ -314,6 +371,46 @@ bool PluginProcessor::saveBuffers(const String& path, unsigned mask) {
         saving_ = false;
     });
     return true;
+}
+
+void PluginProcessor::recOnce(unsigned v) {
+    unsigned mask = 1u << v;
+    if (getVoice(v).link.getValue() > 0.5f) mask |= 1u << sfct::partnerOf(v);
+    recOnceMask_.fetch_or(mask, std::memory_order_release);
+}
+
+// MIDI input thread
+void PluginProcessor::onMidiClock(double ts) {
+    tempo_.tick(ts);
+    spb_.store(tempo_.secondsPerBeat(), std::memory_order_relaxed);
+}
+
+void PluginProcessor::onMidiStart(double ts) {
+    syncStart_.store(true, std::memory_order_release);
+}
+
+void PluginProcessor::clearAll() {
+    engine_.requestClearAll();
+    {
+        std::lock_guard<std::mutex> lock(fileLock_);
+        for (unsigned b = 0; b < sfct::BUFFERS; b++) {
+            bufferFile_[b] = String();
+            bufferChannel_[b] = 0;
+        }
+    }
+    // the defaults already agree between linked voices, so mirroring is not needed; mode still
+    // reaches the engine, as parameterChanged handles it before this guard
+    restoring_ = true;
+    for (auto* p : getParameters()) {
+        if (auto* rp = dynamic_cast<RangedAudioParameter*>(p)) {
+            rp->beginChangeGesture();
+            rp->setValueNotifyingHost(rp->getDefaultValue());
+            rp->endChangeGesture();
+        }
+    }
+    restoring_ = false;
+    cutMask_.fetch_or((1u << VOICES) - 1, std::memory_order_release);  // playheads back to loop start
+    setStatus("cleared all");
 }
 
 bool PluginProcessor::clearLoop(unsigned v) {
@@ -467,6 +564,24 @@ void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMe
         p[v].inputGain = normValue(vp.in_gain);
         p[v].postFc = normValue(vp.lpf);
         p[v].postLp = normValue(vp.lp_mix);
+        p[v].postRq = normValue(vp.post_rq);
+        p[v].postHp = normValue(vp.post_hp);
+        p[v].postBp = normValue(vp.post_bp);
+        p[v].postBr = normValue(vp.post_br);
+        p[v].postDry = normValue(vp.post_dry);
+        p[v].preFc = normValue(vp.pre_fc);
+        p[v].preRq = normValue(vp.pre_rq);
+        p[v].preFcMod = normValue(vp.pre_fc_mod);
+        p[v].preDry = normValue(vp.pre_dry);
+        p[v].preLp = normValue(vp.pre_lp);
+        p[v].preHp = normValue(vp.pre_hp);
+        p[v].preBp = normValue(vp.pre_bp);
+        p[v].preBr = normValue(vp.pre_br);
+        p[v].recShape = int(normValue(vp.rec_shape));
+        p[v].preShape = int(normValue(vp.pre_shape));
+        p[v].recDelay = normValue(vp.rec_delay);
+        p[v].preWindow = normValue(vp.pre_window);
+        p[v].recOffset = normValue(vp.rec_offset) * 0.001f;
         bool held = vp.cut.getValue() > 0.5f;
         cut[v] = held && !cutHeld_[v];
         cutHeld_[v] = held;
@@ -481,14 +596,26 @@ void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMe
         cut[lead] = cut[follow] = cut[lead] || cut[follow];
     }
 
-    // a track's CV drives both its voices, after linking, so a linked track stays locked
+    // Track settings apply to both voices, after linking, so a linked track stays locked: sync sets
+    // the loop length, then CV moves it.
+    double spb = spb_.load(std::memory_order_relaxed);
+    bool syncStart = syncStart_.exchange(false, std::memory_order_acquire);
     float fb[VOICES][VOICES] = {};
     for (unsigned t = 0; t < PAIRS; t++) {
+        auto& tp = getTrack(t);
+        int beats = SYNC_BEATS[std::clamp(int(normValue(tp.sync)), 0, int(std::size(SYNC_BEATS)) - 1)];
         for (unsigned v = t * 2; v < t * 2 + 2; v++) {
+            if (beats > 0 && spb > 0.0) {
+                p[v].loopStart = std::min(p[v].loopStart, p[v].loopEnd);
+                p[v].loopEnd = p[v].loopStart + float(beats * spb);
+                cut[v] = cut[v] || syncStart;
+            }
+            p[v].input = int(normValue(tp.input));
+            p[v].phaseQuant = normValue(tp.phase_q);
+            p[v].phaseOffset = normValue(tp.phase_off);
             p[v] = sfct::withCv(p[v], cv[t].rate, cv[t].pos, cv[t].gate, engine_.bufferSeconds());
             cut[v] = cut[v] || cv[t].trig;
         }
-        auto& tp = getTrack(t);
         int src = int(normValue(tp.fb_src)) - 1;
         if (src < 0) continue;
         float amt = normValue(tp.fb_amt);
@@ -505,12 +632,24 @@ void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMe
         if (((cutMask & (1u << v)) || cut[v]) && (p[v].play || p[v].rec))
             engine_.cut(v, std::min(p[v].loopStart, p[v].loopEnd));
     }
+    unsigned recOnce = recOnceMask_.exchange(0, std::memory_order_acquire);
+    for (unsigned v = 0; v < VOICES; v++)
+        if (recOnce & (1u << v)) engine_.recOnce(v);
 
     const float* in[sfct::INPUTS] = { buffer.getReadPointer(I_IN_L), buffer.getReadPointer(I_IN_R) };
     float* mix[2] = { buffer.getWritePointer(O_OUT_L), buffer.getWritePointer(O_OUT_R) };
     float* vout[VOICES];
     for (unsigned v = 0; v < VOICES; v++) vout[v] = buffer.getWritePointer(O_VOICE_1 + v);
     engine_.process(in, mix, vout, n);
+
+    for (unsigned t = 0; t < PAIRS; t++) {
+        unsigned v = t * 2;
+        double q = engine_.voice(v).getQuantPhase();
+        bool pulse = p[v].on && (p[v].play || p[v].rec) && p[v].phaseQuant > 0.0f && q != lastPhase_[t];
+        lastPhase_[t] = q;
+        float* out = buffer.getWritePointer(O_PHASE_1 + int(t));
+        std::fill(out, out + n, pulse ? 1.0f : 0.0f);
+    }
 
     // the displayed track's buffers, over the furthest loop end among enabled voices that use them
     auto m = engine_.mode();

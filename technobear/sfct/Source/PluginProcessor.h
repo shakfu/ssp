@@ -7,6 +7,7 @@
 #include <thread>
 
 #include "Engine.h"
+#include "Tempo.h"
 #include "ssp/BaseProcessor.h"
 #include "ssp/controls/RmsTrack.h"
 
@@ -37,6 +38,28 @@ PARAMETER_ID(link)
 PARAMETER_ID(mode)
 PARAMETER_ID(fb_src)
 PARAMETER_ID(fb_amt)
+PARAMETER_ID(post_rq)
+PARAMETER_ID(post_hp)
+PARAMETER_ID(post_bp)
+PARAMETER_ID(post_br)
+PARAMETER_ID(post_dry)
+PARAMETER_ID(pre_fc)
+PARAMETER_ID(pre_rq)
+PARAMETER_ID(pre_fc_mod)
+PARAMETER_ID(pre_dry)
+PARAMETER_ID(pre_lp)
+PARAMETER_ID(pre_hp)
+PARAMETER_ID(pre_bp)
+PARAMETER_ID(pre_br)
+PARAMETER_ID(rec_shape)
+PARAMETER_ID(pre_shape)
+PARAMETER_ID(rec_delay)
+PARAMETER_ID(pre_window)
+PARAMETER_ID(rec_offset)
+PARAMETER_ID(sync)
+PARAMETER_ID(phase_q)
+PARAMETER_ID(phase_off)
+PARAMETER_ID(input)
 
 #undef PARAMETER_ID
 }  // namespace ID
@@ -64,7 +87,8 @@ public:
     // per track: rate (V/oct), pos (1 s/V), rec gate, cut trigger
     enum { I_IN_L, I_IN_R, I_TRACK_1, I_MAX = I_TRACK_1 + 4 * PAIRS };
     enum { TI_RATE, TI_POS, TI_REC, TI_CUT, TI_MAX };
-    enum { O_OUT_L, O_OUT_R, O_VOICE_1, O_MAX = O_VOICE_1 + VOICES };
+    // Tn Phase: a block-long pulse whenever the track's L voice crosses a phase_q boundary
+    enum { O_OUT_L, O_OUT_R, O_VOICE_1, O_PHASE_1 = O_VOICE_1 + VOICES, O_MAX = O_PHASE_1 + PAIRS };
 
     struct Voice {
         using Parameter = juce::RangedAudioParameter;
@@ -87,7 +111,25 @@ public:
         Parameter& fade;
         Parameter& slew;
         Parameter& lpf;
-        Parameter& lp_mix;
+        Parameter& lp_mix;  // output filter lowpass level
+        Parameter& post_rq;
+        Parameter& post_hp;
+        Parameter& post_bp;
+        Parameter& post_br;
+        Parameter& post_dry;
+        Parameter& pre_fc;
+        Parameter& pre_rq;
+        Parameter& pre_fc_mod;
+        Parameter& pre_dry;
+        Parameter& pre_lp;
+        Parameter& pre_hp;
+        Parameter& pre_bp;
+        Parameter& pre_br;
+        Parameter& rec_shape;
+        Parameter& pre_shape;
+        Parameter& rec_delay;
+        Parameter& pre_window;
+        Parameter& rec_offset;
         Parameter& link;  // shared by both voices of the pair
     };
 
@@ -97,7 +139,12 @@ public:
         Track(AudioProcessorValueTreeState& apvt, unsigned t);
         Parameter& fb_src;
         Parameter& fb_amt;
+        Parameter& sync;       // 0 off, else an index into SYNC_BEATS
+        Parameter& phase_q;    // seconds; 0 off
+        Parameter& phase_off;  // seconds
+        Parameter& input;      // what the track records: stereo, L, R or L+R (see sfct::InputSrc)
     };
+    static constexpr int SYNC_BEATS[] = { 0, 1, 2, 3, 4, 6, 8, 12, 16, 24, 32 };
 
     struct PluginParams {
         explicit PluginParams(juce::AudioProcessorValueTreeState&);
@@ -144,6 +191,17 @@ public:
     // Clears the loop voice v plays (after CV) on its buffer, and its partner's when linked, with
     // 5 ms edge fades. Asynchronous, like save. Message thread only.
     bool clearLoop(unsigned v);
+    // Back to a new instance: every parameter at its default, all buffers silent, no file references,
+    // norns mode. MIDI settings are kept. Message thread only.
+    void clearAll();
+
+    // Records one pass on voice v, and its partner when linked, from the next loop point.
+    void recOnce(unsigned v);
+    // MIDI clock tempo; 0 until four beats of clock have arrived
+    float bpm() const {
+        double spb = spb_.load(std::memory_order_relaxed);
+        return spb > 0.0 ? float(60.0 / spb) : 0.0f;
+    }
 
     String saveStatus() {
         std::lock_guard<std::mutex> lock(fileLock_);
@@ -173,6 +231,8 @@ protected:
     void customFromXml(juce::XmlElement*) override;
     void customToXml(juce::XmlElement*) override;
     void parameterChanged(const String& id, float newValue) override;
+    void onMidiClock(double ts) override;
+    void onMidiStart(double ts) override;
 
 private:
     bool isBusesLayoutSupported(const BusesLayout& layouts) const override { return true; }
@@ -186,6 +246,11 @@ private:
     bool cutHeld_[VOICES] = {};
     std::atomic<unsigned> cutMask_{ 0 };  // voices to cut to loop start after a load
     bool trigHigh_[PAIRS] = {};            // cut trigger input state, per track
+    double lastPhase_[PAIRS] = {};         // each track's last quantised phase, for Tn Phase
+    std::atomic<unsigned> recOnceMask_{ 0 };
+    sfct::ClockTempo tempo_;               // MIDI input thread only
+    std::atomic<double> spb_{ 0.0 };       // seconds per beat, from tempo_
+    std::atomic<bool> syncStart_{ false }; // MIDI start: cut synced tracks to their loop start
     struct {
         std::atomic<float> start{ 0.0f }, end{ 0.0f }, rate{ 1.0f };
     } played_[VOICES];

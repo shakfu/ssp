@@ -8,6 +8,7 @@
 
 #include "Engine.h"
 #include "FadeZones.h"
+#include "Tempo.h"
 
 static int failures = 0;
 #define CHECK(cond)                                                       \
@@ -513,6 +514,145 @@ static void testClear() {
     CHECK(e.buffer(1)[start + 2000] == 0.5f);  // not in the mask
 }
 
+// rec once records exactly one pass, then stops recording by itself
+static void testRecOnce() {
+    Rig r;
+    auto& v = r.p[0];
+    v.play = true;
+    v.inputGain = 1.0f;
+    v.preLevel = 0.0f;
+    v.loopEnd = 0.1f;
+    v.fadeTime = 0.005f;
+    r.run(0.05f, 0.5f, 0.0f);
+    CHECK(absSum(r.e.buffer(0)) == 0.0);  // playing, not recording
+    r.e.recOnce(0);
+    r.run(0.35f, 0.5f, 0.0f);
+    CHECK(!r.e.voice(0).getSavedRecFlag());
+    CHECK(std::fabs(r.e.buffer(0)[2400] - 0.6f) < 0.01f);
+    r.run(0.3f, 0.25f, 0.0f);  // new input is not recorded
+    CHECK(std::fabs(r.e.buffer(0)[2400] - 0.6f) < 0.01f);
+}
+
+static void testFilterMixes() {
+    Rig r;
+    stage(r.e, 0.25f, 0.0f);
+    auto& v = r.p[0];
+    v.play = true;
+    v.level = 1.0f;
+    v.loopEnd = 0.1f;
+    v.fadeTime = 0.005f;
+    v.postDry = 0.0f;  // every output mix at 0: silence
+    auto m = r.run(0.3f);
+    CHECK(std::fabs(m[2]) < 1e-6);
+    v.postLp = 1.0f;  // a lowpass passes DC
+    m = r.run(0.3f);
+    CHECK(std::fabs(m[2] - 0.25) < 0.01);
+
+    // input filter: a highpass blocks a DC input, so the voice records silence
+    auto& w = r.p[1];
+    w.rec = true;
+    w.play = false;
+    w.inputGain = 1.0f;
+    w.preLevel = 0.0f;
+    w.loopEnd = 0.1f;
+    w.fadeTime = 0.005f;
+    w.preLp = 0.0f;
+    w.preHp = 1.0f;
+    r.run(0.5f, 0.0f, 0.5f);
+    CHECK(std::fabs(r.e.buffer(1)[2400]) < 1e-3f);
+    w.preHp = 0.0f;
+    w.preDry = 1.0f;  // dry only: recorded as is, with the 1.2 soft-clip gain
+    r.run(0.3f, 0.0f, 0.5f);
+    CHECK(std::fabs(r.e.buffer(1)[2400] - 0.6f) < 0.01f);
+}
+
+static void testPhaseQuant() {
+    Rig r;
+    auto& v = r.p[0];
+    v.play = true;
+    v.loopEnd = 2.0f;
+    v.phaseQuant = 0.25f;
+    v.phaseOffset = 0.1f;
+    r.run(0.6f);  // position 0.6 s, plus 0.1 s offset: 0.7 s, floored to 0.5
+    double q = r.e.voice(0).getQuantPhase();
+    CHECK(std::fabs(q - 0.5) < 1e-9);
+}
+
+static void testTempo() {
+    ClockTempo c;
+    const unsigned window = ClockTempo::BEATS * ClockTempo::PPQN;
+    double t = 10.0, spb = 0.5;  // 120 bpm
+    for (unsigned i = 0; i < window; i++) c.tick(t += spb / ClockTempo::PPQN);
+    CHECK(c.secondsPerBeat() == 0.0);  // not a full window yet
+    c.tick(t += spb / ClockTempo::PPQN);
+    CHECK(std::fabs(c.secondsPerBeat() - 0.5) < 1e-9 && std::fabs(c.bpm() - 120.0) < 1e-6);
+
+    // +-1 ms of jitter per tick moves the estimate by less than the hysteresis, so it holds
+    unsigned seed = 7;
+    const double held = c.secondsPerBeat();
+    for (unsigned i = 0; i < 200; i++) {
+        seed = seed * 1664525u + 1013904223u;
+        double jitter = (double(seed >> 8) / double(1u << 24) - 0.5) * 0.002;
+        c.tick(10.0 + 0.5 * (window + 2 + i) / ClockTempo::PPQN + jitter);
+        CHECK(c.secondsPerBeat() == held);
+    }
+
+    // a new tempo is taken after a full window of its ticks
+    t = 10.0 + 0.5 * (window + 202) / ClockTempo::PPQN;
+    for (unsigned i = 0; i <= window; i++) c.tick(t += 0.6 / ClockTempo::PPQN);
+    CHECK(std::fabs(c.secondsPerBeat() - 0.6) < 1e-9);
+
+    // a gap restarts the measurement but keeps the last tempo meanwhile
+    c.tick(t += 2.0);
+    CHECK(std::fabs(c.secondsPerBeat() - 0.6) < 1e-9);
+    for (unsigned i = 0; i < window; i++) c.tick(t += 0.4 / ClockTempo::PPQN);
+    CHECK(std::fabs(c.secondsPerBeat() - 0.4) < 1e-9);
+}
+
+static void testClearAll() {
+    Rig r;
+    stage(r.e, 0.5f, 0.5f);
+    r.e.requestMode(PER_TRACK);
+    stageOne(r.e, 6, 0.25f);
+    r.run(0.01f);
+    CHECK(r.e.mode() == PER_TRACK && r.e.buffer(6)[10] == 0.25f);
+
+    r.e.requestClearAll();
+    CHECK(r.e.buffer(0)[10] == 0.5f);  // not before the next process()
+    r.run(0.01f);
+    CHECK(r.e.mode() == SHARED);
+    CHECK(absSum(r.e.buffer(0)) == 0.0 && absSum(r.e.buffer(1)) == 0.0);
+    for (unsigned b = SHARED_BUFFERS; b < BUFFERS; b++) CHECK(r.e.buffer(b).empty());
+    CHECK(r.e.reclaimStaging());  // the old buffers wait in staging
+    CHECK(r.e.stagingFrames() == 0);
+
+    // 4 loop again allocates fresh, silent buffers
+    r.e.requestMode(PER_TRACK);
+    r.run(0.01f);
+    CHECK(r.e.buffer(6).size() == BUFFER_FRAMES && absSum(r.e.buffer(6)) == 0.0);
+}
+
+// voice 1 (an R voice) records its own side by default, else the chosen input
+static void testInputSrc() {
+    struct Case {
+        int input;
+        float expect;  // recorded level for In L 0.4, In R 0.2, after the 1.2 soft-clip gain
+    } cases[] = { { IN_OWN, 0.24f }, { IN_L, 0.48f }, { IN_R, 0.24f }, { IN_MIX, 0.36f } };
+    for (auto& c : cases) {
+        Rig r;
+        auto& v = r.p[1];
+        v.rec = true;
+        v.play = false;
+        v.inputGain = 1.0f;
+        v.preLevel = 0.0f;
+        v.loopEnd = 0.1f;
+        v.fadeTime = 0.005f;
+        v.input = c.input;
+        r.run(0.3f, 0.4f, 0.2f);
+        CHECK(std::fabs(r.e.buffer(1)[2400] - c.expect) < 0.005f);
+    }
+}
+
 static void testLoopBoundsSanitised() {
     Rig r;
     auto& v = r.p[0];
@@ -562,6 +702,12 @@ int main() {
     testFadeZones();
     testReclaimStaging();
     testClear();
+    testRecOnce();
+    testFilterMixes();
+    testPhaseQuant();
+    testTempo();
+    testClearAll();
+    testInputSrc();
     testLoopBoundsSanitised();
     if (failures) return 1;
     std::printf("realtime factor (%u voices, rec+play): %.1fx\n", VOICES, realtimeFactor());

@@ -17,61 +17,85 @@ static constexpr unsigned TRACKS = sfct::TRACKS;
 static const juce::Colour trackClrs[TRACKS] = { juce::Colour(230, 90, 80), juce::Colour(80, 170, 230),
                                                 juce::Colour(120, 200, 110), juce::Colour(220, 180, 60) };
 
-class VoiceView : public ssp::BarParamEditor {
-public:
-    VoiceView(PluginProcessor& p, unsigned v) : ssp::BarParamEditor(&p, false) {
-        auto& vp = p.getVoice(v);
-        auto clr = trackClrs[v / 2];
-        addParamPage(std::make_shared<pcontrol_type>(vp.rate, 0.05f, 0.001f, clr),
-                     std::make_shared<pcontrol_type>(vp.start, 1.0f, 0.01f, clr),
-                     std::make_shared<pcontrol_type>(vp.end, 1.0f, 0.01f, clr),
-                     std::make_shared<pcontrol_type>(vp.level, 0.1f, 0.01f, clr));
-        addParamPage(std::make_shared<pcontrol_type>(vp.rec_level, 0.1f, 0.01f, clr),
-                     std::make_shared<pcontrol_type>(vp.pre_level, 0.1f, 0.01f, clr),
-                     std::make_shared<pcontrol_type>(vp.in_gain, 0.1f, 0.01f, clr),
-                     std::make_shared<pcontrol_type>(vp.pan, 0.1f, 0.01f, clr));
-        addParamPage(std::make_shared<pcontrol_type>(vp.fade, 0.01f, 0.001f, clr),
-                     std::make_shared<pcontrol_type>(vp.slew, 0.1f, 0.01f, clr),
-                     std::make_shared<pcontrol_type>(vp.lpf, 500.0f, 10.0f, clr),
-                     std::make_shared<pcontrol_type>(vp.lp_mix, 0.1f, 0.01f, clr));
-        addButtonPage(std::make_shared<bcontrol_type>(vp.play, 24, clr),
-                      std::make_shared<bcontrol_type>(vp.rec, 24, Colours::red),
-                      std::make_shared<bcontrol_type>(vp.loop, 24, clr),
-                      std::make_shared<bcontrol_type>(vp.cut, 24, clr, Colours::black, true),
-                      nullptr,  // Load
-                      std::make_shared<bcontrol_type>(vp.on, 24, clr),
-                      std::make_shared<bcontrol_type>(vp.link, 24, Colours::white), nullptr);
-    }
+static const char* voicePageNames[] = { "play", "rec", "fade", "fade 2", "filter", "filter 2", "in filter", "in filter 2" };
+static const char* globalPageNames[] = { "mode", "input", "feedback 1-2", "feedback 3-4", "sync", "phase 1-2", "phase 3-4" };
+static constexpr unsigned SYNC_PAGE = 4;  // globalPageNames[SYNC_PAGE] == "sync"
 
+// Param pages with an index into a name table, and a way to jump to a page.
+class PagedView : public ssp::BarParamEditor {
+public:
+    explicit PagedView(PluginProcessor& p) : ssp::BarParamEditor(&p, false) {}
     unsigned page() const { return paramPage_; }
     unsigned pages() const { return unsigned(controlPages_.size()); }
     void goToPage(unsigned p) {
         while (paramPage_ < p && paramPage_ + 1 < pages()) chgParamPage(1, false);
         while (paramPage_ > p) chgParamPage(-1, false);
     }
+
+protected:
+    using ctl = std::shared_ptr<ssp::BaseParamControl>;
+    ctl c(RangedAudioParameter& p, float coarse, float fine, Colour clr) {
+        return std::make_shared<pcontrol_type>(p, coarse, fine, clr);
+    }
 };
 
-class GlobalView : public ssp::BarParamEditor {
+class VoiceView : public PagedView {
 public:
-    explicit GlobalView(PluginProcessor& p) : ssp::BarParamEditor(&p, false) {
-        addParamPage(std::make_shared<pcontrol_type>(*p.getParameter(ID::mode), 1.0f, 1.0f, Colours::white), nullptr,
-                     nullptr, nullptr);
+    VoiceView(PluginProcessor& p, unsigned v) : PagedView(p) {
+        auto& vp = p.getVoice(v);
+        auto k = trackClrs[v / 2];
+        addParamPage(c(vp.rate, 0.05f, 0.001f, k), c(vp.start, 1.0f, 0.01f, k), c(vp.end, 1.0f, 0.01f, k),
+                     c(vp.level, 0.1f, 0.01f, k));
+        addParamPage(c(vp.rec_level, 0.1f, 0.01f, k), c(vp.pre_level, 0.1f, 0.01f, k), c(vp.in_gain, 0.1f, 0.01f, k),
+                     c(vp.pan, 0.1f, 0.01f, k));
+        addParamPage(c(vp.fade, 0.01f, 0.001f, k), c(vp.slew, 0.1f, 0.01f, k), c(vp.rec_shape, 1.0f, 1.0f, k),
+                     c(vp.pre_shape, 1.0f, 1.0f, k));
+        addParamPage(c(vp.rec_delay, 0.01f, 0.001f, k), c(vp.pre_window, 0.05f, 0.005f, k),
+                     c(vp.rec_offset, 0.1f, 0.01f, k), nullptr);
+        addParamPage(c(vp.lpf, 500.0f, 10.0f, k), c(vp.post_rq, 0.1f, 0.01f, k), c(vp.lp_mix, 0.1f, 0.01f, k),
+                     c(vp.post_dry, 0.1f, 0.01f, k));
+        addParamPage(c(vp.post_hp, 0.1f, 0.01f, k), c(vp.post_bp, 0.1f, 0.01f, k), c(vp.post_br, 0.1f, 0.01f, k),
+                     nullptr);
+        addParamPage(c(vp.pre_fc, 500.0f, 10.0f, k), c(vp.pre_rq, 0.1f, 0.01f, k), c(vp.pre_fc_mod, 0.1f, 0.01f, k),
+                     c(vp.pre_dry, 0.1f, 0.01f, k));
+        addParamPage(c(vp.pre_lp, 0.1f, 0.01f, k), c(vp.pre_hp, 0.1f, 0.01f, k), c(vp.pre_bp, 0.1f, 0.01f, k),
+                     c(vp.pre_br, 0.1f, 0.01f, k));
+        jassert(pages() == std::size(voicePageNames));
+        addButtonPage(std::make_shared<bcontrol_type>(vp.play, 24, k),
+                      std::make_shared<bcontrol_type>(vp.rec, 24, Colours::red),
+                      std::make_shared<bcontrol_type>(vp.loop, 24, k),
+                      std::make_shared<bcontrol_type>(vp.cut, 24, k, Colours::black, true),
+                      nullptr,  // Load
+                      std::make_shared<bcontrol_type>(vp.on, 24, k),
+                      std::make_shared<bcontrol_type>(vp.link, 24, Colours::white), nullptr);
+    }
+};
+
+class GlobalView : public PagedView {
+public:
+    explicit GlobalView(PluginProcessor& p) : PagedView(p) {
+        addParamPage(c(*p.getParameter(ID::mode), 1.0f, 1.0f, Colours::white), nullptr, nullptr, nullptr);
+        ctl input[TRACKS];
+        for (unsigned t = 0; t < TRACKS; t++) input[t] = c(p.getTrack(t).input, 1.0f, 1.0f, trackClrs[t]);
+        addParamPage(input[0], input[1], input[2], input[3]);
         // feedback: two tracks per page, each a source and an amount
         for (unsigned t = 0; t < TRACKS; t += 2) {
-            auto& a = p.getTrack(t);
-            auto& b = p.getTrack(t + 1);
-            addParamPage(std::make_shared<pcontrol_type>(a.fb_src, 1.0f, 1.0f, trackClrs[t]),
-                         std::make_shared<pcontrol_type>(a.fb_amt, 0.1f, 0.01f, trackClrs[t]),
-                         std::make_shared<pcontrol_type>(b.fb_src, 1.0f, 1.0f, trackClrs[t + 1]),
-                         std::make_shared<pcontrol_type>(b.fb_amt, 0.1f, 0.01f, trackClrs[t + 1]));
+            auto &a = p.getTrack(t), &b = p.getTrack(t + 1);
+            addParamPage(c(a.fb_src, 1.0f, 1.0f, trackClrs[t]), c(a.fb_amt, 0.1f, 0.01f, trackClrs[t]),
+                         c(b.fb_src, 1.0f, 1.0f, trackClrs[t + 1]), c(b.fb_amt, 0.1f, 0.01f, trackClrs[t + 1]));
         }
+        ctl sync[TRACKS];
+        for (unsigned t = 0; t < TRACKS; t++) sync[t] = c(p.getTrack(t).sync, 1.0f, 1.0f, trackClrs[t]);
+        addParamPage(sync[0], sync[1], sync[2], sync[3]);
+        for (unsigned t = 0; t < TRACKS; t += 2) {
+            auto &a = p.getTrack(t), &b = p.getTrack(t + 1);
+            addParamPage(c(a.phase_q, 0.25f, 0.01f, trackClrs[t]), c(a.phase_off, 0.25f, 0.01f, trackClrs[t]),
+                         c(b.phase_q, 0.25f, 0.01f, trackClrs[t + 1]), c(b.phase_off, 0.25f, 0.01f, trackClrs[t + 1]));
+        }
+        jassert(pages() == std::size(globalPageNames));
         addButtonPage(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
     }
-
-    unsigned page() const { return paramPage_; }
-    unsigned pages() const { return unsigned(controlPages_.size()); }
 };
-
 
 PluginEditor::PluginEditor(PluginProcessor& p)
     : base_type(&p),
@@ -79,10 +103,11 @@ PluginEditor::PluginEditor(PluginProcessor& p)
       saveBtn_("Save", [&](bool b) { onSaveButton(b); }, 24, Colours::yellow),
       cancelBtn_("Cancel", [&](bool b) { onCancelButton(b); }, 24, Colours::white),
       processor_(p) {
-    fadeCurves_.init(true);
+    for (auto& fc : fadeCurves_) fc.init(true);
     leftBtn_.label("TRK-");
     rightBtn_.label("TRK+");
-    rightShiftBtn_.label("CLR");
+    rightShiftBtn_.label("CLR");  // BaseEditor creates RS but leaves it off screen
+    addAndMakeVisible(rightShiftBtn_);
 
     for (unsigned v = 0; v < VOICES; v++) {
         voiceViews_.push_back(std::make_shared<VoiceView>(p, v));
@@ -119,7 +144,8 @@ PluginEditor::PluginEditor(PluginProcessor& p)
 void PluginEditor::setView(unsigned newView) {
     base_type::setView(newView);
     bool main = voiceMode() || globalMode();
-    for (auto* c : std::initializer_list<Component*>{ &leftBtn_, &rightBtn_, &upBtn_, &downBtn_, &inVu_, &outVu_ }) {
+    for (auto* c : std::initializer_list<Component*>{ &leftBtn_, &rightBtn_, &upBtn_, &downBtn_, &rightShiftBtn_,
+                                                      &inVu_, &outVu_ }) {
         c->setVisible(main);
     }
     loadBtn_.setVisible(voiceMode() || fileMode());
@@ -191,8 +217,65 @@ void PluginEditor::onButton(unsigned int id, bool v) {
     }
 }
 
+// Long-pressing rec records one pass. A long press does not toggle a button.
+void PluginEditor::eventButton(unsigned btn, bool longPress) {
+    base_type::eventButton(btn, longPress);
+    if (longPress && !consumeHeld(btn)) holdAction(btn);
+}
+
+// Holds act once the framework's long-press threshold is reached, while the button is still down;
+// the release that follows reports a long press, which consumeHeld() then swallows. Clear (RS) is
+// left to the release, because RS also opens the system panel with LS: acting at the threshold would
+// clear whenever RS is held a moment before LS. On release the framework consumes that combo first.
+void PluginEditor::eventButtonHeld(unsigned btn) {
+    base_type::eventButtonHeld(btn);
+    if (btn != SSP_Shift_R && holdAction(btn)) heldActed_[btn] = true;
+}
+
+bool PluginEditor::consumeHeld(unsigned btn) {
+    bool acted = heldActed_[btn];
+    heldActed_[btn] = false;
+    return acted;
+}
+
+bool PluginEditor::holdAction(unsigned btn) {
+    bool main = voiceMode() || globalMode();
+    switch (btn) {
+        case SSP_Left:  // TRK-: track 1
+            if (!main) return false;
+            showVoice(0);
+            return true;
+        case SSP_Right:  // TRK+: the global view
+            if (!main) return false;
+            setView(V_GLOBAL);
+            return true;
+        case SSP_Up:
+        case SSP_Down: return switchSide();
+        case SSP_Shift_R:
+            if (!main) return false;
+            if (voiceMode()) processor_.clearLoop(voice_);
+            else processor_.clearAll();
+            return true;
+        case B_REC:  // record once
+            if (!voiceMode()) return false;
+            processor_.recOnce(voice_);
+            return true;
+        default: return false;
+    }
+}
+
+// Holding EN-/EN+ switches to the other side of the track, at the same page.
+bool PluginEditor::switchSide() {
+    if (!voiceMode()) return false;
+    unsigned other = sfct::partnerOf(voice_);
+    voiceViews_[other]->goToPage(voiceViews_[voice_]->page());
+    showVoice(other);
+    return true;
+}
+
 // EN-/EN+ page through a stereo pair as one sequence: the left voice's pages, then the right's
 void PluginEditor::eventUp(bool longPress) {
+    if (longPress && (consumeHeld(SSP_Up) || switchSide())) return;
     if (voiceMode() && voice_ % 2 == 1 && voiceViews_[voice_]->page() == 0) {
         voiceViews_[voice_ - 1]->goToPage(voiceViews_[voice_ - 1]->pages() - 1);
         showVoice(voice_ - 1);
@@ -202,6 +285,7 @@ void PluginEditor::eventUp(bool longPress) {
 }
 
 void PluginEditor::eventDown(bool longPress) {
+    if (longPress && (consumeHeld(SSP_Down) || switchSide())) return;
     auto& vv = voiceViews_[voice_];
     if (voiceMode() && voice_ % 2 == 0 && vv->page() + 1 == vv->pages()) {
         voiceViews_[voice_ + 1]->goToPage(0);
@@ -211,26 +295,26 @@ void PluginEditor::eventDown(bool longPress) {
     base_type::eventDown(longPress);
 }
 
-// holding RS clears the current voice's loop; a short press does nothing, as clearing is destructive
+// Holding RS clears: the current voice's loop in a track, everything in the Global view.
+// A short press does nothing, as clearing is destructive.
 void PluginEditor::eventRightShift(bool longPress) {
-    if (voiceMode()) {
-        if (longPress) processor_.clearLoop(voice_);
+    if (voiceMode() || globalMode()) {
+        if (longPress) holdAction(SSP_Shift_R);
         return;
     }
     base_type::eventRightShift(longPress);
 }
 
-// TRK-/TRK+ step through the tracks (to each one's L voice), then the global view.
-// BaseViewEditor's own left/right would step through every view, including the browser.
+// TRK-/TRK+ step through the tracks (to each one's L voice), then the global view. Held, TRK- returns to
+// track 1 and TRK+ jumps to the global view. The press only lights the button; eventLeft/eventRight act on
+// release, when the framework knows whether it was a long press. BaseViewEditor's own left/right would
+// step through every view, including the browser.
 void PluginEditor::onLeftButton(bool v) {
     if (fileMode() || saveMode()) {
         views_[view_]->onLeftButton(v);
         return;
     }
     leftBtn_.onButton(v);
-    if (v) return;
-    if (globalMode()) showVoice((TRACKS - 1) * 2);
-    else if (voice_ >= 2) showVoice((voice_ / 2 - 1) * 2);
 }
 
 void PluginEditor::onRightButton(bool v) {
@@ -239,9 +323,33 @@ void PluginEditor::onRightButton(bool v) {
         return;
     }
     rightBtn_.onButton(v);
-    if (v || globalMode()) return;
-    if (voice_ / 2 + 1 < TRACKS) showVoice((voice_ / 2 + 1) * 2);
-    else setView(V_GLOBAL);
+}
+
+void PluginEditor::eventLeft(bool longPress) {
+    if (fileMode() || saveMode()) {
+        base_type::eventLeft(longPress);
+        return;
+    }
+    if (longPress) {
+        if (!consumeHeld(SSP_Left)) holdAction(SSP_Left);
+    } else if (globalMode()) showVoice((TRACKS - 1) * 2);
+    else if (voice_ >= 2) showVoice((voice_ / 2 - 1) * 2);
+}
+
+void PluginEditor::eventRight(bool longPress) {
+    if (fileMode() || saveMode()) {
+        base_type::eventRight(longPress);
+        return;
+    }
+    if (longPress) {
+        if (!consumeHeld(SSP_Right)) holdAction(SSP_Right);
+    } else if (globalMode()) {
+        return;
+    } else if (voice_ / 2 + 1 < TRACKS) {
+        showVoice((voice_ / 2 + 1) * 2);
+    } else {
+        setView(V_GLOBAL);
+    }
 }
 
 static float normValue(RangedAudioParameter& p) {
@@ -268,20 +376,25 @@ void PluginEditor::drawView(Graphics& g) {
     g.setFont(font);
     unsigned track = voice_ / 2;
     bool shared = processor_.mode() == sfct::SHARED;
+    static constexpr int headW = 330;
     if (globalMode()) {
+        unsigned pg = globalView_->page();
+        float bpm = processor_.bpm();  // on the sync page only: the header has room for one extra field
         g.setColour(Colours::white);
-        g.drawText("Global " + String(globalView_->page() + 1) + "/" + String(globalView_->pages()), waveX, 8, 200,
-                   30, Justification::left);
+        g.drawText("Global " + String(pg + 1) + "/" + String(globalView_->pages()) + " " + globalPageNames[pg] +
+                       (pg != SYNC_PAGE ? String() : bpm > 0.0f ? String::formatted(" %.1f bpm", bpm) : String(" no clock")),
+                   waveX, 8, headW, 30, Justification::left);
     } else {
+        unsigned pg = voiceViews_[voice_]->page();
         g.setColour(trackClrs[track]);
-        g.drawText("Track " + String(track + 1) + (voice_ % 2 ? " R " : " L ") +
-                       String(voiceViews_[voice_]->page() + 1) + "/" + String(voiceViews_[voice_]->pages()),
-                   waveX, 8, 200, 30, Justification::left);
+        g.drawText("Track " + String(track + 1) + (voice_ % 2 ? " R " : " L ") + String(pg + 1) + "/" +
+                       String(voiceViews_[voice_]->pages()) + " " + voicePageNames[pg],
+                   waveX, 8, headW, 30, Justification::left);
     }
     g.setColour(Colours::white);
-    g.drawText(String::formatted("DSP %5.1f%%  peak %5.1f%%", processor_.loadAverage() * 100.0f,
+    g.drawText(String::formatted("DSP %4.1f%% pk %4.1f%%", processor_.loadAverage() * 100.0f,
                                  processor_.loadPeak() * 100.0f),
-               waveX + 200, 8, waveW - 200, 30, Justification::right);
+               waveX + headW, 8, waveW - headW, 30, Justification::right);
 
     float len = processor_.viewSeconds();
     auto xOf = [len](float t) { return float(waveX) + t / len * float(waveW); };
@@ -362,6 +475,17 @@ void PluginEditor::drawFades(Graphics& g, unsigned v, int top, float len) {
     bool cur = v == voice_;
     bool rec = cur && processor_.isRecording(v);
     float recLvl = normValue(vp.rec_level), preLvl = normValue(vp.pre_level);
+    // this voice's curve settings; FadeCurves rebuilds its tables on each set, so only on change
+    auto& fc = fadeCurves_[v];
+    FadeSettings want{ int(normValue(vp.rec_shape)), int(normValue(vp.pre_shape)), normValue(vp.rec_delay),
+                       normValue(vp.pre_window) };
+    if (rec && !(want == fadeSettings_[v])) {
+        fc.setRecShape(softcut::FadeCurves::Shape(want.recShape));
+        fc.setPreShape(softcut::FadeCurves::Shape(want.preShape));
+        fc.setRecDelayRatio(want.recDelay);
+        fc.setPreWindowRatio(want.preWindow);
+        fadeSettings_[v] = want;
+    }
     auto x = [len](float t) { return float(waveX) + t / len * float(waveW); };
     auto y = [top](float level) { return float(top + laneH) - level * laneH * 0.9f; };
     auto colour = trackClrs[v / 2];
@@ -379,8 +503,8 @@ void PluginEditor::drawFades(Graphics& g, unsigned v, int top, float len) {
             };
             add(gain, sfct::fadeGain(fade));
             if (rec) {
-                add(recPath, recLvl * fadeCurves_.getRecFadeValue(fade));
-                add(prePath, preLvl + (1.0f - preLvl) * fadeCurves_.getPreFadeValue(fade));
+                add(recPath, recLvl * fc.getRecFadeValue(fade));
+                add(prePath, preLvl + (1.0f - preLvl) * fc.getPreFadeValue(fade));
             }
         }
         g.setColour(colour.withAlpha(cur ? 1.0f : 0.43f));

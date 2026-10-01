@@ -23,10 +23,14 @@ protected:
 
     void onLeftButton(bool v) override;
     void onRightButton(bool v) override;
+    void eventLeft(bool longPress) override;
+    void eventRight(bool longPress) override;
     void onButton(unsigned int id, bool v) override;
     void eventUp(bool longPress) override;
     void eventDown(bool longPress) override;
     void eventRightShift(bool longPress) override;
+    void eventButton(unsigned btn, bool longPress) override;
+    void eventButtonHeld(unsigned btn) override;
     void setView(unsigned newView) override;
 
 private:
@@ -38,7 +42,7 @@ private:
 
     // Voice views use buttons 1-4, 6 and 7; Load is 5, Save 8. The browser and the name editor
     // replace the voice view, so Cancel can take 7. TextEdit uses 1 and 2.
-    enum { B_LOAD = 4, B_CANCEL = 6, B_SAVE = 7 };
+    enum { B_REC = 1, B_LOAD = 4, B_CANCEL = 6, B_SAVE = 7 };
 
     void onLoadButton(bool v);
     void onSaveButton(bool v);
@@ -50,13 +54,28 @@ private:
     // the voice's buffer, or its track's two for a linked pair
     unsigned saveMask() const;
     void showVoice(unsigned v);
+    bool switchSide();
+    // the long-press action of each button; true if it acted
+    bool holdAction(unsigned btn);
+    // true if the hold already acted, so the release does not act again
+    bool consumeHeld(unsigned btn);
+    bool heldActed_[SSP_LastBtn] = {};
     void drawFades(Graphics& g, unsigned v, int top, float len);
 
     unsigned voice_ = 0;
     std::vector<std::shared_ptr<VoiceView>> voiceViews_;
     std::shared_ptr<GlobalView> globalView_;
-    // the curves every voice records with: sfct never changes their shapes from init(true)'s
-    softcut::FadeCurves fadeCurves_;
+    // each voice's crossfade curves, rebuilt from its params when they change, for drawing
+    struct FadeSettings {
+        int recShape = -1, preShape = -1;
+        float recDelay = -1.0f, preWindow = -1.0f;
+        bool operator==(const FadeSettings& o) const {
+            return recShape == o.recShape && preShape == o.preShape && recDelay == o.recDelay &&
+                   preWindow == o.preWindow;
+        }
+    };
+    softcut::FadeCurves fadeCurves_[VOICES];
+    FadeSettings fadeSettings_[VOICES];
     std::shared_ptr<ssp::FileBrowser> fileBrowser_;
     std::shared_ptr<ssp::TextEdit> saveEditor_;
     ssp::ValueButton loadBtn_, saveBtn_, cancelBtn_;
