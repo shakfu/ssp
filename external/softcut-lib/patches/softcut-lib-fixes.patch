@@ -1,0 +1,190 @@
+# softcut-lib: fixes for uninitialized DSP state when Voice is host-allocated
+# diff against upstream monome/softcut-lib commit
+# 14241f2a94a7cd2e6c91b9bdc4e500d68abef907 (2024-12-31)
+# apply from the softcut-lib repo root with:  git apply -p1 softcut-lib-fixes.patch
+#
+diff --git a/softcut-lib/src/Svf.cpp b/softcut-lib/src/Svf.cpp
+index c34c069..f4bf806 100644
+--- a/softcut-lib/src/Svf.cpp
++++ b/softcut-lib/src/Svf.cpp
+@@ -7,7 +7,20 @@
+ 
+ const float Svf::MAX_NORM_FC = 0.4;
+ 
+-Svf::Svf() = default;
++// Establish self-consistent state at construction. softcut::Voice::reset()
++// calls setRq()/setFc() before setSampleRate(); setFc() clamps the requested
++// corner against minFc/maxFc, and the coefficient math reads pi_sr. If those
++// were left uninitialized the clamp could pin fc to a garbage value that
++// setSampleRate() never re-clamps, yielding unstable coefficients whose state
++// diverges to +/-inf and (via a zeroed output mix) produces NaN. Seeding a
++// valid default sample rate plus fc/rq and zeroing the state avoids that.
++Svf::Svf() {
++    lpMix = hpMix = bpMix = brMix = 0.f;
++    fc = 12000.f;
++    rq = 4.f;
++    clearState();
++    setSampleRate(48000.f);  // sets sr, pi_sr, minFc, maxFc and recomputes coeffs
++}
+ 
+ float Svf::getNextSample(float x) {
+     update(x);
+diff --git a/softcut-lib/include/softcut/Resampler.h b/softcut-lib/include/softcut/Resampler.h
+index 26ab034..130b7f8 100644
+--- a/softcut-lib/include/softcut/Resampler.h
++++ b/softcut-lib/include/softcut/Resampler.h
+@@ -37,7 +37,20 @@ namespace softcut {
+ #else
+                 ,inBufIdx_(0)
+ #endif
+-        {}
++        {
++            // Zero the interpolation history/output buffers. reset() is never
++            // called by the host, and processFrame() interpolates over the last
++            // four input frames; without this the first poke() reads
++            // uninitialized slots and writes denormal/NaN garbage into the
++            // recording buffer.
++#ifdef RESAMPLER_INTERPOLATE_LINEAR
++            x_ = 0.f;
++            x_1_ = 0.f;
++#else
++            for (sample_t &i : inBuf_) { i = 0.f; }
++#endif
++            for (sample_t &i : outBuf_) { i = 0.f; }
++        }
+ 
+         int processFrame(sample_t x){
+             pushInput(x);
+diff --git a/softcut-lib/include/softcut/SubHead.h b/softcut-lib/include/softcut/SubHead.h
+index c5a4bc5..ed33a7f 100644
+--- a/softcut-lib/include/softcut/SubHead.h
++++ b/softcut-lib/include/softcut/SubHead.h
+@@ -61,22 +61,27 @@ namespace softcut {
+         Resampler resamp_;
+         SoftClip clip_;
+ 
+-        sample_t* buf_; // output buffer
+-        unsigned int wrIdx_; // write index
+-        unsigned int bufFrames_;
+-        unsigned int bufMask_;
+-
+-        State state_;
+-        rate_t rate_;
+-        int inc_dir_;
+-        phase_t phase_;
+-        float fade_;
+-        float trig_; // output trigger value
+-        bool active_;
+-        int recOffset_;
+-
+-        float preFade_;
+-        float recFade_;
++        // NB: these members are default-initialized because softcut relies on
++        // zero-initialized static storage on embedded targets. When a Voice is
++        // heap/stack allocated on a host, init() does not set wrIdx_/active_,
++        // and poke()/updatePhase() would read garbage (wrIdx_ is used to index
++        // buf_ *unmasked*, causing out-of-bounds writes).
++        sample_t* buf_ = nullptr; // output buffer
++        unsigned int wrIdx_ = 0; // write index
++        unsigned int bufFrames_ = 0;
++        unsigned int bufMask_ = 0;
++
++        State state_ = Stopped;
++        rate_t rate_ = 1.0;
++        int inc_dir_ = 1;
++        phase_t phase_ = 0;
++        float fade_ = 0.f;
++        float trig_ = 0.f; // output trigger value
++        bool active_ = false;
++        int recOffset_ = -8;
++
++        float preFade_ = 0.f;
++        float recFade_ = 0.f;
+ 
+         void setRecOffsetSamples(int d);
+     };
+diff --git a/softcut-lib/include/softcut/FadeCurves.h b/softcut-lib/include/softcut/FadeCurves.h
+index 8cceaaf..9cb492f 100644
+--- a/softcut-lib/include/softcut/FadeCurves.h
++++ b/softcut-lib/include/softcut/FadeCurves.h
+@@ -38,16 +38,21 @@ namespace softcut {
+         // xfade curve buffers
+         static constexpr unsigned int fadeBufSize = 1001;
+ 
+-        // record delay and pre window in fade, as proportion of fade time
+-         float recDelayRatio;
+-         float preWindowRatio;
++        // record delay and pre window in fade, as proportion of fade time.
++        // NB: these are default-initialized to the same values init() assigns,
++        // because init() calls setPreShape()/setRecShape() (which run
++        // calcPreFade()/calcRecFade()) *before* assigning these members. Without
++        // the initializers the first calc reads garbage and a huge window ratio
++        // overruns the fadeBufSize stack buffer in calc*Fade().
++         float recDelayRatio = 1.f / (8 * 16);
++         float preWindowRatio = 1.f / 8;
+         // minimum record delay/pre window, in frames
+-         unsigned int recDelayMinFrames;
+-         unsigned int preWindowMinFrames;
++         unsigned int recDelayMinFrames = 0;
++         unsigned int preWindowMinFrames = 0;
+          float recFadeBuf[fadeBufSize];
+          float preFadeBuf[fadeBufSize];
+-         Shape recShape;
+-         Shape preShape;
++         Shape recShape = Raised;
++         Shape preShape = Linear;
+     };
+ }
+ 
+diff --git a/softcut-lib/include/softcut/ReadWriteHead.h b/softcut-lib/include/softcut/ReadWriteHead.h
+index dcedfe7..8b30510 100644
+--- a/softcut-lib/include/softcut/ReadWriteHead.h
++++ b/softcut-lib/include/softcut/ReadWriteHead.h
+@@ -71,24 +71,29 @@ namespace softcut {
+     private:
+         SubHead head[2];
+ 
+-        sample_t *buf;      // audio buffer (allocated elsewhere)
+-        float sr;           // sample rate
+-        phase_t start;      // start/end points
+-        phase_t end;
+-        phase_t queuedCrossfade;
+-        bool queuedCrossfadeFlag;
+-        float fadeTime;     // fade time in seconds
+-        float fadeInc;      // linear fade increment per sample
+-
+-        int active;         // current active play head index (0 or 1)
+-        bool loopFlag;      // set to loop, unset for 1-shot
+-        float pre;      // pre-record level
+-        float rec;      // record level
+-        bool recOnceFlag; // set to record one full loop
+-        bool recOnceDone; // triggers done to tell voice to unset rec flag
+-        int recOnceHead; // keeps track of which subhead is writing
+-
+-        rate_t rate;    // current rate
++        // Default initializers mirror the state init() establishes, so the head
++        // is well-defined even if a setter or processing call runs before the
++        // host calls init()/setSampleRate()/setBuffer(). buf, sr, loopFlag, pre
++        // and rec in particular are not touched by init() and otherwise rely on
++        // the host calling every setter first.
++        sample_t *buf = nullptr;      // audio buffer (allocated elsewhere)
++        float sr = 48000.f;           // sample rate
++        phase_t start = 0;            // start/end points
++        phase_t end = 0;
++        phase_t queuedCrossfade = 0;
++        bool queuedCrossfadeFlag = false;
++        float fadeTime = 0.1f;        // fade time in seconds
++        float fadeInc = 0.f;          // linear fade increment per sample
++
++        int active = 0;               // current active play head index (0 or 1)
++        bool loopFlag = false;        // set to loop, unset for 1-shot
++        float pre = 0.f;      // pre-record level
++        float rec = 0.f;      // record level
++        bool recOnceFlag = false; // set to record one full loop
++        bool recOnceDone = false; // triggers done to tell voice to unset rec flag
++        int recOnceHead = -1; // keeps track of which subhead is writing
++
++        rate_t rate = 1.0;    // current rate
+         TestBuffers testBuf;
+     };
+ }
