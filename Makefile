@@ -26,7 +26,7 @@ help:
 	@echo "make release            build, strip into releases/ssp/plugins, zip tb_plugins_ssp.zip"
 	@echo "make deploy             build, copy all plugins to SSP_HOST"
 	@echo "make deploy-mod MOD=x   build, copy one plugin to SSP_HOST"
-	@echo "make test               run the python tool tests"
+	@echo "make test               run the python tool and sfct engine tests"
 	@echo "make clean              remove $(BUILD_DIR)"
 	@echo "variables: SSP_BUILDROOT, SSP_HOST (root@192.168.0.150), JOBS ($(JOBS))"
 
@@ -60,7 +60,7 @@ deploy-mod: ssp
 	scripts/copymod.ssp.sh $(MOD)
 
 test:
-	uv run --quiet --with pytest pytest tools -q
+	uv run --quiet --with pytest pytest tools technobear/sfct/tests -q
 
 clean:
 	rm -rf $(BUILD_DIR)

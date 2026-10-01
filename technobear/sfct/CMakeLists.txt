@@ -1,0 +1,51 @@
+cmake_minimum_required(VERSION 3.15)
+project(SFCT VERSION 1.0.0)
+
+set(SOFTCUT_DIR "${PROJECT_SOURCE_DIR}/../../external/softcut-lib")
+
+include_directories("${PROJECT_SOURCE_DIR}/../common")
+include_directories("${SOFTCUT_DIR}/include")
+
+juce_add_plugin(SFCT
+        COMPANY_NAME "Technobear"
+        COMPANY_WEBSITE "www.technobear.com"
+        COMPANY_EMAIL "mharris@technobear.com"
+        DESCRIPTION "softcut 4 voice looper"
+        COPY_PLUGIN_AFTER_BUILD FALSE
+        PLUGIN_MANUFACTURER_CODE TB00
+        PLUGIN_CODE SFCT
+        FORMATS VST3
+        VST3_AUTO_MANIFEST FALSE
+        PRODUCT_NAME "sfct")
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/../common/CMakeLists.txt)
+
+target_sources(SFCT
+        PUBLIC
+        Source/SSPApi.cpp
+        PRIVATE
+        Source/PluginEditor.cpp
+        Source/PluginMiniEditor.cpp
+        Source/PluginProcessor.cpp
+        ${SOFTCUT_DIR}/src/FadeCurves.cpp
+        ${SOFTCUT_DIR}/src/ReadWriteHead.cpp
+        ${SOFTCUT_DIR}/src/SubHead.cpp
+        ${SOFTCUT_DIR}/src/Svf.cpp
+        ${SOFTCUT_DIR}/src/Voice.cpp
+        ${COMMON_SRC}
+        )
+
+target_compile_definitions(SFCT
+        PUBLIC
+        JUCE_WEB_BROWSER=0
+        JUCE_USE_CURL=0
+        JUCE_VST3_CAN_REPLACE_VST2=0)
+
+target_link_libraries(SFCT PRIVATE
+        juce::juce_audio_utils)
+
+set_target_properties(${PROJECT_NAME}_VST3 PROPERTIES PREFIX "")
+
+if(INSTALL_PLUGIN)
+    juce_enable_copy_plugin_step(${PROJECT_NAME})
+endif()
