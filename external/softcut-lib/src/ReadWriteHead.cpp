@@ -30,7 +30,7 @@ void ReadWriteHead::init(FadeCurves *fc) {
 }
 
 void ReadWriteHead::processSample(sample_t in, sample_t *out) {
-    *out = mixFade(head[0].peek(), head[1].peek(), head[0].fade(), head[1].fade());
+    *out = mixHeads();
 
     //  assert(!(head[0].state_ == Playing && head[1].state_ == Playing) /*multiple active heads*/);
 
@@ -77,7 +77,7 @@ void ReadWriteHead::processSampleNoRead(sample_t in, sample_t *out) {
 
 void ReadWriteHead::processSampleNoWrite(sample_t in, sample_t *out) {
     (void)in;
-    *out = mixFade(head[0].peek(), head[1].peek(), head[0].fade(), head[1].fade());
+    *out = mixHeads();
 
     // assert(!(head[0].state_ == Playing && head[1].state_ == Playing) /*multiple active heads*/);
 
@@ -214,6 +214,19 @@ void ReadWriteHead::setSampleRate(float sr_) {
 
 sample_t ReadWriteHead::mixFade(sample_t x, sample_t y, float a, float b) {
         return x * sinf(a * (float)M_PI_2) + y * sinf(b * (float) M_PI_2);
+}
+
+// mixFade of both heads, without reading a silent head or calling sinf at fade 0 or 1. The
+// result is the same: sinf(0) is 0 and sinf(pi/2) rounds to 1.
+sample_t ReadWriteHead::mixHeads() {
+    sample_t y = 0.f;
+    for (int h = 0; h < 2; ++h) {
+        float f = head[h].fade();
+        if (f <= 0.f) continue;
+        float g = f >= 1.f ? 1.f : sinf(f * (float)M_PI_2);
+        y += head[h].peek() * g;
+    }
+    return y;
 }
 
 void ReadWriteHead::setRec(float x) {

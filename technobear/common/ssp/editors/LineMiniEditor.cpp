@@ -14,7 +14,7 @@ void LineMiniEditor::drawView(Graphics& g) {
 
     g.setColour(Colours::yellow);
     g.drawSingleLineText(
-        String(JucePlugin_Name) + ":" + String(JucePlugin_Desc) + String(" @ ") + String(JucePlugin_Manufacturer), gap,
+        String(JucePlugin_Name) + ":" + String(JucePlugin_Desc) + String(SSP_TITLE_SUFFIX), gap,
         gap * 2);
 
     g.setColour(Colours::grey);

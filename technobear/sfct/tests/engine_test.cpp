@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "Engine.h"
+#include "FadeZones.h"
 
 static int failures = 0;
 #define CHECK(cond)                                                       \
@@ -397,6 +398,121 @@ static void testLoadAllocates() {
     CHECK(r.e.buffer(4).size() == BUFFER_FRAMES);
 }
 
+// voice 0 plays a constant from buffer 0; voice 1 hears only feedback and records it into buffer 1
+static void testFeedback() {
+    Rig r;
+    stage(r.e, 0.25f, 0.0f);
+    auto& src = r.p[0];
+    src.play = true;
+    src.level = 0.0f;  // feedback is taken before level
+    src.loopEnd = 0.1f;
+    src.fadeTime = 0.005f;
+    auto& dst = r.p[1];
+    dst.rec = true;
+    dst.play = false;
+    dst.inputGain = 0.0f;
+    dst.preLevel = 0.0f;
+    dst.loopEnd = 0.1f;
+    dst.fadeTime = 0.005f;
+
+    float fb[VOICES][VOICES] = {};
+    r.e.setFeedback(fb);
+    r.run(0.2f);
+    CHECK(absSum(r.e.buffer(1)) == 0.0);  // no route, nothing recorded
+
+    fb[0][1] = 0.5f;
+    r.e.setFeedback(fb);
+    r.run(0.3f);
+    // 0.25 * 0.5, then the record path's 1.2 soft-clip gain
+    CHECK(std::fabs(r.e.buffer(1)[2400] - 0.15f) < 0.01f);
+
+    // a disabled source feeds nothing, after one chunk of latency
+    src.on = false;
+    r.run(0.01f);
+    stageOne(r.e, 1, 0.0f);
+    r.run(0.3f);
+    // filter state decays through denormals rather than to exact zero
+    double peak = 0;
+    for (float x : r.e.buffer(1)) peak = std::max(peak, double(std::fabs(x)));
+    CHECK(peak < 1e-20);
+}
+
+static void testCv() {
+    VoiceParams p;
+    p.rate = -0.5f;
+    p.loopStart = 2.0f;
+    p.loopEnd = 6.0f;
+    float maxT = 40.0f;
+    auto q = withCv(p, CV_PER_VOLT, 0.0f, false, maxT);  // +1 V: an octave up, sign kept
+    CHECK(std::fabs(q.rate - -1.0f) < 1e-6f);
+    q = withCv(p, -2 * CV_PER_VOLT, 0.0f, false, maxT);
+    CHECK(std::fabs(q.rate - -0.125f) < 1e-6f);
+    q = withCv(p, 0.0f, 3 * CV_PER_VOLT, false, maxT);  // +3 V: window shifted 3 s
+    CHECK(std::fabs(q.loopStart - 5.0f) < 1e-5f && std::fabs(q.loopEnd - 9.0f) < 1e-5f);
+    q = withCv(p, 0.0f, -1.0f, false, maxT);  // -5 V: stops at 0, length kept
+    CHECK(q.loopStart == 0.0f && q.loopEnd == 4.0f);
+    q = withCv(p, 0.0f, 1.0f, false, 8.0f);  // +5 V: stops at maxT
+    CHECK(q.loopStart == 4.0f && q.loopEnd == 8.0f);
+    CHECK(!withCv(p, 0, 0, false, maxT).rec && withCv(p, 0, 0, true, maxT).rec);
+}
+
+static void testFadeZones() {
+    FadeZone z[2];
+    // forward: fade out past the end, fade in from the start
+    CHECK(fadeZones(1.0f, 3.0f, 0.5f, true, 0.1f, z) == 2);
+    CHECK(z[0].origin == 3.0f && z[0].dir == 1.0f && !z[0].fadingIn);
+    CHECK(z[1].origin == 1.0f && z[1].fadingIn);
+    CHECK(std::fabs(z[0].time(1.0f, 0.1f) - 3.1f) < 1e-6f && z[0].fade(1.0f) == 0.0f);
+    CHECK(z[1].time(0.0f, 0.1f) == 1.0f && z[1].fade(0.0f) == 0.0f);
+    // reverse, and rate 0 counts as reverse; swapped loop points are ordered
+    for (float rate : { -2.0f, 0.0f }) {
+        CHECK(fadeZones(3.0f, 1.0f, rate, true, 0.1f, z) == 2);
+        CHECK(z[0].origin == 1.0f && z[0].dir == -1.0f && !z[0].fadingIn);
+        CHECK(z[1].origin == 3.0f && z[1].fadingIn);
+    }
+    // no loop: the head only fades out; no fade time: nothing to draw
+    CHECK(fadeZones(1.0f, 3.0f, 1.0f, false, 0.1f, z) == 1);
+    CHECK(fadeZones(1.0f, 3.0f, 1.0f, true, 0.0f, z) == 0);
+    CHECK(fadeGain(0.0f) == 0.0f && std::fabs(fadeGain(1.0f) - 1.0f) < 1e-6f);
+}
+
+static void testReclaimStaging() {
+    Rig r;
+    stage(r.e, 0.1f, 0.2f);
+    CHECK(!r.e.reclaimStaging());  // not swapped in yet
+    CHECK(r.e.stagingFrames() == 2u * BUFFER_FRAMES);
+    r.run(0.01f);
+    CHECK(r.e.stagingFrames() == 2u * BUFFER_FRAMES);  // the swapped-out buffers
+    CHECK(r.e.reclaimStaging());
+    CHECK(r.e.stagingFrames() == 0);
+    CHECK(r.e.buffer(0)[10] == 0.1f && r.e.buffer(1)[10] == 0.2f);  // live buffers untouched
+    stage(r.e, 0.3f, 0.3f);  // and loading still works
+    r.run(0.01f);
+    CHECK(r.e.buffer(1)[10] == 0.3f);
+}
+
+static void testClear() {
+    Engine e;
+    stage(e, 0.5f, 0.5f);
+    processBlocks(e, 1);
+    unsigned start = 1000, end = start + 3 * CLEAR_BUDGET, fade = 100;
+    CHECK(e.requestClear(0b01, start, end, fade));
+    CHECK(!e.requestClear(0b10, 0, 10, 1));  // one at a time
+    processBlocks(e, 2);
+    CHECK(e.clearing());
+    CHECK(e.buffer(0)[end - 1] == 0.5f);  // not reached yet
+    processBlocks(e, 1);
+    CHECK(!e.clearing());
+    const auto& b = e.buffer(0);
+    CHECK(b[start - 1] == 0.5f && b[end] == 0.5f);  // outside the region
+    CHECK(b[start] == 0.5f && b[end - 1] == 0.5f);  // edges keep full level
+    CHECK(std::fabs(b[start + fade / 2] - 0.25f) < 1e-6f && std::fabs(b[end - 1 - fade / 2] - 0.25f) < 1e-6f);
+    bool silent = true;
+    for (unsigned i = start + fade; i < end - fade; i++) silent = silent && b[i] == 0.0f;
+    CHECK(silent);
+    CHECK(e.buffer(1)[start + 2000] == 0.5f);  // not in the mask
+}
+
 static void testLoopBoundsSanitised() {
     Rig r;
     auto& v = r.p[0];
@@ -441,6 +557,11 @@ int main() {
     testModes();
     testLoadAllocates();
     testSnapshotOfPendingBuffer();
+    testFeedback();
+    testCv();
+    testFadeZones();
+    testReclaimStaging();
+    testClear();
     testLoopBoundsSanitised();
     if (failures) return 1;
     std::printf("realtime factor (%u voices, rec+play): %.1fx\n", VOICES, realtimeFactor());

@@ -1,0 +1,133 @@
+# softcut-lib: per-sample work removed from Voice/ReadWriteHead, output byte-identical
+# (checked over 9.6M samples with modulated rates and toggled rec/play flags).
+# applies after softcut-lib.patch and softcut-lib-fixes.patch, from the softcut-lib repo root:  git apply -p1 sfct-perf.patch
+#
+--- a/softcut-lib/src/Voice.cpp
++++ b/softcut-lib/src/Voice.cpp
+@@ -65,7 +65,8 @@
+     recFlag = false;
+     playFlag = false;
+ 
+-    sch.init(&fadeCurves);
++    sch.init(&fadeCurves);  // resets the head's rate to 1
++    schRateValid = false;
+     // sch.init() sets 0.1 s, overriding the setFadeTime(0.01) above
+     if (fixQuirks) {
+         setFadeTime(0.01);
+@@ -75,38 +76,27 @@
+ }
+ 
+ void Voice:: processBlockMono(const float *in, float *out, int numFrames) {
+-    std::function<void(sample_t, sample_t*)> sampleFunc;
+-    if(playFlag) {
+-        if(recFlag) {
+-            sampleFunc = [this](float in, float* out) {
+-                this->sch.processSample(in, out);
+-            };
+-        } else {
+-            sampleFunc = [this](float in, float* out) {
+-                this->sch.processSampleNoWrite(in, out);
+-            };
+-        }
+-    } else {
+-        if(recFlag) {
+-            sampleFunc = [this](float in, float* out) {
+-                this->sch.processSampleNoRead(in, out);
+-            };
+-        } else {
+-            sampleFunc = [](float in, float* out) {
+-                (void)in;
+-                // makes sure the output bus is zeroed
+-                *out = 0.f;
+-            };
+-        }
+-    }
+-
++    // the flags are fixed for the block: a predictable branch per sample, not a std::function call
+     float x, y;
+     for(int i=0; i<numFrames; ++i) {
+         x = svfPre.getNextSample(in[i]) + in[i]*svfPreDryLevel;
+-        sch.setRate(rateRamp.update());
++        // setRate also recomputes the fade increment and both resamplers' rates: skip it while
++        // the ramp holds still, which is most of the time
++        float r = rateRamp.update();
++        if (!schRateValid || r != schRate) {
++            sch.setRate(r);
++            schRate = r;
++            schRateValid = true;
++        }
+         sch.setPre(preRamp.update());
+         sch.setRec(recRamp.update());
+-        sampleFunc(x, &y);
++        if (playFlag) {
++            if (recFlag) sch.processSample(x, &y);
++            else sch.processSampleNoWrite(x, &y);
++        } else {
++            if (recFlag) sch.processSampleNoRead(x, &y);
++            else y = 0.f;  // makes sure the output bus is zeroed
++        }
+ 	    out[i] = svfPost.getNextSample(y) + y*svfPostDryLevel;
+         updateQuantPhase();
+     }
+--- a/softcut-lib/src/ReadWriteHead.cpp
++++ b/softcut-lib/src/ReadWriteHead.cpp
+@@ -30,7 +30,7 @@
+ }
+ 
+ void ReadWriteHead::processSample(sample_t in, sample_t *out) {
+-    *out = mixFade(head[0].peek(), head[1].peek(), head[0].fade(), head[1].fade());
++    *out = mixHeads();
+ 
+     //  assert(!(head[0].state_ == Playing && head[1].state_ == Playing) /*multiple active heads*/);
+ 
+@@ -77,7 +77,7 @@
+ 
+ void ReadWriteHead::processSampleNoWrite(sample_t in, sample_t *out) {
+     (void)in;
+-    *out = mixFade(head[0].peek(), head[1].peek(), head[0].fade(), head[1].fade());
++    *out = mixHeads();
+ 
+     // assert(!(head[0].state_ == Playing && head[1].state_ == Playing) /*multiple active heads*/);
+ 
+@@ -216,6 +216,19 @@
+         return x * sinf(a * (float)M_PI_2) + y * sinf(b * (float) M_PI_2);
+ }
+ 
++// mixFade of both heads, without reading a silent head or calling sinf at fade 0 or 1. The
++// result is the same: sinf(0) is 0 and sinf(pi/2) rounds to 1.
++sample_t ReadWriteHead::mixHeads() {
++    sample_t y = 0.f;
++    for (int h = 0; h < 2; ++h) {
++        float f = head[h].fade();
++        if (f <= 0.f) continue;
++        float g = f >= 1.f ? 1.f : sinf(f * (float)M_PI_2);
++        y += head[h].peek() * g;
++    }
++    return y;
++}
++
+ void ReadWriteHead::setRec(float x) {
+     rec = x;
+ }
+--- a/softcut-lib/include/softcut/Voice.h
++++ b/softcut-lib/include/softcut/Voice.h
+@@ -197,6 +197,9 @@
+ 
+         bool playFlag;
+         bool recFlag;
++        // the rate last passed to sch.setRate(); invalid after reset()
++        float schRate = 1.f;
++        bool schRateValid = false;
+         bool fixQuirks = false;
+ 
+     };
+--- a/softcut-lib/include/softcut/ReadWriteHead.h
++++ b/softcut-lib/include/softcut/ReadWriteHead.h
+@@ -70,6 +70,7 @@
+         void takeAction(Action act);
+ 
+         sample_t mixFade(sample_t x, sample_t y, float a, float b); // mix two inputs with phases
++        sample_t mixHeads(); // mixFade of both heads' outputs
+         void calcFadeInc();
+ 
+     private:

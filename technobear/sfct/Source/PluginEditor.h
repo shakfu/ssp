@@ -6,8 +6,10 @@
 #include "ssp/editors/BaseViewEditor.h"
 #include "ssp/editors/FileBrowser.h"
 #include "ssp/editors/TextEdit.h"
+#include "softcut/FadeCurves.h"
 
 class VoiceView;
+class GlobalView;
 
 class PluginEditor : public ssp::BaseViewEditor {
 public:
@@ -24,6 +26,7 @@ protected:
     void onButton(unsigned int id, bool v) override;
     void eventUp(bool longPress) override;
     void eventDown(bool longPress) override;
+    void eventRightShift(bool longPress) override;
     void setView(unsigned newView) override;
 
 private:
@@ -47,9 +50,13 @@ private:
     // the voice's buffer, or its track's two for a linked pair
     unsigned saveMask() const;
     void showVoice(unsigned v);
+    void drawFades(Graphics& g, unsigned v, int top, float len);
 
     unsigned voice_ = 0;
     std::vector<std::shared_ptr<VoiceView>> voiceViews_;
+    std::shared_ptr<GlobalView> globalView_;
+    // the curves every voice records with: sfct never changes their shapes from init(true)'s
+    softcut::FadeCurves fadeCurves_;
     std::shared_ptr<ssp::FileBrowser> fileBrowser_;
     std::shared_ptr<ssp::TextEdit> saveEditor_;
     ssp::ValueButton loadBtn_, saveBtn_, cancelBtn_;

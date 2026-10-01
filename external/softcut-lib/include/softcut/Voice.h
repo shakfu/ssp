@@ -197,6 +197,9 @@ namespace softcut {
 
         bool playFlag;
         bool recFlag;
+        // the rate last passed to sch.setRate(); invalid after reset()
+        float schRate = 1.f;
+        bool schRateValid = false;
         bool fixQuirks = false;
 
     };

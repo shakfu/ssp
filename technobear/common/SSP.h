@@ -2,6 +2,13 @@
 
 #include <algorithm>
 
+// Title suffix after the description. A plugin built with SSP_TITLE_NO_MANUFACTURER omits it.
+#ifdef SSP_TITLE_NO_MANUFACTURER
+#define SSP_TITLE_SUFFIX ""
+#else
+#define SSP_TITLE_SUFFIX " @ " JucePlugin_Manufacturer
+#endif
+
 
 enum SSPButtons {
     SSP_Soft_1,

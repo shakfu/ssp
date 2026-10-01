@@ -1,5 +1,7 @@
 #include "PluginEditor.h"
 
+#include "FadeZones.h"
+
 #include "PluginProcessor.h"
 #include "ssp/controls/ParamButton.h"
 #include "ssp/controls/ParamControl.h"
@@ -54,9 +56,22 @@ public:
     explicit GlobalView(PluginProcessor& p) : ssp::BarParamEditor(&p, false) {
         addParamPage(std::make_shared<pcontrol_type>(*p.getParameter(ID::mode), 1.0f, 1.0f, Colours::white), nullptr,
                      nullptr, nullptr);
+        // feedback: two tracks per page, each a source and an amount
+        for (unsigned t = 0; t < TRACKS; t += 2) {
+            auto& a = p.getTrack(t);
+            auto& b = p.getTrack(t + 1);
+            addParamPage(std::make_shared<pcontrol_type>(a.fb_src, 1.0f, 1.0f, trackClrs[t]),
+                         std::make_shared<pcontrol_type>(a.fb_amt, 0.1f, 0.01f, trackClrs[t]),
+                         std::make_shared<pcontrol_type>(b.fb_src, 1.0f, 1.0f, trackClrs[t + 1]),
+                         std::make_shared<pcontrol_type>(b.fb_amt, 0.1f, 0.01f, trackClrs[t + 1]));
+        }
         addButtonPage(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
     }
+
+    unsigned page() const { return paramPage_; }
+    unsigned pages() const { return unsigned(controlPages_.size()); }
 };
+
 
 PluginEditor::PluginEditor(PluginProcessor& p)
     : base_type(&p),
@@ -64,14 +79,17 @@ PluginEditor::PluginEditor(PluginProcessor& p)
       saveBtn_("Save", [&](bool b) { onSaveButton(b); }, 24, Colours::yellow),
       cancelBtn_("Cancel", [&](bool b) { onCancelButton(b); }, 24, Colours::white),
       processor_(p) {
+    fadeCurves_.init(true);
     leftBtn_.label("TRK-");
     rightBtn_.label("TRK+");
+    rightShiftBtn_.label("CLR");
 
     for (unsigned v = 0; v < VOICES; v++) {
         voiceViews_.push_back(std::make_shared<VoiceView>(p, v));
         addView(voiceViews_.back());
     }
-    addView(std::make_shared<GlobalView>(p));
+    globalView_ = std::make_shared<GlobalView>(p);
+    addView(globalView_);
 
     String defDir = "/media/BOOT/samples";
 #ifdef __APPLE__
@@ -193,6 +211,15 @@ void PluginEditor::eventDown(bool longPress) {
     base_type::eventDown(longPress);
 }
 
+// holding RS clears the current voice's loop; a short press does nothing, as clearing is destructive
+void PluginEditor::eventRightShift(bool longPress) {
+    if (voiceMode()) {
+        if (longPress) processor_.clearLoop(voice_);
+        return;
+    }
+    base_type::eventRightShift(longPress);
+}
+
 // TRK-/TRK+ step through the tracks (to each one's L voice), then the global view.
 // BaseViewEditor's own left/right would step through every view, including the browser.
 void PluginEditor::onLeftButton(bool v) {
@@ -243,7 +270,8 @@ void PluginEditor::drawView(Graphics& g) {
     bool shared = processor_.mode() == sfct::SHARED;
     if (globalMode()) {
         g.setColour(Colours::white);
-        g.drawText("Global", waveX, 8, 200, 30, Justification::left);
+        g.drawText("Global " + String(globalView_->page() + 1) + "/" + String(globalView_->pages()), waveX, 8, 200,
+                   30, Justification::left);
     } else {
         g.setColour(trackClrs[track]);
         g.drawText("Track " + String(track + 1) + (voice_ % 2 ? " R " : " L ") +
@@ -262,17 +290,21 @@ void PluginEditor::drawView(Graphics& g) {
     for (unsigned l = 0; l < sfct::LANES; l++) {
         unsigned b = processor_.bufferOf(track * 2 + l);
         int top = waveY + int(l) * (laneH + laneGap);
+        Graphics::ScopedSaveState clip(g);
+        g.reduceClipRegion(waveX, top, waveW, laneH);
         g.setColour(Colour(24, 24, 24));
         g.fillRect(waveX, top, waveW, laneH);
 
-        // loop regions, the current voice's brighter
+        // loop regions as played (after CV), the current voice's brighter
         for (unsigned v = 0; v < VOICES; v++) {
             auto& vp = processor_.getVoice(v);
             if (processor_.bufferOf(v) != b || vp.on.getValue() < 0.5f) continue;
-            float s = normValue(vp.start), e = normValue(vp.end);
+            float s = processor_.playedStart(v), e = processor_.playedEnd(v);
             float x0 = xOf(std::min(std::min(s, e), len)), x1 = xOf(std::min(std::max(s, e), len));
-            g.setColour(trackClrs[v / 2].withAlpha(v == voice_ ? 0.25f : 0.09f));
+            bool cur = v == voice_;
+            g.setColour(trackClrs[v / 2].withAlpha(cur ? 0.25f : 0.09f));
             g.fillRect(x0, float(top), x1 - x0, float(laneH));
+            drawFades(g, v, top, len);
         }
 
         float mid = float(top) + laneH * 0.5f;
@@ -304,12 +336,65 @@ void PluginEditor::drawView(Graphics& g) {
                    Justification::left);
     }
 
+    g.setFont(Font(FontOptions(Font::getDefaultMonospacedFontName(), 14, Font::plain)));
+    g.setColour(Colours::grey);
+    g.drawText("fades: solid gain, dashed rec, grey kept", waveX + 6, waveY + laneH + laneGap + 24, waveW - 12, 18,
+               Justification::right);
+    g.setFont(font);
+
     int bottom = waveY + 2 * laneH + laneGap;
     g.setColour(Colours::grey);
     g.drawText("0 s", waveX + 6, bottom - 24, 100, 22, Justification::left);
     g.drawText(String::formatted("%.2f s", len), waveX + waveW - 106, bottom - 24, 100, 22, Justification::right);
     g.setColour(Colours::yellow);
     g.drawText(processor_.saveStatus(), waveX + 110, bottom - 24, waveW - 220, 22, Justification::centred);
+}
+
+// Across each crossfade, from 0 at the lane's bottom to 0.9 of its height: the voice's playback
+// gain; for the current voice while recording, also the rec level (dashed) and the kept level
+// (grey) that the fade curves apply.
+void PluginEditor::drawFades(Graphics& g, unsigned v, int top, float len) {
+    auto& vp = processor_.getVoice(v);
+    float fadeTime = normValue(vp.fade);
+    sfct::FadeZone zones[2];
+    unsigned nz = sfct::fadeZones(processor_.playedStart(v), processor_.playedEnd(v), processor_.playedRate(v),
+                                  vp.loop.getValue() > 0.5f, fadeTime, zones);
+    bool cur = v == voice_;
+    bool rec = cur && processor_.isRecording(v);
+    float recLvl = normValue(vp.rec_level), preLvl = normValue(vp.pre_level);
+    auto x = [len](float t) { return float(waveX) + t / len * float(waveW); };
+    auto y = [top](float level) { return float(top + laneH) - level * laneH * 0.9f; };
+    auto colour = trackClrs[v / 2];
+
+    for (unsigned z = 0; z < nz; z++) {
+        Path gain, recPath, prePath;
+        static constexpr int N = 32;
+        for (int k = 0; k <= N; k++) {
+            float progress = float(k) / N;
+            float px = x(zones[z].time(progress, fadeTime));
+            float fade = zones[z].fade(progress);
+            auto add = [&](Path& p, float level) {
+                if (k == 0) p.startNewSubPath(px, y(level));
+                else p.lineTo(px, y(level));
+            };
+            add(gain, sfct::fadeGain(fade));
+            if (rec) {
+                add(recPath, recLvl * fadeCurves_.getRecFadeValue(fade));
+                add(prePath, preLvl + (1.0f - preLvl) * fadeCurves_.getPreFadeValue(fade));
+            }
+        }
+        g.setColour(colour.withAlpha(cur ? 1.0f : 0.43f));
+        g.strokePath(gain, PathStrokeType(cur ? 2.0f : 1.0f));
+        if (rec) {
+            Path dashed;
+            static const float dashes[] = { 6.0f, 4.0f };
+            PathStrokeType(1.5f).createDashedStroke(dashed, recPath, dashes, 2);
+            g.setColour(colour);
+            g.fillPath(dashed);
+            g.setColour(Colours::grey);
+            g.strokePath(prePath, PathStrokeType(1.5f));
+        }
+    }
 }
 
 void PluginEditor::resized() {

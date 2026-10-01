@@ -70,6 +70,7 @@ namespace softcut {
         void takeAction(Action act);
 
         sample_t mixFade(sample_t x, sample_t y, float a, float b); // mix two inputs with phases
+        sample_t mixHeads(); // mixFade of both heads' outputs
         void calcFadeInc();
 
     private:
