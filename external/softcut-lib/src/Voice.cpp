@@ -65,7 +65,8 @@ void Voice::reset() {
     recFlag = false;
     playFlag = false;
 
-    sch.init(&fadeCurves);
+    sch.init(&fadeCurves);  // resets the head's rate to 1
+    schRateValid = false;
     // sch.init() sets 0.1 s, overriding the setFadeTime(0.01) above
     if (fixQuirks) {
         setFadeTime(0.01);
@@ -75,38 +76,27 @@ void Voice::reset() {
 }
 
 void Voice:: processBlockMono(const float *in, float *out, int numFrames) {
-    std::function<void(sample_t, sample_t*)> sampleFunc;
-    if(playFlag) {
-        if(recFlag) {
-            sampleFunc = [this](float in, float* out) {
-                this->sch.processSample(in, out);
-            };
-        } else {
-            sampleFunc = [this](float in, float* out) {
-                this->sch.processSampleNoWrite(in, out);
-            };
-        }
-    } else {
-        if(recFlag) {
-            sampleFunc = [this](float in, float* out) {
-                this->sch.processSampleNoRead(in, out);
-            };
-        } else {
-            sampleFunc = [](float in, float* out) {
-                (void)in;
-                // makes sure the output bus is zeroed
-                *out = 0.f;
-            };
-        }
-    }
-
+    // the flags are fixed for the block: a predictable branch per sample, not a std::function call
     float x, y;
     for(int i=0; i<numFrames; ++i) {
         x = svfPre.getNextSample(in[i]) + in[i]*svfPreDryLevel;
-        sch.setRate(rateRamp.update());
+        // setRate also recomputes the fade increment and both resamplers' rates: skip it while
+        // the ramp holds still, which is most of the time
+        float r = rateRamp.update();
+        if (!schRateValid || r != schRate) {
+            sch.setRate(r);
+            schRate = r;
+            schRateValid = true;
+        }
         sch.setPre(preRamp.update());
         sch.setRec(recRamp.update());
-        sampleFunc(x, &y);
+        if (playFlag) {
+            if (recFlag) sch.processSample(x, &y);
+            else sch.processSampleNoWrite(x, &y);
+        } else {
+            if (recFlag) sch.processSampleNoRead(x, &y);
+            else y = 0.f;  // makes sure the output bus is zeroed
+        }
 	    out[i] = svfPost.getNextSample(y) + y*svfPostDryLevel;
         updateQuantPhase();
     }

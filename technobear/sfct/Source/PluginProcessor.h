@@ -35,6 +35,8 @@ PARAMETER_ID(lpf)
 PARAMETER_ID(lp_mix)
 PARAMETER_ID(link)
 PARAMETER_ID(mode)
+PARAMETER_ID(fb_src)
+PARAMETER_ID(fb_amt)
 
 #undef PARAMETER_ID
 }  // namespace ID
@@ -59,7 +61,9 @@ public:
     static constexpr unsigned VOICES = sfct::VOICES;
     static constexpr unsigned PAIRS = sfct::TRACKS;
 
-    enum { I_IN_L, I_IN_R, I_MAX };
+    // per track: rate (V/oct), pos (1 s/V), rec gate, cut trigger
+    enum { I_IN_L, I_IN_R, I_TRACK_1, I_MAX = I_TRACK_1 + 4 * PAIRS };
+    enum { TI_RATE, TI_POS, TI_REC, TI_CUT, TI_MAX };
     enum { O_OUT_L, O_OUT_R, O_VOICE_1, O_MAX = O_VOICE_1 + VOICES };
 
     struct Voice {
@@ -87,10 +91,20 @@ public:
         Parameter& link;  // shared by both voices of the pair
     };
 
+    // feedback into the track, L to L and R to R, from source track fb_src (0 off, else 1-4)
+    struct Track {
+        using Parameter = juce::RangedAudioParameter;
+        Track(AudioProcessorValueTreeState& apvt, unsigned t);
+        Parameter& fb_src;
+        Parameter& fb_amt;
+    };
+
     struct PluginParams {
         explicit PluginParams(juce::AudioProcessorValueTreeState&);
         std::vector<std::unique_ptr<Voice>> voices_;
+        std::vector<std::unique_ptr<Track>> tracks_;
     } params_;
+    Track& getTrack(unsigned t) { return *params_.tracks_[t]; }
     RangedAudioParameter& modeParam_;
 
     Voice& getVoice(unsigned v) { return *params_.voices_[v]; }
@@ -127,6 +141,10 @@ public:
     // thread writes; saveStatus() reports the outcome. Never overwrites: a loaded sample may be the
     // file at that path. Message thread only.
     bool saveBuffers(const String& path, unsigned mask);
+    // Clears the loop voice v plays (after CV) on its buffer, and its partner's when linked, with
+    // 5 ms edge fades. Asynchronous, like save. Message thread only.
+    bool clearLoop(unsigned v);
+
     String saveStatus() {
         std::lock_guard<std::mutex> lock(fileLock_);
         return saveStatus_;
@@ -141,6 +159,10 @@ public:
     float headPosition(unsigned v, int i) { return engine_.voice(v).getSavedHeadPosition(i); }
     float headGain(unsigned v, int i) { return std::sin(engine_.voice(v).getSavedHeadFade(i) * float(M_PI_2)); }
     bool isRecording(unsigned v) { return engine_.voice(v).getSavedRecFlag(); }
+    // the loop and rate voice v plays, after linking and CV
+    float playedStart(unsigned v) const { return played_[v].start.load(std::memory_order_relaxed); }
+    float playedEnd(unsigned v) const { return played_[v].end.load(std::memory_order_relaxed); }
+    float playedRate(unsigned v) const { return played_[v].rate.load(std::memory_order_relaxed); }
 
     // processBlock time as a fraction of the block's duration, on one core
     float loadAverage() const { return loadAvg_.load(std::memory_order_relaxed); }
@@ -163,6 +185,10 @@ private:
     sfct::Engine engine_;
     bool cutHeld_[VOICES] = {};
     std::atomic<unsigned> cutMask_{ 0 };  // voices to cut to loop start after a load
+    bool trigHigh_[PAIRS] = {};            // cut trigger input state, per track
+    struct {
+        std::atomic<float> start{ 0.0f }, end{ 0.0f }, rate{ 1.0f };
+    } played_[VOICES];
     std::atomic<unsigned> displayTrack_{ 0 };
     double sampleRate_ = 48000.0;
 
@@ -185,6 +211,9 @@ private:
     String saveStatus_;
     std::thread saveThread_;
     std::atomic<bool> saving_{ false };
+    // frees the buffers a load swaps out, once the audio thread has swapped them
+    std::thread housekeeper_;
+    std::atomic<bool> quit_{ false };
     double fileLoadRate_ = 0.0;  // engine rate the files were resampled to
 
     ssp::RmsTrack inRms_[2];

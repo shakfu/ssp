@@ -22,6 +22,11 @@ static String getLinkId(unsigned pair) {
     return String(ID::link) + String(pair * 2 + 1) + String(pair * 2 + 2);
 }
 
+// "t1:fb_src"
+static String getTrackParamId(unsigned t, StringRef id) {
+    return "t" + String(t + 1) + String(ID::separator) + id;
+}
+
 PluginProcessor::PluginProcessor() : PluginProcessor(getBusesProperties(), createParameterLayout()) {
 }
 
@@ -34,9 +39,20 @@ PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties& ioLayout
         for (auto* p : getVoice(v).params()) vts().addParameterListener(p->paramID, this);
     for (unsigned pair = 0; pair < PAIRS; pair++) vts().addParameterListener(getLinkId(pair), this);
     vts().addParameterListener(ID::mode, this);
+
+    // Polling, rather than freeing after each load, also covers loads a preset restores before the
+    // audio thread starts. reclaimStaging() is a no-op unless the load lock is idle.
+    housekeeper_ = std::thread([this] {
+        while (!quit_.load()) {
+            engine_.reclaimStaging();
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        }
+    });
 }
 
 PluginProcessor::~PluginProcessor() {
+    quit_ = true;
+    housekeeper_.join();
     if (saveThread_.joinable()) saveThread_.join();  // finishes within its 5 s timeout
     for (unsigned v = 0; v < VOICES; v++)
         for (auto* p : getVoice(v).params()) vts().removeParameterListener(p->paramID, this);
@@ -70,8 +86,14 @@ std::vector<RangedAudioParameter*> PluginProcessor::Voice::params() {
              &rec_level, &pre_level, &in_gain, &pan,  &fade, &slew, &lpf,   &lp_mix };
 }
 
+PluginProcessor::Track::Track(AudioProcessorValueTreeState& apvt, unsigned t)
+    : fb_src(*apvt.getParameter(getTrackParamId(t, ID::fb_src))),
+      fb_amt(*apvt.getParameter(getTrackParamId(t, ID::fb_amt))) {
+}
+
 PluginProcessor::PluginParams::PluginParams(AudioProcessorValueTreeState& apvt) {
     for (unsigned v = 0; v < VOICES; v++) { voices_.push_back(std::make_unique<Voice>(apvt, v)); }
+    for (unsigned t = 0; t < PAIRS; t++) { tracks_.push_back(std::make_unique<Track>(apvt, t)); }
 }
 
 AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLayout() {
@@ -121,12 +143,24 @@ AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLa
         params.add(std::make_unique<ssp::BaseBoolParameter>(getLinkId(pair), desc, true));
     }
     params.add(std::make_unique<ssp::BaseChoiceParameter>(ID::mode, "Mode", StringArray{ "norns", "4 loop" }, 0));
+    for (unsigned t = 0; t < PAIRS; t++) {
+        String desc = "T" + String(t + 1) + " ";
+        params.add(std::make_unique<ssp::BaseChoiceParameter>(getTrackParamId(t, ID::fb_src), desc + "FB Src",
+                                                              StringArray{ "off", "T1", "T2", "T3", "T4" }, 0));
+        params.add(
+            std::make_unique<ssp::BaseFloatParameter>(getTrackParamId(t, ID::fb_amt), desc + "FB Amt", 0.0f, 1.0f, 0.5f));
+    }
     return params;
 }
 
 const String PluginProcessor::getInputBusName(int channelIndex) {
-    static String inBusName[I_MAX] = { "In L", "In R" };
-    if (channelIndex < I_MAX) { return inBusName[channelIndex]; }
+    if (channelIndex == I_IN_L) return "In L";
+    if (channelIndex == I_IN_R) return "In R";
+    if (channelIndex < I_MAX) {
+        static const char* names[TI_MAX] = { "Rate", "Pos", "Rec", "Cut" };
+        int i = channelIndex - I_TRACK_1;
+        return "T" + String(i / TI_MAX + 1) + " " + names[i % TI_MAX];
+    }
     return "ZZIn-" + String(channelIndex);
 }
 
@@ -282,6 +316,21 @@ bool PluginProcessor::saveBuffers(const String& path, unsigned mask) {
     return true;
 }
 
+bool PluginProcessor::clearLoop(unsigned v) {
+    float s = std::min(playedStart(v), playedEnd(v)), e = std::max(playedStart(v), playedEnd(v));
+    unsigned left = v & ~1u;
+    unsigned mask = getVoice(v).link.getValue() > 0.5f ? (1u << bufferOf(left)) | (1u << bufferOf(left + 1))
+                                                       : 1u << bufferOf(v);
+    String what = "T" + String(v / 2 + 1) + (getVoice(v).link.getValue() > 0.5f ? String() : (v % 2 ? " R" : " L"));
+    if (!engine_.requestClear(mask, unsigned(s * sampleRate_), unsigned(e * sampleRate_),
+                              unsigned(0.005 * sampleRate_))) {
+        setStatus("clear busy");
+        return false;
+    }
+    setStatus("cleared " + what + String::formatted(" %.2f-%.2f s", s, e));
+    return true;
+}
+
 void PluginProcessor::reloadFiles() {
     String files[sfct::BUFFERS];
     int chans[sfct::BUFFERS];
@@ -367,12 +416,36 @@ void PluginProcessor::parameterChanged(const String& id, float newValue) {
 }
 
 void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages) {
+    // silent voices' filters decay through denormals, which are slow on VFP
+    ScopedNoDenormals noDenormals;
     BaseProcessor::processBlock(buffer, midiMessages);
     auto t0 = std::chrono::steady_clock::now();
     unsigned n = buffer.getNumSamples();
+    if (n == 0) return;
 
     inRms_[0].process(buffer, I_IN_L);
     inRms_[1].process(buffer, I_IN_R);
+
+    // read the CV inputs first: the outputs overwrite their channels
+    struct {
+        float rate, pos;
+        bool gate, trig;
+    } cv[PAIRS];
+    for (unsigned t = 0; t < PAIRS; t++) {
+        int ch = I_TRACK_1 + int(t * TI_MAX);
+        cv[t].rate = buffer.getSample(ch + TI_RATE, int(n) - 1);
+        cv[t].pos = buffer.getSample(ch + TI_POS, int(n) - 1);
+        cv[t].gate = buffer.getSample(ch + TI_REC, int(n) - 1) > 0.5f;
+        cv[t].trig = false;
+        const float* trig = buffer.getReadPointer(ch + TI_CUT);
+        bool high = trigHigh_[t];
+        for (unsigned i = 0; i < n; i++) {
+            bool h = trig[i] > 0.5f;
+            cv[t].trig = cv[t].trig || (h && !high);
+            high = h;
+        }
+        trigHigh_[t] = high;
+    }
 
     sfct::VoiceParams p[VOICES];
     bool cut[VOICES];
@@ -408,7 +481,26 @@ void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMe
         cut[lead] = cut[follow] = cut[lead] || cut[follow];
     }
 
+    // a track's CV drives both its voices, after linking, so a linked track stays locked
+    float fb[VOICES][VOICES] = {};
+    for (unsigned t = 0; t < PAIRS; t++) {
+        for (unsigned v = t * 2; v < t * 2 + 2; v++) {
+            p[v] = sfct::withCv(p[v], cv[t].rate, cv[t].pos, cv[t].gate, engine_.bufferSeconds());
+            cut[v] = cut[v] || cv[t].trig;
+        }
+        auto& tp = getTrack(t);
+        int src = int(normValue(tp.fb_src)) - 1;
+        if (src < 0) continue;
+        float amt = normValue(tp.fb_amt);
+        fb[src * 2][t * 2] = amt;
+        fb[src * 2 + 1][t * 2 + 1] = amt;
+    }
+    engine_.setFeedback(fb);
+
     for (unsigned v = 0; v < VOICES; v++) {
+        played_[v].start.store(p[v].loopStart, std::memory_order_relaxed);
+        played_[v].end.store(p[v].loopEnd, std::memory_order_relaxed);
+        played_[v].rate.store(p[v].rate, std::memory_order_relaxed);
         engine_.set(v, p[v]);
         if (((cutMask & (1u << v)) || cut[v]) && (p[v].play || p[v].rec))
             engine_.cut(v, std::min(p[v].loopStart, p[v].loopEnd));

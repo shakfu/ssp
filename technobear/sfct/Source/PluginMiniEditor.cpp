@@ -37,4 +37,12 @@ PluginMiniEditor::PluginMiniEditor(PluginProcessor& p) : base_type(&p), processo
     }
     addParamPage(std::make_shared<pcontrol_type>(*processor_.getParameter(ID::mode), 1.0f, 1.0f), nullptr, nullptr,
                  nullptr, Colours::white);
+    for (unsigned t = 0; t < sfct::TRACKS; t += 2) {
+        auto& a = processor_.getTrack(t);
+        auto& b = processor_.getTrack(t + 1);
+        addParamPage(std::make_shared<pcontrol_type>(a.fb_src, 1.0f, 1.0f),
+                     std::make_shared<pcontrol_type>(a.fb_amt, 0.1f, 0.01f),
+                     std::make_shared<pcontrol_type>(b.fb_src, 1.0f, 1.0f),
+                     std::make_shared<pcontrol_type>(b.fb_amt, 0.1f, 0.01f), Colours::white);
+    }
 }

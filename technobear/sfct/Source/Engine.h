@@ -30,6 +30,7 @@ static constexpr unsigned CHUNK = 64;
 static constexpr unsigned PEAK_BINS = 580;
 // frames per buffer copied out per block while saving: 256 KB, a full buffer in 64 blocks
 static constexpr unsigned SNAPSHOT_BUDGET = 32768;
+static constexpr unsigned CLEAR_BUDGET = 32768;  // frames per buffer cleared per block
 static constexpr unsigned SCAN_BUDGET = 4096;  // a 4 s view refreshes in 0.25 s at 128-frame blocks
 
 enum Mode : int { SHARED = 0, PER_TRACK = 1 };
@@ -66,6 +67,21 @@ inline unsigned partnerOf(unsigned v) {
 inline VoiceParams linkedTo(const VoiceParams& leader) {
     VoiceParams p = leader;
     p.pan = -leader.pan;
+    return p;
+}
+
+// SSP CV: 0.2 per volt
+static constexpr float CV_PER_VOLT = 0.2f;
+
+// Applies a track's CV to one of its voices. rateCv is V/oct and keeps the rate's sign. posCv shifts
+// the loop window 1 s per volt, keeping its length and staying within [0, maxT]. gate forces rec on.
+inline VoiceParams withCv(VoiceParams p, float rateCv, float posCv, bool gate, float maxT) {
+    p.rate *= std::exp2(rateCv / CV_PER_VOLT);
+    float lo = std::min(p.loopStart, p.loopEnd), hi = std::max(p.loopStart, p.loopEnd);
+    float shift = std::clamp(posCv / CV_PER_VOLT, -lo, std::max(0.0f, maxT - hi));
+    p.loopStart += shift;
+    p.loopEnd += shift;
+    p.rec = p.rec || gate;
     return p;
 }
 
@@ -126,10 +142,14 @@ public:
 
     void cut(unsigned vi, float sec) { voices_[vi].cutToPos(sec); }
 
-    // Buffer replacement, for one control thread. Fill staging(b) for the buffers in `mask` between
-    // beginLoad() and commitLoad(mask); the next process() swaps them in at once. Swapping into an
-    // unallocated buffer allocates it. Staging is allocated on first use; after a swap it holds the
-    // old contents.
+    // Audio thread. fb[src][dst]: gain from voice src's output (before level) into voice dst's input,
+    // one CHUNK later.
+    void setFeedback(const float (&fb)[VOICES][VOICES]) { std::memcpy(fb_, fb, sizeof fb_); }
+
+    // Buffer replacement. Fill staging(b) for the buffers in `mask` between beginLoad() and
+    // commitLoad(mask); the next process() swaps them in at once. Swapping into an unallocated buffer
+    // allocates it. Staging is allocated on first use; after a swap it holds the old contents until
+    // reclaimStaging() frees them. beginLoad() excludes other control threads until commitLoad().
     void beginLoad() {
         for (;;) {
             int s = loadState_.load(std::memory_order_acquire);
@@ -147,6 +167,36 @@ public:
         loadMask_ |= mask;
         loadState_.store(L_READY, std::memory_order_release);
     }
+
+    // Control thread. Frees the staging buffers once every committed load has been swapped in;
+    // returns false, freeing nothing, while one is pending or being written.
+    bool reclaimStaging() {
+        int idle = L_IDLE;
+        if (!loadState_.compare_exchange_strong(idle, L_WRITING, std::memory_order_acquire)) return false;
+        for (auto& v : staging_) std::vector<float>().swap(v);
+        loadState_.store(L_IDLE, std::memory_order_release);
+        return true;
+    }
+    size_t stagingFrames() const {  // for tests
+        size_t n = 0;
+        for (auto& v : staging_) n += v.capacity();
+        return n;
+    }
+
+    // Control thread. Clears frames [start, end) of the buffers in `mask` on the audio thread,
+    // CLEAR_BUDGET frames per block. The first and last `fade` frames fade the old material out
+    // rather than cutting it. Returns false while a clear is in progress.
+    bool requestClear(unsigned mask, unsigned start, unsigned end, unsigned fade) {
+        if (clearState_.load(std::memory_order_acquire) != C_IDLE) return false;
+        clearEnd_ = std::min(end, BUFFER_FRAMES);
+        clearStart_ = std::min(start, clearEnd_);
+        clearPos_ = clearStart_;
+        clearFade_ = std::max(1u, fade);
+        clearMask_ = mask;
+        clearState_.store(C_CLEARING, std::memory_order_release);
+        return true;
+    }
+    bool clearing() const { return clearState_.load(std::memory_order_acquire) != C_IDLE; }
 
     // Control thread. Takes effect with the next process(), after any buffers it needs are in place.
     void requestMode(Mode m) {
@@ -240,6 +290,8 @@ public:
                 voices_[v].setBuffer(buffers_[bufferFor(mode(), v)].data(), BUFFER_FRAMES);
             loadState_.store(L_IDLE, std::memory_order_release);
         }
+        if (clearState_.load(std::memory_order_acquire) == C_CLEARING) clearSlice();
+
         for (unsigned off = 0; off < n; off += CHUNK) {
             unsigned len = std::min(CHUNK, n - off);
             for (unsigned c = 0; c < INPUTS; c++)
@@ -250,23 +302,31 @@ public:
                 float* vo = voiceOut[vi] ? voiceOut[vi] + off : nullptr;
                 if (!p.on) {
                     if (vo) std::fill(vo, vo + len, 0.0f);
+                    std::fill(curOut_[vi], curOut_[vi] + CHUNK, 0.0f);
                     continue;
                 }
                 const float* src = chunkIn_[vi % INPUTS];
                 for (unsigned i = 0; i < len; i++) scratchIn_[i] = src[i] * p.inputGain;
-                voices_[vi].processBlockMono(scratchIn_, scratchOut_, int(len));
+                for (unsigned s = 0; s < VOICES; s++) {
+                    float g = fb_[s][vi];
+                    if (g == 0.0f) continue;
+                    for (unsigned i = 0; i < len; i++) scratchIn_[i] += prevOut_[s][i] * g;
+                }
+                float* out = curOut_[vi];
+                voices_[vi].processBlockMono(scratchIn_, out, int(len));
 
                 // equal-power pan: -1..1 -> 0..pi/2
                 float theta = (p.pan * 0.5f + 0.5f) * float(M_PI_2);
                 float gl = p.level * std::cos(theta);
                 float gr = p.level * std::sin(theta);
                 for (unsigned i = 0; i < len; i++) {
-                    float y = scratchOut_[i];
+                    float y = out[i];
                     mix[0][off + i] += y * gl;
                     mix[1][off + i] += y * gr;
                     if (vo) vo[i] = y * p.level;
                 }
             }
+            std::memcpy(prevOut_, curOut_, sizeof prevOut_);
         }
 
         int copying = S_COPYING;
@@ -284,6 +344,21 @@ public:
     }
 
 private:
+    // gain 1 at the region's edges, falling to 0 clearFade_ frames in
+    void clearSlice() {
+        unsigned end = std::min(clearPos_ + CLEAR_BUDGET, clearEnd_);
+        for (unsigned b = 0; b < BUFFERS; b++) {
+            if (!(clearMask_ & (1u << b)) || buffers_[b].empty()) continue;
+            float* d = buffers_[b].data();
+            for (unsigned i = clearPos_; i < end; i++) {
+                unsigned edge = std::min(i - clearStart_, clearEnd_ - 1 - i);
+                d[i] = edge < clearFade_ ? d[i] * (1.0f - float(edge) / float(clearFade_)) : 0.0f;
+            }
+        }
+        clearPos_ = end;
+        if (end == clearEnd_) clearState_.store(C_IDLE, std::memory_order_release);
+    }
+
     // Non-negative float bit patterns order like their values, so an integer max over the
     // sign-cleared bits is the float peak. Unlike a float max, it vectorises.
     static float absPeak(const float* x, unsigned n) {
@@ -301,6 +376,7 @@ private:
 
     enum { L_IDLE, L_WRITING, L_READY, L_SWAPPING };
     enum { S_IDLE, S_COPYING, S_BUSY, S_DONE };
+    enum { C_IDLE, C_CLEARING };
 
     std::vector<std::vector<float>> buffers_;
     std::vector<float> staging_[BUFFERS];
@@ -320,6 +396,9 @@ private:
     std::atomic<int> snapState_{ S_IDLE };
     unsigned snapMask_ = 0, snapFrames_ = 0, snapPos_ = 0;  // set while S_IDLE, then audio-thread owned
 
+    std::atomic<int> clearState_{ C_IDLE };
+    unsigned clearMask_ = 0, clearStart_ = 0, clearEnd_ = 0, clearPos_ = 0, clearFade_ = 1;  // likewise
+
     // fixQuirks: upstream records polarity-inverted, which cancels against the dry signal on SSP patches
     softcut::Voice voices_[VOICES] = { softcut::Voice(true), softcut::Voice(true), softcut::Voice(true),
                                        softcut::Voice(true), softcut::Voice(true), softcut::Voice(true),
@@ -329,7 +408,9 @@ private:
     float sampleRate_ = 48000.0f;
     float chunkIn_[INPUTS][CHUNK];
     float scratchIn_[CHUNK];
-    float scratchOut_[CHUNK];
+    float curOut_[VOICES][CHUNK] = {};   // each voice's output this chunk, before level
+    float prevOut_[VOICES][CHUNK] = {};  // and the previous chunk's, which feedback reads
+    float fb_[VOICES][VOICES] = {};
 };
 
 }  // namespace sfct

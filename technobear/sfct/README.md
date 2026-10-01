@@ -14,17 +14,40 @@ Each buffer is mono, 2^21 frames: 43.7 s at 48 kHz.
   four stereo playheads over one recording.
 - `4 loop`: each track has its own L and R buffers, so the tracks are independent loops.
   The six extra buffers (48 MB) are allocated on the first switch and kept afterwards.
+A load or mode switch briefly holds a second copy of the buffers it replaces; a housekeeping
+thread frees it within 50 ms of the audio thread swapping the new ones in.
 
 Switching keeps every buffer's contents. In `norns` mode, tracks 2-4 read the shared buffers again.
 
 | IO | |
 |-|-|
-| In | In L, In R |
+| In | In L, In R; per track: Rate, Pos, Rec, Cut |
 | Out | Out L, Out R (panned mix), Voice 1-8 (post level, pre pan) |
+
+## CV
+
+Each track has four inputs, which drive both its voices:
+
+| Input | Effect |
+|-|-|
+| `Tn Rate` | V/oct: +1 V doubles the rate, keeping its sign |
+| `Tn Pos` | shifts the loop window 1 s per volt, keeping its length; it stops at 0 and the buffer end |
+| `Tn Rec` | gate: records while above 2.5 V, as well as when rec is on |
+| `Tn Cut` | trigger: jumps to loop start on a rising edge above 2.5 V |
+
+Inputs are read once per block (128 frames, 2.7 ms at 48 kHz). The CV applies after linking, so a
+linked track stays sample-locked.
+
+## Feedback
+
+Global pages 2 and 3 set, per track, a feedback source (`off`, `T1`-`T4`) and amount. Source L feeds
+destination L and source R feeds R. The signal is the source voice's output after its filter and
+before its level, delayed 64 frames (1.3 ms). A track may feed itself. The record path's soft clip
+bounds the level a feedback loop can build.
 
 ## Navigation
 
-TRK-/TRK+ step through tracks 1-4, then the Global view. EN-/EN+ page through a track as one
+TRK-/TRK+ step through tracks 1-4, then the Global view (mode, then feedback). EN-/EN+ page through a track as one
 sequence: the L voice's three pages, then the R voice's. The header shows the track, side and page.
 Rate moves 0.05 per detent, 0.001 with the encoder held. Each voice's pages:
 
@@ -33,6 +56,13 @@ Rate moves 0.05 per detent, 0.001 with the encoder held. Each voice's pages:
 3. fade, slew, lpf, lp mix
 
 Buttons: play, rec, loop, cut (momentary, jumps to loop start), Load, on, link, Save.
+
+Holding RS (labelled CLR) clears the current voice's loop region, as played after CV: on its buffer,
+and on its partner's when the track is linked. A short press does nothing. The first and last 5 ms
+fade the old material out rather than cutting it. In `norns` mode the shared buffers mean the clear
+also silences other tracks that loop over that region. The audio thread clears 32768 frames per
+block, so a full buffer takes 0.17 s. A preset still references the buffer's file; save to keep
+the cleared state.
 
 Tracks 1 and 2 start on, tracks 3 and 4 off. A voice that is off is not processed: it is silent,
 records nothing and costs no CPU. It resumes from where it stopped.
@@ -64,7 +94,14 @@ seams up to 0.17 s apart in the file. The status line under the waveform reports
 The waveform shows the current track's L and R buffers over the furthest loop end among enabled
 voices that use them, at least 0.5 s. Each such voice draws its loop region in its track's colour,
 the current voice brighter. Each voice has two playheads, which crossfade at cuts and loop points;
-each is drawn as bright as its playback gain. A recording head is drawn thicker. Peaks are rescanned
+each is drawn as bright as its playback gain. A recording head is drawn thicker. Loop regions show
+the loop as played, after linking and CV.
+
+Each crossfade is drawn where it happens in the buffer: past the loop's exit as the outgoing head
+fades out, and from its entry as the incoming head fades in. It spans the fade time of buffer at any
+rate. The solid curve is the playback gain, rising from the lane's bottom. While the current voice
+records, a dashed curve shows the level it records at and a grey curve the level of the old material
+it keeps, as softcut's rec and pre fade curves shape them. Peaks are rescanned
 on the audio thread, 4096 frames per block, so a 4 s view refreshes in 0.25 s.
 
 The DSP readout shows `processBlock` time as a percentage of the block duration, on one core.

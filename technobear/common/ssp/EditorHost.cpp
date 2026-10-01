@@ -105,7 +105,7 @@ void EditorHost::drawBasicPanel(Graphics& g) {
             juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), 12 * COMPACT_UI_SCALE, Font::plain)));
         g.setColour(Colours::yellow);
         g.drawSingleLineText(
-            String(JucePlugin_Name) + " : " + String(JucePlugin_Desc) + String(" @ ") + String(JucePlugin_Manufacturer),
+            String(JucePlugin_Name) + " : " + String(JucePlugin_Desc) + String(SSP_TITLE_SUFFIX),
             10, 30);
 
         g.setColour(Colours::grey);

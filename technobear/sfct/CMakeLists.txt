@@ -10,7 +10,7 @@ juce_add_plugin(SFCT
         COMPANY_NAME "Technobear"
         COMPANY_WEBSITE "www.technobear.com"
         COMPANY_EMAIL "mharris@technobear.com"
-        DESCRIPTION "softcut 4 voice looper"
+        DESCRIPTION "softcut 4 track looper"
         COPY_PLUGIN_AFTER_BUILD FALSE
         PLUGIN_MANUFACTURER_CODE TB00
         PLUGIN_CODE SFCT
@@ -39,7 +39,8 @@ target_compile_definitions(SFCT
         PUBLIC
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
-        JUCE_VST3_CAN_REPLACE_VST2=0)
+        JUCE_VST3_CAN_REPLACE_VST2=0
+        SSP_TITLE_NO_MANUFACTURER=1)
 
 target_link_libraries(SFCT PRIVATE
         juce::juce_audio_utils)
