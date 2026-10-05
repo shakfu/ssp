@@ -1,6 +1,6 @@
-# Host build of Track under ThreadSanitizer; configured and run by ../test_track_tsan.py.
+# Host build of rack's Track and JSON code under ThreadSanitizer; configured and run by ../test_host.py.
 cmake_minimum_required(VERSION 3.15)
-project(rack_tsan CXX)
+project(rack_host CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -37,17 +37,21 @@ target_compile_options(juce_min PUBLIC -fsanitize=thread -g -O1 -w)
 target_link_options(juce_min PUBLIC -fsanitize=thread)
 target_link_libraries(juce_min PUBLIC pthread dl)
 
-add_executable(track_race_test
-        track_race_test.cpp
+add_library(rack_core STATIC
         ${RACK}/Track.cpp
         ${RACK}/Module.cpp
         ${RACK}/Matrix.cpp
         ${RACK}/JsonPreset.cpp
         ${COMMON}/ssp/Log.cpp)
-target_include_directories(track_race_test PRIVATE ${RACK} ${COMMON})
-target_link_libraries(track_race_test PRIVATE juce_min)
-# sanitizers abort on RTLD_DEEPBIND, which Module::loadModule passes; the test strips it
-target_link_options(track_race_test PRIVATE -Wl,--wrap=dlopen)
+target_include_directories(rack_core PUBLIC ${RACK} ${COMMON})
+target_link_libraries(rack_core PUBLIC juce_min)
+
+foreach (TEST track_race_test json_matrix_test)
+    # dlopen_shim.cpp strips RTLD_DEEPBIND, which Module::loadModule passes and sanitizers abort on
+    add_executable(${TEST} ${TEST}.cpp dlopen_shim.cpp)
+    target_link_libraries(${TEST} PRIVATE rack_core)
+    target_link_options(${TEST} PRIVATE -Wl,--wrap=dlopen)
+endforeach ()
 
 # two plugins with different channel counts, so swapping them resizes the module buffer
 foreach (CH 2 6)

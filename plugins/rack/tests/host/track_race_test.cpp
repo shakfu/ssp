@@ -1,18 +1,11 @@
 // Drives Track from an audio thread and a control thread at once, for ThreadSanitizer.
 // Built by CMakeLists.txt and run from a directory holding plugins/pass2.so and plugins/pass6.so.
 
-#include <dlfcn.h>
-
 #include <atomic>
 #include <cstdio>
 #include <thread>
 
 #include "Track.h"
-
-extern "C" void* __real_dlopen(const char* file, int mode);
-extern "C" void* __wrap_dlopen(const char* file, int mode) {
-    return __real_dlopen(file, mode & ~RTLD_DEEPBIND);
-}
 
 static int failures = 0;
 #define CHECK(cond)                                                                  \

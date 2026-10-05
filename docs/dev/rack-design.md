@@ -24,31 +24,32 @@ Source size, 4211 lines in total:
 
 `ModuleView` is listed as editing UI. It shows the hosted module's own editor, though, which is also useful while playing. See open question 2.
 
-## 2. Matrix authoring (both options, implemented)
+## 2. Matrix routing (both options, implemented)
 
-The matrix belongs in the `py2rack` Python API, not in the JSON format. Presets are generated in Python, so a matrix only has to exist there. The file format, the C++ loader and device saves stay unchanged. A file holds routing in one form only: `wires`.
+A track's routing in a JSON preset is a gain matrix. rack loads it, rack's JSON save writes it, and `py2rack encode` accepts it. Format: `plugins/rack/README-json-presets.md`.
 
-A jack-level matrix for one track is about 106 x 106, assuming 12 channels per slot. A patch fills 10-30 cells. So the API takes a labelled sub-matrix that names only the jacks it uses:
+A jack-level matrix for one track is about 106 x 106, assuming 12 channels per slot, and a patch fills 10-30 cells. So the matrix is labelled and names only the jacks it uses:
 
-```python
-wires = py2rack.matrix_wires(
-    rows=["in:0", "in:1", "1:Out L", "1:Out R", "dc"],
-    cols=["1:In L", "1:In R", "out:0", "out:1"],
-    gain=[[1, 0, 0,   0  ],
-          [0, 1, 0,   0  ],
-          [0, 0, 0.5, 0  ],
-          [0, 0, 0,   0.5],
-          [0, 0, 0,   0  ]],
-)
+```json
+"matrix": {
+  "rows": ["in:0", "in:1", "1:Out L", "dc"],
+  "cols": ["1:In L", "1:In R", "out:0"],
+  "gain": [[1, 0, 0  ],
+           [0, 1, 0  ],
+           [0, 0, 0.5],
+           [0, 0, 0.1]]
+}
 ```
 
-- Every nonzero cell becomes one wire. `gain` is any 2-D sequence, so a numpy array works without making numpy a dependency.
-- `dc` is a constant source of 1.0, so each column computes `y = W x + b`. The engine adds `offset` once per wire, so a `dc` weight goes on the first wire into that column. A column with only a `dc` entry is an error, since the device has no `dc` node to wire from.
-- `matrix_wires` checks label syntax only. Channel names are checked when `encode` runs with a manifest, as for any `wires`.
+- Every nonzero cell is one wire. The engine still stores wires; the matrix is the file format.
+- `dc` is a constant source of 1.0, so each column computes `y = W x + b`. The engine adds `offset` once per wire, so on load a `dc` weight goes on the first wire into its column. On save, the offsets of all wires into a column add into its `dc` weight. A column with only a `dc` entry is an error, since there is no `dc` node to wire from.
+- Saving is lossless in sound, not in structure: repeated wires between the same jacks merge into one cell with the summed gain, as the engine sums them anyway.
+- Saves label jacks by channel index, which stays exact when a module repeats a channel name. Hand-written matrices can use names.
+- `wires` still loads, and its wires are added to the matrix's. Older presets keep working.
 
-Usage: `tools/py2rack/README.md`. Tests: `test_matrix_*` in `tools/py2rack/tests/test_py2rack.py`.
+One set of rules, two implementations: `jsonpreset::parseMatrix` and `formatMatrix` in C++, and `py2rack.matrix_wires` in Python. Tests: `plugins/rack/tests/host/json_matrix_test.cpp` (parsing, saving, and a load-save-reload through `Track`), and `test_matrix_*` in `tools/py2rack/tests/test_py2rack.py`.
 
-A JSON `matrix` field is added only if dense matrices turn out to be written by hand. Hand-written patches are sparse, so this is not expected.
+An earlier version of this section kept the matrix in Python only, to leave the file format and loader unchanged. That made the matrix invisible on the device: presets on the card were wire lists, and device saves wrote wire lists. Matrix routing is the point of rack, so the matrix moved into the format.
 
 ## 3. Graph-ordered execution (both options, implemented)
 
@@ -152,7 +153,7 @@ The intended end state is the player. The goal is many presets authored offline,
 1. **Measure on the SSP** (open questions 1 and 3): preset switch time, and whether Synthor persists rack's state. These decide whether a player works.
 2. **Graph-ordered execution** (section 3). Done.
 3. **Read-only routing grid** (section 6). Done; not yet tried on the SSP.
-4. **Matrix authoring** in the `py2rack` API (section 2). Done.
+4. **Matrix routing** in JSON presets, on the device and in `py2rack` (section 2). Done.
 5. **Author on the desktop for a few weeks.** If on-device patching goes unused, delete the editing UI (option A); git keeps it recoverable.
 
 Two results would change this:

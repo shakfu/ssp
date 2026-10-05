@@ -24,7 +24,9 @@ The manifest is what makes names checkable. Without `-m`, `encode` writes what i
 
 ## Matrix authoring
 
-`matrix_wires` builds a track's `wires` from a gain matrix. Rows are sources, columns destinations, and each nonzero cell becomes one wire:
+A track's routing can be a `matrix` field, which rack reads and writes itself; its format is in `plugins/rack/README-json-presets.md`. `encode` accepts the field and checks its names like `wires`.
+
+In Python, `matrix_wires` builds a track's `wires` from the same matrix. Rows are sources, columns destinations, and each nonzero cell becomes one wire:
 
 ```python
 import py2rack
@@ -44,7 +46,7 @@ wires = py2rack.matrix_wires(
 - A `dc` row is a constant 1.0 source. Its weight becomes the `offset` of the first wire into that column, since the engine adds each wire's offset. A `dc` entry in a column with no other wire is an error.
 - Labels are checked for syntax. Channel names are checked by `encode -m`, as for hand-written wires.
 
-The JSON format has no matrix field; the result is an ordinary `wires` list. See `docs/dev/rack-design.md`, section 2.
+`decode` reads the binary format, so it still prints `wires`.
 
 ## What the manifest knows
 

@@ -394,7 +394,13 @@ def _encode_track(element: ET.Element, track: dict, manifest: dict | None) -> No
         ET.SubElement(xml_module, "data").append(state)
 
     xml_matrix = ET.SubElement(element, "Matrix")
-    for wire in track.get("wires", []):
+    wires = list(track.get("wires", []))
+    if "matrix" in track:
+        matrix = track["matrix"]
+        if not isinstance(matrix, dict) or not {"rows", "cols", "gain"} <= set(matrix):
+            raise PresetError("matrix: needs 'rows', 'cols' and 'gain'")
+        wires += matrix_wires(matrix["rows"], matrix["cols"], matrix["gain"])
+    for wire in wires:
         parsed = parse_wire(wire)
         resolved = {}
         for jack, direction in (("src", "outputs"), ("dest", "inputs")):

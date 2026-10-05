@@ -10,7 +10,7 @@ Presets live in `rack_presets`, reached from rack's options page. On the SSP tha
 
 Both formats sit in the same directory and the same file list. rack chooses by content, not by name: a file whose first non-whitespace character is `{` is read as JSON, anything else as the binary format. Presets written by older builds keep working.
 
-A JSON preset is applied a track at a time, in this order: modules, `state`, parameters, wires. Anything rack cannot apply is reported and skipped, and the rest of the preset still loads. Reports go to `/dev/kmsg`, so `dmesg` on the SSP shows them:
+A JSON preset is applied a track at a time, in this order: modules, `state`, parameters, then `wires` and `matrix`. Anything rack cannot apply is reported and skipped, and the rest of the preset still loads. Reports go to `/dev/kmsg`, so `dmesg` on the SSP shows them:
 
     json preset : track 1 : slot 2 has no input "Cowbell"
     json preset : track 1 slot 3 : no parameter named "Postion"
@@ -22,7 +22,7 @@ Save from the options page as usual. A preset name ending in `.json` is written 
 
 The binary format stays the default because upstream trax cannot read JSON. Naming the preset is the whole opt-in; there is no mode to set.
 
-A JSON save writes every parameter of every loaded module, by name, along with the modules, the routing, track levels and the performance parameters. A saved preset reloads to the same patch.
+A JSON save writes every parameter of every loaded module, by name, along with the modules, the routing as a `matrix`, track levels and the performance parameters. A saved preset reloads to the same patch.
 
 ## Format
 
@@ -34,11 +34,13 @@ A JSON save writes every parameter of every loaded module, by name, along with t
       "level": 1.0,
       "mute": false,
       "modules": { "1": "clds", "2": "srvb" },
-      "wires": [
-        "in:0 -> 1:In L",
-        "1:Out L -> 2:In L",
-        { "from": "2:Out L", "to": "out:0", "gain": 0.5, "offset": 0.0 }
-      ],
+      "matrix": {
+        "rows": ["in:0", "1:Out L", "2:Out L"],
+        "cols": ["1:In L", "2:In L", "out:0"],
+        "gain": [[1, 0, 0  ],
+                 [0, 1, 0  ],
+                 [0, 0, 0.5]]
+      },
       "params": { "1": { "Position": 25.0, "Size": 70.0 } }
     }
   },
@@ -52,7 +54,11 @@ Every field is optional. `{"rack": 1}` loads an empty four-track preset.
 
 **modules** are keyed by slot, `"1"` to `"8"`, and name the module to load: `clds` loads `/media/BOOT/plugins/clds.so`. The slots `in` and `out` are the track's own input and output. They are built in, hold 8 and 2 channels, and cannot take a module.
 
-**wires** are `"<slot>:<channel> -> <slot>:<channel>"`. A channel is an index, 0-based, or one of the module's own channel names, so `"2:AS Trig"` and `"2:4"` are the same jack. Names are resolved against the loaded module, so they work for every module and are checked. The object form adds `gain` and `offset`, which default to 1 and 0.
+**matrix** is the track's routing as a gain matrix. `rows` are source jacks, `cols` destination jacks, and `gain[r][c]` is the gain of the wire from `rows[r]` to `cols[c]`. Each nonzero cell is a wire; name only the jacks you use. A row labelled `dc` is a constant 1.0 source: its weight is added to that column as an offset. A `dc` entry in a column with no wire into it is an error, and a malformed matrix is reported and skipped whole.
+
+A jack is `"<slot>:<channel>"`. A channel is an index, 0-based, or one of the module's own channel names, so `"2:AS Trig"` and `"2:4"` are the same jack. Names are resolved against the loaded module, so they work for every module and are checked. A JSON save writes channel indices, which stay exact when a module repeats a name.
+
+**wires** list the same routing one wire at a time, and are added to the matrix's wires. Each is `"<slot>:<channel> -> <slot>:<channel>"`. The object form, `{ "from": ..., "to": ..., "gain": 0.5, "offset": 0.0 }`, adds `gain` and `offset`, which default to 1 and 0. Presets saved before the matrix use `wires`, and still load.
 
 Modules run in wiring order, not slot order. A wire on a feedback loop reads the previous block (128 samples); the loop is broken at its lowest slot. A wire from a module to itself carries nothing.
 
@@ -80,7 +86,7 @@ It is applied before the named parameters, which override it. Deleting a slot's 
 
 | file | what it holds |
 |-|-|
-| `Source/JsonPreset.h/.cpp` | slot, jack and channel parsing; format sniffing |
+| `Source/JsonPreset.h/.cpp` | slot, jack and channel parsing; `matrix` parsing and formatting; format sniffing |
 | `Source/Track.cpp` | `setStateInformation(var, int)` and `getStateInformation(var&)` |
 | `Source/PluginProcessor.cpp` | `loadJsonPreset`, `saveJsonPreset`, and the dispatch in `loadPreset` / `savePreset` |
 

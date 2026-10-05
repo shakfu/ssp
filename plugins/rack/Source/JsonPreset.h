@@ -38,6 +38,16 @@ Jack parseJack(const juce::String& text);
 // Either "1:0 -> 2:4" or { "from": "1:0", "to": "2:4", "gain": 1.0, "offset": 0.0 }.
 Wire parseWire(const juce::var& wire);
 
+// A track's "matrix": { "rows": [source jacks], "cols": [destination jacks], "gain": [[...]] }.
+// Each nonzero cell is a wire. A row labelled "dc" is a constant 1.0 source; its weight becomes
+// the offset of the first wire into that column. Same rules as py2rack.matrix_wires.
+// A malformed matrix yields no wires and sets error.
+std::vector<Wire> parseMatrix(const juce::var& matrix, juce::String& error);
+
+// The inverse, for saving. Rows and columns are in slot, then channel, order. Wires between the
+// same jacks add their gains, and offsets into a column add into its dc weight, as in the engine.
+juce::var formatMatrix(const std::vector<Wire>& wires);
+
 // True when the file starts with '{', which no JUCE binary preset does.
 bool isJsonFile(const juce::File& file);
 bool isJsonName(const juce::String& name);

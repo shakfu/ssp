@@ -362,3 +362,32 @@ def test_matrix_wires_encode_with_names_checked():
         "in:0 -> 1:0",
         {"from": "1:0", "to": "2:0", "gain": "0.5", "offset": "0.1"},
     ]
+
+
+def test_matrix_field_encodes_like_wires():
+    matrix = {"rows": ["in:0", "1:Out L", "dc"], "cols": ["1:In L", "2:In L"], "gain": [[1, 0], [0, 0.5], [0, 0.1]]}
+    modules = {"1": "clds", "2": "srvb"}
+    from_matrix = py2rack.encode({"tracks": [{"modules": modules, "matrix": matrix}]}, load_manifest())
+    from_wires = py2rack.encode(
+        {"tracks": [{"modules": modules, "wires": py2rack.matrix_wires(**matrix)}]}, load_manifest()
+    )
+    assert from_matrix == from_wires
+
+
+def test_matrix_field_names_are_checked():
+    doc = {"tracks": [{"modules": {"1": "clds"}, "matrix": {"rows": ["in:0"], "cols": ["1:Nope"], "gain": [[1]]}}]}
+    with pytest.raises(py2rack.PresetError, match="Nope"):
+        py2rack.encode(doc, load_manifest())
+
+
+def test_matrix_field_needs_all_keys():
+    with pytest.raises(py2rack.PresetError, match="needs"):
+        py2rack.encode({"tracks": [{"matrix": {"rows": [], "cols": []}}]})
+
+
+# --- presets shipped in presets/ ---
+
+
+@pytest.mark.parametrize("path", sorted((REPO / "presets").glob("*.json")), ids=lambda p: p.name)
+def test_shipped_preset_encodes_with_names_checked(path):
+    py2rack.encode(json.loads(path.read_text()), load_manifest())

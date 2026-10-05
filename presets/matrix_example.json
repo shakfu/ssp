@@ -1,0 +1,51 @@
+{
+  "rack": 1,
+  "tracks": {
+    "1": {
+      "level": 1.0,
+      "modules": { "1": "omod", "2": "drum" },
+      "matrix": {
+        "rows": ["1:Main", "1:Out A", "1:Out B", "2:Hi Hat 1", "2:A Snare", "2:A BD"],
+        "cols": ["2:HH1 Trig", "2:AS Trig", "2:AB Trig", "out:0", "out:1"],
+        "gain": [[1, 0, 0, 0,   0  ],
+                 [0, 1, 0, 0,   0  ],
+                 [0, 0, 1, 0,   0  ],
+                 [0, 0, 0, 0.6, 0.3],
+                 [0, 0, 0, 0.4, 0.5],
+                 [0, 0, 0, 0.8, 0.8]]
+      },
+      "params": {
+        "1": {
+          "Lfo": true,
+          "Freq": 800.0,
+          "Wave": 4,
+          "slaveosc:0:ratio": 0.5,
+          "slaveosc:0:wave": 4,
+          "slaveosc:1:ratio": 0.25,
+          "slaveosc:1:wave": 4
+        }
+      }
+    },
+    "2": {
+      "level": 0.8,
+      "modules": { "1": "clds", "2": "srvb" },
+      "matrix": {
+        "rows": ["in:0", "in:1", "in:2", "1:Out L", "1:Out R", "2:Out L", "2:Out R", "dc"],
+        "cols": ["1:In L", "1:In R", "1:Pos", "2:In L", "2:In R", "out:0", "out:1"],
+        "gain": [[1,   0,   0,    0, 0, 0,   0  ],
+                 [0,   1,   0,    0, 0, 0,   0  ],
+                 [0,   0,   0.5,  0, 0, 0,   0  ],
+                 [0,   0,   0,    1, 0, 0.3, 0  ],
+                 [0,   0,   0,    0, 1, 0,   0.3],
+                 [0.2, 0,   0,    0, 0, 0.7, 0  ],
+                 [0,   0.2, 0,    0, 0, 0,   0.7],
+                 [0,   0,   0.25, 0, 0, 0,   0  ]]
+      },
+      "params": {
+        "1": { "Position": 25.0, "Size": 70.0, "Density": -20.0, "Mix": 100.0 },
+        "2": { "Mix": 100.0 }
+      }
+    }
+  },
+  "performance": [ { "track": 1, "slot": "1", "param": 1 } ]
+}

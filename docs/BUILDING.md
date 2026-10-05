@@ -29,6 +29,7 @@ Plugins land in `build.cmake.ssp/plugins/*/*_artefacts/Release/VST3/*.vst3/Conte
 | `make configure` | re-run CMake configure |
 | `make buildroot` | download the buildroot only |
 | `make install [MOD=sfct]` | copy all plugins, or one, to the mounted SD card |
+| `make install-presets [PRESETS=dir]` | check JSON presets with `py2rack`, then copy `presets/` or `dir` to the card |
 | `make deploy` | copy all plugins to the SSP over `scp` |
 | `make deploy-mod MOD=sfct` | copy one plugin over `scp` |
 | `make release` | strip into `releases/ssp/plugins`, package `ssp_plugins.zip` |
@@ -39,8 +40,11 @@ Plugins land in `build.cmake.ssp/plugins/*/*_artefacts/Release/VST3/*.vst3/Conte
 |-|-|
 | `SSP_BUILDROOT` | `./buildroot/arm-rockchip-linux-gnueabihf_sdk-buildroot` |
 | `SSP_PLUGINS` | `/media/$USER/BOOT/plugins` |
+| `SSP_PRESETS` | `/media/$USER/rootfs/rack_presets` |
 | `SSP_HOST` | `root@192.168.0.150` |
 | `JOBS` | number of CPUs |
+
+rootfs is owned by root, so `install-presets` runs `cp` with `sudo` unless the destination is writable.
 
 ## Tests
 
@@ -50,9 +54,9 @@ Plugins land in `build.cmake.ssp/plugins/*/*_artefacts/Release/VST3/*.vst3/Conte
 |-|-|
 | `tools/py2rack/tests` | preset encoding and decoding |
 | `plugins/sfct/tests` | the sfct engine, built natively |
-| `plugins/rack/tests` | rack's execution order, and `Track` under ThreadSanitizer |
+| `plugins/rack/tests` | rack's execution order; `Track` under ThreadSanitizer; JSON `matrix` load and save |
 
-The ThreadSanitizer test builds part of JUCE for the host into `build/rack-tsan`. The first run takes about a minute; later runs are incremental.
+The `Track` tests build part of JUCE for the host into `build/rack-host`. The first run takes about a minute; later runs are incremental.
 
 ## Other hosts
 

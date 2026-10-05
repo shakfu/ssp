@@ -442,6 +442,33 @@ void Track::setStateInformation(const juce::var& track, int trackIdx) {
         }
     }
 
+    // requestMatrixConnect drops an out-of-range channel without a word, so resolve and report
+    // here. A channel is an index or one of the module's channel names.
+    auto connect = [&](const jsonpreset::Wire& wire, const juce::String& label) {
+        auto& src = modules_[wire.src.slot];
+        auto& dest = modules_[wire.dest.slot];
+        if (src.descriptor_ == nullptr || dest.descriptor_ == nullptr) {
+            jsonpreset::logError(where + " : wire " + label.quoted() + " touches an empty slot");
+            return;
+        }
+
+        int srcCh = jsonpreset::channelIndex(wire.src.channel, src.descriptor_->outputChannelNames);
+        int destCh = jsonpreset::channelIndex(wire.dest.channel, dest.descriptor_->inputChannelNames);
+        if (srcCh == jsonpreset::BAD_INDEX) {
+            jsonpreset::logError(where + " : slot " + jsonpreset::slotName(wire.src.slot) + " has no output " +
+                                 wire.src.channel.quoted());
+            return;
+        }
+        if (destCh == jsonpreset::BAD_INDEX) {
+            jsonpreset::logError(where + " : slot " + jsonpreset::slotName(wire.dest.slot) + " has no input " +
+                                 wire.dest.channel.quoted());
+            return;
+        }
+
+        while (!requestMatrixConnect(Matrix::Jack(wire.src.slot, srcCh), Matrix::Jack(wire.dest.slot, destCh),
+                                     wire.gain, wire.offset)) {}
+    };
+
     auto wires = object->getProperty("wires");
     if (auto* list = wires.getArray()) {
         for (const auto& item : *list) {
@@ -450,34 +477,21 @@ void Track::setStateInformation(const juce::var& track, int trackIdx) {
                 jsonpreset::logError(where + " : cannot read wire " + item.toString().quoted());
                 continue;
             }
-
-            // requestMatrixConnect drops an out-of-range channel without a word, so resolve
-            // and report here. A channel is an index or one of the module's channel names.
-            auto& src = modules_[wire.src.slot];
-            auto& dest = modules_[wire.dest.slot];
-            if (src.descriptor_ == nullptr || dest.descriptor_ == nullptr) {
-                jsonpreset::logError(where + " : wire " + item.toString().quoted() + " touches an empty slot");
-                continue;
-            }
-
-            int srcCh = jsonpreset::channelIndex(wire.src.channel, src.descriptor_->outputChannelNames);
-            int destCh = jsonpreset::channelIndex(wire.dest.channel, dest.descriptor_->inputChannelNames);
-            if (srcCh == jsonpreset::BAD_INDEX) {
-                jsonpreset::logError(where + " : slot " + jsonpreset::slotName(wire.src.slot) + " has no output " +
-                                     wire.src.channel.quoted());
-                continue;
-            }
-            if (destCh == jsonpreset::BAD_INDEX) {
-                jsonpreset::logError(where + " : slot " + jsonpreset::slotName(wire.dest.slot) + " has no input " +
-                                     wire.dest.channel.quoted());
-                continue;
-            }
-
-            while (!requestMatrixConnect(Matrix::Jack(wire.src.slot, srcCh), Matrix::Jack(wire.dest.slot, destCh),
-                                         wire.gain, wire.offset)) {}
+            connect(wire, item.toString());
         }
     } else if (!wires.isVoid()) {
         jsonpreset::logError(where + " : wires must be an array");
+    }
+
+    auto matrix = object->getProperty("matrix");
+    if (!matrix.isVoid()) {
+        juce::String error;
+        auto matrixWires = jsonpreset::parseMatrix(matrix, error);
+        if (error.isNotEmpty()) jsonpreset::logError(where + " " + error);
+        for (auto& wire : matrixWires) {
+            connect(wire, jsonpreset::slotName(wire.src.slot) + ":" + wire.src.channel + " -> " +
+                              jsonpreset::slotName(wire.dest.slot) + ":" + wire.dest.channel);
+        }
     }
 
     while (lock_.test_and_set()) {}
@@ -546,22 +560,15 @@ void Track::getStateInformation(juce::var& out) {
 
     object->setProperty("modules", juce::var(modules));
 
-    juce::Array<juce::var> wires;
+    // routing is saved as a matrix; jacks are channel indices, which stay exact if names repeat
+    std::vector<jsonpreset::Wire> wires;
     for (auto& w : matrix_.connections_) {
-        auto from = jsonpreset::slotName(w.src_.modIdx_) + ":" + juce::String(w.src_.chIdx_);
-        auto to = jsonpreset::slotName(w.dest_.modIdx_) + ":" + juce::String(w.dest_.chIdx_);
-        if (w.gain_ == 1.0f && w.offset_ == 0.0f) {
-            wires.add(from + " -> " + to);
-        } else {
-            auto wire = new juce::DynamicObject();
-            wire->setProperty("from", from);
-            wire->setProperty("to", to);
-            wire->setProperty("gain", w.gain_);
-            wire->setProperty("offset", w.offset_);
-            wires.add(juce::var(wire));
-        }
+        wires.push_back({ { (int)w.src_.modIdx_, juce::String(w.src_.chIdx_) },
+                          { (int)w.dest_.modIdx_, juce::String(w.dest_.chIdx_) },
+                          w.gain_,
+                          w.offset_ });
     }
-    object->setProperty("wires", wires);
+    if (!wires.empty()) object->setProperty("matrix", jsonpreset::formatMatrix(wires));
     object->setProperty("params", juce::var(params));
     if (states.getDynamicObject()->getProperties().size() > 0) object->setProperty("state", states);
 
