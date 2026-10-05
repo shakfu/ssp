@@ -6,4 +6,4 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD_DIR="${BUILD_DIR:-$ROOT/build.cmake.ssp}"
 SSP_HOST="${SSP_HOST:-root@192.168.0.150}"
 
-scp -O "$BUILD_DIR"/technobear/*/*/Release/VST3/"$MOD".vst3/Contents/*/"$MOD".so "$SSP_HOST":/media/BOOT/plugins
+scp -O "$BUILD_DIR"/plugins/*/*/Release/VST3/"$MOD".vst3/Contents/*/"$MOD".so "$SSP_HOST":/media/BOOT/plugins

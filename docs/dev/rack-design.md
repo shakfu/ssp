@@ -1,0 +1,160 @@
+# rack design options
+
+Status: the player decision is open. Sections 2, 3 and 6 are implemented. This compares two directions for `plugins/rack`:
+
+- **A. Player.** Presets are authored on a desktop. The device loads and plays them, with no on-device patching.
+- **B. Keep the editor.** Add matrix authoring and graph-ordered execution. Keep the existing on-device UI.
+
+These are not exclusive. Matrix authoring and graph ordering (sections 2 and 3) help both options. The real decision is whether to delete the on-device editing UI.
+
+## 1. Design at the fork
+
+- Each track has 10 nodes: `IN` (8 channels), slots 1-8, and `OUT` (2 channels). `Track::M_MAX` is 10.
+- Routing is `Matrix::connections_`, a list of `(module, channel) -> (module, channel)` wires. Each wire has a `gain` and an `offset`.
+- `Track::process` ran modules in slot-index order. A wire from a higher slot to a lower one read the previous block, a 128-sample delay (2.7 ms at 48 kHz). Section 3 replaces this.
+- There are 4 tracks, each on its own thread. The threads are pinned to CPUs 2 and 3. No wire crosses tracks.
+
+Source size, 4211 lines in total:
+
+| Group | Files | Lines |
+|-|-|-|
+| Engine | `PluginProcessor`, `Track`, `Module`, `Matrix`, `JsonPreset`, `SSPApi` | 1904 |
+| Editing UI | `TrackEditor`, `TrackView`, `ModuleView`, `LoadModuleView`, `MatrixView`, `PerformanceAdd`, `PerformanceEdit`, `ModuleComponent` | 1353 |
+| Playing UI | `PluginEditor`, `MixerView`, `PerformanceEditor`, `PerformanceView`, `PerfParamComponent`, `OptionEditor`, `OptionView` | 954 |
+
+`ModuleView` is listed as editing UI. It shows the hosted module's own editor, though, which is also useful while playing. See open question 2.
+
+## 2. Matrix authoring (both options, implemented)
+
+The matrix belongs in the `py2rack` Python API, not in the JSON format. Presets are generated in Python, so a matrix only has to exist there. The file format, the C++ loader and device saves stay unchanged. A file holds routing in one form only: `wires`.
+
+A jack-level matrix for one track is about 106 x 106, assuming 12 channels per slot. A patch fills 10-30 cells. So the API takes a labelled sub-matrix that names only the jacks it uses:
+
+```python
+wires = py2rack.matrix_wires(
+    rows=["in:0", "in:1", "1:Out L", "1:Out R", "dc"],
+    cols=["1:In L", "1:In R", "out:0", "out:1"],
+    gain=[[1, 0, 0,   0  ],
+          [0, 1, 0,   0  ],
+          [0, 0, 0.5, 0  ],
+          [0, 0, 0,   0.5],
+          [0, 0, 0,   0  ]],
+)
+```
+
+- Every nonzero cell becomes one wire. `gain` is any 2-D sequence, so a numpy array works without making numpy a dependency.
+- `dc` is a constant source of 1.0, so each column computes `y = W x + b`. The engine adds `offset` once per wire, so a `dc` weight goes on the first wire into that column. A column with only a `dc` entry is an error, since the device has no `dc` node to wire from.
+- `matrix_wires` checks label syntax only. Channel names are checked when `encode` runs with a manifest, as for any `wires`.
+
+Usage: `tools/py2rack/README.md`. Tests: `test_matrix_*` in `tools/py2rack/tests/test_py2rack.py`.
+
+A JSON `matrix` field is added only if dense matrices turn out to be written by hand. Hand-written patches are sparse, so this is not expected.
+
+## 3. Graph-ordered execution (both options, implemented)
+
+`Track::process` runs modules in the order returned by `rack::executionOrder` (`Source/GraphOrder.h`). That is a topological sort of the track's module-level graph, not slot order.
+
+- Ties go to the lowest slot, so a patch with no backward wires runs as before.
+- When only cycles remain, the next module is the lowest slot whose remaining inputs all lie on its own cycles. Only those inputs read the previous block. A wire that is not on a cycle is never delayed.
+- A cycle is broken at its lowest slot, so slot placement still chooses which wire of a cycle is delayed.
+- Self-wires are ignored by the sort. They are dead in the engine anyway: `process` clears a module's buffer before summing its inputs, so a self-wire adds zeros.
+
+The order is computed in `process` every block, not stored. It uses fixed arrays: 100 cells, plus a 1000-step transitive closure only when a cycle must be broken. That costs less than the wire scan `process` already does for each module. Nothing is cached, so the order cannot go stale or race with a routing change.
+
+Effects:
+- Slot position no longer changes the sound, except for which wire of a cycle is delayed.
+- A preset with a backward wire not on a cycle loses that wire's 128-sample delay. It sounds different in rack than in upstream trax.
+
+Tests: `tests/graph_order_test.cpp`, run by `make test`. It checks fixed cases and a property over 2000 random graphs: the order is a permutation, and every wire that runs backward lies on a cycle.
+
+## 4. Option A: player
+
+**Remove:** the editing UI, 1353 lines (1224 without `ModuleView`).
+**Keep:** the mixer (levels, mute), the performance page, and preset loading in `OptionEditor`.
+
+Pros:
+- About 30% less source to maintain, and none of the code removed is engine code.
+- Data flows one way: script, then JSON file, then device. A device save never rewrites the file.
+- The freed UI can be used for playing: a preset list, next and previous preset, a setlist.
+
+Cons:
+- No patching on the device. Every change needs the desktop and a card copy, or `scp`, which is much slower to iterate with.
+- Patches are harder to debug without `MatrixView`. A read-only routing view would cost back part of the savings.
+- Module state that is not a parameter is hard to write offline: MIDI device and CC assignments, and `gra4` and `loop` data. Today that state comes from an on-device save (the `state` field).
+- Synthor probably already saves rack's state in its own presets through `getStateInformation`. That could compete with the JSON file as the place a patch lives. This is inferred, not checked.
+
+## 5. Option B: keep the editor
+
+Pros:
+- Small changes. Sections 2 and 3 add code and remove nothing.
+- Patching and debugging on the device still work.
+- `state` blobs are captured where they come from: save on the device, edit the rest on the desktop.
+
+Cons:
+- The 1353 lines of editing UI remain, written by someone else and now maintained by you.
+- There are two ways to author a preset. A preset edited on the device diverges from the Python script that generated it.
+- `MatrixView` shows one wire at a time, which does not scale to generated patches with many wires (section 6).
+
+## 6. Routing screen (both options)
+
+`MatrixView` shows one wire at a time: source module and channel, an arrow, destination, gain and offset. It picks a wire but gives no overview.
+
+### Jack count
+
+A jack is `Matrix::Jack`, a `(modIdx, chIdx)` pair: one channel of one module.
+
+- Fixed: 10 nodes per track, 8 jacks on `IN` (`MAX_IO_IN`), 2 on `OUT` (`MAX_IO_OUT`).
+- Variable: each slot's jacks come from the loaded module's descriptor. In `tools/py2rack/modules.json`, the most is 17 inputs (`vost`) and 16 outputs (`attn`, `vost`). 14 modules build their names at runtime, so their counts are unknown offline.
+- Worst case per track: 136 sources x 138 destinations. On the 386 px high canvas that is under 3 px per cell, so a jack-level grid is not viable.
+
+### Layout: module grid plus jack detail (implemented, read-only)
+
+`Source/RoutingView.cpp`. On the track page, short Down opens it and Up returns. Long Down stays the global jump to the performance page.
+
+rack's views are compact: 640x480, of which the canvas is 620x386 after the title and button bar. Sizes:
+
+```
+    IN  1  2  5  3  4  6  7  8 OUT | 1 clds >
+IN   .  2  .  .  .  .  .  .  .  . | 2 srvb
+1    .  .  2  .  .  .  .  .  .  . |
+2    .  .  .  .  .  .  .  .  .  2 | Out L     In L
+5    .  .  1  .  .  .  .  .  .  . | Out R     In R
+...                               |   x0.50
+```
+
+- **Grid:** 11 x 11 cells including headers, about 35 px each, so 385 px square. A cell shows its wire count. Empty cells show a dot; the diagonal is shaded.
+- **Colour:** green for forward wires, orange for wires that read the previous block, red for self-wires, which carry nothing. The colour comes from `rack::wireKind`, the same order the engine runs, and is tested against it.
+- **Detail pane:** about 225 px, roughly 18 characters. It names the source and destination modules, then lists each wire's channels. Gain and offset go on a second line when not 1 and 0.
+- **Encoders:** 1 moves the row, 2 the column, 3 scrolls the wire list. Encoder 4 is unused while the view is read-only.
+
+Rows and columns are in execution order (section 3), not slot order. Forward wires lie above the diagonal; wires on or below it are delayed or self-wires.
+
+### Alternatives
+
+| View | Pros | Cons |
+|-|-|-|
+| Signal flow: modules left to right in execution order, about 60 px each, wires as curves | Easiest to read for small patches | Cluttered past about 15 wires; wire layout is the most code |
+| Wire list: one line per wire, JSON syntax (`1:Out L -> 2:In L x0.50`) | Least code; matches the file | No structure; about 16 wires per screen |
+| Fixed patchbay: every slot has 16 or 17 fixed jack positions | Constant matrix shape, so fixed-size arrays for generation; cells never move | Swapping a module silently remaps signals (position 3 may be `In R` on one module, `Trig` on the next); most cells can never be used |
+
+The grid keeps fixed dimensions at module level, where the user navigates. Jacks stay variable and named, so a wire cannot silently change meaning when a module is swapped.
+
+## 7. Open questions
+
+1. Does Synthor persist rack's state in its own presets? If so, which source wins at boot: the Synthor preset or the JSON file? This decides whether a player needs any device save.
+2. Should a player keep `ModuleView` for live tweaks, or rely on the performance page only?
+3. How long does a preset switch take? `requestModuleChange` loads `.so` files. For a player, switching without gaps may matter more than anything else here. Measure before designing for it.
+
+## 8. Recommendation
+
+The intended end state is the player. The goal is many presets authored offline, which is what a player does. Each step below is useful even if the player never happens.
+
+1. **Measure on the SSP** (open questions 1 and 3): preset switch time, and whether Synthor persists rack's state. These decide whether a player works.
+2. **Graph-ordered execution** (section 3). Done.
+3. **Read-only routing grid** (section 6). Done; not yet tried on the SSP.
+4. **Matrix authoring** in the `py2rack` API (section 2). Done.
+5. **Author on the desktop for a few weeks.** If on-device patching goes unused, delete the editing UI (option A); git keeps it recoverable.
+
+Two results would change this:
+- Preset switches take seconds. A player then needs modules preloaded or swapped without a gap, a larger engine project.
+- Module state that is not a parameter can only be captured on the device, and presets depend on it. Then keep the editor (option B) and add a performance mode inside it.

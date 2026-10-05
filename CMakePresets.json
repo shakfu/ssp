@@ -13,18 +13,6 @@
             }
         },
         {
-            "name": "xmx toolchain",
-            "displayName": "xmx toolchain",
-            "description": "build for xmx",
-            "generator": "Unix Makefiles",
-            "binaryDir": "${sourceDir}/build.cmake.xmx",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/xcXMX.cmake",
-                "CMAKE_INSTALL_PREFIX": "${sourceDir}/build.cmake.xmx"
-            }
-        },
-        {
             "name": "ssp toolchain",
             "displayName": "ssp toolchain",
             "description": "build for ssp",

@@ -1,0 +1,691 @@
+{
+  "attn": {
+    "inputs": [
+      "In A",
+      "In B",
+      "In C",
+      "In D",
+      "In E",
+      "In F",
+      "In G",
+      "In H",
+      "In I",
+      "In J",
+      "In K",
+      "In L",
+      "In M",
+      "In N",
+      "In O",
+      "In P"
+    ],
+    "outputs": [
+      "Out A",
+      "Out B",
+      "Out C",
+      "Out D",
+      "Out E",
+      "Out F",
+      "Out G",
+      "Out H",
+      "Out I",
+      "Out J",
+      "Out K",
+      "Out L",
+      "Out M",
+      "Out N",
+      "Out O",
+      "Out P"
+    ],
+    "params": {
+      "Slew": "slew"
+    },
+    "skipped": 1
+  },
+  "cart": {
+    "inputs": [
+      "X CLK",
+      "X MOD",
+      "X CV",
+      "Y CLK",
+      "Y MOD",
+      "Y CV",
+      "Z MOD",
+      "Z CV"
+    ],
+    "outputs": [
+      "X CV",
+      "X GATE",
+      "Y CV",
+      "Y GATE",
+      "C CV",
+      "C GATE"
+    ],
+    "params": {
+      "Root": "root"
+    },
+    "skipped": 11
+  },
+  "clds": {
+    "inputs": [
+      "In L",
+      "In R",
+      "Trig",
+      "VOct",
+      "Pos",
+      "Size",
+      "Density",
+      "Texture",
+      "Freeze",
+      "Mix",
+      "Spread",
+      "Feedback",
+      "Reverb"
+    ],
+    "outputs": [
+      "Out L",
+      "Out R"
+    ],
+    "params": {
+      "Density": "density",
+      "Feedback": "feedback",
+      "Freeze": "freeze",
+      "In Gain": "in_gain",
+      "Mix": "mix",
+      "Mode": "mode",
+      "Pitch": "pitch",
+      "Position": "position",
+      "Reverb": "reverb",
+      "Size": "size",
+      "Spread": "spread",
+      "Texture": "texture"
+    },
+    "skipped": 0
+  },
+  "clkd": {
+    "inputs": [
+      "Clk In",
+      "Reset",
+      "Run",
+      "Midi Clk"
+    ],
+    "outputs": [
+      "Clk A",
+      "Clk B",
+      "Clk C",
+      "Clk D",
+      "Clk E",
+      "Clk F",
+      "Clk G",
+      "Clk H",
+      "Reset",
+      "Run"
+    ],
+    "params": {
+      "Clk Div": "clkindiv",
+      "Clock": "source",
+      "Int BPM": "bpm",
+      "M Trans.": "midiTransport",
+      "Midi PPQN": "midippqn",
+      "UseTrigs": "usetrigs"
+    },
+    "skipped": 1
+  },
+  "comp": {
+    "inputs": [
+      "In L",
+      "In R",
+      "Sidechain"
+    ],
+    "outputs": [
+      "Out L",
+      "Out R"
+    ],
+    "params": {
+      "Attack": "attack",
+      "AutoM": "automakeup",
+      "Makeup": "makeup",
+      "Ratio": "ratio",
+      "Release": "release",
+      "Threshold": "threshold"
+    },
+    "skipped": 0
+  },
+  "data": {
+    "inputs": [
+      "In A",
+      "In B",
+      "In C",
+      "In D",
+      "Trig"
+    ],
+    "outputs": [
+      "Out A",
+      "Out B",
+      "Out C",
+      "Out D"
+    ],
+    "params": {
+      "AB XY": "ab_xy",
+      "CD XY": "cd_xy",
+      "Freeze": "freeze",
+      "Time": "t_scale",
+      "Trig": "trig_src",
+      "Trig Lvl": "trig_lvl"
+    },
+    "skipped": 3
+  },
+  "dlyd": {
+    "inputs": [
+      "In 1",
+      "In 2",
+      "Time 1 A",
+      "Time 1 B",
+      "Time 1 C",
+      "Time 1 D",
+      "Time 2 A",
+      "Time 2 B",
+      "Time 2 C",
+      "Time 2 D"
+    ],
+    "outputs": [
+      "Out 1",
+      "Out 2",
+      "Tap 1 A",
+      "Tap 1 B",
+      "Tap 1 C",
+      "Tap 1 D",
+      "Tap 2 A",
+      "Tap 2 B",
+      "Tap 2 C",
+      "Tap 2 D"
+    ],
+    "params": {
+      "Freeze": "freeze",
+      "In Lvl": "in_level",
+      "Mix": "mix",
+      "Out Lvl": "out_level",
+      "Size": "size"
+    },
+    "skipped": 7
+  },
+  "drum": {
+    "inputs": [
+      "AB Trig",
+      "AB Accent",
+      "SB Trig",
+      "SB Accent",
+      "AS Trig",
+      "AS Accent",
+      "SS Trig",
+      "SS Accent",
+      "HH1 Trig",
+      "HH1 Accent",
+      "HH2 Trig",
+      "HH2 Accent"
+    ],
+    "outputs": [
+      "A BD",
+      "S BD",
+      "A Snare",
+      "S Snare",
+      "Hi Hat 1",
+      "Hi Hat 2"
+    ],
+    "params": {},
+    "skipped": 46
+  },
+  "dual": {
+    "inputs": null,
+    "outputs": null,
+    "params": {},
+    "skipped": 0
+  },
+  "gra4": {
+    "inputs": null,
+    "outputs": null,
+    "params": {},
+    "skipped": 4
+  },
+  "harm": {
+    "inputs": [
+      "VOct",
+      "Amp",
+      "TCentre",
+      "TSpread",
+      "TAmount"
+    ],
+    "outputs": [
+      "Main"
+    ],
+    "params": {
+      "H.First": "first",
+      "Pitch": "pitch",
+      "T.Amount": "amount",
+      "T.Centre": "centre",
+      "T.Spread": "spread"
+    },
+    "skipped": 1
+  },
+  "ldrf": {
+    "inputs": [
+      "In 1",
+      "Cutoff 1",
+      "Res 1",
+      "In 2",
+      "Cutoff 2",
+      "Res 2",
+      "In 3",
+      "Cutoff 3",
+      "Res 3",
+      "In 4",
+      "Cutoff 4",
+      "Res 4"
+    ],
+    "outputs": [
+      "Out 1",
+      "Out 2",
+      "Out 3",
+      "Out 4"
+    ],
+    "params": {},
+    "skipped": 2
+  },
+  "logi": {
+    "inputs": null,
+    "outputs": null,
+    "params": {
+      "Operator": "oper",
+      "Trig Level": "triglevel"
+    },
+    "skipped": 1
+  },
+  "loop": {
+    "inputs": null,
+    "outputs": null,
+    "params": {},
+    "skipped": 4
+  },
+  "mmx4": {
+    "inputs": null,
+    "outputs": null,
+    "params": {
+      "VCA 1A": "vca_1a",
+      "VCA 1B": "vca_1b",
+      "VCA 1C": "vca_1c",
+      "VCA 1D": "vca_1d",
+      "VCA 2A": "vca_2a",
+      "VCA 2B": "vca_2b",
+      "VCA 2C": "vca_2c",
+      "VCA 2D": "vca_2d",
+      "VCA 3A": "vca_3a",
+      "VCA 3B": "vca_3b",
+      "VCA 3C": "vca_3c",
+      "VCA 3D": "vca_3d",
+      "VCA 4A": "vca_4a",
+      "VCA 4B": "vca_4b",
+      "VCA 4C": "vca_4c",
+      "VCA 4D": "vca_4d"
+    },
+    "skipped": 0
+  },
+  "msw8": {
+    "inputs": [
+      "InSel",
+      "OutSel",
+      "In 1",
+      "In 2",
+      "In 3",
+      "In 4",
+      "In 5",
+      "In 6",
+      "In 7",
+      "In 8"
+    ],
+    "outputs": [
+      "Out A",
+      "Out B",
+      "Out C",
+      "Out D",
+      "Out E",
+      "Out F",
+      "Out G",
+      "Out H"
+    ],
+    "params": {
+      "Active": "active",
+      "In Sel": "inSel",
+      "Out Sel": "outSel",
+      "Soft": "soft"
+    },
+    "skipped": 0
+  },
+  "mtin": {
+    "inputs": null,
+    "outputs": null,
+    "params": {
+      "CC A": "cv_a",
+      "CC B": "cv_b",
+      "CC C": "cv_c",
+      "CC D": "cv_d",
+      "CC E": "cv_e",
+      "CC F": "cv_f",
+      "CC G": "cv_g",
+      "CC H": "cv_h",
+      "Clock": "clock",
+      "PB Range": "pb_range",
+      "Slew CC": "slew",
+      "Trans": "transport"
+    },
+    "skipped": 0
+  },
+  "mtmo": {
+    "inputs": null,
+    "outputs": null,
+    "params": {
+      "dummy": "dummy"
+    },
+    "skipped": 0
+  },
+  "mtot": {
+    "inputs": null,
+    "outputs": null,
+    "params": {
+      "CC A": "cv_a",
+      "CC B": "cv_b",
+      "CC C": "cv_c",
+      "CC D": "cv_d",
+      "CC E": "cv_e",
+      "CC F": "cv_f",
+      "CC G": "cv_g",
+      "CC H": "cv_h",
+      "PB Range": "pb_range"
+    },
+    "skipped": 0
+  },
+  "mttr": {
+    "inputs": null,
+    "outputs": null,
+    "params": {
+      "NOTE A": "tr_a",
+      "NOTE B": "tr_b",
+      "NOTE C": "tr_c",
+      "NOTE D": "tr_d",
+      "NOTE E": "tr_e",
+      "NOTE F": "tr_f",
+      "NOTE G": "tr_g",
+      "NOTE H": "tr_h"
+    },
+    "skipped": 0
+  },
+  "omod": {
+    "inputs": [
+      "Freq",
+      "Reset",
+      "Clock",
+      "VOct"
+    ],
+    "outputs": [
+      "Main",
+      "Out A",
+      "Out B",
+      "Out C",
+      "Out D",
+      "Out E",
+      "Out F",
+      "Out G",
+      "EoC Main",
+      "EoC A",
+      "EoC B",
+      "EoC C",
+      "EoC D",
+      "EoC E",
+      "EoC F",
+      "EoC G"
+    ],
+    "params": {
+      "Amp": "amp",
+      "Freq": "freq",
+      "Lfo": "lfo",
+      "Phase": "phase",
+      "Wave": "wave"
+    },
+    "skipped": 4
+  },
+  "plts": {
+    "inputs": [
+      "VOct",
+      "Trig",
+      "Level",
+      "Harm",
+      "Timbre",
+      "Morph",
+      "FM",
+      "Model"
+    ],
+    "outputs": [
+      "Out",
+      "Aux"
+    ],
+    "params": {
+      "Freq Mod": "freq_mod",
+      "Harmonics": "harmonics",
+      "LPG": "lpg",
+      "Level": "enable_level",
+      "Model": "model",
+      "Morph": "morph",
+      "Morph Mod": "morph_mod",
+      "Pitch": "pitch",
+      "Timbre": "timbre",
+      "Timbre Mod": "timbre_mod",
+      "Trig": "enable_trig",
+      "VCA": "vca"
+    },
+    "skipped": 0
+  },
+  "pmix": {
+    "inputs": null,
+    "outputs": [
+      "Main L",
+      "Main R",
+      "Cue L",
+      "Cue R",
+      "Aux 1 L",
+      "Aux 1 R",
+      "Aux 2 L",
+      "Aux 2 R"
+    ],
+    "params": {},
+    "skipped": 14
+  },
+  "pvca": {
+    "inputs": [
+      "In L ",
+      "In R ",
+      "Gain",
+      "Pan"
+    ],
+    "outputs": null,
+    "params": {},
+    "skipped": 2
+  },
+  "rngs": {
+    "inputs": [
+      "In",
+      "Strum",
+      "VOct",
+      "FM",
+      "Struct",
+      "Bright",
+      "Damp",
+      "Pos"
+    ],
+    "outputs": [
+      "Odd",
+      "Even"
+    ],
+    "params": {
+      "Brightness": "brightness",
+      "Damping": "damping",
+      "In": "enable_in",
+      "In Gain": "in_gain",
+      "Model": "model",
+      "Pitch": "pitch",
+      "Polyphony": "polyphony",
+      "Position": "position",
+      "Structure": "structure",
+      "Strum": "enable_strum",
+      "VOct": "enable_voct",
+      "bypass": "bypass",
+      "easter_egg": "easter_egg"
+    },
+    "skipped": 0
+  },
+  "sfct": {
+    "inputs": null,
+    "outputs": null,
+    "params": {
+      "Mode": "mode"
+    },
+    "skipped": 27
+  },
+  "sfft": {
+    "inputs": null,
+    "outputs": null,
+    "params": {},
+    "skipped": 4
+  },
+  "sflt": {
+    "inputs": null,
+    "outputs": null,
+    "params": {},
+    "skipped": 4
+  },
+  "shq": {
+    "inputs": [
+      "In 1",
+      "Trig 1",
+      "In 2",
+      "Trig 2",
+      "In 3",
+      "Trig 3",
+      "In 4",
+      "Trig 4",
+      "Scale",
+      "Root"
+    ],
+    "outputs": [
+      "Out 1",
+      "Trig 1",
+      "Out 2",
+      "Trig 2",
+      "Out 3",
+      "Trig 3",
+      "Out 4",
+      "Trig 4",
+      "Scale",
+      "Root"
+    ],
+    "params": {
+      "Quant": "quant",
+      "Root": "root",
+      "Scale": "scale"
+    },
+    "skipped": 0
+  },
+  "srvb": {
+    "inputs": [
+      "In L",
+      "In R"
+    ],
+    "outputs": [
+      "Out L",
+      "Out R"
+    ],
+    "params": {
+      "Feedback": "feedback",
+      "Freeze": "freeze",
+      "LP Freq": "lpfreq",
+      "Mix": "mix"
+    },
+    "skipped": 0
+  },
+  "swat": {
+    "inputs": [
+      "X 1",
+      "Y 1",
+      "Z 1",
+      "X 2",
+      "Y 2",
+      "Z 2",
+      "X 3",
+      "Y 3",
+      "Z 3",
+      "X 4",
+      "Y 4",
+      "Z 4"
+    ],
+    "outputs": [
+      "A 1",
+      "B 1",
+      "A 2",
+      "B 2",
+      "A 3",
+      "B 3",
+      "A 4",
+      "B 4"
+    ],
+    "params": {},
+    "skipped": 0
+  },
+  "trax": {
+    "inputs": null,
+    "outputs": null,
+    "params": {},
+    "skipped": 0
+  },
+  "vost": {
+    "inputs": [
+      "Select",
+      "In A",
+      "In B",
+      "In C",
+      "In D",
+      "In E",
+      "In F",
+      "In G",
+      "In H",
+      "In I",
+      "In J",
+      "In K",
+      "In L",
+      "In M",
+      "In N",
+      "In O",
+      "In P"
+    ],
+    "outputs": [
+      "Out A",
+      "Out B",
+      "Out C",
+      "Out D",
+      "Out E",
+      "Out F",
+      "Out G",
+      "Out H",
+      "Out I",
+      "Out J",
+      "Out K",
+      "Out L",
+      "Out M",
+      "Out N",
+      "Out O",
+      "Out P"
+    ],
+    "params": {
+      "Morph": "morph",
+      "Select": "select",
+      "Slew": "slew"
+    },
+    "skipped": 1
+  }
+}

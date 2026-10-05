@@ -1,6 +1,6 @@
 # sfct implementation notes
 
-User guide: [technobear/sfct/README.md](../../technobear/sfct/README.md). Open work: [technobear/sfct/TODO.md](../../technobear/sfct/TODO.md).
+User guide: [plugins/sfct/README.md](../../plugins/sfct/README.md). Open work: [plugins/sfct/TODO.md](../../plugins/sfct/TODO.md).
 
 ## Layout
 
@@ -18,7 +18,7 @@ User guide: [technobear/sfct/README.md](../../technobear/sfct/README.md). Open w
 
 `make test` builds `tests/engine_test.cpp` with the host compiler and runs it.
 
-The version is `project(SFCT VERSION ...)` in `technobear/sfct/CMakeLists.txt`. `SSP_VERSION_FROM_PROJECT` makes the shared code show it on screen and report it in the descriptor; other modules report their build date. Record each version in `technobear/sfct/CHANGELOG.md`.
+The version is `project(SFCT VERSION ...)` in `plugins/sfct/CMakeLists.txt`. `SSP_VERSION_FROM_PROJECT` makes the shared code show it on screen and report it in the descriptor; other modules report their build date. Record each version in `plugins/sfct/CHANGELOG.md`.
 
 ## Threads
 

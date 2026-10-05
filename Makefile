@@ -17,18 +17,19 @@ BUILDROOT_DEP := $(BUILDROOT_DIR)
 endif
 
 .DEFAULT_GOAL := ssp
-.PHONY: ssp configure buildroot release deploy deploy-mod test clean help
+.PHONY: ssp configure buildroot release deploy deploy-mod install test clean help
 
 help:
 	@echo "make [ssp]              download buildroot if needed, configure, build all plugins"
 	@echo "make configure          re-run cmake configure"
 	@echo "make buildroot          download and extract the SSP buildroot into ./buildroot"
-	@echo "make release            build, strip into releases/ssp/plugins, zip tb_plugins_ssp.zip"
+	@echo "make release            build, strip into releases/ssp/plugins, zip ssp_plugins.zip"
 	@echo "make deploy             build, copy all plugins to SSP_HOST"
 	@echo "make deploy-mod MOD=x   build, copy one plugin to SSP_HOST"
-	@echo "make test               run the python tool and sfct engine tests"
+	@echo "make install [MOD=x]    build, copy plugins to the mounted SD card (SSP_PLUGINS)"
+	@echo "make test               run the py2rack, sfct and rack tests"
 	@echo "make clean              remove $(BUILD_DIR)"
-	@echo "variables: SSP_BUILDROOT, SSP_HOST (root@192.168.0.150), JOBS ($(JOBS))"
+	@echo "variables: SSP_BUILDROOT, SSP_HOST (root@192.168.0.150), SSP_PLUGINS (/media/$$USER/BOOT/plugins), JOBS ($(JOBS))"
 
 buildroot: $(BUILDROOT_DIR)
 
@@ -59,8 +60,11 @@ deploy: ssp
 deploy-mod: ssp
 	scripts/copymod.ssp.sh $(MOD)
 
+install: ssp
+	scripts/install.sh $(MOD)
+
 test:
-	uv run --quiet --with pytest pytest tools technobear/sfct/tests -q
+	uv run --quiet --with pytest pytest tools plugins/sfct/tests plugins/rack/tests -q
 
 clean:
 	rm -rf $(BUILD_DIR)

@@ -1,99 +1,59 @@
-# building
+# Building
 
-## disclaimer 
+The plugins are cross-compiled for the SSP's ARM CPU. The build is tested on Ubuntu 24.04 with clang 18 and CMake 3.28.
 
-I do this in my free time, I do not have the spare time to provide developer support, so I assume if you want to build - you will know how to figure out things like dependancies. 
-
-unfortunately, I setup my build environment a bit adhoc, so I do not currently have instructions for how to do this. 
-
-I can assure you everything that is needed to build IS in this repo, but cannot support building it at this time.
-
-I recognise this may be a bit crap/frustrating, but with my limited time available - id prefer to spend this on developing plugins for ALL ssp users.
-
-
-
-## sub modules
-get submodules using
+## Setup
 
 ```
 git submodule update --init --recursive
-```
-
-## general build 
-I use cmake, so the basic build, assuming you have dependancies etc , is
-
-```
-mkdir build
-cd build
-cmake ..
-cmake --build . -- -j 8
-```
-
-note: -- passes extra parameters to make -j 8 = number of cores to build on
-
-
-## cross compile 
-
-brew install llvm clang-format pkg-config 
-
-instructions for how how to cross compile using toolchains is detailed in under the ssp-sdk
-see Percussa Forum - [specifically this topic](https://forum.percussa.com/t/creating-modules-for-the-ssp-aka-ssp-sdk-updated)
-
-after its setup is similar to a normal cmake build, except we specify a toolchain file
-
-```
-mkdir build
-cd build
-cmake -DCMAKE_TOOLCHAIN_FILE=../xcSSP.cmake ..
-cmake --build . -- -j 8
- ```
-
-this builds and places plugins in ~/.vst3
-
-
-note: 
-im using a mac m1, running macOS 11. but cross-compilation should be possible on any mac
-sorry, I did not take note of exactly what I installed so you will have to figure this out yourself. 
-
-similar, it may be you can get a cross-compilation running under windows, since im using standard cmake/clang cross compilation. (however, Ive never tried, nor wish too ;))  
-
-
-
-## cross compile on Linux
-
-Tested on Ubuntu 24.04 with clang 18 and CMake 3.28.
-
-```
 sudo apt install cmake clang lld pkg-config curl zip \
     libx11-dev libxext-dev libxrandr-dev libxinerama-dev libxcursor-dev \
     libxrender-dev libxcomposite-dev libfreetype-dev libfontconfig1-dev
+```
+
+The X11, freetype and fontconfig headers are for `juceaide`, a tool JUCE builds for the host during configure.
+
+## Build
+
+```
 make
 ```
 
-On first run, `make` downloads the SSP buildroot (608 MB) into `./buildroot`.
-It then configures with the `ssp toolchain` preset and builds into `build.cmake.ssp`.
-Plugins land in `build.cmake.ssp/technobear/*/*_artefacts/Release/VST3/*.vst3/Contents/armv7l-linux/*.so`.
+On first run, `make` downloads the SSP buildroot (608 MB) into `./buildroot`. Set `SSP_BUILDROOT` to use an existing one. It then configures with the `ssp toolchain` preset (`xcSSP.cmake`) and builds into `build.cmake.ssp`.
 
-The X11, freetype and fontconfig headers are for `juceaide`.
-JUCE builds this tool for the host during configure.
+Plugins land in `build.cmake.ssp/plugins/*/*_artefacts/Release/VST3/*.vst3/Contents/armv7l-linux/*.so`.
 
 | target | action |
 |-|-|
 | `make` | build all plugins |
-| `make release` | strip into `releases/ssp/plugins`, package `tb_plugins_ssp.zip` |
-| `make deploy` | copy all plugins to `SSP_HOST` |
-| `make deploy-mod MOD=attn` | copy one plugin to `SSP_HOST` |
+| `make configure` | re-run CMake configure |
+| `make buildroot` | download the buildroot only |
+| `make install [MOD=sfct]` | copy all plugins, or one, to the mounted SD card |
+| `make deploy` | copy all plugins to the SSP over `scp` |
+| `make deploy-mod MOD=sfct` | copy one plugin over `scp` |
+| `make release` | strip into `releases/ssp/plugins`, package `ssp_plugins.zip` |
+| `make test` | run the tests |
 | `make clean` | remove `build.cmake.ssp` |
 
-Variables: `SSP_BUILDROOT` (use an existing buildroot), `SSP_HOST` (default `root@192.168.0.150`), `JOBS`.
-`make help` lists all targets.
+| variable | default |
+|-|-|
+| `SSP_BUILDROOT` | `./buildroot/arm-rockchip-linux-gnueabihf_sdk-buildroot` |
+| `SSP_PLUGINS` | `/media/$USER/BOOT/plugins` |
+| `SSP_HOST` | `root@192.168.0.150` |
+| `JOBS` | number of CPUs |
 
+## Tests
 
-## testing
-I do a good amount of the development on macOS, so you can build the plugins under macOS using cmake. I use Jetbrain's CLion which can import the cmake project and 
+`make test` runs pytest through `uv`, so it needs `uv` as well as the packages above.
 
-depending on platform you may wish to specify the architecture 
-e.g.
-```
-CMAKE_OSX_ARCHITECTURES=arm64; cmake ..
-```
+| tests | what they check |
+|-|-|
+| `tools/py2rack/tests` | preset encoding and decoding |
+| `plugins/sfct/tests` | the sfct engine, built natively |
+| `plugins/rack/tests` | rack's execution order, and `Track` under ThreadSanitizer |
+
+The ThreadSanitizer test builds part of JUCE for the host into `build/rack-tsan`. The first run takes about a minute; later runs are incremental.
+
+## Other hosts
+
+Only the Linux build is tested. For cross-compiling on macOS, see Percussa's [SSP SDK topic](https://forum.percussa.com/t/creating-modules-for-the-ssp-aka-ssp-sdk-updated).
