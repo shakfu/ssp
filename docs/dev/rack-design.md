@@ -108,28 +108,39 @@ A jack is `Matrix::Jack`, a `(modIdx, chIdx)` pair: one channel of one module.
 - Variable: each slot's jacks come from the loaded module's descriptor. In `tools/py2rack/modules.json`, the most is 17 inputs (`vost`) and 16 outputs (`attn`, `vost`). 14 modules build their names at runtime, so their counts are unknown offline.
 - Worst case per track: 136 sources x 138 destinations. On the 386 px high canvas that is under 3 px per cell, so a jack-level grid is not viable.
 
-### Layout: module grid plus jack detail (implemented, editable)
+### Layout: module grid beside jack matrix (implemented, editable)
 
 `Source/RoutingView.cpp`. On the track page, short Down opens it and Up returns. Long Down stays the global jump to the performance page.
 
-rack's views are compact: 640x480, of which the canvas is 620x386 after the title and button bar. Sizes:
+rack's views, inherited from trax, are all drawn at the compact 640x480, even when Synthor hosts rack directly and gives its editor the full 1600x480 (`EditorHost.cpp`). The routing view is the only one laid out for both widths, from its own bounds:
+
+| | Compact, 640 px | Full, 1600 px |
+|-|-|-|
+| Module grid | 26 x 38 px cells, 40 px row header | 38 x 38 px cells, 60 px row header |
+| Jack matrix | rest of the width; labels cut at about 8 characters | 576 px: 100 px row labels, cells up to 28 px for 17 columns |
+| Status | under the jack matrix | third column, top |
+| Wire list | none | third column, every wire on the track in execution order |
+
+The sizes below are for the compact layout; a to-scale drawing was used to choose them. The first device test showed the full screen 60% empty, which prompted the full layout.
 
 ```
-  to  clds srvb  3    4   ...  OUT | [1] clds
-from                               | [2] srvb
-IN     2    .    .    .   ...   .  | [3] Out L
-clds   .    2    .    .   ...   2  | [4] In L
-srvb   .    .    .    .   ...   2  |     x1.00 +0.00
-3      .    .    .    .   ...   .  |
-...                                | Out L -> In L
-                                   | Out R -> In R
+  to  o d 3 4 5 6 7 8 O | [1] omod >   [2] drum
+from  m r . . . . . . U |          A A S S A A S S H H H H
+      o u               |          B B B B S S S S 1 1 2 2
+IN    . . . . . . . . . | Main     . . . . . . . . # . . .
+omod  . 3 . . . . . . . | Out A    . . . . # . . . . . . .
+drum  . . . . . . . . 6 | Out B    # . . . . . . . . . . .
+...                     | ...
+                        | [3] Main ->  [4] HH1 Trig
+                        |     x1.00 +0.00
 ```
 
-- **Grid:** rows are sources, columns destinations. IN has no inputs and OUT no outputs, so IN is only a row and OUT only a column: 9 x 9 cells plus headers, about 38 px each. A cell shows its wire count. Empty cells show a dot; a module's own cell is shaded.
-- **Headers:** module names in a smaller font. An empty slot shows its number, dimmed. A module that appears twice on the track adds its slot number on a second line. Slot numbers are not used as labels otherwise: they read as indices into the grid, and the pane's badges use numbers for encoders.
-- **Colour:** green for forward wires, orange for wires that read the previous block, red for self-wires, which carry nothing. The colour comes from `rack::wireKind`, the same order the engine runs, and is tested against it.
-- **Detail pane:** about 225 px, roughly 18 characters. Lines 1-4 each start with a badge naming the encoder that changes them: source module, destination module, source jack, destination jack. Line 5 is the cursor wire's gain and offset, or "not wired". Then the cell's wires, one per line as `Main -> HH1 Trig`, with source names padded so the arrows align.
-- **Gain is the connection,** as in the file format, where a nonzero cell is a wire. `Level` switches encoders 3 and 4 to offset and gain, and lines 3-4 show those values. Turning gain up from 0 adds the wire; turning it to 0 removes it (`Track::requestMatrixGain`). Pushing encoder 4 jumps between 0 and 1 (`Track::requestMatrixToggle`). Self-wires cannot be added.
+- **Module grid:** rows are sources, columns destinations. IN has no inputs and OUT no outputs, so IN is only a row and OUT only a column: 9 x 9 cells. Cells are 26 x 38 px; the row header is 40 px for a 4-letter name, and column headers are rotated because a name does not fit across 26 px. A cell shows its wire count. Empty cells show a dot; a module's own cell is shaded.
+- **Headers:** module names in a smaller font. An empty slot shows its number, dimmed. A module that appears twice on the track adds its slot number. Slot numbers are not used as labels otherwise: they read as indices into the grid, and the badges use numbers for encoders.
+- **Colour:** green for forward wires, orange for wires that read the previous block, red for self-wires, which carry nothing. The colour comes from `rack::wireKind`, the same order the engine runs, and is tested against it. The jack matrix uses its module cell's colour.
+- **Jack matrix:** about 330 px wide. Rows are the source module's outputs, columns the destination's inputs, with rotated column labels. A wired cell is filled, brighter with higher gain; repeated wires between the same jacks sum, as in the engine. Cells fill the area up to 28 px a side. The largest pair in `modules.json`, `omod` to `vost`, is 16 x 17 jacks and gets 15 x 15 px cells: selectable, but too small for text, so exact values go on the status line.
+- **Status line:** the jack cursor as `[3] Main -> [4] HH1 Trig`, then its gain and offset, or "not wired". It replaced a list of the cell's wires; the jack matrix shows the same wires, plus every pair that could be wired.
+- **Gain is the connection,** as in the file format, where a nonzero cell is a wire. `Level` switches encoders 3 and 4 to offset and gain, and the badges on the status line move to those values. Turning gain up from 0 adds the wire; turning it to 0 removes it (`Track::requestMatrixGain`). Pushing encoder 4 jumps between 0 and 1 (`Track::requestMatrixToggle`). Self-wires cannot be added.
 - **Range on the device:** gain 0 to 1 in steps of 0.01, rounded so steps land exactly on 0. The engine and JSON accept any gain; a hand-written gain above 1 is clamped to 1 at its first edit on the device. Offset is unlimited and applies only to an existing wire.
 
 An earlier version had a `Wire +/-` button to add and remove wires, separate from gain. It duplicated the encoder push, and it made "connected" a state the file format does not have. Before that, gain and offset were set by turning a held encoder, with a two-line hint that needed 26 characters in an 18-character pane.

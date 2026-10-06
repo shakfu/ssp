@@ -38,7 +38,8 @@ void TrackEditor::resized() {
     moduleView_->setBounds(0, 0, pluginWidth, pluginHeight);
     loadModuleView_->setBounds(0, 0, pluginWidth, pluginHeight);
     matrixView_->setBounds(0, 0, pluginWidth, pluginHeight);
-    routingView_->setBounds(0, 0, pluginWidth, pluginHeight);
+    // the only view laid out for both widths; the others are drawn at compact size
+    routingView_->setBounds(0, 0, getWidth(), getHeight());
 }
 
 void TrackEditor::editorShown() {

@@ -23,7 +23,9 @@ Internally the engine keeps a list of wires, each with its own gain and offset. 
 On the track page, short Down opens the routing view; Up returns.
 
 - **Grid:** one cell per module pair. Rows are sources (`from`), columns destinations (`to`), headed by module name. A cell shows how many wires connect the pair. Green wires run in order; orange wires read the previous block (a feedback loop); red wires connect a module to itself and carry nothing.
-- **Detail pane:** each of the first four lines starts with the number of the encoder that changes it. Below them, the selected cell's wires, as `Main -> HH1 Trig`.
+- **Jack matrix,** beside the grid: the selected module pair's jacks. Rows are the source's outputs, columns the destination's inputs. A filled cell is a wire; its brightness is its gain. The yellow box is the jack cursor.
+- **Wire list:** on the SSP's full 1600 px screen, a third column lists every wire on the track, as `omod Main -> drum HH1 Trig  x1.00`. The selected pair's wires are white, the cursor's wire yellow.
+- **Badges:** a grey number names the encoder that moves each cursor. The status line under the jack matrix shows the cursor's jacks and its gain and offset, as `Main -> HH1 Trig`, `x1.00 +0.00`.
 
 | Control | `Level` off | `Level` on |
 |-|-|-|

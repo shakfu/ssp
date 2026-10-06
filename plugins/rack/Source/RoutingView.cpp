@@ -159,7 +159,7 @@ juce::String RoutingView::moduleName(unsigned midx) const {
     auto slot = juce::String(midx - Track::M_SLOT_1 + 1);
     auto& name = processor_.track(trackIdx_).modules_[midx].pluginName_;
     if (name.empty()) return "empty slot " + slot;
-    return juce::String(name) + (isDuplicate(midx) ? " (slot " + slot + ")" : "");
+    return juce::String(name) + (isDuplicate(midx) ? " #" + slot : "");
 }
 
 unsigned RoutingView::channelCount(unsigned midx, bool output) {
@@ -186,25 +186,72 @@ void RoutingView::drawView(juce::Graphics& g) {
     g.drawSingleLineText("Track " + juce::String(trackIdx_ + 1) + " routing", 15 * COMPACT_UI_SCALE,
                          15 * COMPACT_UI_SCALE);
 
-    // header row and column, then one cell per module pair
-    int cell = canvasHeight() / int(R + 1);
-    int gridW = cell * int(R + 1);
-    drawGrid(g, canvasX(), canvasY(), cell);
-
-    int gap = 5 * COMPACT_UI_SCALE;
-    int dx = canvasX() + gridW + gap;
-    drawDetail(g, dx, canvasY(), canvasX() + canvasWidth() - dx, canvasHeight());
+    // Hosted directly by Synthor the view is 1600 px wide; hosted compact it is 640. Wide: square
+    // module cells, full jack names, and a third column for the status and the track's wires.
+    // Compact: the status goes under the jack matrix and there is no wire list.
+    constexpr int S = COMPACT_UI_SCALE;
+    bool wide = getWidth() > int(SSP_COMPACT_WIDTH);
+    int x = canvasX(), y = canvasY(), h = canvasHeight();
+    int rh = h / int(R + 1);
+    int gridW = drawGrid(g, x, y, h, wide ? 30 * S : 20 * S, wide ? rh : 13 * S);
+    int jx = x + gridW + 6 * S;
+    int lh = FH + 4;
+    if (wide) {
+        int jw = 50 * S + 17 * 14 * S;  // fits the largest pair in modules.json, 16 x 17 jacks, at full size
+        drawJacks(g, jx, y, jw, h, 50 * S, 45 * S);
+        int lx = jx + jw + 12 * S;
+        int lw = x + canvasWidth() - lx;
+        drawStatus(g, lx, y, lw);
+        drawWireList(g, lx, y + 3 * lh, lw, h - 3 * lh);
+    } else {
+        int jw = x + canvasWidth() - jx;
+        int statusH = 2 * lh + 2 * S;
+        drawJacks(g, jx, y, jw, h - statusH, 33 * S, 35 * S);
+        drawStatus(g, jx, y + h - statusH + 2 * S, jw);
+    }
 }
 
-void RoutingView::drawGrid(juce::Graphics& g, int x, int y, int cell) {
+// the wire under the jack cursor, if any
+const Matrix::Wire* RoutingView::cursorWire() const {
+    unsigned src = rows_[row_];
+    unsigned dest = cols_[col_];
+    for (auto& wire : wires_) {
+        if (wire.src_.modIdx_ == src && wire.src_.chIdx_ == srcCh_ && wire.dest_.modIdx_ == dest
+            && wire.dest_.chIdx_ == destCh_) {
+            return &wire;
+        }
+    }
+    return nullptr;
+}
+
+// text read bottom to top, its baseline end at (x, y): a column label
+static void drawRotated(juce::Graphics& g, const juce::String& text, int x, int y, int length, int height) {
+    juce::Graphics::ScopedSaveState state(g);
+    g.addTransform(juce::AffineTransform::rotation(-juce::MathConstants<float>::halfPi, float(x), float(y)));
+    g.drawText(text, x, y - height, length, height, juce::Justification::centredLeft, true);
+}
+
+static void drawBadge(juce::Graphics& g, unsigned enc, int x, int y, int h) {
+    int w = 9 * COMPACT_UI_SCALE;
+    g.setColour(juce::Colours::grey);
+    g.fillRoundedRectangle(float(x), float(y + 2), float(w), float(h - 4), 3.0f);
+    g.setColour(juce::Colours::black);
+    g.setFont(monoFont(SMALL_FH));
+    g.drawText(juce::String(enc), x, y, w, h, juce::Justification::centred, false);
+}
+
+// hw is the row header width, cw the cell width; column headers are rotated, since a module name
+// does not fit across a compact cell. Returns the grid's width.
+int RoutingView::drawGrid(juce::Graphics& g, int x, int y, int h, int hw, int cw) {
     auto centred = juce::Justification::centred;
     auto& modules = processor_.track(trackIdx_).modules_;
+    int rh = h / int(R + 1);
 
     // rows feed columns
     g.setFont(monoFont(SMALL_FH));
     g.setColour(juce::Colours::grey);
-    g.drawText("to", x, y, cell - 2, cell / 2, juce::Justification::centredRight, false);
-    g.drawText("from", x, y + cell / 2, cell, cell / 2, juce::Justification::centredLeft, false);
+    g.drawText("to", x, y, hw - 2, rh / 2, juce::Justification::centredRight, false);
+    g.drawText("from", x, y + rh / 2, hw, rh / 2, juce::Justification::centredLeft, false);
 
     auto headerColour = [&](unsigned midx, bool selected) {
         if (selected) return juce::Colours::yellow;
@@ -213,156 +260,217 @@ void RoutingView::drawGrid(juce::Graphics& g, int x, int y, int cell) {
     };
     for (unsigned i = 0; i < R; i++) {
         g.setColour(headerColour(rows_[i], i == row_));
-        g.drawFittedText(headerLabel(rows_[i]), x, y + int(i + 1) * cell, cell, cell, centred, 2, 0.7f);
+        g.drawFittedText(headerLabel(rows_[i]), x, y + int(i + 1) * rh, hw, rh, centred, 2, 0.7f);
         g.setColour(headerColour(cols_[i], i == col_));
-        g.drawFittedText(headerLabel(cols_[i]), x + int(i + 1) * cell, y, cell, cell, centred, 2, 0.7f);
+        auto label = headerLabel(cols_[i]).replaceCharacter('\n', ' ');
+        drawRotated(g, label, x + hw + int(i) * cw + (cw + SMALL_FH) / 2, y + rh - 2, rh - 2, SMALL_FH);
     }
 
     g.setFont(monoFont(FH));
     for (unsigned r = 0; r < R; r++) {
         for (unsigned c = 0; c < R; c++) {
-            int cx = x + int(c + 1) * cell;
-            int cy = y + int(r + 1) * cell;
+            int cx = x + hw + int(c) * cw;
+            int cy = y + int(r + 1) * rh;
             unsigned src = rows_[r];
             unsigned dest = cols_[c];
 
             if (src == dest) {
                 g.setColour(juce::Colour(0xff222222));
-                g.fillRect(cx, cy, cell, cell);
+                g.fillRect(cx, cy, cw, rh);
             }
 
             unsigned n = count_[src][dest];
             if (n == 0) {
                 g.setColour(juce::Colour(0xff444444));
-                g.fillRect(cx + cell / 2 - 1, cy + cell / 2 - 1, 3, 3);
+                g.fillRect(cx + cw / 2 - 1, cy + rh / 2 - 1, 3, 3);
             } else {
                 g.setColour(kindColour(rack::wireKind(order_, src, dest)));
-                g.drawText(juce::String(n), cx, cy, cell, cell, centred, false);
+                g.drawText(juce::String(n), cx, cy, cw, rh, centred, false);
             }
 
             if (r == row_ && c == col_) {
                 g.setColour(juce::Colours::yellow);
-                g.drawRect(cx, cy, cell, cell, 2);
+                g.drawRect(cx, cy, cw, rh, 2);
             }
         }
     }
+    return hw + int(R) * cw;
 }
 
-// Each of the first four lines starts with a badge naming the encoder that changes it.
-void RoutingView::drawDetail(juce::Graphics& g, int x, int y, int w, int h) {
+// The jack matrix of the selected module pair: rows are the source's outputs, columns the
+// destination's inputs, and a cell's brightness is its gain. Badges name the encoder for each cursor.
+void RoutingView::drawJacks(juce::Graphics& g, int x, int y, int w, int h, int labelW, int colLabelH) {
     unsigned src = rows_[row_];
     unsigned dest = cols_[col_];
     auto left = juce::Justification::centredLeft;
     int lh = FH + 4;
+    int badgeW = 12 * COMPACT_UI_SCALE;
+
+    // header: [1] source  [2] destination
+    g.setFont(monoFont(FH));
+    int half = w / 2;
+    drawBadge(g, 1, x, y, lh);
+    g.setFont(monoFont(FH));
+    g.setColour(juce::Colours::yellow);
+    g.drawText(moduleName(src) + " >", x + badgeW, y, half - badgeW, lh, left, true);
+    drawBadge(g, 2, x + half, y, lh);
+    g.setFont(monoFont(FH));
+    g.setColour(juce::Colours::yellow);
+    g.drawText(moduleName(dest), x + half + badgeW, y, w - half - badgeW, lh, left, true);
 
     unsigned nSrc = channelCount(src, true), nDest = channelCount(dest, false);
     srcCh_ = std::min(srcCh_, nSrc ? nSrc - 1 : 0);  // a module swap can shrink the jack lists
     destCh_ = std::min(destCh_, nDest ? nDest - 1 : 0);
-    const Matrix::Wire* cursor = nullptr;
-    for (auto& wire : wires_) {
-        if (wire.src_.modIdx_ == src && wire.src_.chIdx_ == srcCh_ && wire.dest_.modIdx_ == dest
-            && wire.dest_.chIdx_ == destCh_) {
-            cursor = &wire;
-            break;
-        }
-    }
-    bool hasJacks = nSrc > 0 && nDest > 0 && src != dest;
 
-    int badgeW = FH;
-    int tx = x + badgeW + 3 * COMPACT_UI_SCALE;
-    int tw = w - (tx - x);
-    auto line = [&](int i, unsigned enc, const juce::String& text, juce::Colour colour) {
-        int ly = y + i * lh;
+    if (src == dest || nSrc == 0 || nDest == 0) {
         g.setColour(juce::Colours::grey);
-        g.fillRoundedRectangle(float(x), float(ly + 2), float(badgeW), float(lh - 4), 3.0f);
-        g.setColour(juce::Colours::black);
-        g.drawText(juce::String(enc), x, ly, badgeW, lh, juce::Justification::centred, false);
-        g.setColour(colour);
-        g.drawText(text, tx, ly, tw, lh, left, true);
-    };
-
-    g.setFont(monoFont(FH));
-    line(0, 1, moduleName(src), juce::Colours::yellow);
-    line(1, 2, moduleName(dest), juce::Colours::yellow);
-    juce::String gainText = "x" + juce::String(cursor ? cursor->gain_ : 0.0f, 2) + " gain";
-    juce::String offsetText = "+" + juce::String(cursor ? cursor->offset_ : 0.0f, 2) + " offset";
-    if (levelMode_) {
-        auto colour = cursor ? juce::Colours::white : juce::Colours::grey;
-        line(2, 3, cursor ? offsetText : "-", colour);
-        line(3, 4, gainText, hasJacks ? juce::Colours::white : juce::Colours::grey);
-    } else {
-        line(2, 3, nSrc ? channelName(src, srcCh_, true) : "no outputs", juce::Colours::white);
-        line(3, 4, nDest ? channelName(dest, destCh_, false) : "no inputs", juce::Colours::white);
+        auto why = src == dest ? "same module" : nSrc == 0 ? "no outputs" : "no inputs";
+        g.drawText(why, x, y + 2 * lh, w, lh, left, true);
+        return;
     }
 
-    // the wire under the cursor: its level, or in level mode its jacks
-    int ly = y + 4 * lh;
-    juce::String status;
-    if (src == dest) {
-        status = "same module";
-    } else if (!hasJacks) {
-        status = "";
-    } else if (!cursor) {
-        status = "not wired";
-    } else if (levelMode_) {
-        status = channelName(src, srcCh_, true) + "->" + channelName(dest, destCh_, false);
-    } else {
-        status = "x" + juce::String(cursor->gain_, 2) + " +" + juce::String(cursor->offset_, 2);
-    }
-    g.setColour(cursor ? juce::Colours::white : juce::Colours::grey);
-    g.drawText(status, tx, ly, tw, lh, left, true);
-    ly += lh;
-
-    auto kind = rack::wireKind(order_, src, dest);
-    if (count_[src][dest] > 0 && kind != rack::WireKind::Forward) {
-        g.setColour(kindColour(kind));
-        g.drawText(kind == rack::WireKind::Delayed ? "1 block late" : "no signal", tx, ly, tw, lh, left, true);
-    }
-    ly += lh + lh / 2;
-
-    // the cell's wires, source names padded so the arrows line up; gain and offset on a second line
-    // if set, since long jack names leave no room for them on one line.
-    std::vector<const Matrix::Wire*> cellWires;
-    int pad = 0;
+    // gains by jack pair; repeated wires sum, as in the engine
+    std::vector<float> gain(nSrc * nDest, 0.0f);
+    std::vector<bool> wired(nSrc * nDest, false);
     for (auto& wire : wires_) {
         if (wire.src_.modIdx_ != src || wire.dest_.modIdx_ != dest) continue;
-        cellWires.push_back(&wire);
-        pad = std::max(pad, channelName(src, wire.src_.chIdx_, true).length());
+        if (wire.src_.chIdx_ >= nSrc || wire.dest_.chIdx_ >= nDest) continue;
+        gain[wire.src_.chIdx_ * nDest + wire.dest_.chIdx_] += wire.gain_;
+        wired[wire.src_.chIdx_ * nDest + wire.dest_.chIdx_] = true;
     }
-    auto amountOf = [](const Matrix::Wire& wire) {
-        juce::String amount;
-        if (wire.gain_ != 1.0f) amount << "x" << juce::String(wire.gain_, 2) << " ";
-        if (wire.offset_ != 0.0f) amount << "+" << juce::String(wire.offset_, 2);
-        return amount;
-    };
-    auto height = [&](const Matrix::Wire* wire) { return amountOf(*wire).isEmpty() ? lh : 2 * lh; };
 
-    int bottom = y + h - lh;  // keep a line for the overflow note
-    // end the list on the cursor's wire when it would not fit from the top
-    size_t first = 0;
-    auto at = std::find(cellWires.begin(), cellWires.end(), cursor);
-    if (at != cellWires.end()) {
-        first = size_t(at - cellWires.begin()) + 1;
-        for (int used = 0; first > 0 && ly + used + height(cellWires[first - 1]) <= bottom; first--) {
-            used += height(cellWires[first - 1]);
+    // cells fill the area up to 14 px a side at scale 1, so small pairs are not tiny
+    int ax = x + labelW, aw = w - labelW;
+    int ay = y + lh + colLabelH, ah = y + h - ay;
+    int maxCell = 14 * COMPACT_UI_SCALE;
+    int jc = std::min(maxCell, aw / int(nDest));
+    int jr = std::min(maxCell, ah / int(nSrc));
+    int labelFH = std::min(SMALL_FH, jr - 2);
+
+    g.setFont(monoFont(labelFH));
+    for (unsigned c = 0; c < nDest; c++) {
+        g.setColour(c == destCh_ ? juce::Colours::yellow : juce::Colours::grey);
+        drawRotated(g, channelName(dest, c, false), ax + int(c) * jc + (jc + labelFH) / 2, ay - 2, colLabelH - 4, labelFH);
+    }
+    for (unsigned r = 0; r < nSrc; r++) {
+        g.setColour(r == srcCh_ ? juce::Colours::yellow : juce::Colours::grey);
+        g.drawText(channelName(src, r, true), x, ay + int(r) * jr, labelW - 2, jr, left, true);
+    }
+
+    // the cursor's row and column, then the cells
+    g.setColour(juce::Colour(0xff1a1a10));
+    g.fillRect(ax, ay + int(srcCh_) * jr, jc * int(nDest), jr);
+    g.fillRect(ax + int(destCh_) * jc, ay, jc, jr * int(nSrc));
+    auto colour = kindColour(rack::wireKind(order_, src, dest));
+    for (unsigned r = 0; r < nSrc; r++) {
+        for (unsigned c = 0; c < nDest; c++) {
+            int cx = ax + int(c) * jc, cy = ay + int(r) * jr;
+            if (wired[r * nDest + c]) {
+                float level = std::min(1.0f, std::abs(gain[r * nDest + c]));
+                g.setColour(colour.withAlpha(0.25f + 0.75f * level));
+                g.fillRoundedRectangle(float(cx + 2), float(cy + 2), float(jc - 4), float(jr - 4), 2.0f);
+            } else {
+                g.setColour(juce::Colour(0xff444444));
+                g.fillRect(cx + jc / 2 - 1, cy + jr / 2 - 1, 2, 2);
+            }
         }
     }
-    for (size_t i = first; i < cellWires.size(); i++) {
-        auto& wire = *cellWires[i];
-        auto amount = amountOf(wire);
-        if (ly + height(&wire) > bottom) {
-            g.setColour(juce::Colours::grey);
-            g.drawText("+" + juce::String(int(cellWires.size() - i)) + " more", x, bottom, w, lh, left, true);
-            break;
-        }
-        g.setColour(&wire == cursor ? juce::Colours::yellow : juce::Colours::white);
-        auto srcName = channelName(src, wire.src_.chIdx_, true).paddedRight(' ', pad);
-        g.drawText(srcName + " -> " + channelName(dest, wire.dest_.chIdx_, false), x, ly, w, lh, left, true);
-        ly += lh;
-        if (amount.isNotEmpty()) {
-            g.setColour(juce::Colours::grey);
-            g.drawText(amount, x + FH, ly, w - FH, lh, left, true);
-            ly += lh;
-        }
+    g.setColour(juce::Colours::yellow);
+    g.drawRect(ax + int(destCh_) * jc, ay + int(srcCh_) * jr, jc, jr, 2);
+}
+
+// two lines: the jack cursor, then its level; in Level mode the badges move to offset and gain
+void RoutingView::drawStatus(juce::Graphics& g, int x, int sy, int w) {
+    unsigned src = rows_[row_];
+    unsigned dest = cols_[col_];
+    if (src == dest || channelCount(src, true) == 0 || channelCount(dest, false) == 0) return;
+    auto left = juce::Justification::centredLeft;
+    int lh = FH + 4;
+    int badgeW = 12 * COMPACT_UI_SCALE;
+    int half = w / 2;
+    auto cursor = cursorWire();
+    juce::String srcName = channelName(src, srcCh_, true), destName = channelName(dest, destCh_, false);
+    juce::String gainText = "x" + juce::String(cursor ? cursor->gain_ : 0.0f, 2);
+    juce::String offsetText = "+" + juce::String(cursor ? cursor->offset_ : 0.0f, 2);
+    if (!levelMode_) {
+        drawBadge(g, 3, x, sy, lh);
+        g.setFont(monoFont(FH));
+        g.setColour(juce::Colours::white);
+        g.drawText(srcName + " ->", x + badgeW, sy, half - badgeW, lh, left, true);
+        drawBadge(g, 4, x + half, sy, lh);
+        g.setFont(monoFont(FH));
+        g.setColour(juce::Colours::white);
+        g.drawText(destName, x + half + badgeW, sy, w - half - badgeW, lh, left, true);
+        g.setColour(cursor ? juce::Colours::white : juce::Colours::grey);
+        g.drawText(cursor ? gainText + " " + offsetText : "not wired", x + badgeW, sy + lh, w - badgeW, lh, left, true);
+    } else {
+        g.setFont(monoFont(FH));
+        g.setColour(juce::Colours::white);
+        g.drawText(srcName + " -> " + destName, x + badgeW, sy, w - badgeW, lh, left, true);
+        drawBadge(g, 3, x, sy + lh, lh);
+        g.setFont(monoFont(FH));
+        g.setColour(cursor ? juce::Colours::white : juce::Colours::grey);
+        g.drawText(cursor ? offsetText : "-", x + badgeW, sy + lh, half - badgeW, lh, left, true);
+        drawBadge(g, 4, x + half, sy + lh, lh);
+        g.setFont(monoFont(FH));
+        g.setColour(juce::Colours::white);
+        g.drawText(gainText, x + half + badgeW, sy + lh, w - half - badgeW, lh, left, true);
+    }
+}
+
+// Every wire on the track, in execution order, as "omod Main -> drum HH1 Trig  x1.00". The selected
+// module pair's wires are white and the cursor's wire yellow; the list scrolls to keep it in view.
+void RoutingView::drawWireList(juce::Graphics& g, int x, int y, int w, int h) {
+    auto left = juce::Justification::centredLeft;
+    int lh = FH + 4;
+    unsigned pos[N] = {};
+    for (unsigned i = 0; i < N; i++) pos[order_[i]] = i;
+    std::vector<const Matrix::Wire*> list;
+    for (auto& wire : wires_) {
+        if (wire.src_.modIdx_ < N && wire.dest_.modIdx_ < N) list.push_back(&wire);
+    }
+    std::stable_sort(list.begin(), list.end(), [&](const Matrix::Wire* a, const Matrix::Wire* b) {
+        return std::make_tuple(pos[a->src_.modIdx_], a->src_.chIdx_, pos[a->dest_.modIdx_], a->dest_.chIdx_)
+               < std::make_tuple(pos[b->src_.modIdx_], b->src_.chIdx_, pos[b->dest_.modIdx_], b->dest_.chIdx_);
+    });
+
+    auto jack = [&](unsigned midx, unsigned ch, bool output) {
+        return headerLabel(midx).replaceCharacter('\n', '#') + " " + channelName(midx, ch, output);
+    };
+    int pad = 0;
+    for (auto* wire : list) pad = std::max(pad, jack(wire->src_.modIdx_, wire->src_.chIdx_, true).length());
+
+    g.setFont(monoFont(SMALL_FH));
+    g.setColour(juce::Colours::grey);
+    g.drawText(juce::String(int(list.size())) + " wires on this track", x, y, w, lh, left, true);
+    y += lh;
+    g.setFont(monoFont(FH));
+
+    unsigned rows = unsigned(std::max(1, h / lh - 1));  // one line kept for the overflow note
+    auto cursor = cursorWire();
+    size_t first = 0;
+    auto at = std::find(list.begin(), list.end(), cursor);
+    if (at != list.end() && size_t(at - list.begin()) >= rows) first = size_t(at - list.begin()) - rows + 1;
+
+    unsigned src = rows_[row_], dest = cols_[col_];
+    for (size_t i = first; i < list.size() && i < first + rows; i++) {
+        auto& wire = *list[i];
+        bool selected = wire.src_.modIdx_ == src && wire.dest_.modIdx_ == dest;
+        g.setColour(&wire == cursor ? juce::Colours::yellow : selected ? juce::Colours::white : juce::Colours::grey);
+        juce::String line = jack(wire.src_.modIdx_, wire.src_.chIdx_, true).paddedRight(' ', pad) + " -> "
+                            + jack(wire.dest_.modIdx_, wire.dest_.chIdx_, false);
+        juce::String amount = "x" + juce::String(wire.gain_, 2);
+        if (wire.offset_ != 0.0f) amount << " +" << juce::String(wire.offset_, 2);
+        int amountW = 12 * FH * 6 / 10;  // "x1.00 +0.00" in a monospace face
+        int ly = y + int(i - first) * lh;
+        g.drawText(line, x, ly, w - amountW, lh, left, true);
+        g.drawText(amount, x + w - amountW, ly, amountW, lh, left, false);
+    }
+    if (first > 0 || list.size() > first + rows) {
+        g.setColour(juce::Colours::grey);
+        g.setFont(monoFont(SMALL_FH));
+        size_t shown = std::min(size_t(rows), list.size() - first);
+        g.drawText(juce::String(int(list.size() - shown)) + " more, move the cursor to scroll", x, y + int(rows) * lh, w,
+                   lh, left, true);
     }
 }

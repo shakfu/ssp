@@ -2,13 +2,14 @@
 
 #include <array>
 #include <memory>
+#include <tuple>
 #include <vector>
 
 #include "PluginProcessor.h"
 #include "ssp/editors/BaseMiniView.h"
 
-// Routing of one track: a module grid in execution order, and the wires of the selected cell, with a
-// jack cursor to add, remove and scale them. See docs/dev/rack-design.md, section 6.
+// Routing of one track: a module grid in execution order beside the jack matrix of the selected
+// cell, with a jack cursor to add, remove and scale wires. See docs/dev/rack-design.md, section 6.
 class RoutingView : public ssp::MiniBasicView {
 public:
     explicit RoutingView(PluginProcessor& p);
@@ -17,6 +18,9 @@ public:
 
     void onEncoder(unsigned enc, float v) override;
     void onEncoderSwitch(unsigned enc, bool v) override;
+
+    // the base class assumes the compact width; hosted full screen this view is 1600 px wide
+    int canvasWidth() override { return getWidth() - 2 * 5 * COMPACT_UI_SCALE; }
 
 protected:
     void drawView(juce::Graphics& g) override;
@@ -35,8 +39,11 @@ private:
     juce::String moduleName(unsigned midx) const;
     juce::String channelName(unsigned midx, unsigned ch, bool output);
     unsigned channelCount(unsigned midx, bool output);
-    void drawGrid(juce::Graphics& g, int x, int y, int cell);
-    void drawDetail(juce::Graphics& g, int x, int y, int w, int h);
+    const Matrix::Wire* cursorWire() const;
+    int drawGrid(juce::Graphics& g, int x, int y, int h, int hw, int cw);
+    void drawJacks(juce::Graphics& g, int x, int y, int w, int h, int labelW, int colLabelH);
+    void drawStatus(juce::Graphics& g, int x, int y, int w);
+    void drawWireList(juce::Graphics& g, int x, int y, int w, int h);
 
     PluginProcessor& processor_;
     std::shared_ptr<ssp::ValueButton> levelBtn_;
