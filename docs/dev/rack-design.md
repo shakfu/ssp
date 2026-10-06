@@ -82,7 +82,7 @@ Cons:
 - No patching on the device. Every change needs the desktop and a card copy, or `scp`, which is much slower to iterate with.
 - Patches are harder to debug without `MatrixView`. A read-only routing view would cost back part of the savings.
 - Module state that is not a parameter is hard to write offline: MIDI device and CC assignments, and `gra4` and `loop` data. Today that state comes from an on-device save (the `state` field).
-- Synthor probably already saves rack's state in its own presets through `getStateInformation`. That could compete with the JSON file as the place a patch lives. This is inferred, not checked.
+- Synthor saves rack's state in its own presets through `getStateInformation` (confirmed 2026-10-06, open question 1). That competes with the JSON file as the place a patch lives.
 
 ## 5. Option B: keep the editor
 
@@ -108,27 +108,33 @@ A jack is `Matrix::Jack`, a `(modIdx, chIdx)` pair: one channel of one module.
 - Variable: each slot's jacks come from the loaded module's descriptor. In `tools/py2rack/modules.json`, the most is 17 inputs (`vost`) and 16 outputs (`attn`, `vost`). 14 modules build their names at runtime, so their counts are unknown offline.
 - Worst case per track: 136 sources x 138 destinations. On the 386 px high canvas that is under 3 px per cell, so a jack-level grid is not viable.
 
-### Layout: module grid plus jack detail (implemented, read-only)
+### Layout: module grid plus jack detail (implemented, editable)
 
 `Source/RoutingView.cpp`. On the track page, short Down opens it and Up returns. Long Down stays the global jump to the performance page.
 
 rack's views are compact: 640x480, of which the canvas is 620x386 after the title and button bar. Sizes:
 
 ```
-    IN  1  2  5  3  4  6  7  8 OUT | 1 clds >
-IN   .  2  .  .  .  .  .  .  .  . | 2 srvb
-1    .  .  2  .  .  .  .  .  .  . |
-2    .  .  .  .  .  .  .  .  .  2 | Out L     In L
-5    .  .  1  .  .  .  .  .  .  . | Out R     In R
-...                               |   x0.50
+  to  clds srvb  3    4   ...  OUT | [1] clds
+from                               | [2] srvb
+IN     2    .    .    .   ...   .  | [3] Out L
+clds   .    2    .    .   ...   2  | [4] In L
+srvb   .    .    .    .   ...   2  |     x1.00 +0.00
+3      .    .    .    .   ...   .  |
+...                                | Out L -> In L
+                                   | Out R -> In R
 ```
 
-- **Grid:** 11 x 11 cells including headers, about 35 px each, so 385 px square. A cell shows its wire count. Empty cells show a dot; the diagonal is shaded.
+- **Grid:** rows are sources, columns destinations. IN has no inputs and OUT no outputs, so IN is only a row and OUT only a column: 9 x 9 cells plus headers, about 38 px each. A cell shows its wire count. Empty cells show a dot; a module's own cell is shaded.
+- **Headers:** module names in a smaller font. An empty slot shows its number, dimmed. A module that appears twice on the track adds its slot number on a second line. Slot numbers are not used as labels otherwise: they read as indices into the grid, and the pane's badges use numbers for encoders.
 - **Colour:** green for forward wires, orange for wires that read the previous block, red for self-wires, which carry nothing. The colour comes from `rack::wireKind`, the same order the engine runs, and is tested against it.
-- **Detail pane:** about 225 px, roughly 18 characters. It names the source and destination modules, then lists each wire's channels. Gain and offset go on a second line when not 1 and 0.
-- **Encoders:** 1 moves the row, 2 the column, 3 scrolls the wire list. Encoder 4 is unused while the view is read-only.
+- **Detail pane:** about 225 px, roughly 18 characters. Lines 1-4 each start with a badge naming the encoder that changes them: source module, destination module, source jack, destination jack. Line 5 is the cursor wire's gain and offset, or "not wired". Then the cell's wires, one per line as `Main -> HH1 Trig`, with source names padded so the arrows align.
+- **Gain is the connection,** as in the file format, where a nonzero cell is a wire. `Level` switches encoders 3 and 4 to offset and gain, and lines 3-4 show those values. Turning gain up from 0 adds the wire; turning it to 0 removes it (`Track::requestMatrixGain`). Pushing encoder 4 jumps between 0 and 1 (`Track::requestMatrixToggle`). Self-wires cannot be added.
+- **Range on the device:** gain 0 to 1 in steps of 0.01, rounded so steps land exactly on 0. The engine and JSON accept any gain; a hand-written gain above 1 is clamped to 1 at its first edit on the device. Offset is unlimited and applies only to an existing wire.
 
-Rows and columns are in execution order (section 3), not slot order. Forward wires lie above the diagonal; wires on or below it are delayed or self-wires.
+An earlier version had a `Wire +/-` button to add and remove wires, separate from gain. It duplicated the encoder push, and it made "connected" a state the file format does not have. Before that, gain and offset were set by turning a held encoder, with a two-line hint that needed 26 characters in an 18-character pane.
+
+Rows and columns are in execution order (section 3), not slot order. Forward wires lie right of the shaded cells; wires on or left of them are delayed or self-wires.
 
 ### Alternatives
 
@@ -142,7 +148,7 @@ The grid keeps fixed dimensions at module level, where the user navigates. Jacks
 
 ## 7. Open questions
 
-1. Does Synthor persist rack's state in its own presets? If so, which source wins at boot: the Synthor preset or the JSON file? This decides whether a player needs any device save.
+1. Does Synthor persist rack's state in its own presets? Yes: on 2026-10-06, `/media/BOOT/presets/009.pbp` and `013.pbp` held rack's binary state (the `TRAX` XML, with modules and wires), written through `getStateInformation`. Still open: which source wins at boot, the Synthor preset or a JSON file loaded afterwards. This decides whether a player needs any device save.
 2. Should a player keep `ModuleView` for live tweaks, or rely on the performance page only?
 3. How long does a preset switch take? `requestModuleChange` loads `.so` files. For a player, switching without gaps may matter more than anything else here. Measure before designing for it.
 
@@ -152,7 +158,7 @@ The intended end state is the player. The goal is many presets authored offline,
 
 1. **Measure on the SSP** (open questions 1 and 3): preset switch time, and whether Synthor persists rack's state. These decide whether a player works.
 2. **Graph-ordered execution** (section 3). Done.
-3. **Read-only routing grid** (section 6). Done; not yet tried on the SSP.
+3. **Routing grid** (section 6). Done; read-only version confirmed on the SSP 2026-10-06; editing not yet tried there.
 4. **Matrix routing** in JSON presets, on the device and in `py2rack` (section 2). Done.
 5. **Author on the desktop for a few weeks.** If on-device patching goes unused, delete the editing UI (option A); git keeps it recoverable.
 

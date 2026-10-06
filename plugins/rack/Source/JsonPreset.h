@@ -46,6 +46,8 @@ std::vector<Wire> parseMatrix(const juce::var& matrix, juce::String& error);
 
 // The inverse, for saving. Rows and columns are in slot, then channel, order. Wires between the
 // same jacks add their gains, and offsets into a column add into its dc weight, as in the engine.
+// A cell that sums to 0 is no wire and is left out; a dc with no wire left in its column is
+// dropped and logged. Void when no wire remains.
 juce::var formatMatrix(const std::vector<Wire>& wires);
 
 // True when the file starts with '{', which no JUCE binary preset does.

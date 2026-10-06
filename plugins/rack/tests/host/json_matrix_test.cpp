@@ -1,4 +1,5 @@
-// The "matrix" field of JSON presets: parsing, saving, and a load-save-load through Track.
+// The "matrix" field of JSON presets: parsing, saving, a load-save-load through Track, and the
+// wire edits the routing grid makes.
 // Built by CMakeLists.txt and run from a directory holding plugins/pass2.so and plugins/pass6.so.
 
 #include <algorithm>
@@ -74,6 +75,23 @@ static void formatSumsAndOrders() {
     if (failures) std::fprintf(stderr, "  formatted: %s\n", text.toRawUTF8());
 }
 
+static void formatDropsZeroCells() {
+    std::vector<Wire> wires = {
+        { { 1, "0" }, { 2, "0" }, 0.5f, 0.0f },
+        { { 1, "1" }, { 2, "1" }, 0.0f, 0.0f },   // gain 0: no wire, no labels
+        { { 1, "1" }, { 2, "0" }, 0.0f, 0.25f },  // gain 0, offset into a wired column: dc kept
+        { { 3, "0" }, { 2, "2" }, 0.0f, 0.5f },   // gain 0, offset into an unwired column: dropped
+        { { 3, "1" }, { Track::M_OUT, "0" }, 0.5f, 0.0f },
+        { { 3, "1" }, { Track::M_OUT, "0" }, -0.5f, 0.0f },  // cancels the wire above
+    };
+    auto text = juce::JSON::toString(jsonpreset::formatMatrix(wires), true);
+    CHECK(text == R"({"rows": ["1:0", "dc"], "cols": ["2:0"], "gain": [[0.5], [0.25]]})");
+    if (failures) std::fprintf(stderr, "  formatted: %s\n", text.toRawUTF8());
+
+    // nothing audible left: no matrix at all
+    CHECK(jsonpreset::formatMatrix({ { { 1, "0" }, { 2, "0" }, 0.0f, 0.0f } }).isVoid());
+}
+
 using Conn = std::tuple<unsigned, unsigned, unsigned, unsigned, float, float>;
 
 static std::vector<Conn> connections(Track& track) {
@@ -117,11 +135,98 @@ static void trackLoadsSavesAndReloads() {
     CHECK(connections(reloaded) == loaded);
 }
 
+static void trackTogglesWires() {
+    Track track;
+    track.prepare(48000, 128);
+    track.setStateInformation(juce::JSON::parse(R"({ "modules": { "1": "pass2", "2": "pass6" } })"), 0);
+    Matrix::Jack src(1, 1), dest(2, 4);
+
+    while (!track.requestMatrixToggle(src, dest)) {}
+    std::vector<Conn> one = { { 1, 1, 2, 4, 1.0f, 0.0f } };
+    CHECK(connections(track) == one);
+
+    // edits made on the grid reach the saved matrix
+    while (!track.requestMatrixAttenuate(src, dest, false, -0.5f)) {}
+    juce::var saved;
+    track.getStateInformation(saved);
+    auto text = juce::JSON::toString(saved.getProperty("matrix", juce::var()), true);
+    CHECK(text == R"({"rows": ["1:1"], "cols": ["2:4"], "gain": [[0.5]]})");
+
+    // a duplicate wire, then a toggle removes both
+    while (!track.requestMatrixConnect(src, dest)) {}
+    CHECK(connections(track).size() == 2);
+    while (!track.requestMatrixToggle(src, dest)) {}
+    CHECK(connections(track).empty());
+
+    // a channel the module does not have adds nothing
+    while (!track.requestMatrixToggle(Matrix::Jack(1, 2), dest)) {}
+    CHECK(connections(track).empty());
+}
+
+static void trackGainIsTheConnection() {
+    Track track;
+    track.prepare(48000, 128);
+    track.setStateInformation(juce::JSON::parse(R"({ "modules": { "1": "pass2", "2": "pass6" } })"), 0);
+    Matrix::Jack src(1, 0), dest(2, 3);
+
+    // stepping down from no wire adds nothing; stepping up adds one
+    while (!track.requestMatrixGain(src, dest, -0.01f)) {}
+    CHECK(connections(track).empty());
+    while (!track.requestMatrixGain(src, dest, 0.01f)) {}
+    std::vector<Conn> small = { { 1, 0, 2, 3, 0.01f, 0.0f } };
+    CHECK(connections(track) == small);
+
+    // clamped at 1, and 100 steps down land exactly on 0, which removes the wire
+    while (!track.requestMatrixGain(src, dest, 5.0f)) {}
+    std::vector<Conn> unity = { { 1, 0, 2, 3, 1.0f, 0.0f } };
+    CHECK(connections(track) == unity);
+    for (int i = 0; i < 99; i++) {
+        while (!track.requestMatrixGain(src, dest, -0.01f)) {}
+    }
+    CHECK(connections(track).size() == 1);
+    while (!track.requestMatrixGain(src, dest, -0.01f)) {}
+    CHECK(connections(track).empty());
+
+    // a channel the module does not have adds nothing
+    while (!track.requestMatrixGain(Matrix::Jack(1, 2), dest, 0.5f)) {}
+    CHECK(connections(track).empty());
+}
+
+static void trackSavesOnlyAudibleWires() {
+    Track track;
+    track.prepare(48000, 128);
+    track.setStateInformation(juce::JSON::parse(R"({ "modules": { "1": "pass2", "2": "pass6" } })"), 0);
+    while (!track.requestMatrixConnect(Matrix::Jack(1, 0), Matrix::Jack(2, 0), 0.5f)) {}
+    while (!track.requestMatrixConnect(Matrix::Jack(1, 1), Matrix::Jack(2, 1), 0.0f, 0.2f)) {}
+
+    // before the fix, the gain-0 wire's offset saved as dc with no wire, and reload rejected the matrix
+    juce::var saved;
+    track.getStateInformation(saved);
+    Track reloaded;
+    reloaded.prepare(48000, 128);
+    reloaded.setStateInformation(saved, 0);
+    std::vector<Conn> audible = { { 1, 0, 2, 0, 0.5f, 0.0f } };
+    CHECK(connections(reloaded) == audible);
+
+    // only muted wires: the save has no matrix
+    Track muted;
+    muted.prepare(48000, 128);
+    muted.setStateInformation(juce::JSON::parse(R"({ "modules": { "1": "pass2", "2": "pass6" } })"), 0);
+    while (!muted.requestMatrixConnect(Matrix::Jack(1, 0), Matrix::Jack(2, 0), 0.0f)) {}
+    juce::var none;
+    muted.getStateInformation(none);
+    CHECK(none.getProperty("matrix", juce::var()).isVoid());
+}
+
 int main() {
     parseExpandsCellsAndDc();
     parseRejectsMalformed();
     formatSumsAndOrders();
+    formatDropsZeroCells();
     trackLoadsSavesAndReloads();
+    trackTogglesWires();
+    trackGainIsTheConnection();
+    trackSavesOnlyAudibleWires();
     if (failures) std::fprintf(stderr, "%d failures\n", failures);
     return failures ? 1 : 0;
 }

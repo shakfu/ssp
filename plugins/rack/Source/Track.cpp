@@ -1,5 +1,8 @@
 #include "Track.h"
 
+#include <algorithm>
+#include <cmath>
+
 #include "GraphOrder.h"
 #include "JsonPreset.h"
 
@@ -58,50 +61,92 @@ bool Track::requestClearTrack() {
 
 
 bool Track::requestMatrixConnect(const Matrix::Jack& src, const Matrix::Jack& dest, float gain, float offset) {
-    if (!lock_.test_and_set()) {
-        int srcCount = 0;
-        int destCount = 0;
-        for (auto& w : matrix_.connections_) {
-            if (w.src_ == src) srcCount++;
-            if (w.dest_ == dest) destCount++;
-        }
-
-        auto& srcMod = modules_[src.modIdx_];
-        auto& destMod = modules_[dest.modIdx_];
-
-        if (srcMod.descriptor_ && src.chIdx_ < srcMod.descriptor_->outputChannelNames.size() && destMod.descriptor_ &&
-            dest.chIdx_ < destMod.descriptor_->inputChannelNames.size()) {
-            matrix_.connect(src, dest);
-            matrix_.connections_.back().applyGainOffset(gain, offset);
-            if (srcCount == 0 && srcMod.plugin_) srcMod.plugin_->outputEnabled(src.chIdx_, true);
-            if (destCount == 0 && destMod.plugin_) destMod.plugin_->inputEnabled(dest.chIdx_, true);
-        }
-
-        lock_.clear();
-        return true;
-    }
-    return false;
+    if (lock_.test_and_set()) return false;
+    connectLocked(src, dest, gain, offset);
+    lock_.clear();
+    return true;
 }
 
 
 bool Track::requestMatrixDisconnect(const Matrix::Jack& src, const Matrix::Jack& dest) {
-    if (!lock_.test_and_set()) {
-        int srcCount = 0;
-        int destCount = 0;
-        for (auto& w : matrix_.connections_) {
-            if (w.src_ == src) srcCount++;
-            if (w.dest_ == dest) destCount++;
-        }
+    if (lock_.test_and_set()) return false;
+    disconnectLocked(src, dest);
+    lock_.clear();
+    return true;
+}
 
-        auto& srcMod = modules_[src.modIdx_];
-        auto& destMod = modules_[dest.modIdx_];
-        matrix_.disconnect(src, dest);
-        if (srcCount == 1 && srcMod.plugin_) srcMod.plugin_->outputEnabled(src.chIdx_, false);
-        if (destCount == 1 && destMod.plugin_) destMod.plugin_->inputEnabled(dest.chIdx_, false);
-        lock_.clear();
-        return true;
+
+// one lock for the check and the edit, so the result does not depend on a wire changing in between
+bool Track::requestMatrixToggle(const Matrix::Jack& src, const Matrix::Jack& dest) {
+    if (lock_.test_and_set()) return false;
+    unsigned n = 0;
+    for (auto& w : matrix_.connections_) {
+        if (w.src_ == src && w.dest_ == dest) n++;
     }
-    return false;
+    if (n == 0) connectLocked(src, dest, 1.0f, 0.0f);
+    while (n-- > 0) disconnectLocked(src, dest);
+    lock_.clear();
+    return true;
+}
+
+
+bool Track::requestMatrixGain(const Matrix::Jack& src, const Matrix::Jack& dest, float delta) {
+    if (lock_.test_and_set()) return false;
+    Matrix::Wire* wire = nullptr;
+    for (auto& w : matrix_.connections_) {
+        if (w.src_ == src && w.dest_ == dest) {
+            wire = &w;
+            break;
+        }
+    }
+    // rounded to 0.01 so repeated steps land exactly on 0 and 1
+    float gain = std::round(std::clamp((wire ? wire->gain_ : 0.0f) + delta, 0.0f, 1.0f) * 100.0f) / 100.0f;
+    if (wire == nullptr) {
+        if (gain > 0.0f) connectLocked(src, dest, gain, 0.0f);
+    } else if (gain > 0.0f) {
+        wire->gain_ = gain;
+    } else {
+        disconnectLocked(src, dest);
+    }
+    lock_.clear();
+    return true;
+}
+
+
+void Track::connectLocked(const Matrix::Jack& src, const Matrix::Jack& dest, float gain, float offset) {
+    int srcCount = 0;
+    int destCount = 0;
+    for (auto& w : matrix_.connections_) {
+        if (w.src_ == src) srcCount++;
+        if (w.dest_ == dest) destCount++;
+    }
+
+    auto& srcMod = modules_[src.modIdx_];
+    auto& destMod = modules_[dest.modIdx_];
+
+    if (srcMod.descriptor_ && src.chIdx_ < srcMod.descriptor_->outputChannelNames.size() && destMod.descriptor_ &&
+        dest.chIdx_ < destMod.descriptor_->inputChannelNames.size()) {
+        matrix_.connect(src, dest);
+        matrix_.connections_.back().applyGainOffset(gain, offset);
+        if (srcCount == 0 && srcMod.plugin_) srcMod.plugin_->outputEnabled(src.chIdx_, true);
+        if (destCount == 0 && destMod.plugin_) destMod.plugin_->inputEnabled(dest.chIdx_, true);
+    }
+}
+
+
+void Track::disconnectLocked(const Matrix::Jack& src, const Matrix::Jack& dest) {
+    int srcCount = 0;
+    int destCount = 0;
+    for (auto& w : matrix_.connections_) {
+        if (w.src_ == src) srcCount++;
+        if (w.dest_ == dest) destCount++;
+    }
+
+    auto& srcMod = modules_[src.modIdx_];
+    auto& destMod = modules_[dest.modIdx_];
+    matrix_.disconnect(src, dest);
+    if (srcCount == 1 && srcMod.plugin_) srcMod.plugin_->outputEnabled(src.chIdx_, false);
+    if (destCount == 1 && destMod.plugin_) destMod.plugin_->inputEnabled(dest.chIdx_, false);
 }
 
 
@@ -568,7 +613,8 @@ void Track::getStateInformation(juce::var& out) {
                           w.gain_,
                           w.offset_ });
     }
-    if (!wires.empty()) object->setProperty("matrix", jsonpreset::formatMatrix(wires));
+    auto matrix = jsonpreset::formatMatrix(wires);
+    if (matrix.isObject()) object->setProperty("matrix", matrix);
     object->setProperty("params", juce::var(params));
     if (states.getDynamicObject()->getProperties().size() > 0) object->setProperty("state", states);
 

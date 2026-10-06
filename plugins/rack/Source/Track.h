@@ -33,6 +33,10 @@ public:
     bool requestMatrixConnect(const Matrix::Jack& src, const Matrix::Jack& dest, float gain = 1.0f,
                               float offset = 0.0f);
     bool requestMatrixDisconnect(const Matrix::Jack& src, const Matrix::Jack& dest);
+    // adds a wire at gain 1, or removes every wire between the two jacks
+    bool requestMatrixToggle(const Matrix::Jack& src, const Matrix::Jack& dest);
+    // steps a wire's gain within 0 to 1; stepping up from no wire adds one, reaching 0 removes it
+    bool requestMatrixGain(const Matrix::Jack& src, const Matrix::Jack& dest, float delta);
     bool requestMatrixAttenuate(const Matrix::Jack& src, const Matrix::Jack& dest, bool isOffset, float delta);
     bool requestClearTrack();
 
@@ -74,6 +78,10 @@ private:
     bool loadModule(std::string, Module& m);
     void alloc(int sampleRate, int blockSize);
     void free();
+
+    // callers hold lock_
+    void connectLocked(const Matrix::Jack& src, const Matrix::Jack& dest, float gain, float offset);
+    void disconnectLocked(const Matrix::Jack& src, const Matrix::Jack& dest);
 
     void resetModuleConnections(int midx);
     void clearModuleConnections(int midx);

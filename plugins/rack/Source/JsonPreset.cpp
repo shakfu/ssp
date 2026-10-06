@@ -172,29 +172,47 @@ static juce::var tidy(double v) {
 
 juce::var formatMatrix(const std::vector<Wire>& wires) {
     using Key = std::pair<int, int>;  // slot, channel index
-    std::map<Key, int> srcIdx, destIdx;
+    auto key = [](const Jack& j) { return Key{ j.slot, j.channel.getIntValue() }; };
+    // summed first, so duplicates that cancel are dropped like a gain-0 wire
+    std::map<std::pair<Key, Key>, double> sums;
+    std::map<Key, double> dcSums;
     for (auto& w : wires) {
-        srcIdx[{ w.src.slot, w.src.channel.getIntValue() }] = 0;
-        destIdx[{ w.dest.slot, w.dest.channel.getIntValue() }] = 0;
+        sums[{ key(w.src), key(w.dest) }] += w.gain;
+        dcSums[key(w.dest)] += w.offset;
     }
+    auto isZero = [](double v) { return std::abs(v) < 5e-7; };  // what tidy rounds to 0
+
+    // a 0 cell is no wire, so only nonzero cells name jacks
+    std::map<Key, int> srcIdx, destIdx;
+    for (auto& [jacks, g] : sums) {
+        if (isZero(g)) continue;
+        srcIdx[jacks.first] = 0;
+        destIdx[jacks.second] = 0;
+    }
+    for (auto& [dest, dc] : dcSums) {
+        if (!isZero(dc) && destIdx.count(dest) == 0) {
+            logError("save : dropped dc " + juce::String(dc) + " on " + slotName(dest.first) + ":"
+                     + juce::String(dest.second) + ", which has no wire into it");
+        }
+    }
+    if (srcIdx.empty()) return {};
 
     juce::Array<juce::var> rows, cols;
-    for (auto& [key, idx] : srcIdx) {
+    for (auto& [k, idx] : srcIdx) {
         idx = rows.size();
-        rows.add(slotName(key.first) + ":" + juce::String(key.second));
+        rows.add(slotName(k.first) + ":" + juce::String(k.second));
     }
-    for (auto& [key, idx] : destIdx) {
+    for (auto& [k, idx] : destIdx) {
         idx = cols.size();
-        cols.add(slotName(key.first) + ":" + juce::String(key.second));
+        cols.add(slotName(k.first) + ":" + juce::String(k.second));
     }
 
     std::vector<std::vector<double>> cells(rows.size(), std::vector<double>(cols.size(), 0.0));
-    std::vector<double> dc(cols.size(), 0.0);
-    for (auto& w : wires) {
-        int c = destIdx[{ w.dest.slot, w.dest.channel.getIntValue() }];
-        cells[srcIdx[{ w.src.slot, w.src.channel.getIntValue() }]][c] += w.gain;
-        dc[c] += w.offset;
+    for (auto& [jacks, g] : sums) {
+        if (!isZero(g)) cells[srcIdx[jacks.first]][destIdx[jacks.second]] = g;
     }
+    std::vector<double> dc(cols.size(), 0.0);
+    for (auto& [dest, idx] : destIdx) dc[idx] = dcSums[dest];
 
     juce::Array<juce::var> gain;
     for (auto& row : cells) {
@@ -202,7 +220,7 @@ juce::var formatMatrix(const std::vector<Wire>& wires) {
         for (double v : row) values.add(tidy(v));
         gain.add(values);
     }
-    if (std::any_of(dc.begin(), dc.end(), [](double v) { return v != 0.0; })) {
+    if (std::any_of(dc.begin(), dc.end(), [&](double v) { return !isZero(v); })) {
         rows.add("dc");
         juce::Array<juce::var> values;
         for (double v : dc) values.add(tidy(v));

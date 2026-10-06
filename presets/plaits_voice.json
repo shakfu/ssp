@@ -1,0 +1,32 @@
+{
+  "rack": 1,
+  "tracks": {
+    "1": {
+      "level": 0.8,
+      "modules": { "1": "omod", "2": "plts", "3": "srvb" },
+      "matrix": {
+        "rows": ["1:Main", "1:Out A", "1:Out B", "2:Out", "2:Aux", "3:Out L", "3:Out R", "dc"],
+        "cols": ["2:Trig", "2:Timbre", "2:Harm", "3:In L", "3:In R", "out:0", "out:1"],
+        "gain": [[1, 0,   0,   0, 0, 0,   0  ],
+                 [0, 0.3, 0,   0, 0, 0,   0  ],
+                 [0, 0,   0.2, 0, 0, 0,   0  ],
+                 [0, 0,   0,   1, 1, 0,   0  ],
+                 [0, 0,   0,   0, 0, 0.2, 0.2],
+                 [0, 0,   0,   0, 0, 0.8, 0  ],
+                 [0, 0,   0,   0, 0, 0,   0.8],
+                 [0, 0,   0.3, 0, 0, 0,   0  ]]
+      },
+      "params": {
+        "1": {
+          "Lfo": true,
+          "Freq": 800.0,
+          "Wave": 4,
+          "slaveosc:0:ratio": 0.5,
+          "slaveosc:0:wave": 4,
+          "slaveosc:1:ratio": 0.25,
+          "slaveosc:1:wave": 4
+        }
+      }
+    }
+  }
+}

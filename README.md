@@ -5,7 +5,7 @@ Plugins and tools for the Percussa SSP.
 | Path | What |
 |-|-|
 | `plugins/sfct` | softcut 4-track looper. See [README](plugins/sfct/README.md) |
-| `plugins/rack` | preset-first module host; fork of TheTechnobear's trax with JSON presets. See [README-json-presets](plugins/rack/README-json-presets.md) |
+| `plugins/rack` | preset-first module host; fork of TheTechnobear's trax with JSON presets. See [README](plugins/rack/README.md) |
 | `plugins/common` | shared SSP plugin framework, from TheTechnobear |
 | `presets` | rack presets, installed with `make install-presets`. See [README](presets/README.md) |
 | `tools/py2rack` | generate and decode rack presets offline. See [README](tools/py2rack/README.md) |

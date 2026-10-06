@@ -22,7 +22,7 @@ Save from the options page as usual. A preset name ending in `.json` is written 
 
 The binary format stays the default because upstream trax cannot read JSON. Naming the preset is the whole opt-in; there is no mode to set.
 
-A JSON save writes every parameter of every loaded module, by name, along with the modules, the routing as a `matrix`, track levels and the performance parameters. A saved preset reloads to the same patch.
+A JSON save writes every parameter of every loaded module, by name, along with the modules, the routing as a `matrix`, track levels and the performance parameters. A saved preset reloads to the same patch. Wires at gain 0 are not saved; see the routing model in [README.md](README.md).
 
 ## Format
 
