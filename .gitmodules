@@ -7,3 +7,4 @@
 [submodule "juce"]
 	path = juce
 	url = https://github.com/TheTechnobear/juce
+	shallow = true
