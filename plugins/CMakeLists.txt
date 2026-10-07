@@ -3,3 +3,18 @@ project(plugins)
 
 add_subdirectory(sfct)
 add_subdirectory(rack)
+add_subdirectory(radio)
+
+# csound and chuck link prebuilt libraries: `make deps` builds them
+if (TARGET_SSP)
+    set(DEPS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../build/deps/ssp")
+else ()
+    set(DEPS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../build/deps/host")
+endif ()
+foreach (P csound chuck)
+    if (EXISTS "${DEPS_DIR}/lib/lib${P}.a")
+        add_subdirectory(${P})
+    else ()
+        message(STATUS "skipping ${P}: run `make deps`")
+    endif ()
+endforeach ()

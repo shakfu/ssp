@@ -17,18 +17,19 @@ BUILDROOT_DEP := $(BUILDROOT_DIR)
 endif
 
 .DEFAULT_GOAL := ssp
-.PHONY: ssp configure buildroot release deploy deploy-mod install install-presets test clean help
+.PHONY: ssp configure buildroot deps release deploy deploy-mod install install-presets test clean help
 
 help:
 	@echo "make [ssp]              download buildroot if needed, configure, build all plugins"
 	@echo "make configure          re-run cmake configure"
 	@echo "make buildroot          download and extract the SSP buildroot into ./buildroot"
+	@echo "make deps               build Csound and ChucK for the SSP (then re-run make configure)"
 	@echo "make release            build, strip into releases/ssp/plugins, zip ssp_plugins.zip"
 	@echo "make deploy             build, copy all plugins to SSP_HOST"
 	@echo "make deploy-mod MOD=x   build, copy one plugin to SSP_HOST"
 	@echo "make install [MOD=x]    build, copy plugins to the mounted SD card (SSP_PLUGINS)"
 	@echo "make install-presets     check, then copy presets/ (or PRESETS=dir) to the card (SSP_PRESETS)"
-	@echo "make test               run the py2rack, sfct and rack tests"
+	@echo "make test               run the py2rack and plugin tests"
 	@echo "make clean              remove $(BUILD_DIR)"
 	@echo "variables: SSP_BUILDROOT, SSP_HOST (root@192.168.0.150), SSP_PLUGINS (/media/$$USER/BOOT/plugins), SSP_PRESETS (/media/$$USER/rootfs/rack_presets), JOBS ($(JOBS))"
 
@@ -45,6 +46,10 @@ $(BUILDROOT_DIR):
 
 $(BUILD_DIR)/Makefile: | $(BUILDROOT_DEP)
 	cmake --preset "$(PRESET)"
+
+# the csound and chuck plugins are configured only once their libraries exist
+deps: | $(BUILDROOT_DEP)
+	scripts/build_deps.sh ssp
 
 configure: | $(BUILDROOT_DEP)
 	cmake --preset "$(PRESET)"
@@ -68,7 +73,7 @@ install-presets:
 	scripts/install-presets.sh $(PRESETS)
 
 test:
-	uv run --quiet --with pytest pytest tools plugins/sfct/tests plugins/rack/tests -q
+	uv run --quiet --with pytest pytest tools $(wildcard plugins/*/tests) -q
 
 clean:
 	rm -rf $(BUILD_DIR)

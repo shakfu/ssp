@@ -6,7 +6,10 @@ Plugins and tools for the Percussa SSP.
 |-|-|
 | `plugins/sfct` | softcut 4-track looper. See [README](plugins/sfct/README.md) |
 | `plugins/rack` | preset-first module host; fork of TheTechnobear's trax with JSON presets. See [README](plugins/rack/README.md) |
-| `plugins/common` | shared SSP plugin framework, from TheTechnobear |
+| `plugins/radio` | `rdio`: dual virtual Radio Music. See [README](plugins/radio/README.md) |
+| `plugins/csound` | `csnd`: Csound 7 host. See [README](plugins/csound/README.md) |
+| `plugins/chuck` | `chuk`: ChucK host. See [README](plugins/chuck/README.md) |
+| `plugins/common` | shared SSP plugin framework, from TheTechnobear; `engine/` is shared by radio, csound and chuck. See [docs/dev/engines.md](docs/dev/engines.md) |
 | `presets` | rack presets, installed with `make install-presets`. See [README](presets/README.md) |
 | `tools/py2rack` | generate and decode rack presets offline. See [README](tools/py2rack/README.md) |
 | `external/softcut-lib` | vendored, patched copy of monome's softcut |
@@ -15,8 +18,9 @@ Plugins and tools for the Percussa SSP.
 
 ```
 git submodule update --init --recursive
+make deps     # build Csound and ChucK for the csound and chuck plugins
 make          # cross build for the SSP
-make test     # py2rack and sfct engine tests
+make test     # all tests
 ```
 
 See [docs/BUILDING.md](docs/BUILDING.md).

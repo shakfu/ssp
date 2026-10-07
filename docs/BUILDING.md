@@ -6,12 +6,12 @@ The plugins are cross-compiled for the SSP's ARM CPU. The build is tested on Ubu
 
 ```
 git submodule update --init --recursive
-sudo apt install cmake clang lld pkg-config curl zip \
+sudo apt install cmake clang lld pkg-config curl zip flex bison libasound2-dev \
     libx11-dev libxext-dev libxrandr-dev libxinerama-dev libxcursor-dev \
     libxrender-dev libxcomposite-dev libfreetype-dev libfontconfig1-dev
 ```
 
-The X11, freetype and fontconfig headers are for `juceaide`, a tool JUCE builds for the host during configure.
+The X11, freetype and fontconfig headers are for `juceaide`, a tool JUCE builds for the host during configure. flex, bison and the ALSA headers are for ChucK.
 
 ## Build
 
@@ -21,6 +21,8 @@ make
 
 On first run, `make` downloads the SSP buildroot (608 MB) into `./buildroot`. Set `SSP_BUILDROOT` to use an existing one. It then configures with the `ssp toolchain` preset (`xcSSP.cmake`) and builds into `build.cmake.ssp`.
 
+The csound and chuck plugins link Csound and ChucK, which `make deps` downloads and cross-builds into `build/deps/ssp` (about two minutes). Without them, `make` builds the other plugins and skips these two. Run `make configure` after `make deps`.
+
 Plugins land in `build.cmake.ssp/plugins/*/*_artefacts/Release/VST3/*.vst3/Contents/armv7l-linux/*.so`.
 
 | target | action |
@@ -28,6 +30,7 @@ Plugins land in `build.cmake.ssp/plugins/*/*_artefacts/Release/VST3/*.vst3/Conte
 | `make` | build all plugins |
 | `make configure` | re-run CMake configure |
 | `make buildroot` | download the buildroot only |
+| `make deps` | build libsndfile, Csound and ChucK for the SSP (`scripts/build_deps.sh ssp`) |
 | `make install [MOD=sfct]` | copy all plugins, or one, to the mounted SD card |
 | `make install-presets [PRESETS=dir]` | check JSON presets with `py2rack`, then copy `presets/` or `dir` to the card |
 | `make deploy` | copy all plugins to the SSP over `scp` |
@@ -55,8 +58,12 @@ rootfs is owned by root, so `install-presets` runs `cp` with `sudo` unless the d
 | `tools/py2rack/tests` | preset encoding and decoding |
 | `plugins/sfct/tests` | the sfct engine, built natively |
 | `plugins/rack/tests` | rack's execution order; `Track` under ThreadSanitizer; JSON `matrix` load and save |
+| `plugins/radio/tests`, `plugins/csound/tests`, `plugins/chuck/tests` | each engine, built natively, and under ThreadSanitizer |
+| `plugins/common/tests` | radio, csound and chuck built for the host and driven through the SSP API |
 
 The `Track` tests build part of JUCE for the host into `build/rack-host`. The first run takes about a minute; later runs are incremental.
+
+The csound and chuck tests build the libraries for the host into `build/deps/host` on first run (network, about a minute). `plugins/common/tests` then builds three plugins into `build/plugins-host` (about four minutes the first time). See [docs/dev/engines.md](dev/engines.md).
 
 ## Other hosts
 

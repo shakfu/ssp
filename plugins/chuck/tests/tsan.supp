@@ -1,0 +1,5 @@
+# ChucK's globals queue (FinalRingBuffer in util_buffers.h) is a seq_cst single-producer ring. libchuck
+# is not built with -fsanitize=thread, so TSan sees the new and delete at its two ends but not the
+# atomics between them.
+race:Chuck_Globals_Manager::setGlobalFloat
+race:Chuck_Globals_Manager::handle_global_queue_messages

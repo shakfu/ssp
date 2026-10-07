@@ -110,6 +110,14 @@ void PageMiniView::resized() {
     }
 }
 
+void PageMiniView::clearParamPages() {
+    for (auto& page : controlPages_)
+        for (auto& c : page->control_)
+            if (c) removeChildComponent(c.get());
+    controlPages_.clear();
+    paramPage_ = 0;
+}
+
 void PageMiniView::addButtonPage(std::shared_ptr<ParamButton> c1, std::shared_ptr<ParamButton> c2,
                                  std::shared_ptr<ParamButton> c3, std::shared_ptr<ParamButton> c4,
                                  std::shared_ptr<ParamButton> c5, std::shared_ptr<ParamButton> c6,

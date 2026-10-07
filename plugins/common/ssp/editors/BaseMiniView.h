@@ -236,6 +236,8 @@ public:
                        std::shared_ptr<ParamButton> c5, std::shared_ptr<ParamButton> c6,
                        std::shared_ptr<ParamButton> c7, std::shared_ptr<ParamButton> c8);
 
+    // removes every param page, for a view that rebuilds them
+    void clearParamPages();
 
 protected:
     using base_type = BaseView;
