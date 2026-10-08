@@ -20,13 +20,17 @@ struct ParamPage {
     juce::String name;
     juce::Colour colour = juce::Colours::white;
     Control c[4];
+    // Pages of a group are adjacent: a long Up or Down jumps between groups, a long Right to the
+    // last group (the global pages) and a long Left back.
+    int group = 0;
 };
 
 // Full-screen editor: the plugin's parameter pages, a status panel right of them, and a file browser
 // behind a Load button.
 class EngineEditor : public ssp::BaseViewEditor {
 public:
-    // buttons: parameters for buttons 1-4 (null for none); Load is button 5, Cancel button 7
+    // buttons: parameters for buttons 1-8 (null for none). Button 5 is Load, so its entry is ignored;
+    // button 7 is Cancel while the browser is open.
     EngineEditor(EngineProcessor& p, std::vector<ParamPage> pages,
                  std::vector<juce::RangedAudioParameter*> buttons, const juce::String& browseDir);
 

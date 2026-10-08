@@ -6,7 +6,7 @@
 
 #include "Station.h"
 
-namespace radio {
+namespace ssp::engine {
 
 // One open station: the worker thread reads the file ahead into a ring, the audio thread pulls from it.
 // An unopened Stream is silent.
@@ -53,6 +53,9 @@ public:
         return v;
     }
 
+    // Audio thread: frames buffered and ready to pull.
+    size_t available() const { return head_.load(std::memory_order_acquire) - tail_.load(std::memory_order_relaxed); }
+
     bool playing() const { return open_ || head_.load() != tail_.load(); }
     float rate() const { return rate_; }
     bool tuned() const { return tuned_; }
@@ -66,4 +69,4 @@ private:
     const bool tuned_;
 };
 
-}  // namespace radio
+}  // namespace ssp::engine

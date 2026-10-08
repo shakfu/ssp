@@ -2,7 +2,7 @@
 
 Covers what the native engine tests cannot: EngineProcessor's block splitting and worker thread,
 parameters and custom state through save and restore, and the SSP entry points. The first run
-builds three plugins and their JUCE copies into build/plugins-host (a few minutes; ccache helps).
+builds the plugins and their JUCE copies into build/plugins-host (a few minutes; ccache helps).
 """
 
 import shutil
@@ -26,8 +26,8 @@ def plugins():
     if not (DEPS / "lib" / "libchuck.a").exists():
         subprocess.run([ROOT / "scripts" / "build_deps.sh", "host"], check=True, capture_output=True)
     subprocess.run(["cmake", "-S", ROOT, "-B", BUILD, "-DCMAKE_BUILD_TYPE=Release"], check=True, capture_output=True)
-    subprocess.run(["cmake", "--build", BUILD, "-j8", "--target", "RADIO_VST3", "CSOUND_VST3", "CHUCK_VST3"],
-                   check=True, capture_output=True)
+    targets = [f"{name.upper()}_VST3" for name in PRODUCTS]
+    subprocess.run(["cmake", "--build", BUILD, "-j8", "--target", *targets], check=True, capture_output=True)
     host = BUILD / "plugin_host"
     subprocess.run([cxx, "-std=c++17", "-O1", "-pthread", f"-I{ROOT / 'ssp-sdk'}", HERE / "plugin_host.cpp",
                     "-ldl", "-o", host], check=True)
@@ -35,7 +35,8 @@ def plugins():
 
 
 # source folder -> product name; Synthor lists only names of up to four characters
-PRODUCTS = {"radio": "rdio", "csound": "csnd", "chuck": "chuk"}
+PRODUCTS = {"radio": "rdio", "csound": "csnd", "chuck": "chuk", "edrums": "edrm", "pstretch": "strc", "bard": "bard",
+            "glitch": "gltc"}
 
 
 def so(name):
@@ -95,9 +96,68 @@ def test_chuck(plugins, tmp_path):
                   "while (true) { p1 => s.next; 1::ms => now; }\n")
     levels, _ = run(plugins, "chuck", "prepare", 48000, 128, "run", 0.2, 128, "level", 0)
     assert levels[0][0] > 0.01  # the built-in, unpatched
-    # program set after prepare, as Load does
+    # program set after prepare, as Load does. Each set restores the state, so each queues a compile
+    # on the worker; wait for the second, which restarts the program.
     levels, state = run(plugins, "chuck", "prepare", 48000, 128, "set", "program", ck, "set", "p1", 0.75,
-                        "in", 1, 0.3, "run", 0.3, 300, "level", 2, "level", 3, "state")
+                        "in", 1, 0.3, "wait", 1.0, "run", 0.3, 300, "level", 2, "level", 3, "state")
     assert levels[2][1] == pytest.approx(0.75, abs=1e-6)
     assert levels[3][1] == pytest.approx(0.3, abs=1e-6)
     assert f'program="{ck}"' in state
+
+
+def wav(path, frames, sample):
+    """16-bit mono 48 kHz, every sample `sample` (-1..1)"""
+    data = struct.pack("<h", int(sample * 32767)) * frames
+    path.write_bytes(b"RIFF" + struct.pack("<I", 36 + len(data)) + b"WAVEfmt "
+                     + struct.pack("<IHHIIHH", 16, 1, 1, 48000, 96000, 2, 16) + b"data" + struct.pack("<I", len(data)) + data)
+
+
+def test_edrums(plugins):
+    # one rising edge on Clock plays step 0 of drum 1's default 4 of 16; blocks of 300 are split
+    levels, state = run(plugins, "edrums", "prepare", 48000, 128, "in", 0, 1, "run", 0.2, 300, "level", 0, "level", 2,
+                        "level", 3, "state")
+    assert levels[0][0] > 0.01  # Out L
+    assert levels[2][0] > 0.01  # 1 Out: the kick
+    assert levels[3][0] == 0.0  # 2 Out: the tom has no hits
+    assert 'id="1:hits" value="4.0"' in state and 'id="1:rate" value="7.0"' in state  # x1
+    # voice off: the track only triggers
+    levels, _ = run(plugins, "edrums", "set", "1:voice", 0, "prepare", 48000, 128, "in", 0, 1, "run", 0.2, 300,
+                    "level", 2)
+    assert levels[2][0] == 0.0
+    levels, _ = run(plugins, "edrums", "set", "1:hits", 0, "prepare", 48000, 128, "in", 0, 1, "run", 0.2, 300,
+                    "level", 0)
+    assert levels[0][0] == 0.0
+
+
+def test_pstretch(plugins, tmp_path):
+    # mix 0 is the dry input
+    levels, _ = run(plugins, "pstretch", "prepare", 48000, 128, "set", "a:mix", 0, "in", 0, 0.3, "run", 0.2, 300,
+                    "level", 2)
+    assert levels[2][1] == pytest.approx(0.3, abs=1e-6)
+    # a clip from the folder set in the state, stretched at 1x
+    wav(tmp_path / "1.wav", 48000, 0.25)
+    levels, state = run(plugins, "pstretch", "prepare", 48000, 128, "set", "root", tmp_path, "set", "a:source", 2,
+                        "set", "a:stretch", 0, "run", 1.5, 300, "level", 2, "state")
+    assert levels[2][0] > 0.05  # A Out
+    assert f'root="{tmp_path}"' in state
+
+
+def test_bard(plugins, tmp_path):
+    (tmp_path / "0").mkdir()
+    wav(tmp_path / "0" / "a.wav", 48000 * 5, 0.25)
+    (tmp_path / "bard.cfg").write_text("resume=off\n")
+    # the worker opens the first book once it has scanned the root
+    levels, state = run(plugins, "bard", "prepare", 48000, 128, "set", "root", tmp_path, "set", "b:volume", 0,
+                        "wait", 0.3, "run", 0.5, 300, "level", 0, "level", 2, "level", 3, "state")
+    assert levels[2][1] == pytest.approx(0.25, abs=1e-3)  # A Out: the book at volume 1
+    assert levels[3][1] == 0.0  # B Out at volume 0
+    assert levels[0][0] > 0.1
+    assert f'root="{tmp_path}"' in state
+
+
+def test_glitch(plugins):
+    levels, _ = run(plugins, "glitch", "prepare", 48000, 128, "set", "a:algo", 3, "run", 0.2, 300, "level", 0, "level", 2)
+    assert levels[0][0] > 1e-3 and levels[2][0] > 1e-3
+    levels, _ = run(plugins, "glitch", "set", "a:level", 0, "set", "b:level", 0, "prepare", 48000, 128, "run", 0.2, 300,
+                    "level", 0)
+    assert levels[0][0] == 0.0

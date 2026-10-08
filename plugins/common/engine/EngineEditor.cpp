@@ -6,10 +6,77 @@
 
 namespace ssp::engine {
 
+// BarParamEditor stacks every page as a row; the screen holds 6. This shows the 6 rows around the
+// active page, so Up and Down reach every page.
 class EngineEditor::PageView : public ssp::BarParamEditor {
 public:
-    explicit PageView(EngineProcessor& p) : ssp::BarParamEditor(&p, false) {}
+    static constexpr unsigned ROWS = 6;
+
+    PageView(EngineProcessor& p, std::vector<int> groups) : ssp::BarParamEditor(&p, false), groups_(std::move(groups)) {}
     unsigned page() const { return paramPage_; }
+
+    void eventUp(bool longPress) override {
+        if (longPress) goTo(groupStart(-1));
+        else BarParamEditor::eventUp(longPress);
+        layout();
+    }
+    void eventDown(bool longPress) override {
+        if (longPress) goTo(groupStart(1));
+        else BarParamEditor::eventDown(longPress);
+        layout();
+    }
+
+    // the global pages, remembering where we were
+    void toGlobals() {
+        if (groups_.empty() || groups_[paramPage_] == groups_.back()) return;
+        back_ = paramPage_;
+        for (unsigned pg = 0; pg < groups_.size(); pg++)
+            if (groups_[pg] == groups_.back()) {
+                goTo(pg);
+                break;
+            }
+        layout();
+    }
+    void fromGlobals() {
+        goTo(back_);
+        layout();
+    }
+
+    void layout() {
+        if (paramPage_ < top_) top_ = paramPage_;
+        if (paramPage_ >= top_ + ROWS) top_ = paramPage_ - ROWS + 1;
+        for (unsigned pg = 0; pg < controlPages_.size(); pg++) {
+            bool shown = pg >= top_ && pg < top_ + ROWS;
+            for (unsigned i = 0; i < 4; i++) {
+                auto& c = controlPages_[pg].control_[i];
+                if (!c) continue;
+                if (shown) setParamBounds(pg - top_, i, c);
+                c->setVisible(shown);
+            }
+        }
+    }
+
+private:
+    // first page of the group `dir` groups away, wrapping
+    unsigned groupStart(int dir) const {
+        if (groups_.empty()) return paramPage_;
+        std::vector<unsigned> starts;
+        for (unsigned pg = 0; pg < groups_.size(); pg++)
+            if (pg == 0 || groups_[pg] != groups_[pg - 1]) starts.push_back(pg);
+        int at = 0;
+        for (unsigned i = 0; i < starts.size(); i++)
+            if (starts[i] <= paramPage_) at = int(i);
+        int n = int(starts.size());
+        return starts[size_t(((at + dir) % n + n) % n)];
+    }
+    void goTo(unsigned pg) {
+        while (paramPage_ < pg) chgParamPage(1, false);
+        while (paramPage_ > pg) chgParamPage(-1, false);
+    }
+
+    std::vector<int> groups_;
+    unsigned top_ = 0;   // the first page shown
+    unsigned back_ = 0;  // where a long Left returns to
 };
 
 static std::shared_ptr<ssp::ParamButton> button(juce::RangedAudioParameter* p, unsigned fh, juce::Colour clr) {
@@ -24,7 +91,8 @@ EngineEditor::EngineEditor(EngineProcessor& p, std::vector<ParamPage> pages,
       buttons_(std::move(buttons)),
       loadBtn_("Load", [&](bool b) { onLoadButton(b); }, 24, juce::Colours::cyan),
       cancelBtn_("Cancel", [&](bool b) { onCancelButton(b); }, 24, juce::Colours::white) {
-    buttons_.resize(4, nullptr);
+    buttons_.resize(8, nullptr);
+    buttons_[B_LOAD] = nullptr;
     main_ = makePageView();
     addView(main_);
 
@@ -45,7 +113,9 @@ EngineEditor::EngineEditor(EngineProcessor& p, std::vector<ParamPage> pages,
 }
 
 std::shared_ptr<EngineEditor::PageView> EngineEditor::makePageView() {
-    auto view = std::make_shared<PageView>(processor_);
+    std::vector<int> groups;
+    for (auto& pg : pages_) groups.push_back(pg.group);
+    auto view = std::make_shared<PageView>(processor_, groups);
     for (auto& pg : pages_) {
         std::shared_ptr<ssp::BaseParamControl> c[4];
         for (int i = 0; i < 4; i++)
@@ -53,9 +123,10 @@ std::shared_ptr<EngineEditor::PageView> EngineEditor::makePageView() {
                 c[i] = std::make_shared<ssp::BarParamControl>(*pg.c[i].param, pg.c[i].coarse, pg.c[i].fine, pg.colour);
         view->addParamPage(c[0], c[1], c[2], c[3]);
     }
-    view->addButtonPage(button(buttons_[0], 24, juce::Colours::cyan), button(buttons_[1], 24, juce::Colours::cyan),
-                        button(buttons_[2], 24, juce::Colours::cyan), button(buttons_[3], 24, juce::Colours::cyan),
-                        nullptr, nullptr, nullptr, nullptr);
+    view->layout();
+    std::shared_ptr<ssp::ParamButton> b[8];
+    for (int i = 0; i < 8; i++) b[i] = button(buttons_[size_t(i)], 24, juce::Colours::cyan);
+    view->addButtonPage(b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]);
     return view;
 }
 
@@ -145,21 +216,23 @@ void EngineEditor::onRightButton(bool v) {
 
 void EngineEditor::eventLeft(bool longPress) {
     if (fileMode()) base_type::eventLeft(longPress);
+    else if (longPress) main_->fromGlobals();
 }
 
 void EngineEditor::eventRight(bool longPress) {
     if (fileMode()) base_type::eventRight(longPress);
+    else if (longPress) main_->toGlobals();
 }
 
 EngineMiniEditor::EngineMiniEditor(EngineProcessor& p, const std::vector<ParamPage>& pages,
                                    const std::vector<juce::RangedAudioParameter*>& buttons)
     : PageMiniView(&p) {
     static constexpr unsigned fh = 12 * COMPACT_UI_SCALE;
-    std::vector<juce::RangedAudioParameter*> b = buttons;
-    b.resize(4, nullptr);
-    addButtonPage(button(b[0], fh, juce::Colours::cyan), button(b[1], fh, juce::Colours::cyan),
-                  button(b[2], fh, juce::Colours::cyan), button(b[3], fh, juce::Colours::cyan), nullptr, nullptr,
-                  nullptr, nullptr);
+    std::vector<juce::RangedAudioParameter*> p8 = buttons;
+    p8.resize(8, nullptr);
+    std::shared_ptr<ssp::ParamButton> b[8];
+    for (int i = 0; i < 8; i++) b[i] = button(p8[size_t(i)], fh, juce::Colours::cyan);
+    addButtonPage(b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]);
     setPages(pages);
 }
 

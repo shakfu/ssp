@@ -6,11 +6,23 @@
 #include <string>
 #include <vector>
 
-#include "Station.h"
-#include "Stream.h"
 #include "engine/Engine.h"
+#include "engine/Station.h"
+#include "engine/Stream.h"
 
 namespace radio {
+
+using ssp::engine::Station;
+using ssp::engine::Stream;
+
+// The Radio Music settings this plugin uses, from SETTINGS.TXT in `root`; -1 where absent.
+// Keys are case-insensitive. crossfadeTime, or DECLICK on older firmware, sets the fade.
+struct Settings {
+    int fadeMs = -1;
+    int startPotImmediate = -1;
+    int startCvImmediate = -1;
+};
+Settings readSettings(const std::string& root);
 
 enum class Route { Stereo, Split, Random };
 

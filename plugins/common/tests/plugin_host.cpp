@@ -7,6 +7,7 @@
 //                        value when NAME is a parameter id), then restores the state
 //   in CH VALUE          holds input CH at VALUE
 //   run SECONDS BLOCK    processes, sleeping 2 ms per block so the plugin's worker thread runs
+//   wait SECONDS         sleeps, for work the worker does without audio (a compile, a file open)
 //   level CH             prints "level CH <mean |x|> <last sample>" over the last run's final block
 //   state                prints the state XML
 
@@ -112,6 +113,9 @@ int main(int argc, char** argv) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(2));
             }
             lastBlock = block;
+        } else if (cmd == "wait") {
+            std::this_thread::sleep_for(std::chrono::duration<double>(std::atof(argv[a + 1])));
+            a += 1;
         } else if (cmd == "level") {
             int c = std::atoi(argv[a + 1]);
             a += 1;

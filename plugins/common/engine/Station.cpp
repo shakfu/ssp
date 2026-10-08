@@ -9,10 +9,9 @@
 
 #include <algorithm>
 #include <cctype>
-#include <cstdlib>
 #include <cstring>
 
-namespace radio {
+namespace ssp::engine {
 
 unsigned Station::bytesPerFrame() const {
     static constexpr unsigned bytes[] = { 2, 3, 4, 4 };
@@ -114,8 +113,7 @@ bool nameLess(const std::string& a, const std::string& b) {
     return a.size() - i < b.size() - j;
 }
 
-// entries of `dir` that are directories (dirs) or not, excluding hidden ones
-static std::vector<std::string> list(const std::string& dir, bool dirs) {
+std::vector<std::string> listDir(const std::string& dir, bool dirs) {
     std::vector<std::string> out;
     DIR* d = opendir(dir.c_str());
     if (d == nullptr) return out;
@@ -133,7 +131,7 @@ static std::vector<std::string> list(const std::string& dir, bool dirs) {
 
 std::vector<Station> scanBank(const std::string& dir) {
     std::vector<Station> out;
-    for (auto& name : list(dir, false)) {
+    for (auto& name : listDir(dir, false)) {
         Station st;
         if (probe(dir + "/" + name, st)) out.push_back(std::move(st));
     }
@@ -142,33 +140,9 @@ std::vector<Station> scanBank(const std::string& dir) {
 
 std::vector<std::string> scanBanks(const std::string& root) {
     std::vector<std::string> out;
-    for (auto& name : list(root, true)) out.push_back(root + "/" + name);
+    for (auto& name : listDir(root, true)) out.push_back(root + "/" + name);
     if (out.empty()) out.push_back(root);
     return out;
-}
-
-Settings readSettings(const std::string& root) {
-    Settings st;
-    std::string path;
-    for (auto& name : list(root, false))
-        if (strcasecmp(name.c_str(), "settings.txt") == 0) path = root + "/" + name;
-    FILE* f = path.empty() ? nullptr : fopen(path.c_str(), "r");
-    if (f == nullptr) return st;
-    char line[128];
-    while (fgets(line, sizeof(line), f)) {
-        char* eq = std::strchr(line, '=');
-        if (eq == nullptr) continue;
-        *eq = '\0';
-        std::string key = line;
-        key.erase(0, key.find_first_not_of(" \t"));
-        key.erase(key.find_last_not_of(" \t") + 1);
-        int v = std::atoi(eq + 1);
-        if (strcasecmp(key.c_str(), "crossfadeTime") == 0 || strcasecmp(key.c_str(), "DECLICK") == 0) st.fadeMs = v;
-        else if (strcasecmp(key.c_str(), "startPotImmediate") == 0) st.startPotImmediate = v != 0;
-        else if (strcasecmp(key.c_str(), "startCVImmediate") == 0) st.startCvImmediate = v != 0;
-    }
-    fclose(f);
-    return st;
 }
 
 bool Reader::open(const Station& st, uint64_t frame) {
@@ -228,4 +202,4 @@ size_t Reader::read(float* dst, size_t n) {
     return done;
 }
 
-}  // namespace radio
+}  // namespace ssp::engine

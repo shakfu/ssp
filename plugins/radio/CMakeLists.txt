@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(RADIO VERSION 0.1.0)
+project(RADIO VERSION 0.1.1)
 
 include_directories("${PROJECT_SOURCE_DIR}/../common")
 
@@ -25,9 +25,9 @@ target_sources(RADIO
         Source/PluginEditor.cpp
         Source/PluginProcessor.cpp
         Source/RadioEngine.cpp
-        Source/Station.cpp
         ${COMMON_SRC}
         ${ENGINE_SRC}
+        ${STREAM_SRC}
         )
 
 target_compile_definitions(RADIO

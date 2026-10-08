@@ -39,6 +39,8 @@ Stations stream from the card, so their length is unlimited.
 - **Route**: `stereo` centres both decks; `split` puts A left, B right; `random` pans each deck at random.
 - Buttons 1 and 2 reset deck A and deck B: playback jumps to Start.
 
+- Up and Down step through the pages. A long Up or Down jumps to the first page of the other deck; a long Right (Prog +) to the global pages, and a long Left (Prog -) back.
+
 ## I/O
 
 | Input | |

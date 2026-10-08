@@ -1,8 +1,15 @@
 #include "RadioEngine.h"
 
+#include "engine/Dsp.h"
+
+#include <strings.h>
+
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 namespace radio {
 
@@ -19,11 +26,6 @@ static constexpr float START_STEP = 1.0f / 256.0f;  // a Start move smaller than
 static int64_t nowMs() {
     using namespace std::chrono;
     return duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
-}
-
-// DaisySP's SoftLimit
-static float softLimit(float x) {
-    return x * (27.0f + x * x) / (27.0f + 9.0f * x * x);
 }
 
 RadioEngine::RadioEngine() {
@@ -223,8 +225,8 @@ void RadioEngine::process(const float* const* in, float* const* out, int n) {
         float A = mono_[0][size_t(i)] * la, B = mono_[1][size_t(i)] * lb;
         out[O_A][i] = A;
         out[O_B][i] = B;
-        out[O_L][i] = softLimit(A * gA_ * pLa + B * gB_ * pLb);
-        out[O_R][i] = softLimit(A * gA_ * pRa + B * gB_ * pRb);
+        out[O_L][i] = ssp::engine::softLimit(A * gA_ * pLa + B * gB_ * pLb);
+        out[O_R][i] = ssp::engine::softLimit(A * gA_ * pRa + B * gB_ * pRb);
     }
     clock_.fetch_add(uint64_t(n), std::memory_order_relaxed);
 }
@@ -261,7 +263,7 @@ void RadioEngine::scanBank(int d, int bank) {
     auto& w = wk_[d];
     auto& s = sh_[d];
     w.bank = bank;
-    w.stations = bank >= 0 && bank < int(bankDirs_.size()) ? radio::scanBank(bankDirs_[size_t(bank)])
+    w.stations = bank >= 0 && bank < int(bankDirs_.size()) ? ssp::engine::scanBank(bankDirs_[size_t(bank)])
                                                           : std::vector<Station>();
     w.rescanAt = nowMs() + RESCAN_MS;
     s.stations.store(int(w.stations.size()), std::memory_order_relaxed);
@@ -275,7 +277,7 @@ void RadioEngine::scanBank(int d, int bank) {
 void RadioEngine::idle() {
     bool rescanAll = rootChanged_.exchange(false);
     if (rescanAll) {
-        bankDirs_ = scanBanks(root());
+        bankDirs_ = ssp::engine::scanBanks(root());
         banks_.store(int(bankDirs_.size()));
     }
     for (int d = 0; d < DECKS; d++) {
@@ -294,6 +296,30 @@ void RadioEngine::idle() {
         if (s.reset.exchange(false) && w.open >= 0) openStation(d, w.open, false);
         if (w.live != nullptr) w.live->fill();
     }
+}
+
+Settings readSettings(const std::string& root) {
+    Settings st;
+    std::string path;
+    for (auto& name : ssp::engine::listDir(root, false))
+        if (strcasecmp(name.c_str(), "settings.txt") == 0) path = root + "/" + name;
+    FILE* f = path.empty() ? nullptr : std::fopen(path.c_str(), "r");
+    if (f == nullptr) return st;
+    char line[128];
+    while (std::fgets(line, sizeof(line), f)) {
+        char* eq = std::strchr(line, '=');
+        if (eq == nullptr) continue;
+        *eq = '\0';
+        std::string key = line;
+        key.erase(0, key.find_first_not_of(" \t"));
+        key.erase(key.find_last_not_of(" \t") + 1);
+        int v = std::atoi(eq + 1);
+        if (strcasecmp(key.c_str(), "crossfadeTime") == 0 || strcasecmp(key.c_str(), "DECLICK") == 0) st.fadeMs = v;
+        else if (strcasecmp(key.c_str(), "startPotImmediate") == 0) st.startPotImmediate = v != 0;
+        else if (strcasecmp(key.c_str(), "startCVImmediate") == 0) st.startCvImmediate = v != 0;
+    }
+    std::fclose(f);
+    return st;
 }
 
 }  // namespace radio

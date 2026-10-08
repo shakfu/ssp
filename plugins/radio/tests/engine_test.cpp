@@ -26,6 +26,7 @@ static int failures = 0;
 #define NEAR(a, b, tol) CHECK(std::fabs(double(a) - double(b)) <= (tol))
 
 using namespace radio;
+using namespace ssp::engine;
 
 static constexpr float SR = 48000.0f;
 static constexpr int BLOCK = 128;

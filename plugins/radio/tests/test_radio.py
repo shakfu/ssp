@@ -21,7 +21,7 @@ def build(tmp_path_factory, name, *flags):
     cmd = [
         cxx, "-std=c++17", "-Wall", "-pthread", *flags,
         f"-I{SRC}", f"-I{ROOT / 'plugins' / 'common'}",
-        str(HERE / "engine_test.cpp"), str(SRC / "RadioEngine.cpp"), str(SRC / "Station.cpp"),
+        str(HERE / "engine_test.cpp"), str(SRC / "RadioEngine.cpp"), str(ROOT / "plugins" / "common" / "engine" / "Station.cpp"),
         "-o", str(exe),
     ]
     subprocess.run(cmd, check=True)

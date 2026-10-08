@@ -9,7 +9,11 @@ Plugins and tools for the Percussa SSP.
 | `plugins/radio` | `rdio`: dual virtual Radio Music. See [README](plugins/radio/README.md) |
 | `plugins/csound` | `csnd`: Csound 7 host. See [README](plugins/csound/README.md) |
 | `plugins/chuck` | `chuk`: ChucK host. See [README](plugins/chuck/README.md) |
-| `plugins/common` | shared SSP plugin framework, from TheTechnobear; `engine/` is shared by radio, csound and chuck. See [docs/dev/engines.md](docs/dev/engines.md) |
+| `plugins/edrums` | `edrm`: four-track Euclidean drum machine. See [README](plugins/edrums/README.md) |
+| `plugins/pstretch` | `strc`: dual real-time PaulStretch. See [README](plugins/pstretch/README.md) |
+| `plugins/bard` | `bard`: dual spoken-word player with bookmarks. See [README](plugins/bard/README.md) |
+| `plugins/glitch` | `gltc`: dual lo-fi noise voice, GPLv3. See [README](plugins/glitch/README.md) |
+| `plugins/common` | shared SSP plugin framework, from TheTechnobear; `engine/` is shared by the engine plugins. See [docs/dev/engines.md](docs/dev/engines.md) |
 | `presets` | rack presets, installed with `make install-presets`. See [README](presets/README.md) |
 | `tools/py2rack` | generate and decode rack presets offline. See [README](tools/py2rack/README.md) |
 | `external/softcut-lib` | vendored, patched copy of monome's softcut |
@@ -29,4 +33,4 @@ See [docs/BUILDING.md](docs/BUILDING.md).
 
 Forked from [TheTechnobear/SSP](https://github.com/TheTechnobear/SSP) (Mark Harris).
 `plugins/common` and the trax code in `rack` are his work; his other plugins are removed.
-Licence: AGPL-3.0, see [LICENSE](LICENSE). softcut is GPL-3.0.
+Licence: AGPL-3.0, see [LICENSE](LICENSE). softcut and `plugins/glitch` are GPL-3.0.

@@ -5,9 +5,10 @@
 #include <string>
 #include <vector>
 
-namespace radio {
+namespace ssp::engine {
 
 // One playable file: a headerless 16-bit mono .raw (RadioMusic's format) or a PCM/float .wav.
+// Shared by radio, pstretch and bard.
 struct Station {
     enum Format { PCM16, PCM24, PCM32, FLOAT32 };
     std::string path, name;
@@ -31,14 +32,8 @@ std::vector<Station> scanBank(const std::string& dir);
 // The banks under `root`: its subdirectories, in name order. If it has none, root itself.
 std::vector<std::string> scanBanks(const std::string& root);
 
-// The Radio Music settings this plugin uses, from SETTINGS.TXT in `root`; -1 where absent.
-// Keys are case-insensitive. crossfadeTime, or DECLICK on older firmware, sets the fade.
-struct Settings {
-    int fadeMs = -1;
-    int startPotImmediate = -1;
-    int startCvImmediate = -1;
-};
-Settings readSettings(const std::string& root);
+// The entries of `dir` that are directories (dirs) or not, in name order, without hidden ones.
+std::vector<std::string> listDir(const std::string& dir, bool dirs);
 
 // Sequential reader that loops at the end of the file and mixes channels to mono.
 class Reader {
@@ -61,4 +56,4 @@ private:
     std::vector<uint8_t> raw_;
 };
 
-}  // namespace radio
+}  // namespace ssp::engine

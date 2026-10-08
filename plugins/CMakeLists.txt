@@ -4,6 +4,10 @@ project(plugins)
 add_subdirectory(sfct)
 add_subdirectory(rack)
 add_subdirectory(radio)
+add_subdirectory(glitch)
+add_subdirectory(edrums)
+add_subdirectory(pstretch)
+add_subdirectory(bard)
 
 # csound and chuck link prebuilt libraries: `make deps` builds them
 if (TARGET_SSP)
