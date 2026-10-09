@@ -33,6 +33,4 @@ See [docs/BUILDING.md](docs/BUILDING.md).
 
 ## Origin
 
-Forked from [TheTechnobear/SSP](https://github.com/TheTechnobear/SSP) (Mark Harris).
-`plugins/common` and the trax code in `rack` are his work; his other plugins are removed.
-Licence: AGPL-3.0, see [LICENSE](LICENSE). softcut and `plugins/glitch` are GPL-3.0.
+Forked from [TheTechnobear/SSP](https://github.com/TheTechnobear/SSP) (Mark Harris). `plugins/common` and the trax code in `rack` are his work; his other plugins are removed. Licence: AGPL-3.0, see [LICENSE](LICENSE). softcut and `plugins/glitch` are GPL-3.0.
