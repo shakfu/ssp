@@ -8,8 +8,10 @@ The plugins are cross-compiled for the SSP's ARM CPU. The build is tested on Ubu
 git submodule update --init --recursive
 sudo apt install cmake clang lld pkg-config curl zip flex bison libasound2-dev \
     libx11-dev libxext-dev libxrandr-dev libxinerama-dev libxcursor-dev \
-    libxrender-dev libxcomposite-dev libfreetype-dev libfontconfig1-dev
+    libxrender-dev libxcomposite-dev libfreetype-dev libfontconfig1-dev llvm-dev
 ```
+
+`llvm-dev` is for the host tests of the faust plugin; the SSP build uses the buildroot's LLVM.
 
 The X11, freetype and fontconfig headers are for `juceaide`, a tool JUCE builds for the host during configure. flex, bison and the ALSA headers are for ChucK.
 
@@ -21,7 +23,7 @@ make
 
 On first run, `make` downloads the SSP buildroot (608 MB) into `./buildroot`. Set `SSP_BUILDROOT` to use an existing one. It then configures with the `ssp toolchain` preset (`xcSSP.cmake`) and builds into `build.cmake.ssp`.
 
-The csound and chuck plugins link Csound and ChucK, which `make deps` downloads and cross-builds into `build/deps/ssp` (about two minutes). Without them, `make` builds the other plugins and skips these two. Run `make configure` after `make deps`.
+The csound, chuck and faust plugins link Csound, ChucK and libfaust, which `make deps` downloads and cross-builds into `build/deps/ssp` (about three minutes). Without them, `make` builds the other plugins and skips these three. Run `make configure` after `make deps`.
 
 Plugins land in `build.cmake.ssp/plugins/*/*_artefacts/Release/VST3/*.vst3/Contents/armv7l-linux/*.so`.
 
@@ -30,8 +32,9 @@ Plugins land in `build.cmake.ssp/plugins/*/*_artefacts/Release/VST3/*.vst3/Conte
 | `make` | build all plugins |
 | `make configure` | re-run CMake configure |
 | `make buildroot` | download the buildroot only |
-| `make deps` | build libsndfile, Csound and ChucK for the SSP (`scripts/build_deps.sh ssp`) |
+| `make deps` | build libsndfile, Csound, ChucK and libfaust for the SSP (`scripts/build_deps.sh ssp`) |
 | `make install [MOD=sfct]` | copy all plugins, or one, to the mounted SD card |
+| `make install-faust` | copy the Faust libraries and `fstr` examples to the card's `BOOT/faust` |
 | `make install-presets [PRESETS=dir]` | check JSON presets with `py2rack`, then copy `presets/` or `dir` to the card |
 | `make deploy` | copy all plugins to the SSP over `scp` |
 | `make deploy-mod MOD=sfct` | copy one plugin over `scp` |

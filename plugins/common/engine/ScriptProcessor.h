@@ -26,6 +26,8 @@ public:
 
     // The controls the running program declares, four to a page; all of them if it declares none.
     std::vector<ParamPage> pages();
+    // Message thread: sets each control the running program gives a default to that default.
+    void applyDefaults();
 
 protected:
     void control(const float* const* in, int n) override;
@@ -55,6 +57,7 @@ protected:
 private:
     ScriptProcessor& processor_;
     unsigned specsGen_;
+    bool loading_ = false;  // a program chosen with Load: its defaults apply once it compiles
 };
 
 // Compact editor for rack, with the same pages.

@@ -11,9 +11,11 @@
 | `EngineEditor.*` | parameter pages, scrolled 6 rows at a time; page groups (a deck or track, then the globals) that a long Up, Down, Left or Right jumps between; status panel; file browser behind Load; up to 7 buttons (5 is Load); a compact view for rack | all |
 | `Dsp.h` | `softLimit` (DaisySP's) and a biquad section with infrasonic's coefficients | radio, edrums, pstretch, bard, glitch |
 | `Station.*`, `Stream.h` | WAV and `.raw` probing, folder scans in name order, a looping mono reader; a ring the worker fills and the audio thread drains | radio, pstretch, bard |
-| `ReloadGate.h` | lock-free handoff of an instance between the worker and audio threads | csound, chuck, pstretch |
-| `ScriptEngine.*` | program loading, built-in fallback, controls `p1`..`p16` with the program's `@pN` labels and ranges, error text | csound, chuck |
-| `ScriptProcessor.*` | eight in, eight out, `p1`..`p16`, the program path in the preset; editors that show only declared controls, rebuilt in `onSSPTimer` after a load | csound, chuck |
+| `ReloadGate.h` | lock-free handoff of an instance between the worker and audio threads | csound, chuck, faust, pstretch |
+| `ScriptEngine.*` | program loading, built-in fallback, controls `p1`..`p16` with the program's `@pN` labels and ranges (or the compiler's, through `declared()`), error text | csound, chuck, faust |
+| `ScriptProcessor.*` | eight in, eight out, `p1`..`p16`, the program path in the preset; editors that show only declared controls, rebuilt in `onSSPTimer` after a load | csound, chuck, faust |
+
+`FaustArch.h`, `FaustEngine.h` and `FaustProcessor.*` host a compiled Faust kernel, used by `chorus`. `faust` is a `ScriptEngine` over libfaust's interpreter. See [faust.md](faust.md).
 
 A plugin is an `Engine` subclass plus a `PluginProcessor` that derives from `EngineProcessor` or `ScriptProcessor`. `SSPApi.h` requires that class name.
 

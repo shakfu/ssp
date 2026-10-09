@@ -1,0 +1,38 @@
+libfaust 2.85.9: createDSPFactoryFromString and createDSPFactoryFromSignals build the JIT before
+they store the target and optimisation level, so the JIT uses the host CPU and always the maximum
+level. On the SSP, LLVM 9 names the host CPU "generic": ARMv4 soft-float code, whose calls to
+libm's hard-float tanf lose the result. Upstream fixed the target in fc1031d214 (2.88.0), not the
+level. See docs/dev/faust-jit-tan.md.
+
+--- a/compiler/generator/llvm/llvm_dynamic_dsp_aux.cpp
++++ b/compiler/generator/llvm/llvm_dynamic_dsp_aux.cpp
+@@ -729,9 +729,12 @@
+                 llvm_dynamic_dsp_factory_aux* factory_aux =
+                     static_cast<llvm_dynamic_dsp_factory_aux*>(createFactory(
+                         name_app, dsp_content, argv1.size() - 1, argv1.data(), error_msg, true));
+-                if (factory_aux && factory_aux->initJIT(error_msg)) {
+-                    factory_aux->setTarget(target);
++                // initJIT builds the JIT for the target and optimisation level: set them first
++                if (factory_aux) {
++                    factory_aux->setTarget((target == "") ? getDSPMachineTarget() : target);
+                     factory_aux->setOptlevel(opt_level);
++                }
++                if (factory_aux && factory_aux->initJIT(error_msg)) {
+                     factory_aux->setClassName(getParam(argc, argv, "-cn", "mydsp"));
+                     factory_aux->setName(name_app);
+                     llvm_dsp_factory* factory = new llvm_dsp_factory(factory_aux);
+@@ -766,9 +769,12 @@
+ 
+         llvm_dynamic_dsp_factory_aux* factory_aux = static_cast<llvm_dynamic_dsp_factory_aux*>(
+             createFactory(name_app, signals, argv1.size() - 1, argv1.data(), error_msg));
+-        if (factory_aux && factory_aux->initJIT(error_msg)) {
+-            factory_aux->setTarget(target);
++        // initJIT builds the JIT for the target and optimisation level: set them first
++        if (factory_aux) {
++            factory_aux->setTarget((target == "") ? getDSPMachineTarget() : target);
+             factory_aux->setOptlevel(opt_level);
++        }
++        if (factory_aux && factory_aux->initJIT(error_msg)) {
+             factory_aux->setClassName(getParam(argc, argv, "-cn", "mydsp"));
+             factory_aux->setName(name_app);
+             llvm_dsp_factory* factory = new llvm_dsp_factory(factory_aux);

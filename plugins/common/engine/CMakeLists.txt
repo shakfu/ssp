@@ -9,6 +9,11 @@ set(STREAM_SRC
         ../common/engine/Station.cpp
 )
 
+# plugins built on FaustProcessor add this too
+set(FAUST_SRC
+        ../common/engine/FaustProcessor.cpp
+)
+
 # plugins built on ScriptProcessor add these too
 set(SCRIPT_SRC
         ../common/engine/ScriptEngine.cpp

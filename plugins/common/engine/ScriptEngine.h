@@ -36,13 +36,17 @@ public:
     std::string path() const;
     // The last load's error, or empty.
     std::string error() const;
+    // UI thread: lines about the running program for the status panel, or empty.
+    virtual std::string status() const { return {}; }
 
     // A control as the running program declares it.
     struct ParamSpec {
         std::string label, unit;  // label empty: undeclared
         float min = 0.0f, max = 1.0f;
         bool log = false;
+        float def = -1.0f;  // the program's default, 0..1; negative: none
         float map(float normalised) const;
+        float unmap(float value) const;  // clamped to 0..1
     };
     using Specs = std::array<ParamSpec, PARAMS>;
     static Specs parseSpecs(const std::string& text);
@@ -68,6 +72,8 @@ protected:
     // program alone.
     virtual bool compile(const std::string& text, const std::string& path, std::string& error) = 0;
     virtual const char* builtin() const = 0;
+    // After a compile() that succeeded, on its thread: the controls of `text`. By default its @pN lines.
+    virtual Specs declared(const std::string& text) const { return parseSpecs(text); }
 
     float sampleRate() const { return sampleRate_; }
     int maxBlock() const { return maxBlock_; }

@@ -1,5 +1,6 @@
 #include "ScriptEngine.h"
 
+#include <algorithm>
 #include <vector>
 
 #include <cmath>
@@ -32,6 +33,11 @@ bool ScriptEngine::readText(const std::string& path, std::string& text) {
 
 float ScriptEngine::ParamSpec::map(float n) const {
     return log ? min * std::pow(max / min, n) : min + (max - min) * n;
+}
+
+float ScriptEngine::ParamSpec::unmap(float v) const {
+    float n = log ? std::log(v / min) / std::log(max / min) : (v - min) / (max - min);
+    return std::isfinite(n) ? std::min(std::max(n, 0.0f), 1.0f) : 0.0f;
 }
 
 // Lines starting with ; or // that hold "@pN label [min max [unit]] [log]"
@@ -150,8 +156,8 @@ void ScriptEngine::run(const std::string& path) {
         fellBack = compile(builtin(), std::string(), ignored);
     }
     running_ = running_ || ok || fellBack;
-    if (ok) setSpecs(parseSpecs(path.empty() ? std::string(builtin()) : text));
-    else if (fellBack) setSpecs(parseSpecs(builtin()));
+    if (ok) setSpecs(declared(path.empty() ? std::string(builtin()) : text));
+    else if (fellBack) setSpecs(declared(builtin()));
     // keep a failed choice, so a preset saved now still names it
     std::lock_guard<std::mutex> lock(lock_);
     path_ = path;

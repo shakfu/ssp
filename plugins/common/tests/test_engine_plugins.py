@@ -23,7 +23,7 @@ def plugins():
     cxx = shutil.which("clang++") or shutil.which("c++")
     if cxx is None or shutil.which("cmake") is None:
         pytest.skip("needs cmake and a C++ compiler")
-    if not (DEPS / "lib" / "libchuck.a").exists():
+    if not all((DEPS / "lib" / lib).exists() for lib in ("libchuck.a", "libfaust.a")):
         subprocess.run([ROOT / "scripts" / "build_deps.sh", "host"], check=True, capture_output=True)
     subprocess.run(["cmake", "-S", ROOT, "-B", BUILD, "-DCMAKE_BUILD_TYPE=Release"], check=True, capture_output=True)
     targets = [f"{name.upper()}_VST3" for name in PRODUCTS]
@@ -36,7 +36,7 @@ def plugins():
 
 # source folder -> product name; Synthor lists only names of up to four characters
 PRODUCTS = {"radio": "rdio", "csound": "csnd", "chuck": "chuk", "edrums": "edrm", "pstretch": "strc", "bard": "bard",
-            "glitch": "gltc"}
+            "glitch": "gltc", "chorus": "chrs", "faust": "fstr"}
 
 
 def so(name):
@@ -161,3 +161,27 @@ def test_glitch(plugins):
     levels, _ = run(plugins, "glitch", "set", "a:level", 0, "set", "b:level", 0, "prepare", 48000, 128, "run", 0.2, 300,
                     "level", 0)
     assert levels[0][0] == 0.0
+
+
+def test_chorus(plugins):
+    # one block: mix 0 is dry; a mix CV of 1.0 opens the wet path, whose 5 ms delay is still silent
+    levels, _ = run(plugins, "chorus", "set", "mix", 0, "prepare", 48000, 128, "in", 0, 0.3, "run", 0.003, 128,
+                    "level", 0)
+    assert levels[0][1] == pytest.approx(0.3, abs=1e-6)
+    levels, state = run(plugins, "chorus", "set", "mix", 0, "prepare", 48000, 128, "in", 0, 0.3, "in", 4, 1.0,
+                        "run", 0.003, 128, "level", 0, "state")
+    assert levels[0][1] < 0.29
+    assert 'id="mix" value="0"' in state and 'id="rate" value="0.3' in state
+
+
+def test_faust(plugins, tmp_path):
+    levels, _ = run(plugins, "faust", "prepare", 48000, 128, "run", 0.2, 128, "level", 0)
+    assert levels[0][0] > 0.01  # the built-in, unpatched
+    dsp = tmp_path / "prog.dsp"
+    dsp.write_text('process = _ * hslider("gain", 0.5, 0, 2, 0.01), _;\n')
+    # program set before prepare, as a preset restores it; p1 is gain, 0.75 of 0..2
+    levels, state = run(plugins, "faust", "set", "program", dsp, "set", "p1", 0.75, "in", 0, 0.2, "in", 1, 0.3,
+                        "prepare", 48000, 128, "run", 0.3, 300, "level", 0, "level", 1, "state")
+    assert levels[0][1] == pytest.approx(0.3, abs=1e-6)
+    assert levels[1][1] == pytest.approx(0.3, abs=1e-6)
+    assert f'program="{dsp}"' in state

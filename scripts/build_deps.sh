@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Fetch and build the static, position-independent libraries the csound and chuck plugins link, into
-# build/deps/<target>: libsndfile, Csound 7 (float samples) and the ChucK core. Target "ssp"
-# cross-compiles with the buildroot; "host" builds for the native tests.
+# Fetch and build the static, position-independent libraries the csound, chuck and faust plugins link,
+# into build/deps/<target>: libsndfile, Csound 7 (float samples), the ChucK core and libfaust (LLVM
+# and interpreter backends). Target "ssp" cross-compiles with the buildroot; "host" builds for the
+# native tests.
 #
 # libsndfile is built here because the buildroot's libsndfile.a is not PIC, and linking its .so
 # would stop the plugins loading on a card without it.
@@ -19,6 +20,7 @@ jobs="${JOBS:-$(nproc 2>/dev/null || sysctl -n hw.ncpu)}"
 SNDFILE_REF="${SNDFILE_REF:-1.2.2}"
 CSOUND_REF="${CSOUND_REF:-7.0.0-beta.17}"
 CHUCK_REF="${CHUCK_REF:-chuck-1.5.5.8}"
+FAUST_REF="${FAUST_REF:-2.85.9}"  # the version scripts/faust_kernel.sh compiles with
 
 case "$target" in
     ssp)
@@ -29,11 +31,18 @@ case "$target" in
         cpu="--target=arm-linux-gnueabihf --sysroot=$sysroot -mcpu=cortex-a17 -mfloat-abi=hard -mfpu=neon-vfpv4"
         cc="clang $cpu"
         cxx="clang++ $cpu -I$cxxinc -I$cxxinc/arm-rockchip-linux-gnueabihf"
+        # the SSP's own LLVM: its rootfs has the same libLLVM-9.so, which Mesa's drivers link
+        llvm_version=$(sed -n 's/^#define LLVM_VERSION_STRING "\(.*\)"/\1/p' "$sysroot/usr/include/llvm/Config/llvm-config.h")
+        llvm_include="$sysroot/usr/include"
+        llvm_lib="$sysroot/usr/lib"
         ;;
     host)
         toolchain=()
         cc="${CC:-cc}"
         cxx="${CXX:-c++}"
+        llvm_version=$(llvm-config --version)
+        llvm_include=$(llvm-config --includedir)
+        llvm_lib=$(llvm-config --libdir)
         ;;
     *) echo "unknown target $target" >&2; exit 2 ;;
 esac
@@ -51,6 +60,11 @@ fetch "https://github.com/libsndfile/libsndfile/releases/download/$SNDFILE_REF/l
     "libsndfile-$SNDFILE_REF"
 fetch "https://github.com/csound/csound/archive/refs/tags/$CSOUND_REF.tar.gz" "csound-$CSOUND_REF"
 fetch "https://github.com/ccrma/chuck/archive/refs/tags/$CHUCK_REF.tar.gz" "chuck-$CHUCK_REF"
+fetch "https://github.com/grame-cncm/faust/releases/download/$FAUST_REF/faust-$FAUST_REF.tar.gz" "faust-$FAUST_REF"
+# applied once: a reverse dry run succeeds when it is already in
+faust_patch="$root/scripts/patches/faust-$FAUST_REF-jit-target.patch"
+patch -d "$src/faust-$FAUST_REF" -p1 -R -s -f --dry-run <"$faust_patch" >/dev/null ||
+    patch -d "$src/faust-$FAUST_REF" -p1 -s <"$faust_patch"
 
 common=(-DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_INSTALL_PREFIX="$prefix"
         -DCMAKE_PREFIX_PATH="$prefix" -DCMAKE_FIND_ROOT_PATH="$prefix" -DBUILD_SHARED_LIBS=OFF)
@@ -83,4 +97,20 @@ ar rcs "$prefix/lib/libchuck.a" "$ck"/*.o "$ck"/lo/*.o
 mkdir -p "$prefix/include/chuck/lo"
 cp "$ck"/*.h "$prefix/include/chuck/"
 cp "$ck"/lo/*.h "$prefix/include/chuck/lo/"
+# libfaust with the LLVM and interpreter backends; no compiler executable, no OSC or HTTP. LLVM is
+# not merged into the archive: plugins link the shared libLLVM. Faust writes the archive into its
+# source tree, under LIBSDIR, so each target gets its own.
+cmake -S "$src/faust-$FAUST_REF/build" -B "$prefix/build/faust" "${toolchain[@]}" "${common[@]}" \
+    -C "$src/faust-$FAUST_REF/build/backends/interp.cmake" -DCPP_BACKEND=OFF -DLLVM_BACKEND=STATIC \
+    -DINCLUDE_STATIC=ON -DINCLUDE_DYNAMIC=OFF -DINCLUDE_EXECUTABLE=OFF -DINCLUDE_OSC=OFF -DINCLUDE_HTTP=OFF \
+    -DINCLUDE_EMCC=OFF -DINCLUDE_WASM_GLUE=OFF -DSELF_CONTAINED_LIBRARY=ON -DLIBSDIR="lib-$target" \
+    -DINCLUDE_LLVM_STATIC_IN_ARCHIVE=OFF -DUSE_LLVM_CONFIG=OFF -DLLVM_PACKAGE_VERSION="$llvm_version" \
+    -DLLVM_INCLUDE_DIRS="$llvm_include" -DLLVM_LIB_DIR="$llvm_lib" -DLLVM_LIBS="-lLLVM" \
+    -DLLVM_DEFINITIONS="-D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS"
+cmake --build "$prefix/build/faust" -j"$jobs" --target staticlib
+cp "$src/faust-$FAUST_REF/build/lib-$target/libfaust.a" "$prefix/lib/"
+rm -rf "$prefix/include/faust"
+cp -r "$src/faust-$FAUST_REF/architecture/faust" "$prefix/include/faust"
+rm -rf "$prefix/share/faust" && mkdir -p "$prefix/share"
+cp -r "$src/faust-$FAUST_REF/libraries" "$prefix/share/faust"  # stdfaust.lib and the rest, for programs
 echo "deps for $target in $prefix"

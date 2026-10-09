@@ -8,14 +8,15 @@ add_subdirectory(glitch)
 add_subdirectory(edrums)
 add_subdirectory(pstretch)
 add_subdirectory(bard)
+add_subdirectory(chorus)
 
-# csound and chuck link prebuilt libraries: `make deps` builds them
+# csound, chuck and faust link prebuilt libraries: `make deps` builds them
 if (TARGET_SSP)
     set(DEPS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../build/deps/ssp")
 else ()
     set(DEPS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../build/deps/host")
 endif ()
-foreach (P csound chuck)
+foreach (P csound chuck faust)
     if (EXISTS "${DEPS_DIR}/lib/lib${P}.a")
         add_subdirectory(${P})
     else ()

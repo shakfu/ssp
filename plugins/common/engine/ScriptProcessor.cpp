@@ -85,6 +85,13 @@ std::vector<ParamPage> ScriptProcessor::pages() {
     return pages;
 }
 
+void ScriptProcessor::applyDefaults() {
+    for (int i = 0; i < PARAMS; i++) {
+        float def = script().spec(i).def;
+        if (def >= 0.0f) params_[size_t(i)]->setValueNotifyingHost(def);
+    }
+}
+
 juce::AudioProcessorEditor* ScriptProcessor::createEditor() {
     if (useCompactUI()) return new ssp::EditorHost(this, new ScriptMiniEditor(*this), true);
     return new ssp::EditorHost(this, new ScriptEditor(*this), false);
@@ -99,6 +106,8 @@ void ScriptEditor::onSSPTimer() {
     unsigned gen = processor_.script().specsGeneration();
     if (gen == specsGen_) return;
     specsGen_ = gen;
+    if (loading_) processor_.applyDefaults();
+    loading_ = false;
     setPages(processor_.pages());
 }
 
@@ -115,7 +124,9 @@ void ScriptMiniEditor::onSSPTimer() {
 }
 
 void ScriptEditor::loaded(const juce::String& file, const juce::String&) {
-    if (file.isNotEmpty()) processor_.loadProgram(file);
+    if (file.isEmpty()) return;
+    processor_.loadProgram(file);
+    loading_ = true;
 }
 
 juce::String ScriptEditor::browseFrom() {
@@ -128,6 +139,10 @@ void ScriptEditor::drawStatus(juce::Graphics& g, juce::Rectangle<int> area) {
     g.setColour(juce::Colours::white);
     g.drawText(path.isEmpty() ? juce::String("built-in") : juce::File(path).getFileName(), area.removeFromTop(30),
                juce::Justification::left);
+    juce::String status = processor_.script().status();
+    g.setColour(juce::Colours::grey);
+    for (auto& line : juce::StringArray::fromLines(status))
+        if (line.isNotEmpty()) g.drawText(line, area.removeFromTop(30), juce::Justification::left);
     juce::String err = processor_.script().error();
     if (err.isEmpty()) return;
     g.setColour(juce::Colours::orange);
