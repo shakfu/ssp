@@ -50,6 +50,12 @@ endif()
 
 add_subdirectory(plugins)
 
+# the plugin guides' examples: built and tested on the host, never for the SSP or a release
+if (NOT CMAKE_CROSSCOMPILING)
+    add_subdirectory(examples/svca)
+    add_subdirectory(examples/tremolo)
+endif ()
+
 # set(CMAKE_FOLDER .)
 function(_juce_add_pips)
     file(GLOB headers

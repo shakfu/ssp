@@ -1,6 +1,6 @@
 # chorus
 
-`chorus` is a stereo chorus whose DSP is Faust. It is the first module built on `FaustProcessor`; see [docs/dev/faust.md](../../docs/dev/faust.md). `Source/chorus.dsp` comes from sk-engines.
+`chorus` is a stereo chorus whose DSP is Faust. It is the first module built on `FaustProcessor`; see [docs/dev/faust.md](../../docs/dev/faust.md). `Source/chorus.dsp` comes from the [`chorus` engine](https://github.com/shakfu/sk-engines/tree/main/src/engine/chorus) in [sk-engines](https://github.com/shakfu/sk-engines).
 
 ## Install
 
@@ -25,4 +25,4 @@ A CV adds to its control: 5 V spans the range.
 
 ## Changing the DSP
 
-Edit `Source/chorus.dsp`, then run `make faust-kernels` to regenerate `Source/ChorusKernel.h`. It needs `uv`, which fetches cyfaust.
+Edit `Source/chorus.dsp`, then run `make faust-kernels` to regenerate `Source/ChorusKernel.h`. It needs `uv`, which fetches [cyfaust](https://github.com/shakfu/cyfaust).

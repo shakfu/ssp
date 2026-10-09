@@ -11,6 +11,7 @@ libfaust 2.85.9's `createDSPFactoryFromString` and `createDSPFactoryFromSignals`
 ## Fix
 
 - `scripts/patches/faust-2.85.9-jit-target.patch`: set the target and optimisation level before `initJIT`. `build_deps.sh` applies it once.
+
 - `fstr` passes `<triple>:cortex-a17` on ARM, since LLVM 9 cannot name the SSP's CPU.
 
 Upstream fixed the target in fc1031d214 (2026-07-20, in 2.88.0), not the level; issue draft: [issues/261008-jit-target.md](issues/261008-jit-target.md). The ignored level costs `fstr` nothing, since it requests the maximum.
@@ -32,8 +33,11 @@ The switch between x = 0.79 and 0.80 is pi/4, where glibc's `tanf` moves from it
 | `chorus.dsp`, `osc.dsp` | correct |
 
 - `fpscr 6100009a` on the audio thread: round-to-nearest, flush-to-zero, default-NaN off. Normal.
+
 - `tanf(0.5)` from compiled C++ is 0.546 on both the audio and UI threads. libm's `tanf` works.
+
 - Only libm (`/lib/libm-2.32.so`) exports `tanf` on the SSP rootfs.
+
 - External calls in the IR: `filter.dsp` calls only `tanf`; `chorus.dsp` calls `sinf` and `floorf`; `osc.dsp` none.
 
 ## Ruled out
@@ -48,7 +52,9 @@ The switch between x = 0.79 and 0.80 is pi/4, where glibc's `tanf` moves from it
 ## How it was found
 
 1. A wrapper registered as `tanf` (2026-10-09) received the right argument and returned the right result, yet the JIT code output 0: the result was lost on return.
+
 2. `writeDSPFactoryToMachineFile` on the SSP gave an object with `ldr r0, [r0]; bl tanf; str r0` and `mov pc, lr`, and no CPU or FPU attributes. `qemu-arm`'s object had `vldr s0` and `Tag_CPU_name: cortex-a15`, though `cortex-a17` was requested.
+
 3. The device's `libLLVM-9.so` has the same `.text` as the sysroot's, so the difference came from the host CPU query, and the request was being dropped.
 
 The wrapper, the explicit libm binding and the object dump were removed after the diagnosis. `diag/tan.dsp`, `diag/sin.dsp` and `diag/resonlp.dsp` remain on the card in `BOOT/faust/diag`, not in the repo.

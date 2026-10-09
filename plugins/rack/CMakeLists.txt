@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(RACK VERSION 1.0.1)
+project(RACK VERSION 0.2.0)
 
 
 include_directories("${PROJECT_SOURCE_DIR}/../common")
@@ -13,7 +13,7 @@ juce_add_plugin(RACK
         COMPANY_NAME "shakfu"                   # Specify the name of the plugin's author
         COMPANY_WEBSITE "github.com/shakfu"
         COMPANY_EMAIL "shakfu@users.noreply.github.com"
-        DESCRIPTION "Rack"
+        DESCRIPTION "four-track module host with matrix routing and JSON presets"
         # IS_SYNTH TRUE/FALSE                       # Is this a synth or an effect?
         # NEEDS_MIDI_INPUT TRUE/FALSE               # Does the plugin need midi input?
         # NEEDS_MIDI_OUTPUT TRUE/FALSE              # Does the plugin need midi output?
@@ -68,7 +68,8 @@ target_compile_definitions(RACK
         PUBLIC
         JUCE_WEB_BROWSER=0  
         JUCE_USE_CURL=0    
-        JUCE_VST3_CAN_REPLACE_VST2=0)
+        JUCE_VST3_CAN_REPLACE_VST2=0
+        SSP_VERSION_FROM_PROJECT=1)
 
 
 target_link_libraries(RACK PRIVATE

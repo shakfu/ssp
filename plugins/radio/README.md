@@ -2,7 +2,7 @@
 
 `radio` is two independent virtual [Radio Music](https://github.com/TomWhitwell/RadioMusic) modules over one library of sound files. Each deck tunes through the stations in a bank. Every station runs on a shared free-running clock, so tuning in lands where the station would be had it played all along.
 
-Ported from the `radio` engine in sk-engines; see [docs/dev/engines.md](../../docs/dev/engines.md).
+Ported from the [`radio` engine](https://github.com/shakfu/sk-engines/tree/main/src/engine/radio) in [sk-engines](https://github.com/shakfu/sk-engines); see [docs/dev/engines.md](../../docs/dev/engines.md).
 
 ## Install
 

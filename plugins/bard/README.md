@@ -2,7 +2,7 @@
 
 `bard` is two spoken-word players. Each deck plays a book (an audiobook, a lecture, a radio play) from a shelf, remembers where it was, and moves through the book by bookmarks written in a text file beside the audio.
 
-Ported from the `bard` engine in sk-engines; see [docs/dev/engines.md](../../docs/dev/engines.md).
+Ported from the [`bard` engine](https://github.com/shakfu/sk-engines/tree/main/src/engine/bard) in [sk-engines](https://github.com/shakfu/sk-engines); see [docs/dev/engines.md](../../docs/dev/engines.md).
 
 ## Install
 

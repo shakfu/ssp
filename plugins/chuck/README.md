@@ -2,7 +2,7 @@
 
 `chuck` runs a [ChucK](https://chuck.stanford.edu) program (`.ck`) on the SSP. The program gets eight audio inputs and outputs, sixteen controls, and ChucK's own MIDI.
 
-Ported from the `chuck` engine in sk-engines; see [docs/dev/engines.md](../../docs/dev/engines.md).
+Ported from the [`chuck` engine](https://github.com/shakfu/sk-engines/tree/main/src/engine/chuck) in [sk-engines](https://github.com/shakfu/sk-engines); see [docs/dev/engines.md](../../docs/dev/engines.md).
 
 ## Install
 
@@ -49,3 +49,80 @@ The form is `@pN label [min max [unit]] [log]`, on a line that starts with `//`.
 | `filter.ck` | stereo resonant lowpass on inputs 1-2; input 3 is cutoff CV, 1 V/oct | cutoff, Q |
 | `sequencer.ck` | 8-step random melody; output 3 is a gate, output 4 pitch CV, 1 V/oct | tempo, octaves, decay, reroll |
 | `midi.ck` | 8-voice saw synth on MIDI input device 0 | cutoff, release |
+
+## Walkthrough: `filter.ck`
+
+`examples/filter.ck` is a stereo resonant lowpass. This follows it from the card to the screen.
+
+```chuck
+// Stereo resonant lowpass on inputs 1 and 2; input 3 is cutoff CV, 1 V/oct.
+// @p1 cutoff 40 20000 Hz log
+// @p2 Q 1 16
+global float p1, p2;
+
+adc.chan(0) => LPF l => dac.chan(0);
+adc.chan(1) => LPF r => dac.chan(1);
+adc.chan(2) => Gain cv => blackhole;
+
+while (true) {
+    p1 * Math.pow(2, cv.last() / 0.2) => float f;   // SSP CV is 0.2 per volt
+    Math.min(Math.max(f, 20), (second / samp) * 0.45) => f;
+    f => l.freq => r.freq;
+    Math.max(p2, 1) => l.Q => r.Q;
+    1::ms => now;
+}
+```
+
+### 1. Copy it to the card
+
+Put `filter.ck` in `chuck/` on the card's BOOT partition. The release already has it there.
+
+### 2. Patch it in Synthor
+
+`chuk` always has eight inputs, `In 1` to `In 8`, and eight outputs, `Out 1` to `Out 8`. ChucK numbers channels from 0:
+
+| In the program | `chuk` jack | Patch |
+|-|-|-|
+| `adc.chan(0)`, `adc.chan(1)` | In 1, In 2 | stereo audio to filter |
+| `adc.chan(2)` | In 3 | cutoff CV, 1 V/oct |
+| `dac.chan(0)`, `dac.chan(1)` | Out 1, Out 2 | to the next module or an output |
+
+### 3. Load it
+
+Press soft key 5 (Load). The browser opens at `/media/BOOT/chuck`. Turn encoder 1, or press Up and Down, to select `filter.ck`; Left and Right jump a column, and pressing encoder 1 opens a folder. Press Load again. Soft key 7 (Cancel) leaves without loading. Audio stops while the program compiles.
+
+### 4. Read the screen
+
+```
+chuk : ChucK host                                     1/1 controls     DSP n.n% pk n.n%
+   cutoff          Q                                  filter.ck
+  40.0 Hz        1.00
+```
+
+Each `@p` comment became one control, in order:
+
+| Declaration | Encoder | Screen | Range | The program reads |
+|-|-|-|-|-|
+| `// @p1 cutoff 40 20000 Hz log` | 1 | `cutoff`, in Hz | 40 to 20000, logarithmic | `global float p1` |
+| `// @p2 Q 1 16` | 2 | `Q` | 1 to 16 | `global float p2` |
+
+The comments only set what the screen shows and the range the program receives. The program must still declare `global float p1, p2;` to read them. `chuk` writes the globals every 10 ms; this program reads them every millisecond.
+
+The right panel shows the page (`1/1 controls`), the DSP load, the file name, and a compile error in orange if there is one.
+
+### 5. Play it
+
+Both controls start at the bottom of their ranges: the cutoff at 40 Hz, which passes little, and Q at 1. Turn encoder 1 to open the filter, then encoder 2 for resonance.
+
+- Turning moves a control 5% of its range a detent. `cutoff` is logarithmic, so each detent is the same interval: 40 to 20000 Hz is about 9 octaves, so a detent is about half an octave.
+- Holding the encoder while turning moves it 0.5% a detent.
+- Pressing and releasing without turning returns it to the bottom of its range.
+
+### 6. Add CV
+
+`adc.chan(2) => Gain cv => blackhole` keeps In 3 running without sending it anywhere audible, so `cv.last()` can read it. The program multiplies the cutoff by `2 ^ (In 3 / 0.2)`: each volt raises the cutoff an octave. It then limits it to between 20 Hz and 45% of the sample rate.
+
+### 7. Save it
+
+Save a Synthor preset as usual. It stores the file's path and the encoder positions; loading the preset compiles `filter.ck` again and restores the positions.
+

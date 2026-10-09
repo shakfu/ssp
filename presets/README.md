@@ -19,7 +19,7 @@ rack presets. `make install-presets` checks the JSON ones with `py2rack` and cop
 | `harmonic_drone.json` | `harm`, an additive oscillator, with its spectral centre, spread and amount swept by three LFOs at unrelated rates. `clds`, then `srvb`. |
 | `jam_four_tracks.json` | * Four tracks. 1: `edrm` and a `plts` bass on one `omod` clock. 2: `rngs` strums into `srvb`. 3: `rdio` deck A into `clds`. 4: inputs 1-2 through `comp` and `srvb`. |
 
-\* uses this repo's modules (`edrm`, `gltc`, `chrs`, `rdio`), which are not yet tested inside rack on the SSP.
+\* uses this repo's modules (`edrm`, `gltc`, `chrs`, `rdio`).
 
 Parameters are set only where a working value is known, mostly `omod` as a clock: with `Lfo` on, `Freq` is in hundredths of a hertz, so 800 is 8 Hz, sixteenths at 120 BPM. The rest use module defaults; tune them on the device and save over the preset.
 

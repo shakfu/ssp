@@ -30,7 +30,7 @@ def plugins():
     if not all((DEPS / "lib" / lib).exists() for lib in ("libchuck.a", "libfaust.a")):
         subprocess.run([ROOT / "scripts" / "build_deps.sh", "host"], check=True, capture_output=True)
     subprocess.run(["cmake", "-S", ROOT, "-B", BUILD, "-DCMAKE_BUILD_TYPE=Release"], check=True, capture_output=True)
-    targets = [f"{name.upper()}_VST3" for name in PRODUCTS]
+    targets = [f"{name.upper()}_VST3" for name in [*PRODUCTS, *EXAMPLES]]
     subprocess.run(["cmake", "--build", BUILD, "-j8", "--target", *targets], check=True, capture_output=True)
     host = BUILD / "plugin_host"
     subprocess.run([cxx, "-std=c++17", "-O1", "-pthread", f"-I{ROOT / 'ssp-sdk'}", HERE / "plugin_host.cpp",
@@ -41,11 +41,14 @@ def plugins():
 # source folder -> product name; Synthor lists only names of up to four characters
 PRODUCTS = {"radio": "rdio", "csound": "csnd", "chuck": "chuk", "edrums": "edrm", "pstretch": "strc", "bard": "bard",
             "glitch": "gltc", "chorus": "chrs", "faust": "fstr"}
+# examples/: built and tested on the host, never shipped, so not in the manifest
+EXAMPLES = {"svca": "svca", "tremolo": "trem"}
 
 
 def so(name):
-    product = PRODUCTS[name]
-    return BUILD / "plugins" / name / f"{name.upper()}_artefacts" / "Release" / "VST3" / f"{product}.vst3" \
+    product = PRODUCTS.get(name) or EXAMPLES[name]
+    return BUILD / ("examples" if name in EXAMPLES else "plugins") / name / f"{name.upper()}_artefacts" / "Release" \
+        / "VST3" / f"{product}.vst3" \
         / "Contents" / "x86_64-linux" / f"{product}.so"
 
 
@@ -189,6 +192,29 @@ def test_faust(plugins, tmp_path):
     assert levels[0][1] == pytest.approx(0.3, abs=1e-6)
     assert levels[1][1] == pytest.approx(0.3, abs=1e-6)
     assert f'program="{dsp}"' in state
+
+
+def test_svca(plugins):
+    # the plugin guide's example: Level 0.5 is a gain of 0.5; a CV of 0.25 adds 0.25
+    levels, _ = run(plugins, "svca", "set", "level", 0.5, "prepare", 48000, 128, "in", 0, 0.4, "in", 1, -0.2,
+                        "run", 0.1, 128, "level", 0, "level", 1)
+    assert levels[0][1] == pytest.approx(0.2, abs=1e-4)
+    assert levels[1][1] == pytest.approx(-0.1, abs=1e-4)
+    levels, _ = run(plugins, "svca", "set", "level", 0.5, "prepare", 48000, 128, "in", 0, 0.4, "in", 2, 0.25,
+                    "run", 0.1, 128, "level", 0)
+    assert levels[0][1] == pytest.approx(0.3, abs=1e-4)
+
+
+
+def test_tremolo(plugins):
+    # Faust's compiled example: depth 0 passes the input; depth 1 starts the LFO near half level
+    levels, _ = run(plugins, "tremolo", "set", "depth", 0, "prepare", 48000, 128, "in", 0, 0.3, "run", 0.2, 128,
+                    "level", 0)
+    assert levels[0][1] == pytest.approx(0.3, abs=1e-4)
+    # inputs: In L, In R, then a CV per control (rate, depth); a depth CV of 1.0 spans the range
+    levels, _ = run(plugins, "tremolo", "set", "depth", 0, "set", "rate", 0.1, "prepare", 48000, 128, "in", 0, 0.3,
+                    "in", 3, 1.0, "run", 0.2, 128, "level", 0)
+    assert 0.1 < levels[0][1] < 0.16
 
 
 def manifest_entry(host, plugin):

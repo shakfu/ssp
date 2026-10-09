@@ -38,7 +38,11 @@ Plugins land in `build.cmake.ssp/plugins/*/*_artefacts/Release/VST3/*.vst3/Conte
 | `make install-presets [PRESETS=dir]` | check JSON presets with `py2rack`, then copy `presets/` or `dir` to the card |
 | `make deploy` | copy all plugins to the SSP over `scp` |
 | `make deploy-mod MOD=sfct` | copy one plugin over `scp` |
-| `make release` | strip into `releases/ssp/plugins`, package `ssp_plugins.zip` |
+| `make release` | package `releases/shakfu-ssp-plugins-<VERSION>/`, laid out as the SD card's BOOT partition, and its zip, then runs `release-notes`; the version is in `VERSION` |
+| `make release-pdf` | as `make release`, with the docs rendered to PDF by `quarto render --to pdf`; needs quarto and a LaTeX engine (`quarto install tinytex`) |
+| `make publish` | create the GitHub release for tag `<VERSION>` with `gh`, attaching the zip and using the notes as its body. It refuses unless the tree is clean, the tag is `HEAD` and pushed, the zip is newer than `HEAD`, and no release exists; it never commits, tags or pushes |
+| `make clean-releases` | delete `releases/`, with every version's package, zip and notes; `make release` replaces only its own version's |
+| `make release-notes` | write `CHANGELOG.md`'s `## [<VERSION>]` section to `releases/shakfu-ssp-plugins-<VERSION>-notes.md`, for the release body |
 | `make test` | run the tests |
 | `make clean` | remove `build.cmake.ssp` |
 
@@ -62,11 +66,11 @@ Plugins land in `build.cmake.ssp/plugins/*/*_artefacts/Release/VST3/*.vst3/Conte
 | `plugins/sfct/tests` | the sfct engine, built natively |
 | `plugins/rack/tests` | rack's execution order; `Track` under ThreadSanitizer; JSON `matrix` load and save |
 | `plugins/radio/tests`, `plugins/csound/tests`, `plugins/chuck/tests` | each engine, built natively, and under ThreadSanitizer |
-| `plugins/common/tests` | radio, csound and chuck built for the host and driven through the SSP API |
+| `plugins/common/tests` | every engine plugin and the `examples/` plugins, built for the host and driven through the SSP API |
 
 The `Track` tests build part of JUCE for the host into `build/rack-host`. The first run takes about a minute; later runs are incremental.
 
-The csound and chuck tests build the libraries for the host into `build/deps/host` on first run (network, about a minute). `plugins/common/tests` then builds three plugins into `build/plugins-host` (about four minutes the first time). See [docs/dev/engines.md](dev/engines.md).
+The csound and chuck tests build the libraries for the host into `build/deps/host` on first run (network, about a minute). `plugins/common/tests` then builds the plugins into `build/plugins-host` (about four minutes the first time). See [docs/dev/engines.md](dev/engines.md).
 
 ## Other hosts
 

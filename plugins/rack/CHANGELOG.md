@@ -1,8 +1,8 @@
 # Changelog
 
-rack is a fork of TheTechnobear's trax 1.0.1. It will follow [semantic versioning](https://semver.org) from its first release. Design notes: [docs/dev/rack-design.md](../../docs/dev/rack-design.md).
+rack is a fork of TheTechnobear's trax 1.0.1 and numbers its own versions, independent of trax's, and follows [semantic versioning](https://semver.org) from 0.2.0, its first release. The version is set in `CMakeLists.txt` (`project(RACK VERSION ...)`) and shown on the SSP. Design notes: [docs/dev/rack-design.md](../../docs/dev/rack-design.md).
 
-## Unreleased
+## [0.2.0] - 2026-10-09
 
 Renamed from trax: the plugin is `rack.so` (plugin code `RACK`, manufacturer `SF00`), and presets live in `/media/BOOT/rack_presets`. The binary preset format is unchanged, so binary presets load in either.
 

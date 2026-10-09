@@ -2,7 +2,7 @@
 
 `edrums` is a four-track Euclidean drum machine with synthesized voices and trigger outputs. Each track spreads its hits as evenly as possible over its steps, and a clock steps it. Tracks have their own length and clock rate, so they can run in polymeter.
 
-Ported from the `edrums` engine in sk-engines; see [docs/dev/engines.md](../../docs/dev/engines.md).
+Ported from the [`edrums` engine](https://github.com/shakfu/sk-engines/tree/main/src/engine/edrums) in [sk-engines](https://github.com/shakfu/sk-engines); see [docs/dev/engines.md](../../docs/dev/engines.md).
 
 ## Install
 

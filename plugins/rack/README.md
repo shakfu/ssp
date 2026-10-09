@@ -2,6 +2,16 @@
 
 rack hosts SSP modules in 4 tracks of 8 slots. It is a fork of TheTechnobear's trax 1.0.1, built around presets authored on a desktop. Preset format: [README-json-presets.md](README-json-presets.md). Design notes: [docs/dev/rack-design.md](../../docs/dev/rack-design.md).
 
+## Install
+
+Copy `rack.so` to the `plugins` folder on the SD card, and presets to `rack_presets` on the card's BOOT partition (`/media/BOOT/rack_presets`). rack loads the modules a preset names from `plugins`, so those must be installed too.
+
+## Using it
+
+- **Mixer:** soft keys 1 to 4 open tracks 1 to 4. Hold Up for the options page: `Load Pr` and `Save Pr`. A preset name ending in `.json` saves as JSON.
+- **Track page:** hold soft key `Mod n` to load a module into slot n; a short press opens the module's own editor. Down opens the routing view.
+- **From scratch:** load `empty.json`, load modules, wire them in the routing view, then save under a new name.
+
 ## Routing model
 
 A track's routing is a gain matrix. Rows are source jacks, columns are destination jacks. Each destination input receives:

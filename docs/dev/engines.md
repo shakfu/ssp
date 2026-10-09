@@ -1,6 +1,6 @@
 # Engine plugins
 
-`radio`, `csound`, `chuck`, `edrums`, `pstretch`, `bard` and `glitch` are ports of engines from sk-engines and daisy-apps. They share `plugins/common/engine`; each plugin keeps only its engine and its mapping onto it.
+`radio`, `csound`, `chuck`, `edrums`, `pstretch`, `bard` and `glitch` are ports of engines from [sk-engines](https://github.com/shakfu/sk-engines) and [daisy-apps](https://github.com/shakfu/daisy-apps). They share `plugins/common/engine`; each plugin keeps only its engine and its mapping onto it.
 
 ## Layout
 
@@ -26,7 +26,9 @@ Synthor scans every `.so` in `plugins/` but lists only some. Every listed plugin
 ## Threads
 
 - Audio: `Engine::process`, and `EngineProcessor::control` before it. Never blocks or allocates.
+
 - Worker (`EngineProcessor::IDLE_MS`, on the UI core): `Engine::idle`. File reads, compiles, ChucK globals.
+
 - Message: `prepare` and state restore. `prepare` holds the worker's lock.
 
 `radio` hands each open station to the audio thread as a `Stream` through an atomic pointer, and gets the old one back through another; the worker frees it. `pstretch` does the same for clips, and `bard` for a `Cue`: a `Stream` with the frame it opened at and a seek count, so the worker knows when the playhead the audio thread reports belongs to the latest seek. Csound and ChucK swap their instance behind `ReloadGate`; `pstretch` swaps its FFT tables and voices there when the window size changes.

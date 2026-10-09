@@ -2,7 +2,7 @@
 
 `pstretch` is two real-time PaulStretch decks. Each deck cuts its source into large overlapping windows, randomizes the phases of each window's spectrum, and overlaps them again while its read head crawls through the source. Large stretches turn the recent input into a slowly evolving drone.
 
-Ported from the `pstretch` engine in sk-engines; see [docs/dev/engines.md](../../docs/dev/engines.md).
+Ported from the [`pstretch` engine](https://github.com/shakfu/sk-engines/tree/main/src/engine/pstretch) in [sk-engines](https://github.com/shakfu/sk-engines); see [docs/dev/engines.md](../../docs/dev/engines.md).
 
 ## Install
 

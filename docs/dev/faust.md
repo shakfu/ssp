@@ -8,7 +8,7 @@ Synthor does not load VST3 bundles. CMake builds a JUCE `VST3` target, but Synth
 
 ## The sk-engines precedent
 
-sk-engines uses cyfaust only as a compiler: `cyfaust compile <file>.dsp -b cpp` emits `class mydsp` with `init`, `compute` and `buildUserInterface`. Its wrapper code does the rest:
+[sk-engines](https://github.com/shakfu/sk-engines) uses [cyfaust](https://github.com/shakfu/cyfaust) only as a compiler: `cyfaust compile <file>.dsp -b cpp` emits `class mydsp` with `init`, `compute` and `buildUserInterface`. Its wrapper code does the rest:
 
 | sk-engines file | Lines | Role |
 |-|-|-|
@@ -32,6 +32,7 @@ sk-engines uses cyfaust only as a compiler: `cyfaust compile <file>.dsp -b cpp` 
 ## Plan
 
 1. **A, as `chrs`.** sk-engines' `chorus.dsp`, compiled by `scripts/faust_kernel.sh`, hosted by `plugins/common/engine/FaustEngine.h` and `FaustProcessor.*`. sk-engines' arch shim is vendored as `FaustArch.h`.
+
 2. **D, as `fstr`.** Before porting, benchmark the interpreter against compiled C++ on the host, then on the SSP. Only the zone capture carries over from A: libfaust builds the UI at runtime.
 
 B stays open if one tool should emit both gen~ and Faust modules.
@@ -52,6 +53,7 @@ On the SSP (2026-10-09), `chorus.dsp` in `fstr` shows ~20% average, 23% peak; `c
 Faster runtime backends:
 
 - MIR JIT (`INTERP_MIR_BUILD`): MIR has no 32-bit ARM target.
+
 - LLVM JIT: Faust 2.85.9 supports LLVM up to 21, and LLVM targets ARMv7. cyfaust 0.2.0 ships `cyfaust_llvm` wheels for x86-64 Linux and arm64 macOS only, so the SSP needs LLVM cross-built.
 
 LLVM JIT on the host, through `cyfaust_llvm` 0.2.0 (`opt_level` -1, the maximum), same `chorus.dsp`, 2 runs, 2026-10-09:
@@ -89,23 +91,35 @@ The buildroot sysroot ships LLVM 9.0.1 for the SSP: static libraries, headers an
 `plugins/faust` (`fstr`) is a `ScriptEngine`, like `csnd` and `chuk`: eight inputs and outputs, p1..p16, the program path in the preset.
 
 - **Controls come from the compiler.** `ScriptEngine::declared()` returns the specs a compile produced; the `@pN` comments `csnd` and `chuk` use are not read. The first 16 controls map to p1..p16.
+
 - **Defaults apply on Load only.** A program chosen with Load sets its controls to the program's defaults once it compiles. Presets keep their values. A new module starts with every control at 0, so the built-in is written to sound there.
+
 - **No CV per control.** This differs from `chrs`: a program reads CV as audio inputs, as Csound and ChucK programs do.
+
 - **Each instance holds its program's ranges.** The audio thread maps p1..p16 with the instance's own specs, so a swap never pairs a program with another's ranges for a block.
+
 - **Non-finite output is cleared.** A NaN or infinite block is silenced and the program's state reset, so a recursive program recovers; the status panel counts these.
+
 - **The JIT compiles for `cortex-a17` on ARM**, at LLVM's highest optimisation level (`-1`). LLVM 9 detects the SSP's CPU as `generic`, so the target is explicit; libfaust needs `scripts/patches/faust-2.85.9-jit-target.patch` to honour it.
+
 - **Compiles are serialised.** libfaust keeps global compiler state; a static mutex guards factory creation and deletion across `fstr` instances.
 
 ## Route A decisions
 
 - **No manifest.** Every kernel control becomes a parameter, named and ranged by the `.dsp`. sk-engines needed a manifest to map sliders onto 6 fixed panel knobs; the SSP has pages. A manifest returns if a patch needs fewer or renamed controls.
+
 - **One CV input per control.** It adds to the parameter; 1.0 (5 V) spans the control's range, as in `gltc`. It is read once per block.
+
 - **Buttons are controls.** `button` and `checkbox` become 0..1 parameters, so a CV gate can drive them.
+
 - **The kernel is generated, then committed.** `make faust-kernels` reruns `scripts/faust_kernel.sh`; the build does not need cyfaust.
 
 ## Open questions
 
 - `fstr`'s JIT matches compiled code on the SSP: `chorus.dsp` ~1.3% average, 3.3% peak, as `chrs`'s ~1.3% (2026-10-09). Before the target fix it cost ~3.9%, compiled for ARMv4 without an FPU. `chrs`'s peak is unrecorded. A Load's compile time is not noticeable.
+
 - `tan()` in JIT code was wrong on the SSP: libfaust ignored the requested target, and LLVM 9 detects the SSP's CPU as `generic`. Patched; `filter.dsp` works on the SSP at ~0.9% DSP average (2026-10-09). See [faust-jit-tan.md](faust-jit-tan.md).
+
 - `classInit` fills static tables shared by all instances of a kernel. A second instance's `prepare` rewrites them while the first plays. Harmless while the values are identical; it matters if a kernel's tables depend on the sample rate.
+
 - `chorus.dsp` caps the delay at 2048 samples: 42 ms at 48 kHz. Its 25 ms maximum clips above 81.9 kHz.

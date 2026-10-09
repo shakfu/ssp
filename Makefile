@@ -17,7 +17,7 @@ BUILDROOT_DEP := $(BUILDROOT_DIR)
 endif
 
 .DEFAULT_GOAL := ssp
-.PHONY: ssp configure buildroot deps faust-kernels release deploy deploy-mod install install-faust install-presets test clean help
+.PHONY: ssp configure buildroot deps faust-kernels release release-pdf release-notes publish clean-releases deploy deploy-mod install install-faust install-presets test clean help
 
 help:
 	@echo "make [ssp]              download buildroot if needed, configure, build all plugins"
@@ -25,7 +25,11 @@ help:
 	@echo "make buildroot          download and extract the SSP buildroot into ./buildroot"
 	@echo "make deps               build Csound, ChucK and libfaust for the SSP (then re-run make configure)"
 	@echo "make faust-kernels      regenerate the Faust kernel headers (needs uv)"
-	@echo "make release            build, strip into releases/ssp/plugins, zip ssp_plugins.zip"
+	@echo "make release            build, package releases/shakfu-ssp-plugins-$$(cat VERSION) and its zip, then release-notes"
+	@echo "make release-pdf        as release, with the docs as PDFs rendered by quarto"
+	@echo "make publish            upload the release zip and notes to GitHub (gh); needs the tag pushed"
+	@echo "make clean-releases     delete releases/: every version's package, zip and notes"
+	@echo "make release-notes      write CHANGELOG.md's section for VERSION to releases/shakfu-ssp-plugins-<VERSION>-notes.md"
 	@echo "make deploy             build, copy all plugins to SSP_HOST"
 	@echo "make deploy-mod MOD=x   build, copy one plugin to SSP_HOST"
 	@echo "make install [MOD=x]    build, copy plugins to the mounted SD card (SSP_PLUGINS)"
@@ -56,6 +60,7 @@ deps: | $(BUILDROOT_DEP)
 # kernel headers are committed, so the build does not need cyfaust
 faust-kernels:
 	scripts/faust_kernel.sh plugins/chorus/Source/chorus.dsp plugins/chorus/Source/ChorusKernel.h chorus
+	scripts/faust_kernel.sh examples/tremolo/Source/tremolo.dsp examples/tremolo/Source/TremoloKernel.h tremolo
 
 configure: | $(BUILDROOT_DEP)
 	cmake --preset "$(PRESET)"
@@ -64,7 +69,26 @@ ssp: $(BUILD_DIR)/Makefile
 	cmake --build $(BUILD_DIR) -j$(JOBS)
 
 release: ssp
-	scripts/release.ssp.sh
+	python3 scripts/release.py
+	$(MAKE) --no-print-directory release-notes
+
+# every version's package, zip and notes; make release replaces only its own version's files
+clean-releases:
+	rm -rf "$(CURDIR)/releases"
+
+# uploads the zip and notes as the GitHub release for VERSION's tag; checks first, never tags or pushes
+publish:
+	scripts/publish.sh
+
+# as release, with each README and CHANGELOG rendered to PDF; needs quarto and a LaTeX engine
+release-pdf: ssp
+	python3 scripts/release.py --pdf
+	$(MAKE) --no-print-directory release-notes
+
+# CHANGELOG.md's section for VERSION, as the GitHub release body; needs no build
+release-notes:
+	mkdir -p releases
+	python3 scripts/release_notes.py "$$(cat VERSION)" -o "releases/shakfu-ssp-plugins-$$(cat VERSION)-notes.md"
 
 deploy: ssp
 	scripts/copybuild.ssp.sh
@@ -82,7 +106,7 @@ install-presets:
 	scripts/install-presets.sh $(PRESETS)
 
 test:
-	uv run --quiet --with pytest pytest tools $(wildcard plugins/*/tests) -q
+	uv run --quiet --with pytest pytest tools scripts $(wildcard plugins/*/tests) -q
 
 clean:
 	rm -rf $(BUILD_DIR)

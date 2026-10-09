@@ -2,7 +2,7 @@
 
 `glitch` is two lo-fi noise voices. Each deck runs one of 12 algorithms ported from Rob Scape's [Noisferatu](https://github.com/rob-scape/noisferatu): buffer glitches, logic noise, generative scale blips and rhythmic noise.
 
-Ported from the `glitch` engine in sk-engines; see [docs/dev/engines.md](../../docs/dev/engines.md). `gltc` is GPLv3; see [NOTICE.md](NOTICE.md).
+Ported from the [`glitch` engine](https://github.com/shakfu/sk-engines/tree/main/src/engine/glitch) in [sk-engines](https://github.com/shakfu/sk-engines); see [docs/dev/engines.md](../../docs/dev/engines.md). `gltc` is GPLv3; see [NOTICE.md](NOTICE.md).
 
 ## Install
 
