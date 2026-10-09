@@ -152,7 +152,12 @@ OptionEditor::OptionEditor(PluginProcessor& p) : base_type(&p, false), processor
     optionView_ = std::make_shared<OptionView>(processor_);
     optionViewIdx_ = addView(optionView_);
 
+#ifdef __PERCUSSA__SSP__
+    // BOOT is FAT: a desktop of any OS writes it without root, unlike the ext4 root filesystem
+    String defDir = "/media/BOOT/rack_presets";
+#else
     String defDir = File::getCurrentWorkingDirectory().getFullPathName() + File::getSeparatorChar() + "rack_presets";
+#endif
 
     File dir(defDir);
     if (!dir.exists()) { dir.createDirectory(); }

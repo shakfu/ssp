@@ -6,7 +6,7 @@ rack is a fork of TheTechnobear's trax. Upstream trax has the binary format only
 
 ## Loading
 
-Presets live in `rack_presets`, reached from rack's options page. On the SSP that resolves to `/rack_presets`, because Synthor runs with a working directory of `/`.
+Presets live in `rack_presets`, reached from rack's options page. On the SSP that is `/media/BOOT/rack_presets`, on the SD card's FAT partition; elsewhere, `rack_presets` in the working directory.
 
 Both formats sit in the same directory and the same file list. rack chooses by content, not by name: a file whose first non-whitespace character is `{` is read as JSON, anything else as the binary format. Presets written by older builds keep working.
 

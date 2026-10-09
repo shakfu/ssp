@@ -123,10 +123,8 @@ void FaustRuntime::destroy(Instance* i) {
 }
 
 std::string FaustRuntime::status() const {
-    static const std::string target = jitTarget().empty() ? getDSPMachineTarget() : jitTarget();
-    char buf[160];
-    std::snprintf(buf, sizeof(buf), "out %.3f  NaN resets %u", double(peak_.load(std::memory_order_relaxed)), resets());
-    return buf + std::string("\n") + target;
+    unsigned n = resets();
+    return n ? "non-finite output: " + std::to_string(n) + " blocks silenced" : std::string();
 }
 
 const char* FaustRuntime::builtin() const {
@@ -168,6 +166,7 @@ bool FaustRuntime::compile(const std::string& text, const std::string& path, std
     Instance* old = gate_.take();
     gate_.publish(i);
     destroy(old);
+    resets_.store(0, std::memory_order_relaxed);
     return true;
 }
 
@@ -186,21 +185,14 @@ void FaustRuntime::process(const float* const* in, float* const* out, int n) {
     for (int c = 0; c < outs; c++) i->op[size_t(c)] = out[c];
     i->dsp->compute(n, i->ip.data(), i->op.data());
     // a non-finite output means non-finite state, which a recursive program keeps forever: clear it
-    float peak = 0.0f;
     bool finite = true;
     for (int c = 0; c < outs; c++)
-        for (int f = 0; f < n; f++) {
-            float v = std::fabs(out[c][f]);
-            finite = finite && std::isfinite(v);
-            peak = std::max(peak, v);
-        }
+        for (int f = 0; f < n; f++) finite = finite && std::isfinite(out[c][f]);
     if (!finite) {
         for (int c = 0; c < outs; c++) std::fill(out[c], out[c] + n, 0.0f);
         i->dsp->instanceClear();
         resets_.fetch_add(1, std::memory_order_relaxed);
-        peak = 0.0f;
     }
-    peak_.store(peak, std::memory_order_relaxed);
     for (int c = outs; c < CHANNELS; c++) std::fill(out[c], out[c] + n, 0.0f);
     gate_.end();
 }

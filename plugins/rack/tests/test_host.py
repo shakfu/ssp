@@ -28,10 +28,10 @@ def build():
     return BUILD
 
 
-def run(build, name):
+def run(build, name, *args):
     env = dict(os.environ, TSAN_OPTIONS="exitcode=66")
     # Module loads plugins/<name>.so relative to the working directory
-    return subprocess.run([build / name], cwd=build, env=env, capture_output=True, text=True)
+    return subprocess.run([build / name, *map(str, args)], cwd=build, env=env, capture_output=True, text=True)
 
 
 def test_track_has_no_data_races(build):
@@ -40,5 +40,5 @@ def test_track_has_no_data_races(build):
 
 
 def test_json_matrix(build):
-    r = run(build, "json_matrix_test")
+    r = run(build, "json_matrix_test", ROOT / "presets")
     assert r.returncode == 0, r.stderr[-4000:]

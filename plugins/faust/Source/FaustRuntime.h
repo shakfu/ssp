@@ -18,7 +18,7 @@ public:
     ~FaustRuntime() override;
 
     void process(const float* const* in, float* const* out, int n) override;
-    // the last block's output peak and NaN resets, then the JIT's target
+    // the blocks silenced for non-finite output since the program loaded, or empty
     std::string status() const override;
     unsigned resets() const { return resets_.load(std::memory_order_relaxed); }
 
@@ -34,7 +34,6 @@ private:
     const std::string libraries_;
     Specs specs_;  // the last program compiled; compile() and declared() share a thread
     ssp::engine::ReloadGate<Instance> gate_;
-    std::atomic<float> peak_{ 0.0f };
     std::atomic<unsigned> resets_{ 0 };
 };
 

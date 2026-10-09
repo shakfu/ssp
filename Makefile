@@ -33,7 +33,7 @@ help:
 	@echo "make install-presets     check, then copy presets/ (or PRESETS=dir) to the card (SSP_PRESETS)"
 	@echo "make test               run the py2rack and plugin tests"
 	@echo "make clean              remove $(BUILD_DIR)"
-	@echo "variables: SSP_BUILDROOT, SSP_HOST (root@192.168.0.150), SSP_PLUGINS (/media/$$USER/BOOT/plugins), SSP_PRESETS (/media/$$USER/rootfs/rack_presets), JOBS ($(JOBS))"
+	@echo "variables: SSP_BUILDROOT, SSP_HOST (root@192.168.0.150), SSP_PLUGINS (/media/$$USER/BOOT/plugins), SSP_PRESETS (/media/$$USER/BOOT/rack_presets), JOBS ($(JOBS))"
 
 buildroot: $(BUILDROOT_DIR)
 

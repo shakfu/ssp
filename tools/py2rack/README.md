@@ -20,6 +20,8 @@ It also converts between JSON and the binary format, which rack shares with upst
 
 The manifest is what makes names checkable. Without `-m`, `encode` writes what it is given and checks nothing beyond the syntax.
 
+`modules-local.json` covers this repo's own modules (`edrm`, `gltc`, `rdio`, `chrs`, `fstr`, ...). Their channels and parameters are built at runtime, so a source scan cannot read them; `plugins/common/tests/test_engine_plugins.py` reads them from the built plugins instead, and fails when the file is stale (`UPDATE_MANIFEST=1 make test` rewrites it). Parameters are listed by id. `-m` can be given twice: `-m modules.json -m modules-local.json`.
+
 `modules.json` is vendored: this repo no longer holds TheTechnobear's module sources. It was scanned from commit `7804388`. When upstream changes a module, rescan a checkout of [TheTechnobear/SSP](https://github.com/TheTechnobear/SSP).
 
 ## Matrix authoring

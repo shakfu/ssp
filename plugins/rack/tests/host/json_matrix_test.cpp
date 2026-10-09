@@ -1,6 +1,7 @@
 // The "matrix" field of JSON presets: parsing, saving, a load-save-load through Track, and the
 // wire edits the routing grid makes.
 // Built by CMakeLists.txt and run from a directory holding plugins/pass2.so and plugins/pass6.so.
+// argv[1], if given, is a directory of presets whose every track matrix must parse.
 
 #include <algorithm>
 #include <cstdio>
@@ -218,7 +219,28 @@ static void trackSavesOnlyAudibleWires() {
     CHECK(none.getProperty("matrix", juce::var()).isVoid());
 }
 
-int main() {
+// every track's matrix in each preset of `dir` parses, as the SSP's loader parses it
+static void shippedPresetsParse(const char* dir) {
+    int seen = 0;
+    for (auto& file : juce::File(dir).findChildFiles(juce::File::findFiles, false, "*.json")) {
+        auto doc = juce::JSON::parse(file);
+        CHECK(doc.isObject());
+        if (auto* tracks = doc.getProperty("tracks", {}).getDynamicObject())
+            for (auto& t : tracks->getProperties()) {
+                juce::String error;
+                auto wires = jsonpreset::parseMatrix(t.value.getProperty("matrix", {}), error);
+                CHECK(error.isEmpty() && !wires.empty());
+                if (error.isNotEmpty())
+                    std::fprintf(stderr, "  %s track %s: %s\n", file.getFileName().toRawUTF8(),
+                                 t.name.toString().toRawUTF8(), error.toRawUTF8());
+            }
+        seen++;
+    }
+    CHECK(seen > 0);
+}
+
+int main(int argc, char** argv) {
+    if (argc > 1) shippedPresetsParse(argv[1]);
     parseExpandsCellsAndDc();
     parseRejectsMalformed();
     formatSumsAndOrders();

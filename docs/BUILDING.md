@@ -46,11 +46,11 @@ Plugins land in `build.cmake.ssp/plugins/*/*_artefacts/Release/VST3/*.vst3/Conte
 |-|-|
 | `SSP_BUILDROOT` | `./buildroot/arm-rockchip-linux-gnueabihf_sdk-buildroot` |
 | `SSP_PLUGINS` | `/media/$USER/BOOT/plugins` |
-| `SSP_PRESETS` | `/media/$USER/rootfs/rack_presets` |
+| `SSP_PRESETS` | `/media/$USER/BOOT/rack_presets` |
 | `SSP_HOST` | `root@192.168.0.150` |
 | `JOBS` | number of CPUs |
 
-rootfs is owned by root, so `install-presets` runs `cp` with `sudo` unless the destination is writable.
+`install-presets` copies to BOOT, which needs no `sudo`. It uses `sudo` only for a destination that is not writable, such as one on rootfs.
 
 ## Tests
 

@@ -11,4 +11,4 @@
   - `bard`: `resume.txt` is written to the card and a book resumes after a power cycle.
   - `bard`: buttons 6 and 8 (Next) work beside Load and Cancel.
 - `chrs`: listed, audible, DSP ~1.3% on the SSP (2026-10-08). Untested: CV into each control, compact editor in rack, preset save and reload.
-- `fstr` 0.2.0: the `tan()` fix works on the SSP; `filter.dsp` sounds, DSP ~0.9% average (2026-10-09). `chorus.dsp` ~1.3% average, 3.3% peak, as `chrs` (3.9% before the fix). Also: a Load left `filter.dsp`'s controls at 0, not its defaults. Untested: broken `.dsp` error; presets; compact editor.
+- `fstr` 0.2.0: the `tan()` fix works on the SSP; `filter.dsp` sounds, DSP ~0.9% average (2026-10-09). `chorus.dsp` ~1.3% average, 3.3% peak, as `chrs` (3.9% before the fix). Defaults apply on Load (checked 2026-10-09). Presets work; a broken `.dsp` shows its error. Untested: compact editor in rack.

@@ -1,0 +1,79 @@
+{
+  "rack": 1,
+  "tracks": {
+    "1": {
+      "level": 0.8,
+      "modules": {"1": "omod", "2": "edrm", "3": "shq", "4": "plts", "5": "ldrf"},
+      "matrix": {
+        "rows": ["1:Main", "1:Out A", "1:Out B", "3:Out 1", "4:Out", "1:Out C", "2:Out L", "2:Out R", "5:Out 1", "dc"],
+        "cols": ["2:Clock", "3:Trig 1", "4:Trig", "3:In 1", "4:VOct", "5:In 1", "5:Cutoff 1", "out:0", "out:1"],
+        "gain": [[1, 0, 0, 0,   0,    0, 0,   0,   0  ],
+                 [0, 1, 1, 0,   0,    0, 0,   0,   0  ],
+                 [0, 0, 0, 0.3, 0,    0, 0,   0,   0  ],
+                 [0, 0, 0, 0,   1,    0, 0,   0,   0  ],
+                 [0, 0, 0, 0,   0,    1, 0,   0,   0  ],
+                 [0, 0, 0, 0,   0,    0, 0.3, 0,   0  ],
+                 [0, 0, 0, 0,   0,    0, 0,   0.7, 0  ],
+                 [0, 0, 0, 0,   0,    0, 0,   0,   0.7],
+                 [0, 0, 0, 0,   0,    0, 0,   0.6, 0.6],
+                 [0, 0, 0, 0,   -0.4, 0, 0.3, 0,   0  ]]
+      },
+      "params": {
+        "1": {"Lfo": true, "Freq": 800.0, "Wave": 4, "slaveosc:0:ratio": 0.5, "slaveosc:0:wave": 4, "slaveosc:1:ratio": 0.03125, "slaveosc:1:wave": 2, "slaveosc:2:ratio": 0.0625, "slaveosc:2:wave": 0},
+        "2": {"2:hits": 0, "3:hits": 2, "3:rotate": 4, "4:hits": 7}
+      }
+    },
+    "2": {
+      "level": 0.6,
+      "modules": {"1": "omod", "2": "rngs", "3": "srvb"},
+      "matrix": {
+        "rows": ["1:Main", "1:Out A", "2:Odd", "2:Even", "3:Out L", "3:Out R"],
+        "cols": ["2:Strum", "2:VOct", "3:In L", "3:In R", "out:0", "out:1"],
+        "gain": [[1, 0,   0, 0, 0,   0  ],
+                 [0, 0.2, 0, 0, 0,   0  ],
+                 [0, 0,   1, 0, 0,   0  ],
+                 [0, 0,   0, 1, 0,   0  ],
+                 [0, 0,   0, 0, 0.8, 0  ],
+                 [0, 0,   0, 0, 0,   0.8]]
+      },
+      "params": {
+        "1": {"Lfo": true, "Freq": 50.0, "Wave": 4, "slaveosc:0:ratio": 0.25, "slaveosc:0:wave": 4},
+        "3": {"Mix": 60.0}
+      }
+    },
+    "3": {
+      "level": 0.5,
+      "modules": {"1": "omod", "2": "rdio", "3": "clds"},
+      "matrix": {
+        "rows": ["1:Main", "2:A Out", "3:Out L", "3:Out R"],
+        "cols": ["2:A Station", "3:In L", "3:In R", "out:0", "out:1"],
+        "gain": [[0.5, 0, 0, 0,   0  ],
+                 [0,   1, 1, 0,   0  ],
+                 [0,   0, 0, 0.8, 0  ],
+                 [0,   0, 0, 0,   0.8]]
+      },
+      "params": {
+        "1": {"Lfo": true, "Freq": 2.0, "Wave": 1},
+        "2": {"b:level": 0},
+        "3": {"Mix": 70.0}
+      }
+    },
+    "4": {
+      "level": 0.8,
+      "modules": {"1": "comp", "2": "srvb"},
+      "matrix": {
+        "rows": ["in:0", "in:1", "1:Out L", "1:Out R", "2:Out L", "2:Out R"],
+        "cols": ["1:In L", "1:In R", "2:In L", "2:In R", "out:0", "out:1"],
+        "gain": [[1, 0, 0,   0,   0,   0  ],
+                 [0, 1, 0,   0,   0,   0  ],
+                 [0, 0, 0.5, 0,   0.7, 0  ],
+                 [0, 0, 0,   0.5, 0,   0.7],
+                 [0, 0, 0,   0,   0.4, 0  ],
+                 [0, 0, 0,   0,   0,   0.4]]
+      },
+      "params": {
+        "2": {"Mix": 100.0}
+      }
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "rack": 1,
+  "tracks": {
+    "1": {
+      "level": 0.8,
+      "modules": {"1": "omod", "2": "edrm", "3": "srvb"},
+      "matrix": {
+        "rows": ["1:Main", "2:Out L", "2:Out R", "2:3 Out", "3:Out L", "3:Out R"],
+        "cols": ["2:Clock", "out:0", "out:1", "3:In L", "3:In R"],
+        "gain": [[1, 0,   0,   0,   0  ],
+                 [0, 0.8, 0,   0,   0  ],
+                 [0, 0,   0.8, 0,   0  ],
+                 [0, 0,   0,   0.4, 0.4],
+                 [0, 0.3, 0,   0,   0  ],
+                 [0, 0,   0.3, 0,   0  ]]
+      },
+      "params": {
+        "1": {"Lfo": true, "Freq": 800.0, "Wave": 4},
+        "2": {"1:hits": 4, "2:model": 4, "2:hits": 3, "2:steps": 12, "3:model": 1, "3:hits": 2, "3:rotate": 4, "4:model": 3, "4:hits": 7, "4:swing": 58},
+        "3": {"Mix": 100.0}
+      }
+    }
+  }
+}

@@ -10,6 +10,7 @@
 //   wait SECONDS         sleeps, for work the worker does without audio (a compile, a file open)
 //   level CH             prints "level CH <mean |x|> <last sample>" over the last run's final block
 //   state                prints the state XML
+//   channels             prints "input NAME" and "output NAME", one line per channel
 
 #include <dlfcn.h>
 
@@ -125,6 +126,9 @@ int main(int argc, char** argv) {
                         lastBlock ? buf[size_t(c)][size_t(lastBlock - 1)] : 0.0f);
         } else if (cmd == "state") {
             std::printf("state %s\n", getXml(p).c_str());
+        } else if (cmd == "channels") {
+            for (auto& n : desc->inputChannelNames) std::printf("input %s\n", n.c_str());
+            for (auto& n : desc->outputChannelNames) std::printf("output %s\n", n.c_str());
         } else {
             std::fprintf(stderr, "unknown command %s\n", cmd.c_str());
             return 2;

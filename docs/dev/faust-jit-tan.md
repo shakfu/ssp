@@ -53,6 +53,3 @@ The switch between x = 0.79 and 0.80 is pi/4, where glibc's `tanf` moves from it
 
 The wrapper, the explicit libm binding and the object dump were removed after the diagnosis. `diag/tan.dsp`, `diag/sin.dsp` and `diag/resonlp.dsp` remain on the card in `BOOT/faust/diag`, not in the repo.
 
-## Also open
-
-- A Load left `filter.dsp`'s controls at 0 instead of the program's defaults.

@@ -4,7 +4,9 @@ rack is a fork of TheTechnobear's trax 1.0.1. It will follow [semantic versionin
 
 ## Unreleased
 
-Renamed from trax: the plugin is `rack.so` (plugin code `RACK`, manufacturer `SF00`), and presets live in `/rack_presets`. The binary preset format is unchanged, so binary presets load in either.
+Renamed from trax: the plugin is `rack.so` (plugin code `RACK`, manufacturer `SF00`), and presets live in `/media/BOOT/rack_presets`. The binary preset format is unchanged, so binary presets load in either.
+
+Presets moved from `/rack_presets` on the root filesystem to the BOOT partition. The root filesystem is ext4 and owned by root, so copying presets from a desktop needed sudo, and macOS and Windows cannot mount it; BOOT is FAT. Move any presets saved on the device from `/rack_presets` to `/media/BOOT/rack_presets`.
 
 Presets can be JSON, loaded and saved on the device. A preset name ending in `.json` saves as JSON. See [README-json-presets.md](README-json-presets.md).
 

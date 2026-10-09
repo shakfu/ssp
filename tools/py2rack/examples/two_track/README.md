@@ -54,10 +54,10 @@ The manifest is what lets `encode` check the parameter and channel names. Drop `
 
 ## Using it
 
-Copy either file into `rack_presets` at the root of the SSP's root filesystem. With the SD card mounted:
+Copy either file into `rack_presets` on the SD card's BOOT partition. With the card mounted:
 
-    sudo cp tools/py2rack/examples/two_track/two_track.json /media/sa/rootfs/rack_presets/
-    sudo cp tools/py2rack/examples/two_track/two_track      /media/sa/rootfs/rack_presets/
+    cp tools/py2rack/examples/two_track/two_track.json /media/$USER/BOOT/rack_presets/
+    cp tools/py2rack/examples/two_track/two_track      /media/$USER/BOOT/rack_presets/
 
 Then load from rack's options page. rack decides by content, not by extension: a file starting with `{` is parsed as JSON, anything else as the binary format.
 

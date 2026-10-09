@@ -107,6 +107,5 @@ The buildroot sysroot ships LLVM 9.0.1 for the SSP: static libraries, headers an
 
 - `fstr`'s JIT matches compiled code on the SSP: `chorus.dsp` ~1.3% average, 3.3% peak, as `chrs`'s ~1.3% (2026-10-09). Before the target fix it cost ~3.9%, compiled for ARMv4 without an FPU. `chrs`'s peak is unrecorded. A Load's compile time is not noticeable.
 - `tan()` in JIT code was wrong on the SSP: libfaust ignored the requested target, and LLVM 9 detects the SSP's CPU as `generic`. Patched; `filter.dsp` works on the SSP at ~0.9% DSP average (2026-10-09). See [faust-jit-tan.md](faust-jit-tan.md).
-- A Load left `filter.dsp`'s controls at 0, not at the program's defaults. The cause is not found.
 - `classInit` fills static tables shared by all instances of a kernel. A second instance's `prepare` rewrites them while the first plays. Harmless while the values are identical; it matters if a kernel's tables depend on the sample rate.
 - `chorus.dsp` caps the delay at 2048 samples: 42 ms at 48 kHz. Its 25 ms maximum clips above 81.9 kHz.

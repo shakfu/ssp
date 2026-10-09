@@ -14,6 +14,7 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 FIXTURE = REPO / "resources" / "test" / "trax.filtergraph"
 EXAMPLE = pathlib.Path(__file__).resolve().parents[1] / "examples" / "two_track" / "two_track.json"
 MODULES = pathlib.Path(__file__).resolve().parents[1] / "modules.json"
+LOCAL = pathlib.Path(__file__).resolve().parents[1] / "modules-local.json"  # this repo's modules
 SOURCES = pathlib.Path(__file__).resolve().parent / "fixtures"
 
 
@@ -390,4 +391,4 @@ def test_matrix_field_needs_all_keys():
 
 @pytest.mark.parametrize("path", sorted((REPO / "presets").glob("*.json")), ids=lambda p: p.name)
 def test_shipped_preset_encodes_with_names_checked(path):
-    py2rack.encode(json.loads(path.read_text()), load_manifest())
+    py2rack.encode(json.loads(path.read_text()), {**load_manifest(), **json.loads(LOCAL.read_text())})

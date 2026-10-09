@@ -525,8 +525,14 @@ def decode(blob: bytes) -> dict:
 # --- cli ---------------------------------------------------------------------
 
 
-def _load_manifest(path: str | None) -> dict | None:
-    return json.loads(pathlib.Path(path).read_text()) if path else None
+def _load_manifest(paths: list[str] | None) -> dict | None:
+    """Merges the manifests in order: a module in a later one replaces the earlier entry."""
+    if not paths:
+        return None
+    manifest = {}
+    for path in paths:
+        manifest.update(json.loads(pathlib.Path(path).read_text()))
+    return manifest
 
 
 def _emit(text: str, path: str | None) -> None:
@@ -543,7 +549,8 @@ def main(argv: list[str] | None = None) -> int:
     p_encode = sub.add_parser("encode", help="JSON preset -> rack preset file")
     p_encode.add_argument("input")
     p_encode.add_argument("-o", "--output", required=True)
-    p_encode.add_argument("-m", "--modules", help="manifest from 'scan'; enables parameters by name")
+    p_encode.add_argument("-m", "--modules", action="append",
+                          help="manifest from 'scan' (repeatable); enables parameters by name")
 
     p_decode = sub.add_parser("decode", help="rack preset file (or .filtergraph state) -> JSON")
     p_decode.add_argument("input")

@@ -8,7 +8,7 @@ The version is set in `CMakeLists.txt` (`project(FAUST VERSION ...)`) and shown 
 
 Programs run as machine code from libfaust's LLVM JIT, in place of its interpreter, which used ~15x the CPU of a compiled module on the SSP. LLVM is the SSP's own `libLLVM-9.so`, which the SSP's Mesa drivers already link; a static copy would add ~25 MB and could clash with it.
 
-A program whose output goes NaN or infinite is silenced and its state cleared. The status panel shows the last block's output peak, the count of those resets, and the CPU the JIT compiles for.
+A program whose output goes NaN or infinite is silenced and its state cleared; the status panel counts the silenced blocks until the next program loads.
 
 libfaust 2.85.9 built the JIT before storing the requested target, so on the SSP it compiled for the host CPU, which LLVM 9 names `generic`: ARMv4 without an FPU. Its calls into libm used the soft-float convention, and `tan()` returned 0 or NaN, silencing filters. `build_deps.sh` patches libfaust, and `fstr` requests `cortex-a17`, which LLVM 9 cannot detect on the SSP. See [docs/dev/faust-jit-tan.md](../../docs/dev/faust-jit-tan.md).
 

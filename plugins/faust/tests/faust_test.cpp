@@ -130,7 +130,9 @@ static void testEngine(const std::string& dir, const std::string& libraries) {
     unsigned before = r.e.resets();
     CHECK(r.run(3) == 0.0);
     CHECK(r.e.resets() == before + 3);
-    CHECK(r.e.status().find("NaN resets 3") != std::string::npos);
+    CHECK(r.e.status() == "non-finite output: 3 blocks silenced");
+    r.load("");  // a new program clears the count
+    CHECK(r.e.resets() == 0 && r.e.status().empty());
 
     // a failed program with nothing running falls back to the built-in
     Rig q(libraries);

@@ -1,0 +1,26 @@
+{
+  "rack": 1,
+  "tracks": {
+    "1": {
+      "level": 0.7,
+      "modules": {"1": "omod", "2": "harm", "3": "clds", "4": "srvb"},
+      "matrix": {
+        "rows": ["1:Main", "1:Out A", "1:Out B", "2:Main", "3:Out L", "3:Out R", "4:Out L", "4:Out R"],
+        "cols": ["2:TCentre", "2:TSpread", "2:TAmount", "3:In L", "3:In R", "4:In L", "4:In R", "out:0", "out:1"],
+        "gain": [[0.3, 0,   0,   0, 0, 0, 0, 0,   0  ],
+                 [0,   0.3, 0,   0, 0, 0, 0, 0,   0  ],
+                 [0,   0,   0.3, 0, 0, 0, 0, 0,   0  ],
+                 [0,   0,   0,   1, 1, 0, 0, 0,   0  ],
+                 [0,   0,   0,   0, 0, 1, 0, 0,   0  ],
+                 [0,   0,   0,   0, 0, 0, 1, 0,   0  ],
+                 [0,   0,   0,   0, 0, 0, 0, 0.8, 0  ],
+                 [0,   0,   0,   0, 0, 0, 0, 0,   0.8]]
+      },
+      "params": {
+        "1": {"Lfo": true, "Freq": 7.0, "Wave": 0, "slaveosc:0:ratio": 0.61, "slaveosc:0:wave": 1, "slaveosc:1:ratio": 0.37, "slaveosc:1:wave": 0},
+        "3": {"Mix": 50.0},
+        "4": {"Mix": 60.0}
+      }
+    }
+  }
+}

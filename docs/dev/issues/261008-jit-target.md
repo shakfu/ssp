@@ -17,7 +17,9 @@ fc1031d214 ("Set the JIT target before initJIT(), not after") fixed the same ord
 At 2.88.0 (8c00913e44); master-dev 5038da1c09 is the same:
 
 - `llvm_code_container.cpp:289` builds the factory with `opt_level` -1, so `fOptLevel` starts at `LLVM_MAX_OPT_LEVEL`.
+
 - `llvm_dynamic_dsp_aux.cpp:353`: `initJIT()` runs the IR pipeline at `opt_table[fOptLevel]`.
+
 - `llvm_dynamic_dsp_aux.cpp:748` and `:788`: `setOptlevel(opt_level)` runs after `initJIT()` returns.
 
 ## Measurement
@@ -64,6 +66,7 @@ Set the level before `initJIT()`, as fc1031d214 does for the target. In both fun
 +            factory_aux->setOptlevel(opt_level);
          }
          if (factory_aux && factory_aux->initJIT(error_msg)) {
+
 -            factory_aux->setOptlevel(opt_level);
              factory_aux->setClassName(getParam(argc, argv, "-cn", "mydsp"));
 ```
