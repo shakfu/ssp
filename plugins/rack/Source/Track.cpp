@@ -154,10 +154,14 @@ bool Track::requestMatrixAttenuate(const Matrix::Jack& src, const Matrix::Jack& 
     if (!lock_.test_and_set()) {
         for (auto& w : matrix_.connections_) {
             if (w.src_ == src && w.dest_ == dest) {
+                // the same limits as requestMatrixGain: gain 0 to 1, offset +-1 (+-5 V), in steps of 0.01
+                auto step = [delta](float v, float lo, float hi) {
+                    return std::round(std::clamp(v + delta, lo, hi) * 100.0f) / 100.0f;
+                };
                 if (isOffset) {
-                    w.offset_ += delta;
+                    w.offset_ = step(w.offset_, -1.0f, 1.0f);
                 } else {
-                    w.gain_ += delta;
+                    w.gain_ = step(w.gain_, 0.0f, 1.0f);
                 }
                 lock_.clear();
                 return true;
@@ -175,6 +179,17 @@ void Track::prepare(int sampleRate, int blockSize) {
     sampleRate_ = sampleRate;
 
     for (auto& m : modules_) { m.prepare(sampleRate_, blockSize_); }
+}
+
+// A module's inputs are summed wires, which a feedback loop or stacked gains and offsets can drive
+// to any value, and on to infinity and NaN. A module may index tables with an input and crash.
+// Non-finite samples become 0; the rest stay within +-2, Eurorack's +-10 V at 0.2 a volt.
+void Track::limitInputs(juce::AudioSampleBuffer& buf, uint64_t wired, int n) {
+    for (int c = 0; c < buf.getNumChannels() && c < 64; c++) {
+        if (!(wired >> c & 1)) continue;
+        float* x = buf.getWritePointer(c);
+        for (int i = 0; i < n; i++) x[i] = std::isfinite(x[i]) ? std::clamp(x[i], -IN_LIMIT, IN_LIMIT) : 0.0f;
+    }
 }
 
 void Track::process(juce::AudioSampleBuffer& ioBuffer) {
@@ -197,8 +212,10 @@ void Track::process(juce::AudioSampleBuffer& ioBuffer) {
             if (m.lock_.test_and_set()) continue;
             auto& moduleBuf = m.audioBuffer_;
             if (modIdx != M_IN) moduleBuf.clear();
+            uint64_t wired = 0;  // input channels with a wire
             for (auto& route : matrix_.connections_) {
                 if (route.dest_.modIdx_ == modIdx) {
+                    if (route.dest_.chIdx_ < 64) wired |= uint64_t(1) << route.dest_.chIdx_;
                     auto& srcBuf = modules_[route.src_.modIdx_].audioBuffer_;
                     float gain = route.gain_;
                     float offset = route.offset_;
@@ -210,6 +227,7 @@ void Track::process(juce::AudioSampleBuffer& ioBuffer) {
                 }
             }
 
+            limitInputs(moduleBuf, wired, int(n));
             m.process(moduleBuf);
             m.lock_.clear();
         }

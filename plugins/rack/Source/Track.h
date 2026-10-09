@@ -23,6 +23,7 @@ public:
 
     void prepare(int sampleRate, int blockSize);
     void process(juce::AudioSampleBuffer& ioBuffer);
+    static void limitInputs(juce::AudioSampleBuffer& buf, uint64_t wired, int n);
 
     void getStateInformation(juce::XmlElement& outStream);
     void getStateInformation(juce::var& out);
@@ -74,6 +75,8 @@ private:
     static constexpr int MAX_IO_IN = 8;
     static constexpr int MAX_IO_OUT = 2;
     static constexpr int MAX_IO = std::max(MAX_IO_IN, MAX_IO_OUT);
+    // a module input's limit: +-10 V at 0.2 a volt; see limitInputs
+    static constexpr float IN_LIMIT = 2.0f;
 
     bool loadModule(std::string, Module& m);
     void alloc(int sampleRate, int blockSize);

@@ -11,6 +11,10 @@
 //   level CH             prints "level CH <mean |x|> <last sample>" over the last run's final block
 //   state                prints the state XML
 //   channels             prints "input NAME" and "output NAME", one line per channel
+//   load FILE            restores the state from FILE, as a rack preset loads
+//   button N V           PluginInterface::buttonPressed(N, V); N as in Percussa.h, V 1 or 0
+//   encoder N V          PluginInterface::encoderTurned(N, V)
+//   render FILE          one editor frame at 1600x480, as BGRA bytes to FILE
 
 #include <dlfcn.h>
 
@@ -20,6 +24,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
+#include <iterator>
 #include <string>
 #include <thread>
 #include <vector>
@@ -126,6 +132,30 @@ int main(int argc, char** argv) {
                         lastBlock ? buf[size_t(c)][size_t(lastBlock - 1)] : 0.0f);
         } else if (cmd == "state") {
             std::printf("state %s\n", getXml(p).c_str());
+        } else if (cmd == "load") {
+            std::ifstream f(argv[a + 1], std::ios::binary);
+            std::vector<char> data{ std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>() };
+            if (data.empty()) {
+                std::fprintf(stderr, "cannot read %s\n", argv[a + 1]);
+                return 1;
+            }
+            p->setState(data.data(), data.size());
+            a += 1;
+        } else if (cmd == "button") {
+            p->buttonPressed(std::atoi(argv[a + 1]), std::atoi(argv[a + 2]) != 0);
+            a += 2;
+        } else if (cmd == "encoder") {
+            p->encoderTurned(std::atoi(argv[a + 1]), std::atoi(argv[a + 2]));
+            a += 2;
+        } else if (cmd == "render") {
+            static constexpr int W = 1600, H = 480;
+            auto* editor = p->getEditor();
+            std::vector<unsigned char> image(size_t(W) * H * 4, 0);
+            editor->visibilityChanged(true);
+            editor->frameStart();
+            editor->renderToImage(image.data(), W, H);
+            std::ofstream(argv[a + 1], std::ios::binary).write(reinterpret_cast<char*>(image.data()), long(image.size()));
+            a += 1;
         } else if (cmd == "channels") {
             for (auto& n : desc->inputChannelNames) std::printf("input %s\n", n.c_str());
             for (auto& n : desc->outputChannelNames) std::printf("output %s\n", n.c_str());

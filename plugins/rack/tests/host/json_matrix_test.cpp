@@ -4,6 +4,8 @@
 // argv[1], if given, is a directory of presets whose every track matrix must parse.
 
 #include <algorithm>
+#include <cmath>
+#include <limits>
 #include <cstdio>
 #include <tuple>
 
@@ -193,6 +195,44 @@ static void trackGainIsTheConnection() {
     CHECK(connections(track).empty());
 }
 
+// requestMatrixAttenuate keeps the limits requestMatrixGain does: gain 0 to 1, offset -1 to 1
+static void trackLevelsAreClamped() {
+    Track track;
+    track.prepare(48000, 128);
+    track.setStateInformation(juce::JSON::parse(R"({ "modules": { "1": "pass2", "2": "pass6" } })"), 0);
+    Matrix::Jack src(1, 0), dest(2, 3);
+    while (!track.requestMatrixConnect(src, dest, 0.5f)) {}
+    while (!track.requestMatrixAttenuate(src, dest, true, 5.0f)) {}
+    while (!track.requestMatrixAttenuate(src, dest, false, 5.0f)) {}
+    std::vector<Conn> high = { { 1, 0, 2, 3, 1.0f, 1.0f } };
+    CHECK(connections(track) == high);
+    while (!track.requestMatrixAttenuate(src, dest, true, -5.0f)) {}
+    while (!track.requestMatrixAttenuate(src, dest, false, -0.3f)) {}
+    std::vector<Conn> low = { { 1, 0, 2, 3, 0.7f, -1.0f } };
+    CHECK(connections(track) == low);
+}
+
+// a module never sees a non-finite input, or one beyond +-2 (+-10 V); pass2 halves what it gets
+static void trackLimitsModuleInputs() {
+    Track track;
+    track.prepare(48000, 128);
+    track.setStateInformation(juce::JSON::parse(R"({ "modules": { "1": "pass2" } })"), 0);
+    while (!track.requestMatrixConnect(Matrix::Jack(Track::M_IN, 0), Matrix::Jack(1, 0), 1.0f)) {}
+    while (!track.requestMatrixConnect(Matrix::Jack(Track::M_IN, 1), Matrix::Jack(1, 1), 1.0f, 3.0f)) {}
+    while (!track.requestMatrixConnect(Matrix::Jack(1, 0), Matrix::Jack(Track::M_OUT, 0), 1.0f)) {}
+    while (!track.requestMatrixConnect(Matrix::Jack(1, 1), Matrix::Jack(Track::M_OUT, 1), 1.0f)) {}
+    juce::AudioSampleBuffer io(8, 128);  // the track input's channels
+    for (float in : { std::numeric_limits<float>::infinity(), -1e30f, std::nanf("") }) {
+        io.clear();
+        juce::FloatVectorOperations::fill(io.getWritePointer(0), in, 128);
+        track.process(io);
+        // non-finite becomes 0; finite is limited to +-2, then halved
+        float expect = std::isfinite(in) ? std::copysign(1.0f, in) : 0.0f;
+        CHECK(io.getSample(0, 127) == expect);
+        CHECK(io.getSample(1, 127) == 1.0f);  // an offset of 3 on a silent input, limited to 2, halved
+    }
+}
+
 static void trackSavesOnlyAudibleWires() {
     Track track;
     track.prepare(48000, 128);
@@ -248,6 +288,8 @@ int main(int argc, char** argv) {
     trackLoadsSavesAndReloads();
     trackTogglesWires();
     trackGainIsTheConnection();
+    trackLevelsAreClamped();
+    trackLimitsModuleInputs();
     trackSavesOnlyAudibleWires();
     if (failures) std::fprintf(stderr, "%d failures\n", failures);
     return failures ? 1 : 0;

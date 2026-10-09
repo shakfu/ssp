@@ -22,8 +22,8 @@ Internally the engine keeps a list of wires, each with its own gain and offset. 
 
 On the track page, short Down opens the routing view; Up returns.
 
-- **Grid:** one cell per module pair. Rows are sources (`from`), columns destinations (`to`), headed by module name. A cell shows how many wires connect the pair. Green wires run in order; orange wires read the previous block (a feedback loop); red wires connect a module to itself and carry nothing.
-- **Jack matrix,** beside the grid: the selected module pair's jacks. Rows are the source's outputs, columns the destination's inputs. A filled cell is a wire; its brightness is its gain. The yellow box is the jack cursor.
+- **Grid:** one cell per module pair. Rows are sources (`from`), columns destinations (`to`), headed by module name. Empty slots have no jacks and are left out, so load modules before wiring them. A cell shows how many wires connect the pair. Green wires run in order; orange wires read the previous block (a feedback loop); red wires connect a module to itself and carry nothing.
+- **Jack matrix,** beside the grid: the selected module pair's jacks. Rows are the source's outputs, columns the destination's inputs. A filled cell is a wire; its brightness is its gain, also printed in the cell when it fits. The yellow frame is the jack cursor.
 - **Wire list:** on the SSP's full 1600 px screen, a third column lists every wire on the track, as `omod Main -> drum HH1 Trig  x1.00`. The selected pair's wires are white, the cursor's wire yellow.
 - **Badges:** a grey number names the encoder that moves each cursor. The status line under the jack matrix shows the cursor's jacks and its gain and offset, as `Main -> HH1 Trig`, `x1.00 +0.00`.
 
@@ -31,8 +31,12 @@ On the track page, short Down opens the routing view; Up returns.
 |-|-|-|
 | Encoder 1 | source module | source module |
 | Encoder 2 | destination module | destination module |
-| Encoder 3 | source jack | offset of the selected wire, saved into the destination's `dc` |
+| Encoder 3 | source jack | offset of the selected wire, -1 to 1 (+-5 V), saved into the destination's `dc` |
 | Encoder 4 | destination jack | gain, 0 to 1 |
-| Push encoder 4 | connect at gain 1, or disconnect | same |
+| Press encoder 4 | connect at gain 1, or disconnect | same |
 
-Turning gain up from 0 connects; turning it down to 0 disconnects. The device keeps gain between 0 and 1 in steps of 0.01. A preset can set any gain; a gain above 1 is clamped to 1 the first time it is edited on the device.
+Soft key 1 switches `Level`; full screen, the title line shows its state. Offset and gain move 0.1 a detent, or 0.01 while the encoder is held. Encoder 4's press acts on release, and not after the encoder was turned while held.
+
+Turning gain up from 0 connects; turning it down to 0 disconnects. The device keeps gain between 0 and 1 and offset between -1 and 1.
+
+A module's input is the sum of its wires, so a feedback loop or stacked wires can push it anywhere. Before each module runs, rack sets non-finite input samples to 0 and limits the rest to +-2 (+-10 V at 0.2 a volt), so a runaway loop saturates instead of handing the module infinity or NaN. A preset can set any gain; a gain above 1 is clamped to 1 the first time it is edited on the device.

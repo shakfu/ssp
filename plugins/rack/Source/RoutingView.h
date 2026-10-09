@@ -21,6 +21,9 @@ public:
 
     // the base class assumes the compact width; hosted full screen this view is 1600 px wide
     int canvasWidth() override { return getWidth() - 2 * 5 * COMPACT_UI_SCALE; }
+    // full screen there is no button box, so the canvas runs to the bottom
+    int canvasHeight() override { return wide() ? getHeight() - canvasY() - 5 * COMPACT_UI_SCALE : base_type::canvasHeight(); }
+    void resized() override;
 
 protected:
     void drawView(juce::Graphics& g) override;
@@ -28,6 +31,7 @@ protected:
 
 private:
     using base_type = ssp::MiniBasicView;
+    bool wide() const { return getWidth() > int(SSP_COMPACT_WIDTH); }
     static constexpr unsigned N = Track::M_MAX;
     static constexpr unsigned R = N - 1;  // IN has no inputs and OUT no outputs, so each drops from one axis
 
@@ -40,8 +44,16 @@ private:
     juce::String channelName(unsigned midx, unsigned ch, bool output);
     unsigned channelCount(unsigned midx, bool output);
     const Matrix::Wire* cursorWire() const;
-    int drawGrid(juce::Graphics& g, int x, int y, int h, int hw, int cw);
-    void drawJacks(juce::Graphics& g, int x, int y, int w, int h, int labelW, int colLabelH);
+    // sizes, in px, of the module grid and the jack matrix; compact and full screen differ
+    struct Sizes {
+        int headerFh, countFh;  // grid headers and wire counts
+        bool rotated;           // grid column headers read bottom to top
+        int labelW, colLabelH;  // jack matrix label areas
+        int maxCell, maxLabelFh;
+    };
+    // rh is the row height
+    int drawGrid(juce::Graphics& g, int x, int y, int rh, int hw, int cw, const Sizes& sz);
+    void drawJacks(juce::Graphics& g, int x, int y, int w, int h, const Sizes& sz);
     void drawStatus(juce::Graphics& g, int x, int y, int w);
     void drawWireList(juce::Graphics& g, int x, int y, int w, int h);
 
@@ -54,10 +66,13 @@ private:
     unsigned destCh_ = 0;
     bool levelMode_ = false;  // encoders 3 and 4 set offset and gain instead of moving the jack cursor;
                               // gain is the connection: 0 means no wire
+    bool encDown_[4] = {};    // held encoders: turning one steps finely
+    bool encTurned_[4] = {};  // turned while held, so its release is not a press
 
     std::vector<Matrix::Wire> wires_;
     std::array<unsigned, N> order_{};
-    std::array<unsigned, R> rows_{};  // sources: order_ without OUT
-    std::array<unsigned, R> cols_{};  // destinations: order_ without IN
+    std::array<unsigned, R> rows_{};  // sources: order_ without OUT or empty slots
+    std::array<unsigned, R> cols_{};  // destinations: order_ without IN or empty slots
+    unsigned nRows_ = 0, nCols_ = 0;  // how many of rows_ and cols_ are used
     unsigned count_[N][N] = {};       // wires per module pair, by module index
 };

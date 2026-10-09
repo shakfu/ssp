@@ -107,6 +107,8 @@ protected:
     void onButton(unsigned int id, bool v) override;
     void editorShown() override;
     void editorHidden() override;
+    // false hides the soft key labels; the buttons still reach onButton
+    void showButtonBox(bool b);
 
     // void drawView(Graphics &) override;
 
@@ -127,6 +129,7 @@ private:
     unsigned ioW_ = 0;
     static constexpr unsigned maxUserBtns = 8;
     std::shared_ptr<ssp::ButtonBox> buttonBox_;
+    bool buttonBoxShown_ = true;
 
     ioActivity ioCallback_ = nullptr;
 
