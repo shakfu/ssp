@@ -12,11 +12,65 @@ From source: `make deps` builds libfaust once; then `make install MOD=fstr` and 
 
 Load (button 5) picks a `.dsp` file. A program that fails to compile shows its error, and the previous program keeps running. With no program, a built-in drone plays.
 
-- **Channels**: the program's inputs are In 1..8, its outputs Out 1..8. Channels past 8 are silent.
+- **Channels**: In 1..8 and Out 1..8, for audio and CV; see [Inputs and outputs](#inputs-and-outputs).
 - **Controls**: the program's first 16 sliders, number entries, buttons and checkboxes become p1..p16, in Faust's order: by label, or by `[0]`, `[1]`... prefixes. Each takes the control's label, range and `[unit:...]`; `[scale:log]` maps it logarithmically.
 - **Defaults**: a program chosen with Load sets its controls to the program's defaults. A preset restores its own values.
 - **Imports**: `import("stdfaust.lib")` and the other libraries resolve in the program's folder, then in `BOOT/faust/libraries`.
-- **CV**: there are no CV inputs per control. A program reads CV as an audio input; `osc.dsp` reads V/oct on input 1 (0.2 per volt).
+- **CV**: `[cv:N]` in a control's label makes input N move it; see [CV in](#cv-in).
+
+## Inputs and outputs
+
+Inputs 1..8 and outputs 1..8 carry audio and CV alike. An SSP signal of 1.0 is 5 V, so CV is 0.2 per volt: 1 V is 0.2, and 1 V/oct pitch is 0.2 per octave.
+
+### Audio in
+
+`process`'s inputs are In 1..8, in order. Signals arrive unscaled, 1.0 for 5 V.
+
+### CV in
+
+A program gets CV in two ways: on a control, or by reading the input itself.
+
+#### On a control
+
+A control with CV follows input N (1..8): add `[cv:N]` to its label.
+
+```
+cutoff = hslider("cutoff [scale:log][unit:Hz][cv:3]", 1000, 40, 16000, 1);
+```
+
+| Range | Each volt | -1 V | +1 V | +5 V |
+|-|-|-|-|-|
+| log | an octave | half | double | 32x |
+| linear | a tenth of the range | -10% of the range | +10% | +50% |
+
+- The encoder sets the value the CV moves from. The result stays within the control's range.
+- The CV is read once per audio block: 128 frames, 2.7 ms at 48 kHz. That is fine for envelopes, LFOs and sequencers, not for audio-rate modulation.
+- An orange mark on the control's bar shows where the CV has moved it, and the value shown is the moved one. A preset stores the encoder position, not the moved value.
+- The input still reaches the program as audio.
+
+#### In the program
+
+Give `process` an input for the CV and use it, at audio rate, with a scaling of your own. There is no mark on screen. `examples/filter_cv.dsp` reads In 3 as 1 V/oct:
+
+```faust
+fc(cv) = max(20, min(16000, cutoff * pow(2, cv / 0.2)));
+process(l, r, cv) = (l : fi.resonlp(fc(cv), q, 1)), (r : fi.resonlp(fc(cv), q, 1));
+```
+
+[Walkthrough step 6](#6-add-cv) explains it.
+
+### Audio out
+
+`process`'s outputs are Out 1..8, in order. Channels past 8 are silent.
+
+### CV out
+
+Write a value or a slow signal to an output, at 0.2 per volt. A constant is a signal:
+
+```faust
+import("stdfaust.lib");
+process = _, _, os.osc(2) * 0.5, 0.2 * octaves;   // In 1-2 to Out 1-2; Out 3: +-2.5 V at 2 Hz; Out 4: 1 V/oct
+```
 
 ## Examples
 
@@ -91,7 +145,7 @@ Turn encoder 1 to sweep the cutoff and encoder 2 for resonance. `si.smoo` smooth
 
 ### 6. Add CV
 
-`fstr` gives a program no CV input per control: CV arrives as audio, on an input. To sweep the cutoff from In 3, give `process` a third input and use it as a 1 V/oct offset. `examples/filter_cv.dsp` is this program:
+`[cv:3]` on the cutoff slider would sweep it from In 3, once per block. To sweep it at audio rate instead, give `process` a third input and use it as a 1 V/oct offset. `examples/filter_cv.dsp` is this program:
 
 ```faust
 import("stdfaust.lib");

@@ -3,6 +3,6 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD_DIR="${BUILD_DIR:-$ROOT/build.cmake.ssp}"
-SSP_HOST="${SSP_HOST:-root@192.168.0.150}"
+SSP_HOST="${SSP_HOST:-root@192.168.1.6}"
 
 scp -O "$BUILD_DIR"/plugins/*/*/Release/VST3/*.vst3/Contents/*/*.so "$SSP_HOST":/media/BOOT/plugins

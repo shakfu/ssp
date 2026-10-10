@@ -52,6 +52,11 @@ void MiniControl::paint(juce::Graphics& g) {
         }
         g.setColour(juce::Colours::white);
         g.drawVerticalLine(ve, bposY, bposY + bH);
+        float m = modulated();
+        if (m >= 0.0f) {  // where modulation has moved the value
+            g.setColour(juce::Colours::orange);
+            g.fillRect(int((w - 1) * m) - 1, int(bposY), 3, int(bH));
+        }
 
     } else {
         int bl = (w - 1) / p.getNumSteps();

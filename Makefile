@@ -17,14 +17,15 @@ BUILDROOT_DEP := $(BUILDROOT_DIR)
 endif
 
 .DEFAULT_GOAL := ssp
-.PHONY: ssp configure buildroot deps faust-kernels release release-pdf release-notes publish clean-releases deploy deploy-mod install install-faust install-presets test clean help
+.PHONY: ssp configure buildroot deps faust-kernels scsy-builtin release release-pdf release-notes publish clean-releases deploy deploy-mod install install-faust install-scsy install-presets test clean help
 
 help:
 	@echo "make [ssp]              download buildroot if needed, configure, build all plugins"
 	@echo "make configure          re-run cmake configure"
 	@echo "make buildroot          download and extract the SSP buildroot into ./buildroot"
-	@echo "make deps               build Csound, ChucK and libfaust for the SSP (then re-run make configure)"
+	@echo "make deps               build Csound, ChucK, libfaust and libscsynth for the SSP (then re-run make configure)"
 	@echo "make faust-kernels      regenerate the Faust kernel headers (needs uv)"
+	@echo "make scsy-builtin       regenerate scsy's built-in SynthDef header (needs uv)"
 	@echo "make release            build, package releases/shakfu-ssp-plugins-$$(cat VERSION) and its zip, then release-notes"
 	@echo "make release-pdf        as release, with the docs as PDFs rendered by quarto"
 	@echo "make publish            upload the release zip and notes to GitHub (gh); needs the tag pushed"
@@ -34,10 +35,11 @@ help:
 	@echo "make deploy-mod MOD=x   build, copy one plugin to SSP_HOST"
 	@echo "make install [MOD=x]    build, copy plugins to the mounted SD card (SSP_PLUGINS)"
 	@echo "make install-faust      copy the Faust libraries and fstr examples to the card"
+	@echo "make install-scsy       copy the UGen plugins and scsy examples to the card"
 	@echo "make install-presets     check, then copy presets/ (or PRESETS=dir) to the card (SSP_PRESETS)"
 	@echo "make test               run the py2rack and plugin tests"
 	@echo "make clean              remove $(BUILD_DIR)"
-	@echo "variables: SSP_BUILDROOT, SSP_HOST (root@192.168.0.150), SSP_PLUGINS (/media/$$USER/BOOT/plugins), SSP_PRESETS (/media/$$USER/BOOT/rack_presets), JOBS ($(JOBS))"
+	@echo "variables: SSP_BUILDROOT, SSP_HOST (root@192.168.1.6), SSP_PLUGINS (/media/$$USER/BOOT/plugins), SSP_PRESETS (/media/$$USER/BOOT/rack_presets), JOBS ($(JOBS))"
 
 buildroot: $(BUILDROOT_DIR)
 
@@ -61,6 +63,10 @@ deps: | $(BUILDROOT_DEP)
 faust-kernels:
 	scripts/faust_kernel.sh plugins/chorus/Source/chorus.dsp plugins/chorus/Source/ChorusKernel.h chorus
 	scripts/faust_kernel.sh examples/tremolo/Source/tremolo.dsp examples/tremolo/Source/TremoloKernel.h tremolo
+
+# the header is committed, so the build does not need nanosynth
+scsy-builtin:
+	uv run --quiet --with nanosynth==0.4.0 python scripts/scsy_builtin.py
 
 configure: | $(BUILDROOT_DEP)
 	cmake --preset "$(PRESET)"
@@ -101,6 +107,9 @@ install: ssp
 
 install-faust:
 	scripts/install-faust.sh
+
+install-scsy:
+	scripts/install-scsy.sh
 
 install-presets:
 	scripts/install-presets.sh $(PRESETS)

@@ -1,0 +1,3 @@
+// @p1 cutoff 20 20000 Hz log cv 3
+// @p2 res
+// @p3 mix

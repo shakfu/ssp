@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <cstdio>
 #include <mutex>
 #include <vector>
@@ -84,6 +85,10 @@ public:
         std::string k = key, v = value;
         if (k == "unit") unit_ = v;
         if (k == "scale") log_ = v == "log";
+        if (k == "cv") {  // [cv:3]: input 3 as CV
+            int input = std::atoi(v.c_str());
+            cv_ = input >= 1 && input <= ScriptEngine::CHANNELS ? input - 1 : -1;
+        }
     }
 
 private:
@@ -96,11 +101,13 @@ private:
             sp.max = hi;
             sp.log = log_ && lo > 0.0f && hi > 0.0f;
             sp.def = sp.unmap(init);
+            sp.cv = cv_;
             specs_[size_t(n_)] = sp;
             zones_[n_++] = zone;
         }
         unit_.clear();
         log_ = false;
+        cv_ = -1;
     }
 
     ScriptEngine::Specs& specs_;
@@ -108,6 +115,7 @@ private:
     int n_ = 0;
     std::string unit_;
     bool log_ = false;
+    int cv_ = -1;
 };
 
 FaustRuntime::~FaustRuntime() {
@@ -177,8 +185,11 @@ void FaustRuntime::process(const float* const* in, float* const* out, int n) {
         gate_.end();
         return;
     }
-    for (int p = 0; p < PARAMS; p++)
-        if (i->zones[p]) *i->zones[p] = i->specs[size_t(p)].map(param(p));
+    for (int p = 0; p < PARAMS; p++) {
+        if (!i->zones[p]) continue;
+        const ParamSpec& sp = i->specs[size_t(p)];
+        *i->zones[p] = sp.modulated(param(p), sp.cv >= 0 ? in[sp.cv][0] / ssp::engine::CV_PER_VOLT : 0.0f);
+    }
     int ins = std::min(i->ins, int(CHANNELS)), outs = std::min(i->outs, int(CHANNELS));
     // compute() does not write its inputs
     for (int c = 0; c < ins; c++) i->ip[size_t(c)] = const_cast<float*>(in[c]);

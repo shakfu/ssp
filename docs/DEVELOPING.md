@@ -35,7 +35,7 @@ A program on the card is the fastest to try: no build, and Load swaps it in. A m
 
 | Tool | What |
 |-|-|
-| `make deps` (`scripts/build_deps.sh ssp\|host`) | builds libsndfile, Csound, the ChucK core and libfaust as static archives into `build/deps/<target>` |
+| `make deps` (`scripts/build_deps.sh ssp\|host`) | builds libsndfile, Csound, the ChucK core, libfaust and libscsynth as static archives, and SC's and sc3-plugins' UGens as `.so` files, into `build/deps/<target>` |
 | `make faust-kernels` (`scripts/faust_kernel.sh`) | compiles a `.dsp` to a kernel header with [cyfaust](https://github.com/shakfu/cyfaust), fetched by `uv`. Kernel headers are committed, so a build does not need it |
 | `scripts/new_plugin.py DIR NAME [--faust]` | copies `examples/svca`, or `examples/tremolo`, to `plugins/DIR` as module NAME, renamed and registered in the build |
 | `make` | cross build for the SSP into `build.cmake.ssp` |

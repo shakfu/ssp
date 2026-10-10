@@ -2,7 +2,7 @@
 
 Changes to the build, tools and presets. Each plugin keeps its own changelog in `plugins/<name>/CHANGELOG.md`.
 
-## [0.2.0] - 2026-10-09
+## [0.2.0] - 2026-10-10
 
 First release of all the modules together, as `shakfu-ssp-plugins-0.2.0.zip`, tagged `0.2.0`. 0.1.0 released `sfct` alone.
 
@@ -14,6 +14,8 @@ First release of all the modules together, as `shakfu-ssp-plugins-0.2.0.zip`, ta
 
 - `rack` 0.2.0, its first release as rack: presets on the BOOT partition, a full-screen routing view, coarse level steps, and limits on module inputs that fixed a crash. See [plugins/rack/CHANGELOG.md](plugins/rack/CHANGELOG.md).
 
+- `scsynth` (`scsy`), new: SuperCollider SynthDefs run in scsynth 3.14.1, with sc3-plugins. See [plugins/scsynth/CHANGELOG.md](plugins/scsynth/CHANGELOG.md).
+
 ### Shared code
 
 - `plugins/common/engine`: `FaustEngine.h` and `FaustProcessor.*` host a compiled Faust kernel as an engine plugin.
@@ -21,6 +23,10 @@ First release of all the modules together, as `shakfu-ssp-plugins-0.2.0.zip`, ta
 - `ScriptEngine` takes its controls from the compiler through `declared()` as well as from `@pN` comments. A program chosen with Load sets controls that declare a default; `csnd` and `chuk` declare none and are unchanged. `status()` adds lines to the status panel.
 
 - `MiniBasicView::showButtonBox` lets a view hide its soft key labels.
+
+- `ScriptEngine::readProgram()` reads a program file; an engine with a binary format overrides it. By default it is `readText`, which drops CR bytes.
+
+- `cv N` on an `@pN` line, and `[cv:N]` in Faust, add input N to a control as CV in `csnd`, `chuk`, `fstr` and `scsy`: once per block, and in `scsy` at audio rate. A control's knob sets the value its CV moves from. An orange mark on the control's bar, in the full and compact editors, shows where the CV has moved it, and the value shown is the moved one: a parameter that implements `ssp::ModulatedParameter` reports the moved value to the controls.
 
 ### Build
 
@@ -39,6 +45,10 @@ First release of all the modules together, as `shakfu-ssp-plugins-0.2.0.zip`, ta
 - `scripts/new_plugin.py DIR NAME [--faust]` copies one of them to `plugins/DIR` as module NAME: renamed, with README and CHANGELOG stubs, added to `plugins/CMakeLists.txt` and, for Faust, to `make faust-kernels`. It refuses a name that is not four characters or that another plugin uses. A Faust copy renames the committed kernel header, which matches a regenerated one, so the new plugin builds without cyfaust.
 
 - `make install-presets` copies to `BOOT/rack_presets` and needs no `sudo`; rack presets were on the root-owned ext4 partition.
+
+- `scripts/build_deps.sh` builds libscsynth, SuperCollider's core UGens, FFTW and sc3-plugins, at one version (`SC_REF`), and patches four data races in scsynth (`scripts/patches/supercollider-3.14.1-threads.patch`). `make install-scsy` copies the UGens and the `scsy` examples to the card.
+
+- `SSP_HOST` defaults to `root@192.168.1.6`, the SSP's address with a USB-Ethernet adapter; see `docs/BUILDING.md`.
 
 ### Release
 

@@ -27,7 +27,7 @@ def plugins():
     cxx = shutil.which("clang++") or shutil.which("c++")
     if cxx is None or shutil.which("cmake") is None:
         pytest.skip("needs cmake and a C++ compiler")
-    if not all((DEPS / "lib" / lib).exists() for lib in ("libchuck.a", "libfaust.a")):
+    if not all((DEPS / "lib" / lib).exists() for lib in ("libchuck.a", "libfaust.a", "libscsynth.a")):
         subprocess.run([ROOT / "scripts" / "build_deps.sh", "host"], check=True, capture_output=True)
     subprocess.run(["cmake", "-S", ROOT, "-B", BUILD, "-DCMAKE_BUILD_TYPE=Release"], check=True, capture_output=True)
     targets = [f"{name.upper()}_VST3" for name in [*PRODUCTS, *EXAMPLES]]
@@ -40,7 +40,7 @@ def plugins():
 
 # source folder -> product name; Synthor lists only names of up to four characters
 PRODUCTS = {"radio": "rdio", "csound": "csnd", "chuck": "chuk", "edrums": "edrm", "pstretch": "strc", "bard": "bard",
-            "glitch": "gltc", "chorus": "chrs", "faust": "fstr"}
+            "glitch": "gltc", "chorus": "chrs", "faust": "fstr", "scsynth": "scsy"}
 # examples/: built and tested on the host, never shipped, so not in the manifest
 EXAMPLES = {"svca": "svca", "tremolo": "trem"}
 
@@ -238,3 +238,30 @@ def test_local_manifest_matches_the_plugins(plugins):
     if os.environ.get("UPDATE_MANIFEST"):
         LOCAL_MANIFEST.write_text(text)
     assert LOCAL_MANIFEST.exists() and LOCAL_MANIFEST.read_text() == text, "run UPDATE_MANIFEST=1 make test"
+
+
+def orange_pixels(frame):
+    """The x of each pixel of the CV marker, juce::Colours::orange, in a 1600-wide BGRA frame."""
+    data = frame.read_bytes()
+    return [(i // 4) % 1600 for i in range(0, len(data), 4) if data[i:i + 3] == b"\x00\xa5\xff"]
+
+
+def test_scsynth(plugins, tmp_path, monkeypatch):
+    monkeypatch.setenv("SCSY_UGENS", str(DEPS / "scsynth" / "plugins"))
+    levels, _ = run(plugins, "scsynth", "prepare", 48000, 128, "run", 0.2, 128, "level", 0, "level", 1,
+                    "render", tmp_path / "builtin.bgra")
+    assert levels[0][0] > 1e-3 and levels[1][0] > 1e-3  # the built-in drone, at level 0: quiet
+    assert not orange_pixels(tmp_path / "builtin.bgra")  # no control has CV
+    # a def and its sidecar, set before prepare, as a preset restores them; pitch and index have CV
+    fm = ROOT / "plugins" / "scsynth" / "examples" / "fm.scsyndef"
+    levels, state = run(plugins, "scsynth", "set", "program", fm, "set", "p4", 0.5, "prepare", 48000, 128, "in", 1, 0.2,
+                        "run", 0.3, 128, "level", 0, "render", tmp_path / "fm.bgra", "state")
+    assert levels[0][0] > 1e-3
+    assert f'program="{fm}"' in state
+    at_1v = orange_pixels(tmp_path / "fm.bgra")  # the marker on index
+    assert at_1v
+    run(plugins, "scsynth", "set", "program", fm, "set", "p4", 0.5, "prepare", 48000, 128, "run", 0.3, 128,
+        "render", tmp_path / "fm0.bgra")
+    # index's mark, right of pitch's: 1 V on input 2 moved it right
+    assert max(at_1v) > max(orange_pixels(tmp_path / "fm0.bgra"))
+

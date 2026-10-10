@@ -35,12 +35,21 @@ float ScriptEngine::ParamSpec::map(float n) const {
     return log ? min * std::pow(max / min, n) : min + (max - min) * n;
 }
 
+float ScriptEngine::ParamSpec::modulated(float n, float volts) const {
+    if (volts == 0.0f) return map(n);
+    if (log) {
+        float v = map(n) * std::exp2(volts);
+        return std::min(std::max(v, std::min(min, max)), std::max(min, max));
+    }
+    return map(std::min(std::max(n + 0.1f * volts, 0.0f), 1.0f));
+}
+
 float ScriptEngine::ParamSpec::unmap(float v) const {
     float n = log ? std::log(v / min) / std::log(max / min) : (v - min) / (max - min);
     return std::isfinite(n) ? std::min(std::max(n, 0.0f), 1.0f) : 0.0f;
 }
 
-// Lines starting with ; or // that hold "@pN label [min max [unit]] [log]"
+// Lines starting with ; or // that hold "@pN label [min max [unit]] [log] [cv N]"
 ScriptEngine::Specs ScriptEngine::parseSpecs(const std::string& text) {
     Specs specs;
     std::istringstream lines(text);
@@ -61,6 +70,11 @@ ScriptEngine::Specs ScriptEngine::parseSpecs(const std::string& text) {
         std::string w;
         std::vector<std::string> rest;
         while (words >> w) rest.push_back(w);
+        if (rest.size() >= 2 && rest[rest.size() - 2] == "cv") {
+            int input = std::atoi(rest.back().c_str());
+            if (input >= 1 && input <= CHANNELS && rest.back() == std::to_string(input)) sp.cv = input - 1;
+            rest.resize(rest.size() - 2);
+        }
         if (!rest.empty() && rest.back() == "log") {
             sp.log = true;
             rest.pop_back();
@@ -87,6 +101,7 @@ void ScriptEngine::setSpecs(const Specs& specs) {
         min_[i].store(specs[size_t(i)].min, std::memory_order_relaxed);
         max_[i].store(specs[size_t(i)].max, std::memory_order_relaxed);
         log_[i].store(specs[size_t(i)].log, std::memory_order_relaxed);
+        cv_[i].store(specs[size_t(i)].cv, std::memory_order_relaxed);
     }
     {
         std::lock_guard<std::mutex> lock(lock_);
@@ -105,7 +120,14 @@ float ScriptEngine::value(int i) const {
     sp.min = min_[i].load(std::memory_order_relaxed);
     sp.max = max_[i].load(std::memory_order_relaxed);
     sp.log = log_[i].load(std::memory_order_relaxed);
-    return sp.map(param(i));
+    return sp.modulated(param(i), cvVolts(i));
+}
+
+void ScriptEngine::readCv(const float* const* in) {
+    for (int i = 0; i < PARAMS; i++) {
+        int c = cv_[i].load(std::memory_order_relaxed);
+        cvVolts_[i].store(c >= 0 ? in[c][0] / CV_PER_VOLT : 0.0f, std::memory_order_relaxed);
+    }
 }
 
 void ScriptEngine::prepare(float sampleRate, int maxBlock) {
@@ -143,7 +165,7 @@ void ScriptEngine::run(const std::string& path) {
     bool ok;
     if (path.empty()) {
         ok = compile(builtin(), path, err);
-    } else if (!readText(path, text)) {
+    } else if (!readProgram(path, text)) {
         ok = false;
         err = "cannot read " + path;
     } else {

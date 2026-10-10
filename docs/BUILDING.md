@@ -32,7 +32,7 @@ Plugins land in `build.cmake.ssp/plugins/*/*_artefacts/Release/VST3/*.vst3/Conte
 | `make` | build all plugins |
 | `make configure` | re-run CMake configure |
 | `make buildroot` | download the buildroot only |
-| `make deps` | build libsndfile, Csound, ChucK and libfaust for the SSP (`scripts/build_deps.sh ssp`) |
+| `make deps` | build libsndfile, Csound, ChucK, libfaust, libscsynth and the SC UGens for the SSP (`scripts/build_deps.sh ssp`) |
 | `make install [MOD=sfct]` | copy all plugins, or one, to the mounted SD card |
 | `make install-faust` | copy the Faust libraries and `fstr` examples to the card's `BOOT/faust` |
 | `make install-presets [PRESETS=dir]` | check JSON presets with `py2rack`, then copy `presets/` or `dir` to the card |
@@ -51,8 +51,24 @@ Plugins land in `build.cmake.ssp/plugins/*/*_artefacts/Release/VST3/*.vst3/Conte
 | `SSP_BUILDROOT` | `./buildroot/arm-rockchip-linux-gnueabihf_sdk-buildroot` |
 | `SSP_PLUGINS` | `/media/$USER/BOOT/plugins` |
 | `SSP_PRESETS` | `/media/$USER/BOOT/rack_presets` |
-| `SSP_HOST` | `root@192.168.0.150` |
+| `SSP_HOST` | `root@192.168.1.6` |
 | `JOBS` | number of CPUs |
+
+### Network access
+
+`make deploy` and `deploy-mod` copy over ssh. The SSP has no Ethernet port; a USB-Ethernet adapter works in either USB port.
+
+- The SSP comes up at `192.168.1.6/24`, static, when the adapter appears as `eth0` (`/etc/network/interfaces`, `/etc/udev/rules.d/90-usb-ethernet.rules` on rootfs). It runs no DHCP client or server.
+- Give the host a static address on the same subnet, e.g. `192.168.1.200/24` with no gateway.
+- Log in as `root` with a key. If the root password is unknown, add the key from the mounted card:
+
+  ```
+  sudo mkdir -p /media/$USER/rootfs/root/.ssh
+  sudo sh -c "cat $HOME/.ssh/id_rsa.pub >> /media/$USER/rootfs/root/.ssh/authorized_keys"
+  sudo chmod 700 /media/$USER/rootfs/root/.ssh
+  sudo chmod 600 /media/$USER/rootfs/root/.ssh/authorized_keys
+  sudo chown -R 0:0 /media/$USER/rootfs/root/.ssh
+  ```
 
 `install-presets` copies to BOOT, which needs no `sudo`. It uses `sudo` only for a destination that is not writable, such as one on rootfs.
 

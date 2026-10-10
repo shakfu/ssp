@@ -25,7 +25,10 @@ public:
 
     void fg(juce::Colour c) { fg_ = c; }
 
+    // the value, moved by its modulation if it has one
     virtual juce::String getTextValue();
+    // ModulatedParameter::modulatedValue(), or negative for a parameter without modulation
+    float modulated() const;
 
     void mouseDoubleClick(const juce::MouseEvent& event) override;
     void mouseDown(const juce::MouseEvent& event) override;

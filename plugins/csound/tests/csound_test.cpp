@@ -273,11 +273,47 @@ static int runExample(const std::string& path) {
     return 0;
 }
 
+// `cv N` on an @pN line: input N moves the control, an octave per volt on a log range, else a tenth of
+// the range per volt, within the range
+static void testCv(const std::string& dir) {
+    auto sp = CsoundEngine::parseSpecs("; @p1 cutoff 20 20000 Hz log cv 3\n; @p2 mix cv 9\n; @p3 depth -1 1 cv 1\n");
+    CHECK(sp[0].cv == 2 && sp[0].log && sp[0].unit == "Hz" && sp[0].max == 20000.0f);
+    CHECK(sp[1].label == "mix" && sp[1].cv == -1);  // there is no input 9
+    CHECK(sp[2].cv == 0 && sp[2].min == -1.0f && sp[2].max == 1.0f);
+
+    Rig r;
+    r.load(write(dir, "cv.csd",
+                 "; @p1 x 10 20 cv 3\n; @p2 y 100 10000 Hz log cv 4\nksmps = 16\nnchnls = 2\n0dbfs = 1\n"
+                 "massign 0, 0\ninstr 1\n  outs a(chnget:k(\"p1\")) / 100, a(chnget:k(\"p2\")) / 100000\n"
+                 "endin\nschedule 1, 0, -1"));
+    CHECK(r.e.error().empty());
+    r.e.setParam(0, 0.5f);  // 15
+    r.e.setParam(1, 0.5f);  // 1000
+    auto at = [&](float in3, float in4) {
+        std::fill(r.in[2].begin(), r.in[2].end(), in3);
+        std::fill(r.in[3].begin(), r.in[3].end(), in4);
+        r.e.readCv(r.ip);
+        r.run(2);
+    };
+    at(0.0f, 0.0f);
+    NEAR(r.out[0][BLOCK - 1], 0.15f, 1e-6);
+    NEAR(r.out[1][BLOCK - 1], 0.01f, 1e-6);
+    at(0.2f, 0.2f);  // 1 V
+    NEAR(r.out[0][BLOCK - 1], 0.16f, 1e-6);
+    NEAR(r.out[1][BLOCK - 1], 0.02f, 1e-6);
+    at(-0.2f, 2.0f);  // -1 V; 10 V, held at the top of the range
+    NEAR(r.out[0][BLOCK - 1], 0.14f, 1e-6);
+    NEAR(r.out[1][BLOCK - 1], 0.1f, 1e-6);
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) return 2;
     if (argc > 2 && std::string(argv[1]) == "example") return runExample(argv[2]);
     if (argc > 2 && std::string(argv[2]) == "threads") testThreads(argv[1]);
-    else testEngine(argv[1]);
+    else {
+        testEngine(argv[1]);
+        testCv(argv[1]);
+    }
     if (failures) std::fprintf(stderr, "%d failures\n", failures);
     return failures ? 1 : 0;
 }

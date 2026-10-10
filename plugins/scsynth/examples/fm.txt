@@ -1,0 +1,4 @@
+// @p1 pitch 20 2000 Hz log cv 1
+// @p2 ratio 0.25 8 log
+// @p3 index 0 10 cv 2
+// @p4 level

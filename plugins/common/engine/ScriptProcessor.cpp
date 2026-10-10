@@ -4,8 +4,8 @@
 
 namespace ssp::engine {
 
-// p1..p8: named, scaled and given a unit by the running program's declaration
-class ScriptParameter : public ssp::BaseFloatParameter {
+// p1..p16: named, scaled and given a unit by the running program's declaration, and moved by its CV
+class ScriptParameter : public ssp::BaseFloatParameter, public ssp::ModulatedParameter {
 public:
     explicit ScriptParameter(int i)
         : BaseFloatParameter(ScriptEngine::paramName(i), juce::String(ScriptEngine::paramName(i)).toUpperCase(), 0.0f,
@@ -20,6 +20,10 @@ public:
                                 : juce::String(sp.label).substring(0, maxLength);
     }
     juce::String getLabel() const override { return spec().unit; }
+    float modulatedValue() const override {
+        auto sp = spec();
+        return engine_ && sp.cv >= 0 ? sp.unmap(engine_->value(index_)) : -1.0f;
+    }
     juce::String getText(float normalised, int) const override {
         float v = spec().map(normalised);
         float a = std::fabs(v);
@@ -55,8 +59,9 @@ ScriptProcessor::BusesProperties ScriptProcessor::getBusesProperties() {
     return props;
 }
 
-void ScriptProcessor::control(const float* const*, int) {
+void ScriptProcessor::control(const float* const* in, int) {
     for (int i = 0; i < PARAMS; i++) script().setParam(i, params_[size_t(i)]->getValue());
+    script().readCv(in);
 }
 
 void ScriptProcessor::customToXml(juce::XmlElement* xml) {

@@ -10,9 +10,15 @@ void BaseParamControl::paramChanged(float) {
     repaint();
 }
 
+float BaseParamControl::modulated() const {
+    auto* m = dynamic_cast<const ModulatedParameter*>(&param_);
+    return m ? m->modulatedValue() : -1.0f;
+}
+
 juce::String BaseParamControl::getTextValue() {
     auto& p = param_;
-    auto val = p.getCurrentValueAsText();
+    float m = modulated();
+    auto val = m >= 0.0f ? p.getText(m, 32) : p.getCurrentValueAsText();
     if (val == "-0.00") val = "0.00";  // juce bug?
     if (p.getLabel().length()) { val = val + " " + p.getLabel(); }
     return val;
@@ -158,6 +164,11 @@ void BarParamControl::paint(juce::Graphics& g) {
         }
         g.setColour(juce::Colours::white);
         g.drawVerticalLine(be + 2, int(h / 2) + 2, int(h / 2) + 2 + fh - 4);
+        float m = modulated();
+        if (m >= 0.0f) {  // where modulation has moved the value
+            g.setColour(juce::Colours::orange);
+            g.fillRect(int((w - 4) * m) + 1, int(h / 2) + 2, 3, int(fh) - 4);
+        }
     } else {
         int bl = ((w - 4) / p.getNumSteps());
         int s = p.getNumSteps() * (p.getValue() - 0.001);

@@ -184,11 +184,40 @@ static int runExample(const std::string& path, const std::string& libraries) {
     return 0;
 }
 
+// [cv:N] on a control: input N moves it, as `cv N` on an @pN line
+static void testCv(const std::string& dir, const std::string& libraries) {
+    Rig r(libraries);
+    r.load(write(dir, "cv.dsp", "x = hslider(\"x [cv:3]\", 15, 10, 20, 0.01);\n"
+                                "y = hslider(\"y [scale:log][cv:4]\", 1000, 100, 10000, 1);\n"
+                                "process = x / 100, y / 100000;\n"));
+    CHECK(r.e.error().empty());
+    CHECK(r.e.spec(0).cv == 2 && r.e.spec(1).cv == 3 && r.e.spec(1).log);
+    r.e.setParam(0, 0.5f);  // 15
+    r.e.setParam(1, 0.5f);  // 1000
+    auto at = [&](float in3, float in4) {
+        std::fill(r.in[2].begin(), r.in[2].end(), in3);
+        std::fill(r.in[3].begin(), r.in[3].end(), in4);
+        r.run(1);
+    };
+    at(0.0f, 0.0f);
+    NEAR(r.out[0][BLOCK - 1], 0.15f, 1e-6);
+    NEAR(r.out[1][BLOCK - 1], 0.01f, 1e-6);
+    at(0.2f, 0.2f);  // 1 V
+    NEAR(r.out[0][BLOCK - 1], 0.16f, 1e-6);
+    NEAR(r.out[1][BLOCK - 1], 0.02f, 1e-6);
+    at(-0.2f, 2.0f);  // -1 V; 10 V, held at the top of the range
+    NEAR(r.out[0][BLOCK - 1], 0.14f, 1e-6);
+    NEAR(r.out[1][BLOCK - 1], 0.1f, 1e-6);
+}
+
 int main(int argc, char** argv) {
     if (argc < 3) return 2;
     if (argc > 3 && std::string(argv[1]) == "example") return runExample(argv[2], argv[3]);
     if (argc > 3 && std::string(argv[3]) == "threads") testThreads(argv[1], argv[2]);
-    else testEngine(argv[1], argv[2]);
+    else {
+        testEngine(argv[1], argv[2]);
+        testCv(argv[1], argv[2]);
+    }
     if (failures) std::fprintf(stderr, "%d failures\n", failures);
     return failures ? 1 : 0;
 }

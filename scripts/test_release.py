@@ -12,7 +12,8 @@ ROOT = release.ROOT
 
 def test_finds_every_plugin_with_its_version():
     plugins = {p.product: p for p in release.find_plugins(ROOT)}
-    assert set(plugins) == {"bard", "chrs", "chuk", "csnd", "edrm", "fstr", "gltc", "strc", "rack", "rdio", "sfct"}
+    assert set(plugins) == {"bard", "chrs", "chuk", "csnd", "edrm", "fstr", "gltc", "strc", "rack", "rdio", "sfct",
+                            "scsy"}
     assert all(p.version and p.description for p in plugins.values())
 
 
@@ -36,6 +37,9 @@ def fake_build(tmp: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path]:
     (deps / "share" / "faust").mkdir(parents=True)
     (deps / "share" / "faust" / "stdfaust.lib").write_text("")
     (deps / "share" / "faust" / "README.md").write_text("the Faust libraries' own readme")
+    (deps / "scsynth" / "plugins" / "sc3-plugins").mkdir(parents=True)
+    (deps / "scsynth" / "plugins" / "OscUGens.so").write_bytes(b"so")
+    (deps / "scsynth" / "plugins" / "sc3-plugins" / "TJUGens.so").write_bytes(b"so")
     return build, deps
 
 
@@ -51,6 +55,9 @@ def test_package_mirrors_the_card(tmp_path):
     assert (top / "BOOT" / "rack_presets" / "empty.json").is_file()
     assert (top / "BOOT" / "csound" / "filter.csd").is_file()
     assert (top / "BOOT" / "chuck" / "filter.ck").is_file()
+    assert (top / "BOOT" / "scsy" / "filter.scsyndef").is_file()
+    assert (top / "BOOT" / "scsy" / "filter.txt").is_file()
+    assert (top / "BOOT" / "scsy" / "ugens" / "sc3-plugins" / "TJUGens.so").is_file()
     for product in products:
         assert (top / "docs" / product / "README.md").is_file()
     assert (top / "docs" / "gltc" / "LICENSE").is_file()

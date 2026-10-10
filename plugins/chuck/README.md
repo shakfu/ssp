@@ -19,8 +19,7 @@ Audio stops while a program compiles. The preset stores the file's path, not its
 | | |
 |-|-|
 | controls | `global float p1;` .. `p16`, updated every 10 ms; see Labels and ranges |
-| audio in | `adc.chan(0)` .. `adc.chan(7)` |
-| audio out | `dac.chan(0)` .. `dac.chan(7)`; `=> dac` feeds all eight |
+| audio and CV | see Inputs and outputs |
 | MIDI | `MidiIn` and `MidiOut` on the SSP's ALSA devices |
 | files | `me.dir()` is the program's folder |
 
@@ -38,7 +37,63 @@ A comment line names a control and gives its range; the screen then shows the na
 // @p2 mix
 ```
 
-The form is `@pN label [min max [unit]] [log]`, on a line that starts with `//`. The label is one word. Without a range a control is 0 to 1. `log` maps the encoder logarithmically and needs a positive range. The encoder pages show only the declared controls, four to a page, in order; a program that declares none shows all sixteen as `P1`..`P16`. Every control still exists for presets, MIDI learn and rack, and the parameter ids stay `p1`..`p16`; a preset stores the encoder position, so it restores the same position in a program with a different range.
+The form is `@pN label [min max [unit]] [log] [cv N]`, on a line that starts with `//`. The label is one word. Without a range a control is 0 to 1. `log` maps the encoder logarithmically and needs a positive range. The encoder pages show only the declared controls, four to a page, in order; a program that declares none shows all sixteen as `P1`..`P16`. Every control still exists for presets, MIDI learn and rack, and the parameter ids stay `p1`..`p16`; a preset stores the encoder position, so it restores the same position in a program with a different range.
+
+`cv N` makes input N move the control; see [CV in](#cv-in).
+
+## Inputs and outputs
+
+Inputs 1..8 and outputs 1..8 carry audio and CV alike. An SSP signal of 1.0 is 5 V, so CV is 0.2 per volt: 1 V is 0.2, and 1 V/oct pitch is 0.2 per octave.
+
+### Audio in
+
+`adc.chan(0)` .. `adc.chan(7)`: input 1 is `adc.chan(0)`. Signals arrive unscaled, 1.0 for 5 V.
+
+### CV in
+
+A program gets CV in two ways: on a control, or by reading the input itself.
+
+#### On a control
+
+A control with CV follows input N (1..8): add `cv N` at the end of its `@pN` line.
+
+```
+// @p1 cutoff 20 20000 Hz log cv 3
+```
+
+| Range | Each volt | -1 V | +1 V | +5 V |
+|-|-|-|-|-|
+| log | an octave | half | double | 32x |
+| linear | a tenth of the range | -10% of the range | +10% | +50% |
+
+- The encoder sets the value the CV moves from. The result stays within the control's range.
+- The CV is read once per audio block: 128 frames, 2.7 ms at 48 kHz. That is fine for envelopes, LFOs and sequencers, not for audio-rate modulation.
+- An orange mark on the control's bar shows where the CV has moved it, and the value shown is the moved one. A preset stores the encoder position, not the moved value.
+- The input still reaches the program as audio.
+
+#### In the program
+
+Read the input yourself, for a scaling of your own. There is no mark on screen. `examples/filter.ck` keeps In 3 running into `blackhole` and reads its last sample:
+
+```
+adc.chan(2) => Gain cv => blackhole;
+p1 * Math.pow(2, cv.last() / 0.2) => float f;   // SSP CV is 0.2 per volt
+```
+
+[Walkthrough step 6](#6-add-cv) explains it.
+
+### Audio out
+
+`dac.chan(0)` .. `dac.chan(7)`; `=> dac` feeds all eight.
+
+### CV out
+
+Write a value or a slow signal to an output, at 0.2 per volt. `Step` holds a value:
+
+```
+SinOsc lfo => dac.chan(2);  2 => lfo.freq;  0.5 => lfo.gain;   // Out 3: +-2.5 V at 2 Hz
+Step pitch => dac.chan(3);  0.2 * octaves => pitch.next;      // Out 4: 1 V/oct
+```
 
 ## Examples
 

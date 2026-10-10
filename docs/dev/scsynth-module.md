@@ -1,6 +1,6 @@
 # scsynth module: design proposal
 
-Status: proposal. Nothing here is built. Claims marked *unverified* come from reading the source and have not been tested.
+Status: proposal; plan step 1 (host spike) done, step 2 (cross-build) built but not run on the SSP. [Spike results](#spike-results) supersede the sections they name. Claims marked *unverified* come from reading the source and have not been tested.
 
 The goal is to run SuperCollider's synthesis server, scsynth, inside an SSP module. SynthDefs are written in Python with [nanosynth](https://github.com/shakfu/nanosynth) on a desktop, compiled to `.scsyndef`, and loaded on the SSP the way `csnd` loads a `.csd`.
 
@@ -30,6 +30,35 @@ Paths are relative to nanosynth's `thirdparty/supercollider/server/scsynth/`.
 | `World_SendPacket` copies the packet to a FIFO for the engine | `SC_World.cpp` | allocates; call it from the worker, not the audio thread |
 | nanosynth sets `FFT_GREEN ON` only when supernova is enabled | nanosynth `CMakeLists.txt:55-58` | the SSP build must set it, or scsynth's CMake looks for FFTW |
 | SC's plugin CMake skips X11 under `NO_X11`, which nanosynth sets | `server/plugins/CMakeLists.txt:99, 219, 252, 281` | `UIUGens` builds without X11 |
+
+## Spike results
+
+Code: `plugins/scsynth/Source/ScWorld.{h,cpp}`, tests in `plugins/scsynth/tests`, build in `scripts/scsynth/CMakeLists.txt` and `scripts/build_deps.sh`. Not yet a module.
+
+- **Build.** `scripts/scsynth/CMakeLists.txt` compiles libscsynth from SC 3.14.1's source tarball without SC's CMake. No audio driver is compiled; `ScWorld.cpp` defines `SC_NewAudioDriver` and the timing functions. `SC_AUDIO_API` gets an unused value, so SC needs no driver patch. nanosynth's tree and its reentrant-World patch are not used: Worlds that open no port do not need it.
+- **UGens load from a directory, not `STATIC_PLUGINS`.** `STATIC_PLUGINS` omits Chaos, ML, PV_ThirdParty and UnpackFFT UGens, and cannot add sc3-plugins. SC's 25 core plugin groups and sc3-plugins 3.14.1 (171 `.so`) build for the host and the SSP. A plugin `.so` imports only libc, libm and libstdc++: the UGen API is a function table.
+- **sc3-plugins** needs FFTW (PitchDetection, NCAnalysisUGens), now built by `build_deps.sh`, and a patch that removes its `-stdlib=libc++` under clang.
+- **A def with a missing UGen still replies `/done`** to `/d_recv`; scsynth only prints the error. `ScWorld::load` renames each def uniquely, treats `/s_new` "SynthDef not found" as the failure, and takes the reason from the print hook.
+- **Two Worlds in one process work** (two loading at once, one closing while the other runs, one reopening), under ThreadSanitizer with libscsynth instrumented. ThreadSanitizer found four data races in SC 3.14.1, fixed in `scripts/patches/supercollider-3.14.1-threads.patch`. One of them, `MsgFifo`'s relaxed reads, is an ordering bug that ARMv7 can expose.
+- **Block size.** Host blocks that are multiples of 64 run without latency; other sizes go through a 64-frame FIFO.
+- **Python wrappers for sc3-plugins** are generated in nanosynth (`nanosynth.ugens.sc3`, 458 of 483 classes; see its CHANGELOG). `plugins/scsynth/tests/defs/defs.py` uses its `DFM1`.
+- **`sc_SetDenormalFlags` sets flush-to-zero on ARM VFP** (`SC_World.cpp:158`), so the module needs no FTZ code of its own.
+
+- **Device threads** (seen on the SSP, 2026-10-10). The kernel boots with `isolcpus=1,2,3`. Synthor's three `dsp` threads (`SCHED_RR` 30) and its `ALSA` thread (`SCHED_RR` 40) run on cores 1-3; its main thread and all other processes run on core 0. A thread inherits its creator's cores and policy, so `World_New` must run on the message thread: its NRT thread then runs on core 0 at normal priority. Two instances can run `process()` at once on different `dsp` threads.
+
+- **On the SSP** (2026-10-10, `plugins/scsynth/tests/run_on_ssp.sh`): the engine and sc3-plugins tests pass, and the two-World test passes 70 times with the two audio threads on cores 1 and 2 at once. Loading all 196 UGen `.so` at the first open takes 380-390 ms from the SD card with a cold cache, 75 ms warm; the 25 core ones take 20 ms warm. That is a one-time stall of Synthor's message thread per session, so all plugins can ship. Linking libscsynth for the SSP needs `-lstdc++fs` (gcc 8) and `-lrt` (glibc 2.32).
+
+Open from the spike: CPU per synth, measured in the module through Synthor's DSP load; the reference check against a nanosynth NRT render; and StkInst's rawwave files, which it reads from a path at run time.
+
+## Updating SuperCollider
+
+SuperCollider and sc3-plugins share one version, `SC_REF` in `scripts/build_deps.sh`. Plugins must be built against the same SuperCollider headers as libscsynth: scsynth refuses a plugin whose `api_version` differs.
+
+1. Set `SC_REF` and run `scripts/build_deps.sh host`. If a patch in `scripts/patches/` no longer applies, `apply_patch` stops. Check whether upstream fixed the issue the patch names; drop the patch if so, else update it.
+2. Check that `scripts/scsynth/CMakeLists.txt` still names every scsynth and core plugin source: compare it with `server/scsynth/CMakeLists.txt` and `server/plugins/CMakeLists.txt` in the new tree.
+3. Run `make test`. `plugins/scsynth/tests` builds a ThreadSanitizer copy of libscsynth from the new source.
+4. Run `scripts/build_deps.sh ssp`, then test on the device.
+5. Update nanosynth to the same version, and regenerate its sc3-plugins wrappers: see nanosynth's `docs/dev/sc3-plugins-wrappers.md`. Recompile `plugins/scsynth/tests/defs` with it.
 
 ## Approaches
 
@@ -374,14 +403,17 @@ Copy the `.scsyndef` and its metadata file to the card, for example `/media/BOOT
 
 5. Later: buffers, score playback (H), UDP live coding (E).
 
+## Decisions
+
+Made 2026-10-10:
+
+- Program file: the `.scsyndef` itself, chosen with Load. A sidecar `.txt` with `@pN` lines is optional; without one, `p1`..`p16` take the def's controls in order. See [plugins/scsynth/README.md](../../plugins/scsynth/README.md).
+- No reload when the file changes, and no control that picks a def from the folder, in v1.
+- Module name: `scsy` / `SCSY`.
+- sc3-plugins wrappers live in nanosynth (`nanosynth.ugens.sc3`).
+
 ## Open decisions
 
-- Program file: sidecar, manifest, or no metadata.
+- MIDI convention, and the voice limit (plan step 4).
 
-- MIDI convention, and the voice limit.
-
-- Module name: `scsy` / `SCSY`.
-
-- Whether nanosynth gains a control-spec API, or the spec stays in a separate dict in `tools/scsy`.
-
-- Whether the desktop tool is `tools/scsy` here or a `nanosynth ssp` command.
+- Whether nanosynth gains a control-spec API that writes the sidecar.

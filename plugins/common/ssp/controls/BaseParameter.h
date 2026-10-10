@@ -7,6 +7,15 @@
 
 namespace ssp {
 
+// A parameter whose value the plugin moves without changing the parameter, as CV does. Controls
+// draw the moved value beside the parameter's own.
+class ModulatedParameter {
+public:
+    virtual ~ModulatedParameter() = default;
+    // Message thread: the moved value, normalised 0..1; negative when nothing moves it.
+    virtual float modulatedValue() const = 0;
+};
+
 class BaseFloatParameter : public juce::AudioParameterFloat {
 public:
     typedef std::function<void(const juce::String& id, float v)> ParamCallback;

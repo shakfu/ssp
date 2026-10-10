@@ -27,6 +27,7 @@ DATA = {
     "fstr": [("plugins/faust/examples", "faust", "*.dsp"), ("{deps}/share/faust", "faust/libraries", "**")],
     "csnd": [("plugins/csound/examples", "csound", "*")],
     "chuk": [("plugins/chuck/examples", "chuck", "*")],
+    "scsy": [("plugins/scsynth/examples", "scsy", "*"), ("{deps}/scsynth/plugins", "scsy/ugens", "**")],
     "rack": [("presets", "rack_presets", "*")],
 }
 
@@ -38,7 +39,7 @@ USER_DATA = {
     "sfct": ("samples", "WAV and AIFF files to load"),
 }
 
-LICENSES = {"gltc": "GPL-3.0", "sfct": "GPL-3.0, for softcut"}
+LICENSES = {"gltc": "GPL-3.0", "sfct": "GPL-3.0, for softcut", "scsy": "GPL-3.0, for SuperCollider"}
 
 SK_ENGINES = "https://github.com/shakfu/sk-engines"
 
@@ -142,6 +143,8 @@ def readme(version: str, tag: str, plugins: list[Plugin]) -> str:
                 data_rows.append((folder, product, {"faust": "example programs; `libraries/` holds the Faust "
                                                              "libraries that `import(\"stdfaust.lib\")` needs",
                                                     "csound": "example orchestras", "chuck": "example programs",
+                                                    "scsy": "example SynthDefs; `ugens/` holds the UGen plugins "
+                                                            "they load",
                                                     "rack_presets": "presets"}[folder]))
     data = "\n".join(f"| `{f}` | {m if m == 'all' else f'`{m}`'} | {w} |" for f, m, w in data_rows)
     user = "\n".join(f"| `{f}` | `{m}` | {w} |" for m, (f, w) in USER_DATA.items())

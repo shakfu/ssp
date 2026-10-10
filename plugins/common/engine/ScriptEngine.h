@@ -17,6 +17,10 @@ namespace ssp::engine {
 //   // @p2 mix                         (ChucK)
 //
 // The program then receives the control in that range, logarithmically with `log`; else 0..1.
+// `cv N` adds input N (1..8) to the control as CV, read once per block: one octave per volt on a
+// log range, else a tenth of the range per volt, within the range.
+//
+//   ; @p1 cutoff 20 20000 Hz log cv 3
 class ScriptEngine : public Engine {
 public:
     static constexpr int CHANNELS = 8;
@@ -45,8 +49,11 @@ public:
         float min = 0.0f, max = 1.0f;
         bool log = false;
         float def = -1.0f;  // the program's default, 0..1; negative: none
+        int cv = -1;        // the input, 0..CHANNELS-1, that modulates it; negative: none
         float map(float normalised) const;
         float unmap(float value) const;  // clamped to 0..1
+        // map() of the knob's position, moved by `volts` of CV and kept within the range
+        float modulated(float normalised, float volts) const;
     };
     using Specs = std::array<ParamSpec, PARAMS>;
     static Specs parseSpecs(const std::string& text);
@@ -57,8 +64,12 @@ public:
     // any thread: the control in 0..1
     void setParam(int i, float v) { params_[i].store(v, std::memory_order_relaxed); }
     float param(int i) const { return params_[i].load(std::memory_order_relaxed); }
-    // any thread: the control in the program's declared range
+    // any thread: the control in the program's declared range, moved by its CV
     float value(int i) const;
+    // Audio thread, before process(): each control's CV, from the first frame of its input.
+    void readCv(const float* const* in);
+    // The volts readCv() last read for control i; 0 without a CV input.
+    float cvVolts(int i) const { return cvVolts_[i].load(std::memory_order_relaxed); }
 
     // "p1".."p16"
     static const char* paramName(int i);
@@ -72,6 +83,9 @@ protected:
     // program alone.
     virtual bool compile(const std::string& text, const std::string& path, std::string& error) = 0;
     virtual const char* builtin() const = 0;
+    // Worker or message thread: a program file's contents. By default readText; a binary format
+    // overrides it.
+    virtual bool readProgram(const std::string& path, std::string& text) const { return readText(path, text); }
     // After a compile() that succeeded, on its thread: the controls of `text`. By default its @pN lines.
     virtual Specs declared(const std::string& text) const { return parseSpecs(text); }
 
@@ -85,6 +99,8 @@ private:
     // the range, for value() on the audio thread; labels and units are under lock_
     std::atomic<float> min_[PARAMS] = {}, max_[PARAMS] = {};
     std::atomic<bool> log_[PARAMS] = {};
+    std::atomic<int> cv_[PARAMS] = {};
+    std::atomic<float> cvVolts_[PARAMS] = {};
     Specs specs_;
     std::atomic<unsigned> specsGen_{ 0 };
 
