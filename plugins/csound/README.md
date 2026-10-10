@@ -101,7 +101,7 @@ outch 3, aLfo, 4, a(0.2 * kOct)   ; Out 3: the LFO; Out 4: 1 V/oct, kOct octaves
 |-|-|-|
 | `filter.csd` | stereo ladder filter on inputs 1-2; input 3 is cutoff CV, 1 V/oct | cutoff, resonance, drive, mix |
 | `delay.csd` | stereo ping-pong delay on inputs 1-2 | time, feedback, mix, tone |
-| `quadosc.csd` | sine, triangle, saw and pulse on outputs 1-4; input 1 is pitch CV, 1 V/oct | pitch, width |
+| `quadosc.csd` | sine, triangle, saw and pulse on outputs 1-4; input 1 is pitch CV (1 V/oct), input 2 width CV, both declared with `cv` | pitch, width |
 | `fm-midi.csd` | polyphonic FM synth, played over MIDI; silent until notes arrive from the input chosen in the general panel | ratio, index, attack, release |
 
 ## Walkthrough: `filter.csd`

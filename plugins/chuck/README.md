@@ -67,7 +67,7 @@ A control with CV follows input N (1..8): add `cv N` at the end of its `@pN` lin
 | linear | a tenth of the range | -10% of the range | +10% | +50% |
 
 - The encoder sets the value the CV moves from. The result stays within the control's range.
-- The CV is read once per audio block: 128 frames, 2.7 ms at 48 kHz. That is fine for envelopes, LFOs and sequencers, not for audio-rate modulation.
+- The CV reaches the program every 10 ms, when the globals `p1`..`p16` update. That is fine for envelopes, slow LFOs and sequencers, not for audio-rate modulation.
 - An orange mark on the control's bar shows where the CV has moved it, and the value shown is the moved one. A preset stores the encoder position, not the moved value.
 - The input still reaches the program as audio.
 
@@ -102,7 +102,7 @@ Step pitch => dac.chan(3);  0.2 * octaves => pitch.next;      // Out 4: 1 V/oct
 | File | What | Controls |
 |-|-|-|
 | `filter.ck` | stereo resonant lowpass on inputs 1-2; input 3 is cutoff CV, 1 V/oct | cutoff, Q |
-| `sequencer.ck` | 8-step random melody; output 3 is a gate, output 4 pitch CV, 1 V/oct | tempo, octaves, decay, reroll |
+| `sequencer.ck` | 8-step random melody; output 3 is a gate, output 4 pitch CV, 1 V/oct; input 1 is tempo CV, input 2 decay CV, both declared with `cv` | tempo, octaves, decay, reroll |
 | `midi.ck` | 8-voice saw synth on MIDI input device 0 | cutoff, release |
 
 ## Walkthrough: `filter.ck`

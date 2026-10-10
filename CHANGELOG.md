@@ -26,7 +26,7 @@ First release of all the modules together, as `shakfu-ssp-plugins-0.2.0.zip`, ta
 
 - `ScriptEngine::readProgram()` reads a program file; an engine with a binary format overrides it. By default it is `readText`, which drops CR bytes.
 
-- `cv N` on an `@pN` line, and `[cv:N]` in Faust, add input N to a control as CV in `csnd`, `chuk`, `fstr` and `scsy`: once per block, and in `scsy` at audio rate. A control's knob sets the value its CV moves from. An orange mark on the control's bar, in the full and compact editors, shows where the CV has moved it, and the value shown is the moved one: a parameter that implements `ssp::ModulatedParameter` reports the moved value to the controls.
+- `cv N` on an `@pN` line, and `[cv:N]` in Faust, add input N to a control as CV in `csnd`, `chuk`, `fstr` and `scsy`: once per 128-frame block in `csnd` and `fstr`, every 10 ms in `chuk`, at audio rate in `scsy`. A control's knob sets the value its CV moves from. An orange mark on the control's bar, in the full and compact editors, shows where the CV has moved it, and the value shown is the moved one: a parameter that implements `ssp::ModulatedParameter` reports the moved value to the controls.
 
 ### Build
 

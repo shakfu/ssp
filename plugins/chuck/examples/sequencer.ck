@@ -1,8 +1,10 @@
 // 8-step random sequencer. Outputs 1-2 audio; 3 gate; 4 pitch CV, 1 V/oct from 0 V.
-// Turning reroll past half rolls a new pattern.
-// @p1 tempo 40 240 bpm
+// Turning reroll past half rolls a new pattern. Input 1 is tempo CV, 20 bpm per volt; input 2 is
+// decay CV, double per volt. The module adds the CV to p1 and p3 (the `cv` at the end of their
+// lines), so the screen shows the moved values.
+// @p1 tempo 40 240 bpm cv 1
 // @p2 octaves 0 2
-// @p3 decay 20 620 ms log
+// @p3 decay 20 620 ms log cv 2
 // @p4 reroll
 global float p1, p2, p3, p4;
 

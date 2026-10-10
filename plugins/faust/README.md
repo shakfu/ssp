@@ -79,7 +79,7 @@ process = _, _, os.osc(2) * 0.5, 0.2 * octaves;   // In 1-2 to Out 1-2; Out 3: +
 | `chorus.dsp` | `chrs`'s chorus: compare the DSP load |
 | `filter.dsp` | resonant low-pass on inputs 1 and 2 |
 | `filter_cv.dsp` | `filter.dsp` with cutoff CV on input 3, 1 V/oct; see the walkthrough |
-| `osc.dsp` | band-limited saw, V/oct on input 1 |
+| `osc.dsp` | band-limited saw; input 1 is pitch CV (1 V/oct), input 2 level CV, both declared with `[cv:N]` |
 
 ## Walkthrough: `filter.dsp`
 
