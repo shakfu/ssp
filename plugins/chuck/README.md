@@ -1,6 +1,6 @@
 # chuck
 
-`chuck` runs a [ChucK](https://chuck.stanford.edu) program (`.ck`) on the SSP. The program gets eight audio inputs and outputs, sixteen controls, and ChucK's own MIDI.
+`chuck` runs a [ChucK](https://chuck.stanford.edu) program (`.ck`) on the SSP. The program gets eight audio inputs and outputs, sixteen controls, and MIDI notes.
 
 Ported from the [`chuck` engine](https://github.com/shakfu/sk-engines/tree/main/src/engine/chuck) in [sk-engines](https://github.com/shakfu/sk-engines); see [docs/dev/engines.md](../../docs/dev/engines.md).
 
@@ -20,13 +20,27 @@ Audio stops while a program compiles. The preset stores the file's path, not its
 |-|-|
 | controls | `global float p1;` .. `p16`, updated every 10 ms; see Labels and ranges |
 | audio and CV | see Inputs and outputs |
-| MIDI | `MidiIn` and `MidiOut` on the SSP's ALSA devices |
+| MIDI | notes from the general panel's input as globals; see MIDI. `MidiIn` and `MidiOut` also reach the SSP's ALSA devices directly |
 | files | `me.dir()` is the program's folder |
 
 - A new program replaces every shred, and every connection into `dac` and `blackhole`.
 - Globals keep their values across programs.
 - A `public class` stays defined until the plugin is reloaded, so reloading a program that defines one fails.
 - `<<< >>>` and `chout` print nowhere.
+
+## MIDI
+
+Notes come from the MIDI input chosen in the general panel (RS + LS). A program reads them from three globals:
+
+```chuck
+global int midiNotes[128];   // note << 8 | velocity; velocity 0 is a note off
+global int midiCount;        // notes written so far; note k is at midiNotes[k % 128]
+global Event midiEvent;      // broadcast after each note
+```
+
+Wait on `midiEvent`, then read every note from the last count read up to `midiCount`; several can arrive between two wakes. Start from the current `midiCount`: the globals keep earlier programs' notes. `examples/midi.ck` does this. Once a note has arrived, the status panel counts them: `MIDI notes: 12`.
+
+`MidiIn` opens an ALSA device itself, whatever the general panel chooses.
 
 ## Labels and ranges
 
@@ -103,7 +117,8 @@ Step pitch => dac.chan(3);  0.2 * octaves => pitch.next;      // Out 4: 1 V/oct
 |-|-|-|
 | `filter.ck` | stereo resonant lowpass on inputs 1-2; input 3 is cutoff CV, 1 V/oct | cutoff, Q |
 | `sequencer.ck` | 8-step random melody; output 3 is a gate, output 4 pitch CV, 1 V/oct; input 1 is tempo CV, input 2 decay CV, both declared with `cv` | tempo, octaves, decay, reroll |
-| `midi.ck` | 8-voice saw synth on MIDI input device 0 | cutoff, release |
+| `lfo.ck` | four LFOs at one rate as CV on outputs 1-4: sine, triangle, saw, square, +-depth V; input 1 is rate CV (an octave per volt), input 2 depth CV | rate, depth |
+| `midi.ck` | 8-voice saw synth to outputs 1-2, played over MIDI; silent until notes arrive; input 1 is cutoff CV | cutoff, release |
 
 ## Walkthrough: `filter.ck`
 

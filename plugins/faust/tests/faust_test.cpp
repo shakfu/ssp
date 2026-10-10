@@ -70,6 +70,16 @@ g = hslider("gain [unit:dB]", -6, -60, 0, 0.1) : ba.db2linear;
 process = *(g), _;
 )";
 
+// [nvoices:4]: notes set freq, gain and gate in a free voice; level is p1, in every voice. Output 1
+// sums gate * gain * level, output 2 gate * freq / 10000.
+static const char* POLY = R"(declare options "[nvoices:4]";
+freq = hslider("freq", 440, 20, 20000, 1);
+gain = hslider("gain", 0.5, 0, 1, 0.01);
+gate = button("gate");
+level = hslider("level", 1, 0, 1, 0.01);
+process = gate * gain * level, gate * freq / 10000;
+)";
+
 static void testEngine(const std::string& dir, const std::string& libraries) {
     Rig r(libraries);
     // the built-in sounds with its controls at 0, as a new module starts
@@ -145,13 +155,19 @@ static void testEngine(const std::string& dir, const std::string& libraries) {
 // audio and worker threads together while programs swap; run under ThreadSanitizer
 static void testThreads(const std::string& dir, const std::string& libraries) {
     Rig r(libraries);
-    std::string gain = write(dir, "gain.dsp", GAIN);
+    std::string gain = write(dir, "gain.dsp", GAIN), poly = write(dir, "poly.dsp", POLY);
     std::atomic<bool> quit{ false };
     std::thread worker([&] {
         for (int k = 0; !quit; k++) {
-            r.e.load(k % 2 ? gain : std::string());
+            r.e.load(k % 3 == 0 ? gain : k % 3 == 1 ? poly : std::string());
             r.e.idle();
             std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        }
+    });
+    std::thread notes([&] {  // as the MIDI input thread
+        for (int k = 0; !quit; k++) {
+            r.e.midi(40 + k % 30, k % 2 ? 100 : 0);
+            std::this_thread::sleep_for(std::chrono::microseconds(500));
         }
     });
     for (int b = 0; b < 3000; b++) {
@@ -160,10 +176,11 @@ static void testThreads(const std::string& dir, const std::string& libraries) {
     }
     quit = true;
     worker.join();
+    notes.join();
 }
 
-// One example, with a 220 Hz sine on inputs 1 and 2 and every control at its default: prints each
-// output's peak, or the compile error on stderr.
+// One example, with a 220 Hz sine on inputs 1 and 2, every control at its default and note 60 held:
+// prints each output's peak, or the compile error on stderr.
 static int runExample(const std::string& path, const std::string& libraries) {
     Rig r(libraries);
     r.load(path);
@@ -172,6 +189,7 @@ static int runExample(const std::string& path, const std::string& libraries) {
         return 1;
     }
     for (int p = 0; p < FaustRuntime::PARAMS; p++) r.e.setParam(p, std::max(r.e.spec(p).def, 0.0f));
+    r.e.midi(60, 100);  // a polyphonic example sounds; the rest drop it
     float peak[CH] = {};
     for (int b = 0, t = 0; b < 400; b++, t += BLOCK) {
         for (int f = 0; f < BLOCK; f++)
@@ -210,6 +228,41 @@ static void testCv(const std::string& dir, const std::string& libraries) {
     NEAR(r.out[1][BLOCK - 1], 0.1f, 1e-6);
 }
 
+
+static void testMidi(const std::string& dir, const std::string& libraries) {
+    Rig r(libraries);
+    r.e.midi(60, 100);  // the built-in drone has no voices: dropped
+    r.run(1);
+    r.load(write(dir, "poly.dsp", POLY));
+    CHECK(r.e.error().empty());
+    CHECK(r.e.spec(0).label == "level");  // the note controls stay off the encoders
+    CHECK(r.e.spec(1).label.empty());
+    r.e.setParam(0, 1.0f);
+    r.run(1);
+    NEAR(r.out[0][BLOCK - 1], 0.0f, 1e-6);
+    r.e.midi(69, 127);
+    r.run(1);
+    NEAR(r.out[0][BLOCK - 1], 1.0f, 1e-5);
+    NEAR(r.out[1][BLOCK - 1], 0.044f, 1e-5);  // 440 Hz
+    r.e.midi(81, 127);  // a second voice: 880 Hz
+    r.run(1);
+    NEAR(r.out[0][BLOCK - 1], 2.0f, 1e-5);
+    NEAR(r.out[1][BLOCK - 1], 0.132f, 1e-5);
+    r.e.setParam(0, 0.5f);  // level reaches both voices
+    r.run(1);
+    NEAR(r.out[0][BLOCK - 1], 1.0f, 1e-5);
+    r.e.midi(69, 0);
+    r.run(1);
+    NEAR(r.out[1][BLOCK - 1], 0.088f, 1e-5);
+    r.e.midi(81, 0);
+    r.run(1);
+    NEAR(r.out[0][BLOCK - 1], 0.0f, 1e-6);
+    for (int k = 0; k < 6; k++) r.e.midi(60 + k, 127);  // 6 notes, 4 voices: 4 sound
+    r.run(1);
+    NEAR(r.out[0][BLOCK - 1], 2.0f, 1e-5);
+    CHECK(r.e.status() == "MIDI notes: 9");
+}
+
 int main(int argc, char** argv) {
     if (argc < 3) return 2;
     if (argc > 3 && std::string(argv[1]) == "example") return runExample(argv[2], argv[3]);
@@ -217,6 +270,7 @@ int main(int argc, char** argv) {
     else {
         testEngine(argv[1], argv[2]);
         testCv(argv[1], argv[2]);
+        testMidi(argv[1], argv[2]);
     }
     if (failures) std::fprintf(stderr, "%d failures\n", failures);
     return failures ? 1 : 0;

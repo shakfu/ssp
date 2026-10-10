@@ -3,3 +3,9 @@
 # atomics between them.
 race:Chuck_Globals_Manager::setGlobalFloat
 race:Chuck_Globals_Manager::handle_global_queue_messages
+# The same ring carries MIDI notes (ChuckEngine::midi). The VM files each request's global in a map
+# by name, so TSan reports the maps reading names the MIDI thread wrote.
+race:Chuck_Global_Int_Container
+race:Chuck_Global_Array_Container
+race:Chuck_Global_Event_Container
+race:Chuck_Globals_Manager::init_global_int

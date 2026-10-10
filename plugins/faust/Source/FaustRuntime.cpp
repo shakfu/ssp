@@ -8,7 +8,12 @@
 #include <vector>
 
 #include "faust/dsp/llvm-dsp.h"
+#include "faust/dsp/poly-dsp.h"
 #include "faust/gui/UI.h"
+
+// GUI.h's statics, which a program using it defines once: mydsp_poly's grouped controls are a GUI
+std::list<GUI*> GUI::fGuiList;
+ztimedmap GUI::gTimedZoneMap;
 
 namespace fstr {
 
@@ -48,23 +53,36 @@ static const std::string& jitTarget() {
 
 struct FaustRuntime::Instance {
     llvm_dsp_factory* factory = nullptr;
-    ::dsp* dsp = nullptr;
-    FAUSTFLOAT* zones[PARAMS] = {};
+    ::dsp* dsp = nullptr;      // the program, or poly
+    dsp_poly* poly = nullptr;  // its voices, when it declares [nvoices:N]
+    std::vector<FAUSTFLOAT*> zones[PARAMS];  // each control's zone, or its zone in every voice
     ScriptEngine::Specs specs;  // this program's ranges, so a swap never pairs it with another's
     int ins = 0, outs = 0;
     std::vector<float> zeros, scratch;  // the program's channels past CHANNELS
     std::vector<FAUSTFLOAT*> ip, op;
 };
 
-// The first PARAMS controls, in the program's order, with their metadata
+// Faust's polyphonic convention: notes set these, in every voice
+static bool noteControl(const std::string& label) {
+    return label == "freq" || label == "gain" || label == "gate" || label == "key" || label == "vel" ||
+           label == "velocity";
+}
+
+// The first PARAMS controls, in the program's order, with their metadata. In a polyphonic program
+// (`voices` > 0) each voice repeats the controls: they join by their path in the voice, without
+// the note controls; with several voices only those inside a "VoiceN" or "VN" box count, which
+// leaves out mydsp_poly's grouped copy and its Panic button.
 class Collector : public UI {
 public:
-    Collector(ScriptEngine::Specs& specs, FAUSTFLOAT** zones) : specs_(specs), zones_(zones) {}
+    Collector(ScriptEngine::Specs& specs, std::vector<FAUSTFLOAT*>* zones, int voices)
+        : specs_(specs), zones_(zones), voices_(voices) {}
 
-    void openTabBox(const char*) override {}
-    void openHorizontalBox(const char*) override {}
-    void openVerticalBox(const char*) override {}
-    void closeBox() override {}
+    void openTabBox(const char* l) override { path_.push_back(l); }
+    void openHorizontalBox(const char* l) override { path_.push_back(l); }
+    void openVerticalBox(const char* l) override { path_.push_back(l); }
+    void closeBox() override {
+        if (!path_.empty()) path_.pop_back();
+    }
     void addButton(const char* l, FAUSTFLOAT* z) override { add(l, z, 0, 0, 1); }
     void addCheckButton(const char* l, FAUSTFLOAT* z) override { add(l, z, 0, 0, 1); }
     void addVerticalSlider(const char* l, FAUSTFLOAT* z, FAUSTFLOAT i, FAUSTFLOAT lo, FAUSTFLOAT hi, FAUSTFLOAT) override {
@@ -92,8 +110,32 @@ public:
     }
 
 private:
+    // the index in path_ after a voice's box, or -1 outside one
+    int inVoice() const {
+        for (size_t k = 0; k < path_.size(); k++) {
+            const std::string& b = path_[k];
+            size_t digits = b.rfind("Voice", 0) == 0 ? 5 : b.rfind('V', 0) == 0 ? 1 : 0;
+            if (digits && b.size() > digits && b.find_first_not_of("0123456789", digits) == std::string::npos)
+                return int(k + 1);
+        }
+        return -1;
+    }
+
     void add(const char* label, FAUSTFLOAT* zone, float init, float lo, float hi) {
-        if (n_ < ScriptEngine::PARAMS && hi != lo) {
+        std::string key;
+        bool take = hi != lo;
+        if (voices_ > 0) {
+            int from = voices_ > 1 ? inVoice() : 0;
+            take = take && from >= 0 && !noteControl(label);
+            for (size_t k = size_t(std::max(from, 0)); k < path_.size(); k++) key += path_[k] + "/";
+            key += label;
+            for (int p = 0; take && p < n_; p++)
+                if (keys_[size_t(p)] == key) {  // the same control in a later voice
+                    zones_[p].push_back(zone);
+                    take = false;
+                }
+        }
+        if (take && n_ < ScriptEngine::PARAMS) {
             ScriptEngine::ParamSpec sp;
             sp.label = *label ? label : ScriptEngine::paramName(n_);
             sp.unit = unit_;
@@ -103,7 +145,8 @@ private:
             sp.def = sp.unmap(init);
             sp.cv = cv_;
             specs_[size_t(n_)] = sp;
-            zones_[n_++] = zone;
+            keys_[size_t(n_)] = key;
+            zones_[n_++].push_back(zone);
         }
         unit_.clear();
         log_ = false;
@@ -111,7 +154,10 @@ private:
     }
 
     ScriptEngine::Specs& specs_;
-    FAUSTFLOAT** zones_;
+    std::vector<FAUSTFLOAT*>* zones_;
+    const int voices_;
+    std::vector<std::string> path_;
+    std::string keys_[ScriptEngine::PARAMS];
     int n_ = 0;
     std::string unit_;
     bool log_ = false;
@@ -131,8 +177,16 @@ void FaustRuntime::destroy(Instance* i) {
 }
 
 std::string FaustRuntime::status() const {
-    unsigned n = resets();
-    return n ? "non-finite output: " + std::to_string(n) + " blocks silenced" : std::string();
+    std::string s;
+    if (unsigned n = resets()) s = "non-finite output: " + std::to_string(n) + " blocks silenced";
+    if (unsigned n = notesReceived_.load(std::memory_order_relaxed))
+        s += (s.empty() ? "" : "\n") + ("MIDI notes: " + std::to_string(n));
+    return s;
+}
+
+void FaustRuntime::midi(int note, int velocity) {
+    if (velocity > 0) notesReceived_.fetch_add(1, std::memory_order_relaxed);
+    notes_.try_enqueue(Note{ uint8_t(note & 0x7F), uint8_t(velocity & 0x7F) });
 }
 
 const char* FaustRuntime::builtin() const {
@@ -154,6 +208,17 @@ bool FaustRuntime::compile(const std::string& text, const std::string& path, std
                                                 jitTarget(), error, -1);
         if (i->factory) i->dsp = i->factory->createDSPInstance();
     }
+    // [nvoices:N] in its options: polyphonic, its voices started by notes
+    int voices = 0;
+    if (i->dsp) {
+        bool midi = false, sync = false;
+        MidiMeta::analyse(i->dsp, midi, sync, voices);
+    }
+    if (voices > 0) {
+        std::lock_guard<std::mutex> lock(compilerLock());  // a GUI joins a process-wide list
+        i->poly = new mydsp_poly(i->dsp, voices, true, false);
+        i->dsp = i->poly;
+    }
     if (i->dsp == nullptr) {
         if (error.empty()) error = "compile failed";
         error = error.substr(0, 400);
@@ -161,7 +226,7 @@ bool FaustRuntime::compile(const std::string& text, const std::string& path, std
         return false;
     }
     i->dsp->init(int(sampleRate()));
-    Collector c(i->specs, i->zones);
+    Collector c(i->specs, i->zones, voices);
     i->dsp->buildUserInterface(&c);
     i->ins = i->dsp->getNumInputs();
     i->outs = i->dsp->getNumOutputs();
@@ -185,10 +250,16 @@ void FaustRuntime::process(const float* const* in, float* const* out, int n) {
         gate_.end();
         return;
     }
+    for (Note m; notes_.try_dequeue(m);) {
+        if (!i->poly) continue;
+        if (m.velocity > 0) i->poly->keyOn(0, m.note, m.velocity);
+        else i->poly->keyOff(0, m.note, 0);
+    }
     for (int p = 0; p < PARAMS; p++) {
-        if (!i->zones[p]) continue;
+        if (i->zones[p].empty()) continue;
         const ParamSpec& sp = i->specs[size_t(p)];
-        *i->zones[p] = sp.modulated(param(p), sp.cv >= 0 ? in[sp.cv][0] / ssp::engine::CV_PER_VOLT : 0.0f);
+        float v = sp.modulated(param(p), sp.cv >= 0 ? in[sp.cv][0] / ssp::engine::CV_PER_VOLT : 0.0f);
+        for (FAUSTFLOAT* z : i->zones[p]) *z = v;
     }
     int ins = std::min(i->ins, int(CHANNELS)), outs = std::min(i->outs, int(CHANNELS));
     // compute() does not write its inputs

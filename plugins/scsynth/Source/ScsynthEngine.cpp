@@ -76,6 +76,27 @@ void ScsynthEngine::run(const float* const* in, float* const* out, int n) {
     world_.process(in, out, n, controls);
 }
 
+void ScsynthEngine::note(int note, int velocity) {
+    if (velocity > 0) world_.noteOn(note, float(velocity) / 127.0f);
+    else world_.noteOff(note);
+}
+
+std::string ScsynthEngine::status() const {
+    unsigned notes = world_.notesReceived();
+    if (notes == 0) return {};
+    return "MIDI notes: " + std::to_string(notes) + ", held: " + std::to_string(world_.notesHeld());
+}
+
+// a voice def's controls that notes set
+static bool noteControl(const std::string& name) {
+    return name == "gate" || name == "freq" || name == "velocity";
+}
+
+static bool isVoice(const SynthDefInfo& info) {
+    return std::any_of(info.controls.begin(), info.controls.end(),
+                       [](const SynthDefInfo::Control& c) { return c.name == "gate"; });
+}
+
 bool ScsynthEngine::readProgram(const std::string& path, std::string& bytes) const {
     std::ifstream f(path, std::ios::binary);
     if (!f) return false;
@@ -101,14 +122,21 @@ bool ScsynthEngine::controlSpecs(const SynthDefInfo& info, const std::string& si
                 error = "@p" + std::to_string(i + 1) + " names " + sp.label + ", not a control of " + info.name;
                 return false;
             }
+            if (isVoice(info) && noteControl(sp.label)) {
+                error = "@p" + std::to_string(i + 1) + " names " + sp.label + ", which MIDI notes set";
+                return false;
+            }
             sp.def = sp.unmap(c->value);
             specs[size_t(i)] = sp;
             mapped[size_t(i)] = { sp.label, sp.cv >= 0 };
         }
         return true;
     }
-    for (size_t i = 0; i < info.controls.size() && i < size_t(PARAMS); i++) {
-        const auto& c = info.controls[i];
+    const bool voice = isVoice(info);
+    size_t i = 0;
+    for (const auto& c : info.controls) {
+        if (i == size_t(PARAMS)) break;
+        if (voice && noteControl(c.name)) continue;
         ParamSpec sp;
         sp.label = c.name;
         float limit = std::max(1.0f, 2.0f * std::fabs(c.value));
@@ -117,6 +145,7 @@ bool ScsynthEngine::controlSpecs(const SynthDefInfo& info, const std::string& si
         sp.def = sp.unmap(c.value);
         specs[i] = sp;
         mapped[i] = { c.name, false };
+        i++;
     }
     return true;
 }
@@ -160,7 +189,7 @@ bool ScsynthEngine::compile(const std::string& text, const std::string& path, st
         }
     }
     pending_.store(bank, std::memory_order_release);
-    bool ok = world_.loadDef(bytes, error, mapped, pumping_);
+    bool ok = world_.loadDef(bytes, error, mapped, isVoice(info), pumping_);
     if (ok) bank_.store(bank, std::memory_order_release);
     pending_.store(-1, std::memory_order_release);
     if (!ok) return false;

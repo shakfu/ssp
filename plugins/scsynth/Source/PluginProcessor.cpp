@@ -10,7 +10,13 @@ static std::string ugenDir() {
 }
 
 PluginProcessor::PluginProcessor()
-    : ScriptProcessor(std::make_unique<scsy::ScsynthEngine>(ugenDir()), "/media/BOOT/scsy") {}
+    : ScriptProcessor(std::make_unique<scsy::ScsynthEngine>(ugenDir()), "/media/BOOT/scsy") {
+    noteInput(true);
+}
+
+void PluginProcessor::midiNoteInput(unsigned note, unsigned velocity) {
+    static_cast<scsy::ScsynthEngine&>(script()).note(int(note & 0x7F), int(velocity & 0x7F));
+}
 
 AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new PluginProcessor();

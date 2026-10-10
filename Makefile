@@ -17,7 +17,7 @@ BUILDROOT_DEP := $(BUILDROOT_DIR)
 endif
 
 .DEFAULT_GOAL := ssp
-.PHONY: ssp configure buildroot deps faust-kernels scsy-builtin release release-pdf release-notes publish clean-releases deploy deploy-mod install install-faust install-scsy install-presets test clean help
+.PHONY: ssp configure buildroot deps faust-kernels scsy-builtin release release-pdf release-notes publish clean-releases deploy deploy-mod install install-faust install-scsy install-presets midisend test clean help
 
 help:
 	@echo "make [ssp]              download buildroot if needed, configure, build all plugins"
@@ -36,6 +36,7 @@ help:
 	@echo "make install [MOD=x]    build, copy plugins to the mounted SD card (SSP_PLUGINS)"
 	@echo "make install-faust      copy the Faust libraries and fstr examples to the card"
 	@echo "make install-scsy       copy the UGen plugins and scsy examples to the card"
+	@echo "make midisend           build tools/midisend, copy it to SSP_HOST's /tmp and start it: a MIDI input for tests"
 	@echo "make install-presets     check, then copy presets/ (or PRESETS=dir) to the card (SSP_PRESETS)"
 	@echo "make test               run the py2rack and plugin tests"
 	@echo "make clean              remove $(BUILD_DIR)"
@@ -110,6 +111,19 @@ install-faust:
 
 install-scsy:
 	scripts/install-scsy.sh
+
+# a MIDI input on the SSP that plays notes written to /tmp/midisend over ssh; /tmp is RAM, so a
+# reboot removes it
+MIDISEND_BR := $(or $(SSP_BUILDROOT),$(BUILDROOT),$(CURDIR)/$(BUILDROOT_DIR))
+MIDISEND_SYSROOT := $(MIDISEND_BR)/arm-rockchip-linux-gnueabihf/sysroot
+MIDISEND_GCC := $(MIDISEND_BR)/lib/gcc/arm-rockchip-linux-gnueabihf/8.4.0
+midisend: | $(BUILDROOT_DEP)
+	mkdir -p build/midisend
+	clang --target=arm-linux-gnueabihf --sysroot=$(MIDISEND_SYSROOT) -mcpu=cortex-a17 -mfloat-abi=hard -O2 \
+		tools/midisend/midisend.c -lasound -fuse-ld=lld -L$(MIDISEND_SYSROOT)/lib -B$(MIDISEND_SYSROOT)/lib \
+		-L$(MIDISEND_GCC) -B$(MIDISEND_GCC) -o build/midisend/midisend
+	scp -O -q build/midisend/midisend $${SSP_HOST:-root@192.168.1.6}:/tmp/midisend-bin
+	ssh $${SSP_HOST:-root@192.168.1.6} 'killall midisend-bin 2>/dev/null; nohup /tmp/midisend-bin /tmp/midisend > /tmp/midisend.log 2>&1 & sleep 1; cat /tmp/midisend.log'
 
 install-presets:
 	scripts/install-presets.sh $(PRESETS)

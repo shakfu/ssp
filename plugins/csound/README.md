@@ -25,7 +25,7 @@ The preset stores the file's path, not its contents.
 
 - The SSP sets `sr`; the orchestra's own `sr` is ignored.
 - `ksmps` is the orchestra's. Output is one k-cycle late.
-- MIDI comes from the device chosen in the general panel (RS + LS). Notes arrive on channel 1. Csound starts `instr n` for MIDI channel `n` unless told otherwise, so an orchestra that ignores MIDI needs `massign 0, 0`.
+- MIDI comes from the device chosen in the general panel (RS + LS). Notes arrive on channel 1. Csound starts `instr n` for MIDI channel `n` unless told otherwise, so an orchestra that ignores MIDI needs `massign 0, 0`. Once a note has arrived, the status panel counts them: `MIDI notes: 12`.
 
 ## Labels and ranges
 
@@ -102,6 +102,7 @@ outch 3, aLfo, 4, a(0.2 * kOct)   ; Out 3: the LFO; Out 4: 1 V/oct, kOct octaves
 | `filter.csd` | stereo ladder filter on inputs 1-2; input 3 is cutoff CV, 1 V/oct | cutoff, resonance, drive, mix |
 | `delay.csd` | stereo ping-pong delay on inputs 1-2 | time, feedback, mix, tone |
 | `quadosc.csd` | sine, triangle, saw and pulse on outputs 1-4; input 1 is pitch CV (1 V/oct), input 2 width CV, both declared with `cv` | pitch, width |
+| `lfo.csd` | four LFOs at one rate as CV on outputs 1-4: sine, triangle, saw, square, +-depth V; input 1 is rate CV (an octave per volt), input 2 depth CV | rate, depth |
 | `fm-midi.csd` | polyphonic FM synth, played over MIDI; silent until notes arrive from the input chosen in the general panel | ratio, index, attack, release |
 
 ## Walkthrough: `filter.csd`

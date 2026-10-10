@@ -141,6 +141,7 @@ static void testEngine(const std::string& dir) {
     r.e.midi(0x80, 64, 0);
     r.run(4);
     NEAR(r.out[0][BLOCK - 1], 0.0f, 1e-6);
+    CHECK(r.e.status() == "MIDI notes: 1");  // note ons only
 
     // GEN01 reads a sound file next to the .csd, through the static libsndfile; -1: not normalised
     std::string sub = dir + "/sub";

@@ -17,6 +17,7 @@ Load (button 5) picks a `.dsp` file. A program that fails to compile shows its e
 - **Defaults**: a program chosen with Load sets its controls to the program's defaults. A preset restores its own values.
 - **Imports**: `import("stdfaust.lib")` and the other libraries resolve in the program's folder, then in `BOOT/faust/libraries`.
 - **CV**: `[cv:N]` in a control's label makes input N move it; see [CV in](#cv-in).
+- **MIDI**: a program with `declare options "[nvoices:N]";` plays N voices from MIDI notes; see [MIDI](#midi).
 
 ## Inputs and outputs
 
@@ -72,6 +73,23 @@ import("stdfaust.lib");
 process = _, _, os.osc(2) * 0.5, 0.2 * octaves;   // In 1-2 to Out 1-2; Out 3: +-2.5 V at 2 Hz; Out 4: 1 V/oct
 ```
 
+## MIDI
+
+Notes come from the MIDI input chosen in the general panel (RS + LS), and take effect at the next block. A program is polyphonic when its options declare a voice count:
+
+```faust
+declare options "[nvoices:8]";
+freq = hslider("freq", 440, 20, 20000, 1);   // Hz, from the note
+gain = hslider("gain", 0.5, 0, 1, 0.01);     // velocity / 127
+gate = button("gate");                       // 1 while the note is held
+```
+
+- Each note takes a free voice, or the oldest. This is Faust's own polyphony (`mydsp_poly`).
+- The voices' outputs add, unscaled: scale a voice so N of them do not clip.
+- `freq`, `gain` and `gate` stay off the encoders, as do `key`, `vel` and `velocity`. Every other control drives all the voices, with its CV.
+- A program without `nvoices` ignores notes.
+- Once a note has arrived, the status panel counts them: `MIDI notes: 12`.
+
 ## Examples
 
 | File | What |
@@ -79,7 +97,9 @@ process = _, _, os.osc(2) * 0.5, 0.2 * octaves;   // In 1-2 to Out 1-2; Out 3: +
 | `chorus.dsp` | `chrs`'s chorus: compare the DSP load |
 | `filter.dsp` | resonant low-pass on inputs 1 and 2 |
 | `filter_cv.dsp` | `filter.dsp` with cutoff CV on input 3, 1 V/oct; see the walkthrough |
+| `lfo.dsp` | four LFOs at one rate as CV on outputs 1-4: sine, triangle, saw, square, +-depth V; input 1 is rate CV (an octave per volt), input 2 depth CV |
 | `osc.dsp` | band-limited saw; input 1 is pitch CV (1 V/oct), input 2 level CV, both declared with `[cv:N]` |
+| `poly.dsp` | 8-voice saw synth to outputs 1-2, played over MIDI; silent until notes arrive; input 1 is cutoff CV |
 
 ## Walkthrough: `filter.dsp`
 

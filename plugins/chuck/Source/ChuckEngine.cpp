@@ -83,9 +83,11 @@ void ChuckEngine::prepare(float sampleRate, int maxBlock) {
     if (vm_ == nullptr || sampleRate != vmRate_) {
         // ChucK keeps part of a deleted VM's type system, so a VM is replaced only on a rate change
         gate_.take();
+        std::lock_guard<std::mutex> lock(globalsLock_);
         delete vm_;
         vm_ = newVm(sampleRate);
         vmRate_ = sampleRate;
+        midiCount_ = 0;
         std::fill(std::begin(applied_), std::end(applied_), std::nanf(""));  // never equal: all sent
     }
     ScriptEngine::prepare(sampleRate, maxBlock);
@@ -129,15 +131,35 @@ bool ChuckEngine::compile(const std::string& text, const std::string& path, std:
 }
 
 void ChuckEngine::idle() {
-    if (vm_ != nullptr)
-        if (Chuck_Globals_Manager* g = vm_->globals())
-            for (int p = 0; p < PARAMS; p++) {
-                float v = value(p);
-                if (v == applied_[p]) continue;
-                applied_[p] = v;
-                g->setGlobalFloat(paramName(p), v);
-            }
+    {
+        std::lock_guard<std::mutex> lock(globalsLock_);
+        if (vm_ != nullptr)
+            if (Chuck_Globals_Manager* g = vm_->globals())
+                for (int p = 0; p < PARAMS; p++) {
+                    float v = value(p);
+                    if (v == applied_[p]) continue;
+                    applied_[p] = v;
+                    g->setGlobalFloat(paramName(p), v);
+                }
+    }
     ScriptEngine::idle();
+}
+
+void ChuckEngine::midi(int note, int velocity) {
+    std::lock_guard<std::mutex> lock(globalsLock_);
+    Chuck_Globals_Manager* g = vm_ != nullptr ? vm_->globals() : nullptr;
+    if (g == nullptr) return;
+    if (velocity > 0) notes_.fetch_add(1, std::memory_order_relaxed);
+    // a program that declares none of these ignores them
+    g->setGlobalIntArrayValue("midiNotes", static_cast<t_CKUINT>(midiCount_ % MIDI_NOTES),
+                              (note & 0x7F) << 8 | (velocity & 0x7F));
+    g->setGlobalInt("midiCount", ++midiCount_);
+    g->broadcastGlobalEvent("midiEvent");
+}
+
+std::string ChuckEngine::status() const {
+    unsigned n = notes_.load(std::memory_order_relaxed);
+    return n ? "MIDI notes: " + std::to_string(n) : std::string();
 }
 
 void ChuckEngine::process(const float* const* in, float* const* out, int n) {

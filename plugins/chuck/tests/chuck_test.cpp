@@ -149,15 +149,44 @@ static void testEngine(const std::string& dir) {
 }
 
 // audio and worker threads together while programs swap; run under ThreadSanitizer
+// MIDI from the general panel arrives as the globals midiNotes, midiCount and midiEvent
+static const char* MIDI = R"(global int midiNotes[128];
+global int midiCount;
+global Event midiEvent;
+Step vel => dac.chan(0);
+Step note => dac.chan(1);
+Step ons => dac.chan(2);
+0 => vel.next => note.next => ons.next;   // a Step starts at 1
+midiCount => int read;
+0 => int count;
+while (true) {
+    midiEvent => now;
+    while (read < midiCount) {
+        midiNotes[read % 128] => int m;
+        read++;
+        (m & 0x7F) / 127.0 => vel.next;
+        ((m >> 8) & 0x7F) / 100.0 => note.next;
+        if ((m & 0x7F) > 0) count++;
+        count / 100.0 => ons.next;
+    }
+}
+)";
+
 static void testThreads(const std::string& dir) {
     Rig r;
-    std::string pass = write(dir, "pass.ck", PASS);
+    std::string pass = write(dir, "pass.ck", PASS), midi = write(dir, "midi.ck", MIDI);
     std::atomic<bool> quit{ false };
     std::thread worker([&] {
         for (int k = 0; !quit; k++) {
-            if (k % 20 == 0) r.e.load(k % 40 ? pass : std::string());
+            if (k % 20 == 0) r.e.load(k % 60 < 20 ? pass : k % 60 < 40 ? midi : std::string());
             r.e.idle();
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+    });
+    std::thread notes([&] {  // as the MIDI input thread
+        for (int k = 0; !quit; k++) {
+            r.e.midi(40 + k % 30, k % 2 ? 100 : 0);
+            std::this_thread::sleep_for(std::chrono::microseconds(500));
         }
     });
     for (int b = 0; b < 3000; b++) {
@@ -166,6 +195,7 @@ static void testThreads(const std::string& dir) {
     }
     quit = true;
     worker.join();
+    notes.join();
 }
 
 // One example program, with a 220 Hz sine on inputs 1 and 2, every control at 0.5:
@@ -190,11 +220,48 @@ static int runExample(const std::string& path) {
     return 0;
 }
 
+
+static void testMidi(const std::string& dir) {
+    Rig r;
+    r.load(write(dir, "midi.ck", MIDI));
+    CHECK(r.e.error().empty());
+    CHECK(r.e.status().empty());  // nothing until a note
+    r.run(2);
+    r.e.midi(60, 127);
+    r.run(2);
+    NEAR(r.out[0][BLOCK - 1], 1.0f, 1e-6);
+    NEAR(r.out[1][BLOCK - 1], 0.60f, 1e-6);
+    r.e.midi(64, 64);  // three in one block: none lost
+    r.e.midi(67, 32);
+    r.e.midi(60, 0);
+    r.run(2);
+    NEAR(r.out[1][BLOCK - 1], 0.60f, 1e-6);  // the last: note 60 off
+    NEAR(r.out[0][BLOCK - 1], 0.0f, 1e-6);
+    NEAR(r.out[2][BLOCK - 1], 0.03f, 1e-6);  // three note ons
+    CHECK(r.e.status() == "MIDI notes: 3");
+    for (int k = 0; k < 300; k++) r.e.midi(40 + k % 40, 100);  // past the 128-note ring, a block apart
+    for (int k = 0; k < 300; k++) {
+        r.e.midi(40, 100);
+        r.run(1);
+    }
+    NEAR(r.out[2][BLOCK - 1], (3 + 600) / 100.0f, 1e-4);
+    // a program loaded later starts at the current count: no old notes
+    r.load(write(dir, "midi2.ck", MIDI));
+    r.run(2);
+    NEAR(r.out[2][BLOCK - 1], 0.0f, 1e-6);
+    r.e.midi(50, 100);
+    r.run(2);
+    NEAR(r.out[2][BLOCK - 1], 0.01f, 1e-6);
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) return 2;
     if (argc > 2 && std::string(argv[1]) == "example") return runExample(argv[2]);
     if (argc > 2 && std::string(argv[2]) == "threads") testThreads(argv[1]);
-    else testEngine(argv[1]);
+    else {
+        testEngine(argv[1]);
+        testMidi(argv[1]);
+    }
     if (failures) std::fprintf(stderr, "%d failures\n", failures);
     return failures ? 1 : 0;
 }

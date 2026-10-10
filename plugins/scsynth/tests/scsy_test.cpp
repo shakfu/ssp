@@ -1,6 +1,7 @@
 // Native test of scsy::ScsynthEngine; built and run by test_scsynth.py.
 // usage: scsy_test <core UGen dir> <defs dir> <empty scratch dir>
-//        scsy_test example <UGen dir> <.scsyndef>   (an example sounds from a signal on inputs 1, 2)
+//        scsy_test example <UGen dir> <.scsyndef>   (an example sounds, with a signal on inputs 1, 2
+//                                                    and a held middle C)
 
 #include <atomic>
 #include <chrono>
@@ -117,6 +118,7 @@ static int example(const std::string& ugens, const std::string& path) {
     std::string error = r.load(path);
     if (!error.empty()) std::fprintf(stderr, "%s: %s\n", path.c_str(), error.c_str());
     CHECK(error.empty());
+    r.e.note(60, 100);  // a voice def sounds only with a note; others ignore it
     auto x = r.run(100);
     bool finite = true;
     for (float v : x) finite = finite && std::isfinite(v);
@@ -240,6 +242,71 @@ int main(int argc, char** argv) {
         NEAR(r.e.value(0), 0.55078125, 1e-6);
         auto x = r.run(10);
         NEAR(x.back(), 0.55078125, 1e-6);
+    }
+    {  // MIDI: a def with a gate control is a voice per note
+        CHECK(r.load(defs + "/voice.scsyndef").empty());
+        CHECK(r.e.spec(0).label == "level" && r.e.spec(1).label.empty());  // notes set freq, velocity, gate
+        auto voices = [&](int c) {
+            r.run(4);  // the notes, then the envelopes
+            return r.run(1, c).back();
+        };
+        NEAR(voices(0), 0.0, 1e-6);  // no synth until a note
+        r.e.note(69, 127);
+        NEAR(voices(0), 1.0, 1e-4);   // velocity 127 is 1
+        NEAR(voices(1), 0.44, 1e-4);  // A4 is 440 Hz
+        r.e.note(72, 64);
+        NEAR(voices(0), 1.0 + 64.0 / 127.0, 1e-4);
+        r.e.note(69, 0);
+        r.run(40);  // the 10 ms release, then the synth frees itself
+        NEAR(voices(0), 64.0 / 127.0, 1e-4);
+        NEAR(voices(1), 0.440 * std::pow(2.0, 3.0 / 12.0), 1e-4);  // C5 alone
+        r.e.note(72, 0);
+        r.run(40);
+        NEAR(voices(0), 0.0, 1e-6);
+
+        for (int n = 40; n < 60; n++) r.e.note(n, 127);  // 20 held: the first 4 are released
+        r.run(40);
+        NEAR(voices(0), double(scsy::ScWorld::VOICES), 1e-3);
+        CHECK(r.e.status() == "MIDI notes: 22, held: " + std::to_string(scsy::ScWorld::VOICES));  // 2 + 20
+        r.e.setParam(0, r.e.spec(0).unmap(0.5f));  // level drives every voice
+        NEAR(voices(0), 0.5 * scsy::ScWorld::VOICES, 1e-3);
+        for (int n = 40; n < 60; n++) r.e.note(n, 0);
+        r.run(40);
+        NEAR(voices(0), 0.0, 1e-6);
+
+        r.e.note(60, 127);
+        NEAR(voices(1), 0.440 * std::pow(2.0, -9.0 / 12.0), 1e-4);
+        CHECK(r.load(defs + "/thru.scsyndef").empty());  // another def frees the voices
+        std::fill(r.in[1].begin(), r.in[1].end(), 0.0f);
+        NEAR(voices(1), 0.0, 1e-6);
+
+        std::string path = copyDef("voice");
+        write(scratch + "/voice.txt", "// @p1 gate\n");
+        CHECK(r.load(path).find("which MIDI notes set") != std::string::npos);
+    }
+    {  // a def without gate: notes set freq and velocity when no control is mapped to them
+        std::string path = copyDef("sine");
+        write(scratch + "/sine.txt", "// @p1 amp\n");
+        CHECK(r.load(path).empty());
+        r.e.note(57, 100);  // A3, 220 Hz
+        r.run(2);
+        HZ(r.run(100), 220.0);
+    }
+    {  // notes from a thread of their own while loads and the audio run, for ThreadSanitizer
+        std::atomic<bool> stop{ false };
+        std::thread midi([&] {
+            for (int k = 0; !stop; k++) {
+                r.e.note(48 + k % 24, k % 3 ? 100 : 0);
+                std::this_thread::sleep_for(std::chrono::microseconds(300));
+            }
+        });
+        CHECK(r.load(defs + "/voice.scsyndef").empty());
+        CHECK(r.load(defs + "/sine.scsyndef").empty());
+        CHECK(r.load(defs + "/voice.scsyndef").empty());
+        stop = true;
+        midi.join();
+        for (int n = 0; n < 128; n++) r.e.note(n, 0);
+        r.run(40);
     }
     {  // a new rate reopens the World and reloads the program, with no audio thread
         CHECK(r.load(defs + "/sine.scsyndef").empty());

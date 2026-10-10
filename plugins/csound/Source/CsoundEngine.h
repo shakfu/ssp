@@ -24,6 +24,8 @@ public:
 
     // Any one thread other than audio: a MIDI channel message. Dropped when 256 are queued.
     void midi(uint8_t status, uint8_t d1, uint8_t d2);
+    // UI thread: MIDI activity, once a note has arrived
+    std::string status() const override;
 
 protected:
     bool compile(const std::string& text, const std::string& path, std::string& error) override;
@@ -42,6 +44,7 @@ private:
 
     ssp::engine::ReloadGate<Instance> gate_;
     moodycamel::ReaderWriterQueue<Midi> midi_{ 256 };
+    std::atomic<unsigned> notes_{ 0 };
 };
 
 }  // namespace csnd

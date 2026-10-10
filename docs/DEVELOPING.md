@@ -42,7 +42,9 @@ A program on the card is the fastest to try: no build, and Load swaps it in. A m
 | `make test` | every pytest suite: the tools, the scripts, and `plugins/*/tests` |
 | `plugins/common/tests/plugin_host.cpp` | loads a plugin `.so` through the SSP API on the host: sets state, feeds inputs, runs blocks, prints levels and state, renders the editor to a 1600x480 BGRA file. The plugin tests drive it |
 | `make install [MOD=name]` (`scripts/install.sh`) | copies built plugins, or the one named, to the mounted card's `BOOT/plugins` |
-| `make install-faust`, `make install-presets` | the Faust libraries and `fstr` examples; rack presets |
+| `make install-faust`, `make install-scsy`, `make install-presets` | the Faust libraries and `fstr` examples; the UGen plugins and `scsy` examples; rack presets |
+| `make midisend` (`tools/midisend`) | a MIDI input for tests, without a keyboard: builds it, copies it to `SSP_HOST`'s `/tmp` and starts it. Choose `midisend` as a module's MIDI input in its general panel (RS + LS), then play it over ssh: `ssh root@192.168.1.6 'echo "on 60 100" > /tmp/midisend'`, and `off 60`. A reboot removes it |
+| `plugins/scsynth/tests/run_on_ssp.sh` | cross-compiles the `scsy` tests and runs them on the SSP over ssh |
 | `tools/py2rack` | writes, checks and decodes rack presets off the device. See its [README](../tools/py2rack/README.md) |
 | `make release`, `make publish` | the release package and its GitHub release. See [BUILDING.md](BUILDING.md) |
 

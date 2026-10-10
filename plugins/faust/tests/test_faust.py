@@ -35,6 +35,7 @@ def build(deps, out, name, *flags):
     cmd = [
         cxx, "-std=c++17", "-Wall", "-pthread", *flags,
         f"-I{SRC}", f"-I{ROOT / 'plugins' / 'common'}", f"-I{deps / 'include'}",
+        f"-I{ROOT / 'external' / 'readerwriterqueue'}",
         str(HERE / "faust_test.cpp"), str(SRC / "FaustRuntime.cpp"),
         str(ROOT / "plugins" / "common" / "engine" / "ScriptEngine.cpp"),
         str(deps / "lib" / "libfaust.a"), f"-L{LLVM_LIB}", "-lLLVM", "-o", str(exe),

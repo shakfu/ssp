@@ -5,8 +5,9 @@
 The .scsyndef files are committed, so the tests do not need nanosynth.
 """
 
-from nanosynth import synthdef
-from nanosynth.ugens import DC, In, NumOutputBuses, Out, Saw, SinOsc
+from nanosynth import DoneAction, synthdef
+from nanosynth.envelopes import EnvGen, Envelope
+from nanosynth.ugens import DC, K2A, In, NumOutputBuses, Out, Saw, SinOsc
 from nanosynth.ugens.sc3 import DFM1
 
 
@@ -38,3 +39,14 @@ def follow(x=0.0):  # an audio-rate control, sent out as it is
 @synthdef("ar")
 def hold(x=0.55078125):  # an audio-rate control read only at the start
     Out.ar(bus=0, source=DC.ar(source=x))
+
+
+@synthdef()
+def voice(freq=440.0, velocity=0.0, gate=1.0, level=1.0):
+    """A MIDI voice that shows itself: output 1 is velocity x level, output 2 freq / 1000, while
+    held. Instant attack, 10 ms release, then it frees itself."""
+    env = EnvGen.kr(
+        envelope=Envelope.asr(attack_time=0.0, release_time=0.01), gate=gate, done_action=DoneAction.FREE_SYNTH
+    )
+    Out.ar(bus=0, source=[K2A.ar(source=velocity * level * env), K2A.ar(source=freq * 0.001 * env)])
+

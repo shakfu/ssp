@@ -23,6 +23,11 @@ namespace scsy {
 // sample, and a control-rate one every 64.
 // Without a sidecar, a control's range is 0 to max(1, 2 x default), or +-that for a negative default.
 //
+// MIDI: a def with a `gate` control is a voice. Each note starts a synth with `freq`, `velocity`
+// (0..1) and `gate` 1, and its note off sets `gate` 0, so the def must free itself; at most
+// ScWorld::VOICES notes are held. Notes set those three, so p1..p16 leave them out. A def without
+// `gate` runs one synth, whose `freq` and `velocity` notes set when no control is mapped to them.
+//
 // A new synth starts with its def's defaults on its controls, as the knobs will show after a Load;
 // a control read only at the start (an init-rate input, such as DC's) keeps that value. Its knobs
 // drive it from the next block. The two synths of a reload use different control buses, so a
@@ -35,6 +40,10 @@ public:
     // Message thread, audio stopped: (re)opens the World at a new rate, then reloads the program.
     void prepare(float sampleRate, int maxBlock) override;
     void process(const float* const* in, float* const* out, int n) override;
+    // Any thread but audio, such as MIDI's: velocity 1..127 starts a note, 0 ends it.
+    void note(int note, int velocity);
+    // UI thread: MIDI activity, once a note has arrived
+    std::string status() const override;
 
     // The specs for `info`'s controls, from `sidecar` if not empty; false, with `error`, if it names
     // a control the def lacks. mapped[i] is the control p(i+1) drives.

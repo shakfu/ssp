@@ -1,0 +1,2 @@
+// @p1 rate 0.01 20 Hz log cv 1
+// @p2 depth 0 5 V cv 2

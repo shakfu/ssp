@@ -23,11 +23,12 @@ The preset stores the file's path, not its contents.
 |-|-|
 | audio and CV | see Inputs and outputs |
 | controls | the def's named controls, mapped to `p1`..`p16`; see Controls |
+| MIDI | notes; a def with a `gate` control plays a voice per note; see MIDI |
 | UGens | any in `/media/BOOT/scsy/ugens`; a missing one fails the load with `UGen 'X' not installed` |
 
 - The SSP sets the sample rate. scsynth runs in 64-frame blocks; the SSP's 128-frame block adds no latency.
 - Only the file's first SynthDef runs.
-- No MIDI yet, no buffers (`PlayBuf`, `GrainBufJ`, ... have nothing to read), no StkInst (it reads rawwave files from a path).
+- No buffers (`PlayBuf`, `GrainBufJ`, ... have nothing to read), no StkInst (it reads rawwave files from a path).
 
 ## Controls
 
@@ -96,6 +97,28 @@ Out.ar(bus=2, source=SinOsc.ar(frequency=2) * 0.5)    # output 3: +-2.5 V at 2 H
 Out.ar(bus=3, source=K2A.ar(source=octaves * 0.2))    # output 4: 1 V/oct
 ```
 
+## MIDI
+
+Notes come from the MIDI input chosen in the general panel (RS + LS), and take effect at the next audio block. Once a note has arrived, the status panel shows how many have, and how many are held: `MIDI notes: 22, held: 16`.
+
+A def with a `gate` control is a voice:
+
+- A note on starts a synth with `freq` (Hz, from the note number), `velocity` (0..1) and `gate` 1. A note off sets `gate` 0.
+- The def must free itself when its envelope ends: `EnvGen` with `done_action=DoneAction.FREE_SYNTH`.
+- 16 notes sound at once; another releases the oldest held note. At most 32 voice synths exist, held or releasing; another frees the oldest, so a def that never frees itself cannot pile up.
+- `p1`..`p16`, with their CV, drive every voice. Notes set `freq`, `velocity` and `gate`, so those stay off the encoders; a sidecar line naming one fails the load.
+- Loading another def frees the voices.
+
+```python
+@synthdef()
+def midi_saw(freq=440.0, velocity=0.5, gate=1.0, cutoff=2000.0):
+    env = EnvGen.kr(envelope=Envelope.adsr(), gate=gate, done_action=DoneAction.FREE_SYNTH)
+    sig = RLPF.ar(source=Saw.ar(frequency=freq), frequency=cutoff) * env * velocity
+    Out.ar(bus=0, source=[sig, sig])
+```
+
+A def without `gate` runs one synth. A note sets its `freq` and `velocity`, if it has them and no encoder drives them: leave them out of the sidecar to play them from MIDI.
+
 ## Writing a SynthDef
 
 Write it in Python with [nanosynth](https://github.com/shakfu/nanosynth), or in sclang, and compile it on a desktop:
@@ -125,6 +148,8 @@ sc3-plugins UGens are in `nanosynth.ugens.sc3`. Copy the `.scsyndef`, and its si
 |-|-|-|
 | `filter` | core | resonant lowpass on inputs 1-2: cutoff (CV on input 3), res, mix |
 | `dfm1` | sc3-plugins (`DFM1`) | analogue-modelled filter on inputs 1-2: cutoff (CV on input 3), res (self-oscillates when high), gain (overdrive), type (low-pass below 0.5, else high-pass) |
+| `lfo` | core | four LFOs at one rate as CV on outputs 1-4: sine, triangle, saw, square, +-depth V; input 1 is rate CV (an octave per volt), input 2 depth CV; controls rate, depth |
+| `midi_saw` | core | MIDI voice, a saw through a resonant lowpass, to outputs 1-2: cutoff (CV on input 1), res, attack, release, level |
 | `fm` | core | two-operator FM voice to outputs 1-2: pitch (1 V/oct CV on input 1, at audio rate), ratio, index (CV on input 2), level |
 
 ## Licence

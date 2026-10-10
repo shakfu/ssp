@@ -228,21 +228,32 @@ bool ScWorld::open(float sampleRate, const std::string& pluginDir, std::string& 
     o.mLoadGraphDefs = 0;  // else it loads every def in SC's default directories
     o.mRendezvous = false;
     o.mUGensPluginPath = pluginDir.c_str();
-    world_ = World_New(&o);
-    if (!world_) {
+    World* world = World_New(&o);
+    if (!world) {
         error = "scsynth did not start";
         return false;
     }
+    {
+        std::lock_guard<std::mutex> lock(noteLock_);
+        world_ = world;
+    }
+    send(Osc("/g_new").i(VOICE_GROUP).i(1).i(0).bytes());  // voices, after the running synth
     return true;
 }
 
 void ScWorld::close() {
+    std::lock_guard<std::mutex> lock(noteLock_);
     if (!world_)
         return;
     World_Cleanup(world_, false);  // true would unload the UGens of every World in the process
     world_ = nullptr;
     node_ = 0;
+    bank_ = -1;
     def_.clear();
+    voices_ = false;
+    mapped_.clear();
+    for (Voice& v : voice_) v = Voice();
+    held_.store(0, std::memory_order_relaxed);
     fill_ = 0;
     std::memset(fifoOut_, 0, sizeof fifoOut_);
 }
@@ -304,11 +315,11 @@ bool ScWorld::load(const std::string& path, std::string& error, int timeoutMs) {
         error = "cannot read " + path;
         return false;
     }
-    return loadDef(file, error, {}, false, timeoutMs);
+    return loadDef(file, error, {}, false, false, timeoutMs);
 }
 
 bool ScWorld::loadDef(const std::string& file, std::string& error, const std::vector<Mapping>& mapped,
-                      bool pump, int timeoutMs) {
+                      bool voices, bool pump, int timeoutMs) {
     if (!world_) {
         error = "scsynth is not running";
         return false;
@@ -330,20 +341,15 @@ bool ScWorld::loadDef(const std::string& file, std::string& error, const std::ve
     std::vector<std::string> failures;
     waitFor("", "", 0, failures);  // drops stale replies
 
+    // a voice def starts a silent synth, gate 0, to show it builds, and frees it after
     const int node = node_ == 1000 ? 1001 : 1000;
-    // the synth reads its mapped controls from its first block
-    Osc map("/n_map"), mapa("/n_mapa");
-    map.i(node);
-    mapa.i(node);
-    for (size_t i = 0; i < mapped.size() && i < size_t(CONTROLS); i++) {
-        if (mapped[i].name.empty()) continue;
-        if (mapped[i].audio)
-            mapa.s(mapped[i].name).i(audioControlBus(nextBank() * CONTROLS + int(i)));
-        else
-            map.s(mapped[i].name).i(controlBus(nextBank(), int(i)));
-    }
+    const int bank = nextBank();
+    Osc start("/s_new");
+    start.s(def).i(node).i(0).i(0);
+    if (voices) start.s("gate").f(0.0f);
     bool answered = send(Osc("/d_recv").b(bytes).bytes()) && waitFor("/done", "/d_recv", timeoutMs, failures) &&
-                    send(bundle({ Osc("/s_new").s(def).i(node).i(0).i(0).bytes(), map.bytes(), mapa.bytes() })) &&
+                    send(bundle({ start.bytes(), mapMessage("/n_map", node, mapped, bank, false),
+                                  mapMessage("/n_mapa", node, mapped, bank, true) })) &&
                     send(Osc("/sync").i(node).bytes()) &&
                     waitFor("/synced", std::to_string(node), timeoutMs, failures);
     pump_ = false;
@@ -368,14 +374,92 @@ bool ScWorld::loadDef(const std::string& file, std::string& error, const std::ve
         send(Osc("/d_free").s(def).bytes());
         return false;
     }
+    std::lock_guard<std::mutex> lock(noteLock_);
     if (node_)
         send(Osc("/n_free").i(node_).bytes());
+    send(Osc("/g_freeAll").i(VOICE_GROUP).bytes());  // the old def's voices
+    for (Voice& v : voice_) v = Voice();
+    held_.store(0, std::memory_order_relaxed);
     if (!def_.empty())
         send(Osc("/d_free").s(def_).bytes());
-    node_ = node;
+    if (voices)
+        send(Osc("/n_free").i(node).bytes());
+    node_ = voices ? 0 : node;
+    bank_ = bank;
     def_ = def;
+    voices_ = voices;
+    mapped_ = mapped;
     error.clear();
     return true;
+}
+
+std::string ScWorld::mapMessage(const char* address, int node, const std::vector<Mapping>& mapped, int bank,
+                                bool audio) const {
+    Osc m(address);  // the synth reads its mapped controls from its first block
+    m.i(node);
+    for (size_t i = 0; i < mapped.size() && i < size_t(CONTROLS); i++) {
+        if (mapped[i].name.empty() || mapped[i].audio != audio) continue;
+        m.s(mapped[i].name).i(audio ? audioControlBus(bank * CONTROLS + int(i)) : controlBus(bank, int(i)));
+    }
+    return m.bytes();
+}
+
+void ScWorld::noteOn(int note, float velocity) {
+    std::lock_guard<std::mutex> lock(noteLock_);
+    if (!world_ || def_.empty())
+        return;
+    notes_.fetch_add(1, std::memory_order_relaxed);
+    const float hz = 440.0f * std::exp2(float(note - 69) / 12.0f);
+    if (!voices_) {
+        if (node_)
+            send(Osc("/n_set").i(node_).s("freq").f(hz).s("velocity").f(velocity).bytes());
+        return;
+    }
+    // a held note past VOICES releases the oldest held one; the oldest synth gives up its slot
+    int held = 0;
+    Voice* oldestHeld = nullptr;
+    for (int k = 0; k < VOICE_NODES; k++) {
+        Voice& v = voice_[(voiceNext_ + k) % VOICE_NODES];
+        if (v.node && v.held) {
+            if (!oldestHeld) oldestHeld = &v;
+            held++;
+        }
+    }
+    if (held >= VOICES)
+        release(*oldestHeld);
+    Voice& slot = voice_[voiceNext_];
+    if (slot.node)
+        send(Osc("/n_free").i(slot.node).bytes());
+    slot.node = VOICE_FIRST + int(voiceIds_++ % VOICE_IDS);
+    slot.note = note;
+    slot.held = true;
+    voiceNext_ = (voiceNext_ + 1) % VOICE_NODES;
+    Osc start("/s_new");
+    start.s(def_).i(slot.node).i(1).i(VOICE_GROUP).s("freq").f(hz).s("velocity").f(velocity).s("gate").f(1.0f);
+    send(bundle({ start.bytes(), mapMessage("/n_map", slot.node, mapped_, bank_, false),
+                  mapMessage("/n_mapa", slot.node, mapped_, bank_, true) }));
+    countHeld();
+}
+
+void ScWorld::countHeld() {
+    int n = 0;
+    for (const Voice& v : voice_) n += v.node && v.held;
+    held_.store(n, std::memory_order_relaxed);
+}
+
+void ScWorld::noteOff(int note) {
+    std::lock_guard<std::mutex> lock(noteLock_);
+    if (!world_ || !voices_)
+        return;
+    for (Voice& v : voice_)
+        if (v.node && v.held && v.note == note)
+            release(v);
+    countHeld();
+}
+
+void ScWorld::release(Voice& v) {
+    send(Osc("/n_set").i(v.node).s("gate").f(0.0f).bytes());
+    v.held = false;
 }
 
 // the last 2 x CONTROLS buses, so a def's own use of the low ones does not collide

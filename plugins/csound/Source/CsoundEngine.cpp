@@ -101,7 +101,13 @@ int32_t CsoundEngine::midiRead(CSOUND*, void* user, unsigned char* buf, int32_t 
     return n;
 }
 
+std::string CsoundEngine::status() const {
+    unsigned n = notes_.load(std::memory_order_relaxed);
+    return n ? "MIDI notes: " + std::to_string(n) : std::string();
+}
+
 void CsoundEngine::midi(uint8_t status, uint8_t d1, uint8_t d2) {
+    if ((status & 0xF0) == 0x90 && d2 > 0) notes_.fetch_add(1, std::memory_order_relaxed);
     midi_.try_enqueue(Midi{ { status, d1, d2 } });
 }
 

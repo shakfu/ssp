@@ -48,6 +48,8 @@ First release of all the modules together, as `shakfu-ssp-plugins-0.2.0.zip`, ta
 
 - `scripts/build_deps.sh` builds libscsynth, SuperCollider's core UGens, FFTW and sc3-plugins, at one version (`SC_REF`), and patches four data races in scsynth (`scripts/patches/supercollider-3.14.1-threads.patch`). `make install-scsy` copies the UGens and the `scsy` examples to the card.
 
+- `make midisend` starts `tools/midisend` on the SSP: an ALSA sequencer port that a module can choose as its MIDI input, and that plays notes written to a FIFO over ssh. It tests MIDI without a keyboard.
+
 - `SSP_HOST` defaults to `root@192.168.1.6`, the SSP's address with a USB-Ethernet adapter; see `docs/BUILDING.md`.
 
 ### Release

@@ -16,6 +16,8 @@ libfaust 2.85.9 built the JIT before storing the requested target, so on the SSP
 
 `[cv:N]` on a control adds input N to it as CV, once per block: an octave per volt with `[scale:log]`, else a tenth of the range per volt. See [README.md](README.md).
 
+A program that declares `[nvoices:N]` in its options plays N voices from the MIDI notes of the general panel's input, through Faust's `freq`, `gain` and `gate` controls; the other controls drive every voice. Voices are ungrouped (`mydsp_poly` with group off), because a grouped control writes the voices from a process-wide GUI list that two `fstr` instances would share. `examples/poly.dsp` is a voice. See [README.md](README.md#midi).
+
 ## [0.1.0] - 2026-10-08
 
 First release, as the module `fstr`: Faust programs from the card, run by libfaust 2.85.9's interpreter. Eight inputs and outputs, and the program's first 16 controls as p1..p16. See [README.md](README.md).

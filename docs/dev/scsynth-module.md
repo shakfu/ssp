@@ -411,9 +411,8 @@ Made 2026-10-10:
 - No reload when the file changes, and no control that picks a def from the folder, in v1.
 - Module name: `scsy` / `SCSY`.
 - sc3-plugins wrappers live in nanosynth (`nanosynth.ugens.sc3`).
+- MIDI, as proposed above: a `gate` control makes a def a voice, 16 held notes, and `p1`..`p16` drive every voice. Notes go from the MIDI thread through `World_SendPacket`, which may allocate there, not through pre-built messages on the audio thread. At most 32 voice synths exist, so a def that never frees itself cannot pile up.
 
 ## Open decisions
-
-- MIDI convention, and the voice limit (plan step 4).
 
 - Whether nanosynth gains a control-spec API that writes the sidecar.

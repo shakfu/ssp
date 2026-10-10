@@ -1,16 +1,19 @@
 #pragma once
 
 #include <atomic>
+#include <cstdint>
 #include <string>
 
 #include "engine/ReloadGate.h"
 #include "engine/ScriptEngine.h"
+#include "readerwriterqueue.h"
 
 namespace fstr {
 
 // Runs a Faust program (.dsp), compiled to machine code by libfaust's LLVM backend. Its first 16
 // controls become p1..p16, with the program's labels, ranges, defaults, units and [scale:log]; its
-// inputs and outputs are channels 1..8.
+// inputs and outputs are channels 1..8. A program whose options declare [nvoices:N] is polyphonic:
+// MIDI notes start its voices, through Faust's freq, gain and gate controls, which stay off p1..p16.
 class FaustRuntime : public ssp::engine::ScriptEngine {
 public:
     // libraries: the Faust libraries folder (stdfaust.lib), searched after the program's own folder
@@ -18,8 +21,11 @@ public:
     ~FaustRuntime() override;
 
     void process(const float* const* in, float* const* out, int n) override;
-    // the blocks silenced for non-finite output since the program loaded, or empty
+    // the blocks silenced for non-finite output since the program loaded, and MIDI notes received
     std::string status() const override;
+    // Any one thread but audio, such as MIDI's: a note on (velocity 1..127) or off (0); dropped when
+    // 256 are queued, or with no polyphonic program
+    void midi(int note, int velocity);
     unsigned resets() const { return resets_.load(std::memory_order_relaxed); }
 
 protected:
@@ -35,6 +41,11 @@ private:
     Specs specs_;  // the last program compiled; compile() and declared() share a thread
     ssp::engine::ReloadGate<Instance> gate_;
     std::atomic<unsigned> resets_{ 0 };
+    struct Note {
+        uint8_t note, velocity;
+    };
+    moodycamel::ReaderWriterQueue<Note> notes_{ 256 };
+    std::atomic<unsigned> notesReceived_{ 0 };
 };
 
 }  // namespace fstr

@@ -1,0 +1,5 @@
+// @p1 cutoff 100 12000 Hz log cv 1
+// @p2 res
+// @p3 attack 0.001 2 s log
+// @p4 release 0.01 5 s log
+// @p5 level
