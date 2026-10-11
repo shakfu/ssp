@@ -1,5 +1,6 @@
 #pragma once
 
+#include <mutex>
 
 #include <juce_audio_devices/juce_audio_devices.h>
 #include <juce_audio_processors/juce_audio_processors.h>
@@ -204,7 +205,7 @@ private:
 
     bool compactEditor_ = false;
 
-    std::atomic_flag midiDeviceChangeLock = ATOMIC_FLAG_INIT;
+    std::mutex midiDeviceChangeLock;  // device (re)connection: the UI's changes and the async check
 
     //     struct MidiMsg {
     //     };

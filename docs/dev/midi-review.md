@@ -65,11 +65,11 @@ Re-tested with gdb attached: the crash recurred when opening `chuk` after many m
    - Is `MIDI notes` shown? If it is, the note arrived and the program is at fault; if not, delivery is.
    - Does "Note In" survive state restore? `midiFromXml` defaults it to false (`BaseProcessor.cpp:110`), and the constructor's `noteInput(true)` comes before any restore.
    - Several modules in one process: JUCE's ALSA client is shared. The log showed one input port for several modules. Check whether a second module's `openDevice` replaces the first one's port.
-3. `csnd` unstable audio with the piano: measure DSP load. Check whether note bursts or aftertouch overflow the 256-entry queue, and whether `fm-midi.csd` voices pile up (`madsr` release).
+3. `csnd` with the piano: works without issues on a later test (user, 2026-10-11).
 4. Fix the inverted `midiDeviceChangeLock.test_and_set()` in `setMidiInDevice` and `checkMidiDevices` (`BaseProcessor.cpp:271`, `:322`). `checkMidiDevices` returns when the flag is clear and leaves it set. `setMidiInDevice` proceeds when it is held. So the two can run `connectMidiInDevice` at once.
 5. Optional, offered: show MIDI IN and "Note In" in each status panel; make the `chuk`, `fstr` and `scsy` built-ins play notes, as `csnd`'s does.
 
 ## Open from before
 
-- Voltmeter check of CV output levels (TODO.md).
+- Voltmeter check of CV output levels: all four modules pass (user, 2026-10-11).
 - `fstr`: whether `mydsp_poly::keyOn` allocates on the audio thread is unchecked.

@@ -267,23 +267,17 @@ bool BaseProcessor::isMidiOutputDeviceIdValid(const std::string& id) {
 }
 
 void BaseProcessor::setMidiInDevice(const std::string& id) {
-    while (!midiDeviceChangeLock.test_and_set()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(MIDI_CHECK_SLEEP_MS / 10));
-    }
     // user function, so we wait until we reconnect thread is done.
+    std::lock_guard<std::mutex> lock(midiDeviceChangeLock);
     connectMidiInDevice(id);
     createAsyncThreadIfNeeded();
-    midiDeviceChangeLock.clear();
 }
 
 void BaseProcessor::setMidiOutDevice(const std::string& id) {
     // user function, so we wait until we reconnect thread is done.
-    while (!midiDeviceChangeLock.test_and_set()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(MIDI_CHECK_SLEEP_MS / 10));
-    }
+    std::lock_guard<std::mutex> lock(midiDeviceChangeLock);
     connectMidiOutDevice(id);
     createAsyncThreadIfNeeded();
-    midiDeviceChangeLock.clear();
 }
 
 
@@ -320,8 +314,9 @@ void BaseProcessor::onAsyncThread() {
 
 
 void BaseProcessor::checkMidiDevices() {
-    if (!midiDeviceChangeLock.test_and_set()) return;
     // if we cannot grab lock, just backoff until later!
+    std::unique_lock<std::mutex> lock(midiDeviceChangeLock, std::try_to_lock);
+    if (!lock.owns_lock()) return;
 
     if (!midiInDeviceId_.empty()) {
         if (midiInDevice_ != nullptr) {
@@ -352,8 +347,6 @@ void BaseProcessor::checkMidiDevices() {
             connectMidiOutDevice(midiOutDeviceId_);
         }
     }
-    // imperative we fall thru, don't return so we clear lock
-    midiDeviceChangeLock.clear();
 }
 
 

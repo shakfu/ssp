@@ -20,6 +20,8 @@ First release of all the modules together, as `shakfu-ssp-plugins-0.2.0.zip`, ta
 
 - Removing any module could crash Synthor later, in whichever module was active. `BaseProcessor`'s MIDI thread was detached and given 100 ms to stop. When it overran, it read the freed processor, or ran code from an unloaded `.so`: a SIGSEGV at an unmapped address. It is now joined.
 
+- `BaseProcessor`'s MIDI device lock tested `atomic_flag::test_and_set()` inverted: a device change from the panel and the async device check each went ahead when the other held the lock, and the check skipped every other pass. A `std::mutex` replaces it; the check still backs off when the lock is busy.
+
 - `plugins/common/engine`: `FaustEngine.h` and `FaustProcessor.*` host a compiled Faust kernel as an engine plugin.
 
 - `ScriptEngine` takes its controls from the compiler through `declared()` as well as from `@pN` comments. A program chosen with Load sets controls that declare a default; `csnd` and `chuk` declare none and are unchanged. `status()` adds lines to the status panel.
