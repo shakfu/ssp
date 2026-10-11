@@ -12,6 +12,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <dirent.h>
 
 #include "CsoundEngine.h"
 
@@ -307,11 +308,34 @@ static void testCv(const std::string& dir) {
     NEAR(r.out[1][BLOCK - 1], 0.1f, 1e-6);
 }
 
+static int threadCount() {
+    int n = 0;
+    if (DIR* d = opendir("/proc/self/task")) {
+        while (dirent* e = readdir(d))
+            if (e->d_name[0] != '.') n++;
+        closedir(d);
+    }
+    return n;
+}
+
+// Synthor unloads csnd.so after its last module is deleted: no engine thread may outlive it. Runs
+// first, before any engine starts Csound.
+static void testNoThreadsLeft(const std::string& dir) {
+    int before = threadCount();
+    {
+        Rig r;
+        r.load(write(dir, "pass.csd", PASS));
+        r.run(10);
+    }
+    CHECK(threadCount() == before);
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) return 2;
     if (argc > 2 && std::string(argv[1]) == "example") return runExample(argv[2]);
     if (argc > 2 && std::string(argv[2]) == "threads") testThreads(argv[1]);
     else {
+        testNoThreadsLeft(argv[1]);
         testEngine(argv[1]);
         testCv(argv[1]);
     }

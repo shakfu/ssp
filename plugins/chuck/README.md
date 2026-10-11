@@ -27,6 +27,7 @@ Audio stops while a program compiles. The preset stores the file's path, not its
 - Globals keep their values across programs.
 - A `public class` stays defined until the plugin is reloaded, so reloading a program that defines one fails.
 - `<<< >>>` and `chout` print nowhere.
+- No `KBHit` or `Hid`: their threads would outlive the module, so they are compiled out.
 
 ## MIDI
 

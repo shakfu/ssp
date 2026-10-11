@@ -97,10 +97,14 @@ cmake --build "$prefix/build/csound" -j"$jobs"
 cmake --install "$prefix/build/csound"
 
 # ChucK's own makefile builds the core objects in place, so each target gets a copy of the sources.
-# CHUCK_DEFS must match plugins/chuck/CMakeLists.txt: they change ChucK's class layouts.
-CHUCK_DEFS="-D__LINUX_ALSA__ -D__CK_SNDFILE_NATIVE__"
+# CHUCK_DEFS must match plugins/chuck/CMakeLists.txt: they change ChucK's class layouts. KBHit and
+# Hid start process-wide threads that ChucK::globalCleanup() signals but does not join, so they can
+# outlive chuk.so when Synthor unloads it; ChucK's __CHIP_MODE__ drops them the same way.
+CHUCK_DEFS="-D__LINUX_ALSA__ -D__CK_SNDFILE_NATIVE__ -D__DISABLE_KBHIT__ -D__DISABLE_HID__ -D__ALTER_HID__"
 ck="$prefix/build/chuck"
-[ -d "$ck" ] || cp -r "$src/chuck-$CHUCK_REF/src/core" "$ck"
+# make does not track flags: a copy built with other defines starts again
+[ "$(cat "$ck/.defs" 2>/dev/null)" = "$CHUCK_DEFS" ] || rm -rf "$ck"
+[ -d "$ck" ] || { cp -r "$src/chuck-$CHUCK_REF/src/core" "$ck" && echo "$CHUCK_DEFS" > "$ck/.defs"; }
 CFLAGS="-fPIC $CHUCK_DEFS -I$prefix/include" make -C "$ck" -j"$jobs" linux-alsa CC="$cc" CXX="$cxx" \
     CHUCK_STRICT= >/dev/null
 rm -f "$prefix/lib/libchuck.a"

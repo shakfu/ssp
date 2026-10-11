@@ -11,6 +11,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <dirent.h>
 
 #include "ScsynthEngine.h"
 
@@ -128,6 +129,16 @@ static int example(const std::string& ugens, const std::string& path) {
     return failures ? 1 : 0;
 }
 
+static int threadCount() {
+    int n = 0;
+    if (DIR* d = opendir("/proc/self/task")) {
+        while (dirent* e = readdir(d))
+            if (e->d_name[0] != '.') n++;
+        closedir(d);
+    }
+    return n;
+}
+
 int main(int argc, char** argv) {
     if (argc == 4 && std::string(argv[1]) == "example") return example(argv[2], argv[3]);
     if (argc < 4) {
@@ -138,6 +149,17 @@ int main(int argc, char** argv) {
     defs = argv[2];
     scratch = argv[3];
 
+    {  // Synthor unloads scsy.so after its last module is deleted: no engine thread may outlive it.
+        // The UGens load once per process with the first engine, and DiskIO_UGens.so starts a thread
+        // of its own, in code that stays loaded: count from after that.
+        { Rig r(ugens); }
+        int before = threadCount();
+        {
+            Rig r(ugens);
+            r.run(10);
+        }
+        CHECK(threadCount() == before);
+    }
     {  // the built-in, loaded in prepare() with no audio thread
         Rig r(ugens);
         CHECK(r.e.error().empty());

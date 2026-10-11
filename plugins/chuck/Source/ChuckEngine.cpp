@@ -68,9 +68,17 @@ static ChucK* newVm(float sampleRate) {
     return vm;
 }
 
+// globalCleanup() stops ChucK's process-wide subsystems, so only the last engine may run it
+static std::atomic<int> liveEngines{ 0 };
+
+ChuckEngine::ChuckEngine() {
+    liveEngines.fetch_add(1);
+}
+
 ChuckEngine::~ChuckEngine() {
     gate_.take();
     delete vm_;
+    if (liveEngines.fetch_sub(1) == 1) ChucK::globalCleanup();
 }
 
 const char* ChuckEngine::builtin() const {

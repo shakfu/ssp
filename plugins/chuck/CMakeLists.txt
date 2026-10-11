@@ -11,7 +11,7 @@ endif ()
 include_directories("${PROJECT_SOURCE_DIR}/../common")
 include_directories("${CHUCK_DEPS}/include/chuck")
 # must match CHUCK_DEFS in scripts/build_deps.sh: they change ChucK's class layouts
-add_compile_definitions(__LINUX_ALSA__ __CK_SNDFILE_NATIVE__)
+add_compile_definitions(__LINUX_ALSA__ __CK_SNDFILE_NATIVE__ __DISABLE_KBHIT__ __DISABLE_HID__ __ALTER_HID__)
 
 juce_add_plugin(CHUCK
         COMPANY_NAME "shakfu"

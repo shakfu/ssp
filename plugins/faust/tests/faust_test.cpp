@@ -11,6 +11,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <dirent.h>
 #if defined(__x86_64__) || defined(__i386__)
 #include <xmmintrin.h>
 #endif
@@ -284,11 +285,35 @@ static void testFlushToZero(const std::string& dir, const std::string& libraries
 #endif
 }
 
+static int threadCount() {
+    int n = 0;
+    if (DIR* d = opendir("/proc/self/task")) {
+        while (dirent* e = readdir(d))
+            if (e->d_name[0] != '.') n++;
+        closedir(d);
+    }
+    return n;
+}
+
+// Synthor unloads fstr.so after its last module is deleted: no engine thread may outlive it. Runs
+// first, before any engine starts libfaust.
+static void testNoThreadsLeft(const std::string& dir, const std::string& libraries) {
+    int before = threadCount();
+    {
+        Rig r(libraries);
+        r.load(write(dir, "poly.dsp", POLY));
+        r.e.midi(60, 100);
+        r.run(10);
+    }
+    CHECK(threadCount() == before);
+}
+
 int main(int argc, char** argv) {
     if (argc < 3) return 2;
     if (argc > 3 && std::string(argv[1]) == "example") return runExample(argv[2], argv[3]);
     if (argc > 3 && std::string(argv[3]) == "threads") testThreads(argv[1], argv[2]);
     else {
+        testNoThreadsLeft(argv[1], argv[2]);
         testEngine(argv[1], argv[2]);
         testCv(argv[1], argv[2]);
         testMidi(argv[1], argv[2]);

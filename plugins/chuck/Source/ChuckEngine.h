@@ -20,6 +20,8 @@ namespace ck {
 //   global Event midiEvent;      // broadcast after each
 class ChuckEngine : public ssp::engine::ScriptEngine {
 public:
+    ChuckEngine();
+    // The last engine in the process runs ChucK::globalCleanup(), as chuck-max and pd-chuck do
     ~ChuckEngine() override;
 
     // Creates the VM on the first call and on a rate change, then (re)compiles the program.

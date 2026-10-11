@@ -17,7 +17,7 @@ ROOT = HERE.parents[2]
 SRC = HERE.parent / "Source"
 DEPS = ROOT / "build" / "deps" / "host"
 # must match CHUCK_DEFS in scripts/build_deps.sh
-CHUCK_DEFS = ["-D__LINUX_ALSA__", "-D__CK_SNDFILE_NATIVE__"]
+CHUCK_DEFS = ["-D__LINUX_ALSA__", "-D__CK_SNDFILE_NATIVE__", "-D__DISABLE_KBHIT__", "-D__DISABLE_HID__", "-D__ALTER_HID__"]
 
 
 @pytest.fixture(scope="module")

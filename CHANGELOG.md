@@ -8,6 +8,10 @@ First release of all the modules together, as `shakfu-ssp-plugins-0.2.0.zip`, ta
 
 ### Plugins
 
+- `chuck` (`chuk`), new: ChucK programs loaded from the card, with CV and MIDI notes from the general panel's input. See [plugins/chuck/CHANGELOG.md](plugins/chuck/CHANGELOG.md).
+
+- `csound` (`csnd`), new: Csound orchestras loaded from the card, with CV and MIDI notes. See [plugins/csound/CHANGELOG.md](plugins/csound/CHANGELOG.md).
+
 - `chorus` (`chrs`), new: a stereo chorus compiled from Faust ahead of time. See [plugins/chorus/CHANGELOG.md](plugins/chorus/CHANGELOG.md).
 
 - `faust` (`fstr`), new: Faust programs loaded from the card and compiled on the SSP by libfaust's LLVM JIT. See [plugins/faust/CHANGELOG.md](plugins/faust/CHANGELOG.md).
@@ -52,9 +56,17 @@ First release of all the modules together, as `shakfu-ssp-plugins-0.2.0.zip`, ta
 
 - `scripts/build_deps.sh` builds libscsynth, SuperCollider's core UGens, FFTW and sc3-plugins, at one version (`SC_REF`), and patches four data races in scsynth (`scripts/patches/supercollider-3.14.1-threads.patch`). `make install-scsy` copies the UGens and the `scsy` examples to the card.
 
+- `scripts/build_deps.sh` builds ChucK without `KBHit` and `Hid` (`__DISABLE_KBHIT__`, `__DISABLE_HID__`, `__ALTER_HID__`), whose process-wide threads outlived `chuk.so`. It records ChucK's defines in `build/chuck/.defs` and rebuilds ChucK when they change: `make` does not track flags, so new defines left the old objects in `libchuck.a`.
+
+- Each engine's tests check that no thread outlives the engine, the failure that crashed Synthor when it unloaded a plugin.
+
 - `make midisend` starts `tools/midisend` on the SSP: an ALSA sequencer port that a module can choose as its MIDI input, and that plays notes written to a FIFO over ssh. It tests MIDI without a keyboard.
 
 - `SSP_HOST` defaults to `root@192.168.1.6`, the SSP's address with a USB-Ethernet adapter; see `docs/BUILDING.md`.
+
+### Known issues
+
+- Synthor unloads a plugin's `.so` after its last module is deleted, and each reload leaks: `scsy` one thread, `chuk` and others some memory. See [docs/dev/cleanup-problems.md](docs/dev/cleanup-problems.md).
 
 ### Release
 
@@ -89,6 +101,8 @@ First release of all the modules together, as `shakfu-ssp-plugins-0.2.0.zip`, ta
 - [docs/dev/faust.md](docs/dev/faust.md): the four routes from Faust to an SSP module, the interpreter and JIT benchmarks, and the decisions behind `chrs` and `fstr`.
 
 - [docs/dev/faust-jit-tan.md](docs/dev/faust-jit-tan.md): the investigation of `tan()` in JIT code on the SSP.
+
+- [docs/dev/midi-review.md](docs/dev/midi-review.md): the device test of MIDI in the four script modules, and the crashes found during it: `fstr` under flush-to-zero, threads outliving their `.so`, and the MIDI device lock.
 
 - [docs/DEVELOPING.md](docs/DEVELOPING.md): the shared code and tools, and which route to take for a new module. [docs/CPP_PLUGINS.md](docs/CPP_PLUGINS.md) and [docs/FAUST_PLUGINS.md](docs/FAUST_PLUGINS.md) build one step by step: a C++ plugin, and a Faust program as a compiled module or as an `fstr` program.
 
