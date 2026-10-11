@@ -1,6 +1,7 @@
 #include "FaustRuntime.h"
 
 #include <algorithm>
+#include <cfenv>
 #include <cmath>
 #include <cstdlib>
 #include <cstdio>
@@ -193,7 +194,19 @@ const char* FaustRuntime::builtin() const {
     return BUILTIN;
 }
 
+// libfaust asserts on a denormal bound that flush-to-zero reads as 0 (intervalPow.cpp: x.lo() > 0).
+// Synthor's threads set it, and the threads they start inherit it.
+struct DefaultFloatEnv {
+    std::fenv_t saved;
+    DefaultFloatEnv() {
+        std::fegetenv(&saved);
+        std::fesetenv(FE_DFL_ENV);
+    }
+    ~DefaultFloatEnv() { std::fesetenv(&saved); }
+};
+
 bool FaustRuntime::compile(const std::string& text, const std::string& path, std::string& error) {
+    DefaultFloatEnv env;
     // imports resolve next to the program, then in the libraries
     std::string dir = path.substr(0, path.find_last_of('/') + 1);
     std::vector<const char*> args;

@@ -198,7 +198,7 @@ private:
     bool midiTransportInput_ = false;
 
     std::unique_ptr<std::thread> asyncThread_;
-    bool asyncActive_ = true;
+    std::atomic<bool> asyncActive_{ true };
 
     MidiAutomation lastLearn_;
 

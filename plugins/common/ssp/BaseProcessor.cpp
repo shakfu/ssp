@@ -28,11 +28,9 @@ BaseProcessor::BaseProcessor(const juce::AudioProcessor::BusesProperties& ioLayo
 BaseProcessor::~BaseProcessor() {
     midiCheckCounter_ = 10000;  // ensure we don't accidentally reconnect
 
-    if (asyncThread_ != nullptr) {
-        asyncThread_->detach();
-        asyncActive_ = false;
-        std::this_thread::sleep_for(std::chrono::milliseconds(MIDI_CHECK_SLEEP_MS));
-    }
+    // joined, not detached: the host can unload this library once the destructor returns
+    asyncActive_ = false;
+    if (asyncThread_ != nullptr && asyncThread_->joinable()) asyncThread_->join();
 
     if (midiInDevice_) { midiInDevice_->stop(); }
     if (midiOutDevice_) { midiOutDevice_->stopBackgroundThread(); }

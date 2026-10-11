@@ -11,6 +11,9 @@
 #include <string>
 #include <thread>
 #include <vector>
+#if defined(__x86_64__) || defined(__i386__)
+#include <xmmintrin.h>
+#endif
 
 #include "FaustRuntime.h"
 
@@ -263,6 +266,24 @@ static void testMidi(const std::string& dir, const std::string& libraries) {
     CHECK(r.e.status() == "MIDI notes: 9");
 }
 
+// Flush-to-zero, as the SSP's audio threads leave it and the threads they start inherit: libfaust's
+// interval analysis then aborts on pow() of a range that starts at 0 (intervalPow.cpp, x.lo() > 0).
+// x86's DAZ compares a denormal as 0, as ARM's FZ does.
+static void testFlushToZero(const std::string& dir, const std::string& libraries) {
+#if defined(__x86_64__) || defined(__i386__)
+    Rig r(libraries);
+    unsigned csr = _mm_getcsr();
+    _mm_setcsr(csr | 0x8040);  // FTZ | DAZ
+    r.load(write(dir, "pow.dsp", "process = pow(hslider(\"x\", 0.5, 0, 1, 0.01), 1.5);\n"));
+    CHECK(_mm_getcsr() == (csr | 0x8040));  // the caller's mode survives the compile
+    _mm_setcsr(csr);
+    CHECK(r.e.error().empty());
+    r.e.setParam(0, 0.5f);
+    r.run(1);
+    NEAR(r.out[0][BLOCK - 1], std::pow(0.5, 1.5), 1e-6);
+#endif
+}
+
 int main(int argc, char** argv) {
     if (argc < 3) return 2;
     if (argc > 3 && std::string(argv[1]) == "example") return runExample(argv[2], argv[3]);
@@ -271,6 +292,7 @@ int main(int argc, char** argv) {
         testEngine(argv[1], argv[2]);
         testCv(argv[1], argv[2]);
         testMidi(argv[1], argv[2]);
+        testFlushToZero(argv[1], argv[2]);
     }
     if (failures) std::fprintf(stderr, "%d failures\n", failures);
     return failures ? 1 : 0;

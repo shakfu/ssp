@@ -29,3 +29,5 @@ Fixed the jack matrix showing every wire near full brightness on the SSP. The ce
 Fixed JSON saves of wires at gain 0. They were written as 0 cells, which read back as no wire. A gain-0 wire with an offset also wrote a `dc` value into a column with no wire, and the reload then rejected the whole matrix, leaving the track unrouted. Saves now leave out cells that sum to 0. A `dc` with no wire left in its column is dropped and logged.
 
 Fixed four data races between the audio thread and the UI or preset loading. The first three could crash. Changing a module removed its wires without the track lock, while the audio thread iterated them. The audio thread cleared and summed into a module's buffer without that module's lock, while loading resized the buffer. Loading a binary preset rebuilt the wire list without the track lock. Track mute and level were plain variables written by the UI and read by the audio thread. `tests/test_host.py` runs `Track` under ThreadSanitizer to catch regressions.
+
+Removing rack could crash Synthor. Its track threads were detached and could still be running rack's code after the host unloaded `rack.so`. They are now joined.

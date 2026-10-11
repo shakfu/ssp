@@ -2,7 +2,7 @@
 
 ## Device checks
 
-- MIDI on `csnd`, `chuk`, `fstr` and `scsy`: first device test incomplete (2026-10-10); results, gaps and next steps in [docs/dev/midi-review.md](docs/dev/midi-review.md).
+- MIDI on `csnd`, `chuk`, `fstr` and `scsy` works on the SSP with `midisend` (2026-10-11). Open: `csnd` unstable audio with a piano, the `BaseProcessor` lock. See [docs/dev/midi-review.md](docs/dev/midi-review.md).
 
 - `scsy` runs in Synthor (user, 2026-10-10): listed, audible, `fm` DSP ~1.1% average and 3% peak, control names from the sidecar, CV at audio rate with the orange mark. `plugins/scsynth/tests/run_on_ssp.sh` passes on the SSP. Untested: DSP of `filter` and `dfm1`, Load's error text, presets, compact editor in rack, MIDI (`midi_saw`: voices, 16-note limit, CPU with many voices).
 

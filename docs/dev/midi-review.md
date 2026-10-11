@@ -29,7 +29,32 @@ Status as of 2026-10-10. MIDI notes from a module's general panel input, in the 
 
 Kernel log: `connectMidiInDevice` logged 26 connects on one thread, alternating `24-0` and `130-0`. After the test, a single JUCE client (131) had one port, subscribed to `midisend`.
 
-## Next session
+## Device results (user, 2026-10-11)
+
+`midisend` as each module's MIDI IN, channel OMNI, "Note In" lit; note 60, then a C major chord, sent over ssh:
+
+| Module | Program | Heard | Status |
+|-|-|-|-|
+| `csnd` | `fm-midi.csd` | note, then chord | `MIDI notes` rose by 4 per round |
+| `chuk` | `midi.ck` | note, then chord | `MIDI notes: 8` |
+| `fstr` | `poly.dsp` | note, then chord; encoders show no note controls | `MIDI notes: 4` |
+| `scsy` | `midi_saw.scsyndef` | note, chord, then a 20-note cluster with 16 voices | `MIDI notes: 24, held: 0` after release |
+
+So all four pass. On 2026-10-10 the `midisend` test sent no notes, and the `chuk`, `fstr` and `scsy` built-ins ignore notes. One `chuk` attempt played the built-in drone because `midi.ck` was not loaded yet.
+
+`fstr` crashed Synthor while `poly.dsp` was being chosen in the Load browser, and again on patch reload. gdb on the SSP: libfaust's `assert(x.lo() > 0)` in `intervalPow.cpp:89` aborted on its compile thread, whose FPSCR was `0x63000093` (FZ and DN set). Fixed: `FaustRuntime::compile` runs in `FE_DFL_ENV`; `testFlushToZero` reproduces it on x86 with DAZ. Deployed 2026-10-11: `poly.dsp` loads and plays.
+
+## SD card corruption (2026-10-11)
+
+After a later `fstr` crash (no gdb attached; cause unknown), the kernel set BOOT (`mmcblk1p6`, FAT32) read-only: `fat_free_clusters: deleting FAT entry beyond EOF`. The user imaged it (`~/Backups/ssp-boot-backup.img`, 20,971,520,000 bytes) and ran `fsck.vfat -a`.
+
+- Damaged: macOS `.Spotlight-V100` and `.Trashes` (Sep 2026), `samples/AMEN/cw_amen08_165.wav` (second copy renamed `FSCK0000.000`), 588 orphaned clusters (9.6 MB, freed), dirty bit.
+- Not listed: `plugins/`, `faust/`, `chuck/`, `csound/`, `scsy/`, `presets/`, `rack_presets/`.
+- After repair, `fsck.vfat -n` reports only the boot sector's NT dirty flag (offset 65) differing from its backup.
+
+Re-tested with gdb attached: the crash recurred when opening `chuk` after many modules, with no `fstr` loaded. SIGSEGV with the program counter on an unmapped address. Cause: `~BaseProcessor` detached its async thread and slept 100 ms, so the thread could outlive the object and the `.so`; `rack` detached its track threads the same way. Both now join. After deploying all 12 plugins, opening and closing many modules (28 module destructions) ran without a crash (user, 2026-10-11).
+
+## Next session (2026-10-10 plan; steps 1-2 done 2026-10-11)
 
 1. One module at a time, with Ethernet in:
    - Load `fm-midi.csd`, set MIDI IN to `midisend`, channel OMNI, "Note In" lit.

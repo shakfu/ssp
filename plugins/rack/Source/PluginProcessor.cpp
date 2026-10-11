@@ -53,8 +53,6 @@ PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties& ioLayout
         }
     }
 #endif
-
-    for (auto& t : trackThreads_) { t.detach(); }
 }
 
 bool PluginProcessor::shouldExit() {
@@ -72,13 +70,9 @@ PluginProcessor::~PluginProcessor() {
         // ssp::log("ssp thread :" + std::to_string(trackCnt++));
     }
 
-    for (auto& track : tracks_) {
-        std::unique_lock<std::mutex> lk(track.mutex_);
-        track.cv_.wait(lk, [&track] { return track.exited_; });
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        // ssp::log("ssp thread :" + std::to_string(--trackCnt) + " : " + std::to_string(track.processed_) + "," +
-        // std::to_string(track.ready_));
-    }
+    // joined, not detached: the host can unload this library once the destructor returns
+    for (auto& t : trackThreads_)
+        if (t.joinable()) t.join();
 
 
     // clear tracks etc
