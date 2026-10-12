@@ -34,10 +34,11 @@ public:
     ScWorld(const ScWorld&) = delete;
     ScWorld& operator=(const ScWorld&) = delete;
 
-    // Message thread, audio stopped. UGens load from `pluginDir` (and its subdirectories) once per
-    // process, by the first World opened; later Worlds share that set and ignore the argument.
+    // Message thread, audio stopped. UGens load from `pluginDir` (and its subdirectories) with the
+    // first World open in the process; later Worlds share that set and ignore the argument.
     bool open(float sampleRate, const std::string& pluginDir, std::string& error);
-    // Message thread, audio stopped.
+    // Message thread, audio stopped. The last World to close unloads the UGens, whose libraries can
+    // run threads of their own (DiskIO's), so none outlives scsy.so.
     void close();
     bool isOpen() const { return world_ != nullptr; }
 
@@ -80,6 +81,8 @@ public:
     void process(const float* const* in, float* const* out, int n, const float* const* controls = nullptr);
 
 private:
+    void close(bool unload);
+
     // replies from scsynth's audio and NRT threads, read by the worker; a full slot drops the reply
     struct Reply {
         std::atomic<bool> full{ false };

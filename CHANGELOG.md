@@ -62,13 +62,15 @@ First release of all the modules together, as `shakfu-ssp-plugins-0.2.0.zip`, ta
 
 - Each engine's tests check that no thread outlives the engine, the failure that crashed Synthor when it unloaded a plugin.
 
+- `scripts/patches/supercollider-3.14.1-unload.patch`: libscsynth can unload its UGen libraries and load them again in the same process. `scsy` uses it when its last World closes, so no UGen library's thread outlives `scsy.so`. It also frees libscsynth's FFT tables at unload, which leaked 576 kB per reload.
+
 - `make midisend` starts `tools/midisend` on the SSP: an ALSA sequencer port that a module can choose as its MIDI input, and that plays notes written to a FIFO over ssh. It tests MIDI without a keyboard.
 
 - `SSP_HOST` defaults to `root@192.168.1.6`, the SSP's address with a USB-Ethernet adapter; see `docs/BUILDING.md`.
 
 ### Known issues
 
-- Synthor unloads a plugin's `.so` after its last module is deleted. Each reload of `scsy.so` leaks one thread (DiskIO's), and each `fstr` add/delete cycle grows Synthor by about 0.3 MB. See [docs/dev/cleanup-problems.md](docs/dev/cleanup-problems.md).
+- Each `chuk` instance leaks about 2.9 MB when deleted: ChucK does not free a VM's type system. `fstr` leaks about 0.06 MB per load and unload. See [docs/dev/cleanup-problems.md](docs/dev/cleanup-problems.md).
 
 - Once, a reloaded `fstr.so` crashed Synthor inside LLVM's JIT (`MCJIT::notifyObjectLoaded`): 1 crash in 12 cycles, not reproduced since. See [docs/dev/cleanup-problems.md](docs/dev/cleanup-problems.md).
 
@@ -92,7 +94,7 @@ First release of all the modules together, as `shakfu-ssp-plugins-0.2.0.zip`, ta
 
 - `plugins/faust/bench/faust_bench.cpp` times one `.dsp` compiled, JIT-compiled and interpreted.
 
-- `scripts/ssp-memlog.sh` logs Synthor's memory, threads and open files once a second on the SSP. `scripts/ssp-crash.gdb` attaches to Synthor and records a crash: Synthor's stderr is `/dev/null`, and gdb on the SSP cannot unwind past libc.
+- `scripts/ssp-memlog.sh` logs Synthor's memory, threads and open files once a second on the SSP. `scripts/ssp-crash.gdb` attaches to Synthor and records a crash: Synthor's stderr is `/dev/null`, and gdb on the SSP cannot unwind past libc. It stops reading symbols for libraries loaded after it attaches, which made each `scsy` add and delete take about 9 s, and reads them all on a crash.
 
 ### Presets
 

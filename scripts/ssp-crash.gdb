@@ -45,10 +45,16 @@ bt 40
 continue
 end
 
+# Libraries loaded from here on, such as scsy's 196 UGen libraries, are not read for symbols:
+# reading them made every load take seconds, which changed timing enough to hide a crash. A crash
+# reads them all first.
+set auto-solib-add off
+
 continue
 
 # Ordered so that a command that fails, which ends the script, comes last.
 echo \n=== CRASH ===\n
+sharedlibrary
 info registers
 bt 60
 echo \n=== THREADS ===\n

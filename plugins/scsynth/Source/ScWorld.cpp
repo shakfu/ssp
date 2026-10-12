@@ -23,6 +23,9 @@
 #include "SC_Prototypes.h"
 #include "SC_ReplyImpl.hpp"
 #include "SC_Time.hpp"
+
+// libscsynth's: unloads the UGen libraries (scripts/patches/supercollider-3.14.1-unload.patch)
+void deinitialize_library();
 #include "SC_WorldOptions.h"
 
 // ---------------------------------------------------------------------------------------------------
@@ -209,8 +212,16 @@ ScWorld::ScWorld() {
     for (int k = 0; k < AUDIO_CONTROLS; k++) pumpPtrs_[k] = pumpControls_[k];
 }
 
+// The Worlds open in the process, and libscsynth's globals that World_New and deinitialize_library
+// share
+static std::mutex& worldsLock() {
+    static std::mutex m;
+    return m;
+}
+static int openWorlds = 0;
+
 bool ScWorld::open(float sampleRate, const std::string& pluginDir, std::string& error) {
-    close();
+    close(false);  // a new rate: the UGens stay loaded
     std::error_code ec;
     if (!std::filesystem::is_directory(pluginDir, ec)) {
         error = "no UGen directory " + pluginDir;
@@ -228,7 +239,13 @@ bool ScWorld::open(float sampleRate, const std::string& pluginDir, std::string& 
     o.mLoadGraphDefs = 0;  // else it loads every def in SC's default directories
     o.mRendezvous = false;
     o.mUGensPluginPath = pluginDir.c_str();
-    World* world = World_New(&o);
+    World* world = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(worldsLock());
+        world = World_New(&o);
+        if (world) openWorlds++;
+        else if (openWorlds == 0) deinitialize_library();
+    }
     if (!world) {
         error = "scsynth did not start";
         return false;
@@ -242,10 +259,20 @@ bool ScWorld::open(float sampleRate, const std::string& pluginDir, std::string& 
 }
 
 void ScWorld::close() {
+    close(true);
+}
+
+void ScWorld::close(bool unload) {
     std::lock_guard<std::mutex> lock(noteLock_);
     if (!world_)
         return;
-    World_Cleanup(world_, false);  // true would unload the UGens of every World in the process
+    {
+        // World_Cleanup's own unload runs before it frees the synths, whose destructors are in the
+        // UGen libraries: unload after it instead
+        std::lock_guard<std::mutex> worlds(worldsLock());
+        World_Cleanup(world_, false);
+        if (--openWorlds == 0 && unload) deinitialize_library();
+    }
     world_ = nullptr;
     node_ = 0;
     bank_ = -1;

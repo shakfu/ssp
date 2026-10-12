@@ -129,6 +129,15 @@ static int example(const std::string& ugens, const std::string& path) {
     return failures ? 1 : 0;
 }
 
+// ThreadSanitizer starts a thread of its own, so its builds cannot count threads
+#if defined(__SANITIZE_THREAD__)
+static constexpr bool COUNT_THREADS = false;
+#elif defined(__has_feature)
+static constexpr bool COUNT_THREADS = !__has_feature(thread_sanitizer);
+#else
+static constexpr bool COUNT_THREADS = true;
+#endif
+
 static int threadCount() {
     int n = 0;
     if (DIR* d = opendir("/proc/self/task")) {
@@ -149,16 +158,20 @@ int main(int argc, char** argv) {
     defs = argv[2];
     scratch = argv[3];
 
-    {  // Synthor unloads scsy.so after its last module is deleted: no engine thread may outlive it.
-        // The UGens load once per process with the first engine, and DiskIO_UGens.so starts a thread
-        // of its own, in code that stays loaded: count from after that.
-        { Rig r(ugens); }
+    {  // Synthor unloads scsy.so after its last module is deleted: no thread may outlive it, the UGen
+        // libraries' included (DiskIO_UGens.so starts one). The last World unloads them.
         int before = threadCount();
         {
             Rig r(ugens);
             r.run(10);
         }
-        CHECK(threadCount() == before);
+        CHECK(!COUNT_THREADS || threadCount() == before);
+        {  // and the next World loads them again
+            Rig r(ugens);
+            CHECK(r.e.error().empty());
+            CHECK(peak(r.run(20, 0)) > 0.02f);
+        }
+        CHECK(!COUNT_THREADS || threadCount() == before);
     }
     {  // the built-in, loaded in prepare() with no audio thread
         Rig r(ugens);

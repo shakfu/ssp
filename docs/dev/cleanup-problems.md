@@ -31,7 +31,10 @@ The mapping of cycles to modules is an assumption. Confirm it before acting on t
 
 ## Problems
 
-1. **`scsy` leaks one thread per reload.**
+1. **`scsy` leaks one thread per reload.** Fix in progress (2026-10-13): the last `ScWorld` to close calls `deinitialize_library()`, after `World_Cleanup(world, false)`; `scripts/patches/supercollider-3.14.1-unload.patch` makes that repeatable (World_New reloads when `gUnitDefLib` is null; the tables are freed). Host test counts threads from before the first engine and checks a reload makes sound. On the SSP (2026-10-13), about 16 add/load `midi_saw`/delete cycles: idle threads back to 7 and open files to 28 every time, `scsy.so` and all 196 UGen libraries unmapped.
+   - One cycle crashed Synthor: the first with gdb detached, so there is no trace. 15 others did not, 10 of them with gdb attached in `auto-solib-add off` mode.
+   - With gdb reading symbols, each add and delete took about 9 s (196 libraries). Without, loading them takes 0.10 s and unloading 0.01 s (loader on the SSP). `scripts/ssp-crash.gdb` now turns symbol reading off after attaching, and reads all symbols on a crash.
+   - Idle memory grew steadily: 197.68 MB at the start, 212.88 MB after about 16 cycles, about +0.9 MB per cycle. Either per-load allocations some libraries never free, or glibc keeping freed pages.
    - libscsynth's "load UGens once" state lives in `scsy.so`, so it starts over on each reload. scsynth then runs every UGen library's `PluginLoad` again.
    - `PluginLoad(DiskIO)` creates and starts a new `DiskIOThread` each time (`DiskIO_UGens.cpp:633`). Only `PluginUnload` deletes it, and `ScWorld` calls `World_Cleanup(world_, false)`, which keeps the UGens loaded.
    - The thread runs in `DiskIO_UGens.so`, which stays mapped, so it waits harmlessly but is never freed.
@@ -39,7 +42,20 @@ The mapping of cycles to modules is an assumption. Confirm it before acting on t
 2. **Memory grows per reload in `chuk`, `fstr` or `csnd`, and `scsy`.**
    - ChucK's type system, libfaust and LLVM globals, and scsynth's UGen tables are rebuilt in a fresh copy each time.
    - Which module grew 0.35 MB and which grew 0 is unconfirmed.
-3. **Not measured:** `sfct`, `rack`, `rdio`, `bard`, `edrm`, `gltc`, `strc`, `chrs`.
+3. **Measured per load in a clean process (2026-10-13).** A loader on the SSP ran N cycles of dlopen, create, prepare, delete, dlclose, printing `VmRSS` after each:
+
+   | Plugin | Per cycle |
+   |-|-|
+   | `chuk` | about 2.9 MB |
+   | `scsy` | about 0.6 MB, with or without the 196 UGen libraries |
+   | `fstr` | about 0.06 MB, after a one-time 30 MB (`libLLVM-9.so`, which stays) |
+   | `csnd`, `chrs`, `sfct` | flat |
+
+   Valgrind on the host (`--keep-debuginfo=yes`, since the libraries are unloaded):
+   - `chuk`: each ChucK VM imports the built-in classes into its type system (`type_engine_import_class_begin`, `Chuck_DLL::query`, `init_class_*`), and deleting the VM does not free them: about 1.3 MB definitely lost per VM, plus blocks reachable only through them. A ChucK limitation, per VM, not only per reload.
+   - `scsy`: 576 kB of the 601 kB still reachable at exit came from `SC_fftlib.cpp`'s static initialiser (FFT window and cosine tables), never freed; lost on every reload of `scsy.so`. Fixed: the unload patch frees them in a static destructor. Valgrind: still reachable 615 kB to 25 kB. SSP loader, 20 cycles: 5.2 MB after 20 (no UGens) and 5.7 MB (196 UGens), growth flattening (+0.1 to +0.15 MB over cycles 10-20), where it was 0.6 MB per cycle.
+   - `sfct`: no leak (flat over 10 cycles on the SSP, 3,468 to 3,480 kB). Its crash in the loader was the loader's: `sfct` reads 18 input channels and the loader passed 16. `SSP_PluginInterface::process` does not check that the host passes as many channels as the plugin reads; Synthor evidently does.
+4. **Not measured:** `rack`, `rdio`, `bard`, `edrm`, `gltc`, `strc`.
 
 ## Fixed already, same class
 

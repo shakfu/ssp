@@ -9,7 +9,7 @@ Design and measurements: [docs/dev/scsynth-module.md](../../docs/dev/scsynth-mod
 1. Copy `scsy.so` to the `plugins` folder on the SD card. scsynth is linked in.
 2. Copy the UGen plugins to `/media/BOOT/scsy/ugens`. `make install-scsy` does this, with the examples, to a card mounted on the host. A release has them under `BOOT/scsy`.
 
-Without `ugens`, the module shows `no UGen directory /media/BOOT/scsy/ugens` and stays silent. The environment variable `SCSY_UGENS` names another folder, for tests and desktop builds. The first `scsy` in a session loads every plugin in `ugens`: about 0.4 s from the card.
+Without `ugens`, the module shows `no UGen directory /media/BOOT/scsy/ugens` and stays silent. The environment variable `SCSY_UGENS` names another folder, for tests and desktop builds. An `scsy` added when no other is open loads every plugin in `ugens`: about 0.4 s from the card. The last `scsy` to close unloads them.
 
 ## Use
 

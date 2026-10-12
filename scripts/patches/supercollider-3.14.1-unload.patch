@@ -1,0 +1,86 @@
+--- a/server/scsynth/SC_World.cpp
++++ b/server/scsynth/SC_World.cpp
+@@ -313,12 +313,12 @@
+     World* world = nullptr;
+ 
+     try {
+-        static bool gLibInitted = false;
+-        if (!gLibInitted) {
++        // Loaded until deinitialize_library(), which a host embedding scsynth can call to unload
++        // the UGens before it unloads scsynth itself; the next World loads them again.
++        if (!gUnitDefLib) {
+             InterfaceTable_Init();
+             initialize_library(inOptions->mUGensPluginPath);
+             initializeScheduler();
+-            gLibInitted = true;
+         }
+ 
+         world = (World*)zalloc(1, sizeof(World));
+--- a/server/scsynth/SC_Lib_Cintf.cpp
++++ b/server/scsynth/SC_Lib_Cintf.cpp
+@@ -139,6 +139,26 @@
+     }
+ #endif
+     open_handles.clear();
++
++    // The tables point into the libraries just closed: free them, so World_New loads again from
++    // scratch rather than calling unloaded code.
++    auto freeTable = [](auto*& table, auto freeItem) {
++        if (!table)
++            return;
++        for (int32 i = 0; i < table->TableSize(); ++i)
++            if (auto* item = table->AtIndex(i))
++                freeItem(item);
++        delete table;
++        table = nullptr;
++    };
++    freeTable(gUnitDefLib, [&](UnitDef* def) {
++        freeTable(def->mCmds, [](UnitCmd* cmd) { delete cmd; });
++        free(def);
++    });
++    freeTable(gBufGenLib, [](BufGen* gen) { free(gen); });
++    freeTable(gPlugInCmds, [](PlugInCmd* cmd) { delete cmd; });
++    freeTable(gCmdLib, [](SC_LibCmd* cmd) { delete cmd; });
++    std::fill(gCmdArray, gCmdArray + NUMBER_OF_COMMANDS, nullptr);
+ }
+ 
+ void initialize_library(const char* uGensPluginPath) {
+--- a/common/SC_fftlib.cpp
++++ b/common/SC_fftlib.cpp
+@@ -224,6 +224,36 @@
+ 
+ static bool dummy = scfft_global_initialization();
+ 
++// Frees the tables when the library is unloaded: a host that unloads scsynth and loads it again
++// leaked them on every reload.
++static struct ScfftGlobalCleanup {
++    ~ScfftGlobalCleanup() {
++        for (auto& windows : fftWindow)
++            for (float*& window : windows) {
++                nova::free_aligned(window);
++                window = nullptr;
++            }
++#if SC_FFT_GREEN
++        for (float*& table : cosTable) {
++            nova::free_aligned(table);
++            table = nullptr;
++        }
++#elif SC_FFT_VDSP
++        for (FFTSetup& setup : fftSetup)
++            if (setup)
++                vDSP_destroy_fftsetup(setup);
++        free(splitBuf.realp);
++        free(splitBuf.imagp);
++#elif SC_FFT_FFTW
++        for (auto* plans : { precompiledForwardPlans, precompiledBackwardPlans, precompiledForwardPlansInPlace,
++                             precompiledBackwardPlansInPlace })
++            for (int i = 0; i < SC_FFT_LOG2_ABSOLUTE_MAXSIZE_PLUS1; ++i)
++                if (plans[i])
++                    fftwf_destroy_plan(plans[i]);
++#endif
++    }
++} scfftGlobalCleanup;
++
+ // You need to provide an intermediate "transform buffer". Size will depend on which underlying lib is being used.
+ // "fullsize" is the number of samples in the input buffer (inc any padding), aka the number of "points" in the FFT.
+ //   Often in an SC plugin you can get this number from buf->samples if you're grabbing an external buffer.

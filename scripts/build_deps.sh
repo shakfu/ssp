@@ -75,6 +75,7 @@ apply_patch() {  # dir patch; applied once: a reverse dry run succeeds when it i
 }
 apply_patch "$src/faust-$FAUST_REF" "$root/scripts/patches/faust-$FAUST_REF-jit-target.patch"
 apply_patch "$src/SuperCollider-$SC_REF-Source" "$root/scripts/patches/supercollider-$SC_REF-threads.patch"
+apply_patch "$src/SuperCollider-$SC_REF-Source" "$root/scripts/patches/supercollider-$SC_REF-unload.patch"
 apply_patch "$src/sc3-plugins-$SC_REF-Source" "$root/scripts/patches/sc3-plugins-$SC_REF-libstdcxx.patch"
 
 common=(-DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_INSTALL_PREFIX="$prefix"
