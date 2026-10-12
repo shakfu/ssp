@@ -2,7 +2,7 @@
 
 ## Device checks
 
-- Plugin unload/reload: `scsy` leaks a thread per reload, and memory grows per reload in several modules. See [docs/dev/cleanup-problems.md](docs/dev/cleanup-problems.md).
+- Plugin unload/reload: plugins now unload (2026-10-12). Open: a reloaded `fstr` crashed once in LLVM's JIT (1 in 12 cycles); `scsy` leaks a DiskIO thread per reload; an `fstr` cycle grows about 0.3 MB. See [docs/dev/cleanup-problems.md](docs/dev/cleanup-problems.md).
 - MIDI on `csnd`, `chuk`, `fstr` and `scsy` works on the SSP with `midisend` (2026-10-11). The `BaseProcessor` device lock is fixed and passed 11 rapid MIDI IN switches (2026-10-11). See [docs/dev/midi-review.md](docs/dev/midi-review.md).
 
 - `scsy` runs in Synthor (user, 2026-10-10): listed, audible, `fm` DSP ~1.1% average and 3% peak, control names from the sidecar, CV at audio rate with the orange mark. `plugins/scsynth/tests/run_on_ssp.sh` passes on the SSP. Untested: DSP of `filter` and `dfm1`, Load's error text, presets, compact editor in rack, MIDI (`midi_saw`: voices, 16-note limit, CPU with many voices).
