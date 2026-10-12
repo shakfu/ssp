@@ -56,8 +56,12 @@ ORIGINS = {
     "rack": "[TheTechnobear's trax](https://github.com/TheTechnobear/SSP)",
     "sfct": "[monome softcut](https://github.com/monome/softcut-lib)",
     "fstr": "new",
+    "ttyp": "[monome teletype](https://github.com/monome/teletype), on [monome-rack](https://github.com/Dewb/monome-rack)'s mock hardware",
 }
 
+
+# built and tested, but not packaged: ttyp's licence (GPL-2 teletype in an AGPL-3 repo) is unresolved
+UNRELEASED = {"ttyp"}
 
 PACKAGE = "shakfu-ssp-plugins"
 
@@ -86,7 +90,7 @@ def find_plugins(root: pathlib.Path) -> list[Plugin]:
     for cmake in sorted((root / "plugins").glob("*/CMakeLists.txt")):
         text = cmake.read_text()
         product = re.search(r'PRODUCT_NAME "([^"]+)"', text)
-        if product is None:
+        if product is None or product.group(1) in UNRELEASED:
             continue
         version = re.search(r"project\(\w+ VERSION ([\d.]+)", text)
         description = re.search(r'DESCRIPTION "([^"]*)"', text)

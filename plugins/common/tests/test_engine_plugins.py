@@ -9,11 +9,17 @@ import json
 import os
 import re
 import shutil
+import socket
 import struct
 import subprocess
+import sys
+import time
 from pathlib import Path
 
 import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "tools"))
+import ttyp_type  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
@@ -29,6 +35,7 @@ def plugins():
         pytest.skip("needs cmake and a C++ compiler")
     if not all((DEPS / "lib" / lib).exists() for lib in ("libchuck.a", "libfaust.a", "libscsynth.a")):
         subprocess.run([ROOT / "scripts" / "build_deps.sh", "host"], check=True, capture_output=True)
+    subprocess.run([ROOT / "scripts" / "fetch_teletype.sh"], check=True, capture_output=True)
     subprocess.run(["cmake", "-S", ROOT, "-B", BUILD, "-DCMAKE_BUILD_TYPE=Release"], check=True, capture_output=True)
     targets = [f"{name.upper()}_VST3" for name in [*PRODUCTS, *EXAMPLES]]
     subprocess.run(["cmake", "--build", BUILD, "-j8", "--target", *targets], check=True, capture_output=True)
@@ -40,7 +47,7 @@ def plugins():
 
 # source folder -> product name; Synthor lists only names of up to four characters
 PRODUCTS = {"radio": "rdio", "csound": "csnd", "chuck": "chuk", "edrums": "edrm", "pstretch": "strc", "bard": "bard",
-            "glitch": "gltc", "chorus": "chrs", "faust": "fstr", "scsynth": "scsy"}
+            "glitch": "gltc", "chorus": "chrs", "faust": "fstr", "scsynth": "scsy", "teletype": "ttyp"}
 # examples/: built and tested on the host, never shipped, so not in the manifest
 EXAMPLES = {"svca": "svca", "tremolo": "trem"}
 
@@ -215,6 +222,73 @@ def test_tremolo(plugins):
     levels, _ = run(plugins, "tremolo", "set", "depth", 0, "set", "rate", 0.1, "prepare", 48000, 128, "in", 0, 0.3,
                     "in", 3, 1.0, "run", 0.2, 128, "level", 0)
     assert 0.1 < levels[0][1] < 0.16
+
+
+def type_ttyp(text, after):
+    """Type text with tools/ttyp_type.py, `after` seconds from now, once ttyp's key port accepts."""
+    start = time.monotonic()
+    while True:
+        try:
+            socket.create_connection(("127.0.0.1", ttyp_type.PORT), timeout=1).close()
+            break
+        except OSError:
+            assert time.monotonic() - start < 10, "ttyp key port never opened"
+            time.sleep(0.05)
+    time.sleep(max(0.0, after - (time.monotonic() - start)))
+    ttyp_type.send(text)
+    time.sleep(0.2)
+
+
+def run_ttyp(host, text, *cmds):
+    """plugin_host with ttyp while text is typed into it, 2.5 s in (past the splash screen)."""
+    proc = subprocess.Popen([host, so("teletype"), *map(str, cmds)], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            text=True)
+    type_ttyp(text, 2.5)
+    out, err = proc.communicate(timeout=120)
+    assert proc.returncode == 0, err[-4000:]
+    levels = {int(f[1]): float(f[3]) for f in (line.split() for line in out.splitlines()) if f[0] == "level"}
+    state = next((line[6:] for line in out.splitlines() if line.startswith("state ")), "")
+    return levels, state
+
+
+def test_teletype(plugins, tmp_path, monkeypatch):
+    monkeypatch.setenv("TTYP_KEYBOARD", "0")  # never grab this machine's keyboard
+    r = subprocess.run([plugins, so("teletype"), "channels"], capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, r.stderr[-2000:]
+    inputs = [line[6:] for line in r.stdout.splitlines() if line.startswith("input ")]
+    outputs = [line[7:] for line in r.stdout.splitlines() if line.startswith("output ")]
+    assert inputs[:9] == [f"Trig {i}" for i in range(1, 9)] + ["In"]
+    assert outputs[:8] == [f"TR {i}" for i in range(1, 5)] + [f"CV {i}" for i in range(1, 5)]
+
+    # CV 1 is output 4 and TR 1 output 0; an SSP signal of 1.0 is 5 V. CV 2's range shifts it by -5 V.
+    frame = tmp_path / "frame.bgra"
+    levels, state = run_ttyp(plugins, "cv 1 v 3\ncv 2 v 3\ntr 1 1\nx 3\n",
+                             "prepare", 48000, 128, "set", "cv2_range", 1, "run", 8, 128,
+                             "level", 4, "level", 5, "level", 0, "state", "render", frame)
+    assert levels[4] == pytest.approx(0.6, abs=0.005)
+    assert levels[5] == pytest.approx(-0.4, abs=0.005)
+    assert levels[0] == 1.0
+    assert 'TELETYPE="' in state
+    data = frame.read_bytes()
+    amber = sum(1 for i in range(0, len(data), 4) if data[i:i + 3] == bytes([140, 214, 255]))
+    assert amber > 100  # the screen's lit pixels
+
+    # the preset restores the live scene: X is still 3 in a fresh instance
+    preset = tmp_path / "ttyp.state"
+    xml = state.encode() + b"\0"  # JUCE's copyXmlToBinary format, as rack stores a module's state
+    preset.write_bytes(struct.pack("<II", 0x21324356, len(xml)) + xml)
+    levels, _ = run_ttyp(plugins, "cv 1 v x\n", "prepare", 48000, 128, "load", preset, "run", 8, 128, "level", 4)
+    assert levels[4] == pytest.approx(0.6, abs=0.005)
+
+    # Disk (soft key 3) as teletype's USB stick: every scene out to ttNNs.txt, tt07.txt into scene 7
+    scenes = tmp_path / "scenes"
+    scenes.mkdir()
+    (scenes / "tt07.txt").write_text("#1\nCV 4 V 2\n")
+    monkeypatch.setenv("TTYP_SCENES", str(scenes))
+    levels, _ = run_ttyp(plugins, "scene 7\n$ 1\n", "prepare", 48000, 128, "render", tmp_path / "f.bgra",
+                         "button", 2, 1, "button", 2, 0, "run", 8, 128, "level", 7)
+    assert sorted(p.name for p in scenes.glob("tt*s.txt")) == [f"tt{i:02d}s.txt" for i in range(32)]
+    assert levels[7] == pytest.approx(0.4, abs=0.005)  # CV 4 = output 7
 
 
 def manifest_entry(host, plugin):

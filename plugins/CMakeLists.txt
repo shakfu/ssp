@@ -10,6 +10,13 @@ add_subdirectory(pstretch)
 add_subdirectory(bard)
 add_subdirectory(chorus)
 
+# teletype builds its firmware from sources `make deps` fetches (scripts/fetch_teletype.sh)
+if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../build/deps/src/teletype/monome-rack")
+    add_subdirectory(teletype)
+else ()
+    message(STATUS "skipping teletype: run `make deps`")
+endif ()
+
 # csound, chuck, faust and scsynth link prebuilt libraries: `make deps` builds them
 if (TARGET_SSP)
     set(DEPS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../build/deps/ssp")

@@ -1,0 +1,20 @@
+// The teletype firmware library as read-only data, for Firmware::load. One copy is loaded per
+// instance, so it cannot be a link dependency of the plugin.
+#ifdef __APPLE__
+#define SYM(x) _##x
+    .const_data
+#else
+#define SYM(x) x
+    .section .rodata
+    .hidden ttyp_firmware_begin
+    .hidden ttyp_firmware_end
+#endif
+    .global SYM(ttyp_firmware_begin)
+    .global SYM(ttyp_firmware_end)
+    .balign 16
+SYM(ttyp_firmware_begin):
+    .incbin "@TTYP_FIRMWARE@"
+SYM(ttyp_firmware_end):
+#ifndef __APPLE__
+    .section .note.GNU-stack,"",%progbits
+#endif

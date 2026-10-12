@@ -2,6 +2,14 @@
 
 Changes to the build, tools and presets. Each plugin keeps its own changelog in `plugins/<name>/CHANGELOG.md`.
 
+## [Unreleased]
+
+- `teletype` (`ttyp`), new: monome teletype 5, live-coded from a USB keyboard. See [plugins/teletype/CHANGELOG.md](plugins/teletype/CHANGELOG.md).
+
+- `make deps` also runs `scripts/fetch_teletype.sh`, which fetches the teletype sources at pinned, hash-checked commits. `ttyp` is configured only once they exist.
+
+- `tools/ttyp_type.py` types text into `ttyp` through its key port.
+
 ## [0.2.0] - 2026-10-10
 
 First release of all the modules together, as `shakfu-ssp-plugins-0.2.0.zip`, tagged `0.2.0`. 0.1.0 released `sfct` alone.

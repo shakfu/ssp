@@ -478,5 +478,37 @@
       "xfade": "xfade"
     },
     "skipped": 0
+  },
+  "ttyp": {
+    "inputs": [
+      "Trig 1",
+      "Trig 2",
+      "Trig 3",
+      "Trig 4",
+      "Trig 5",
+      "Trig 6",
+      "Trig 7",
+      "Trig 8",
+      "In"
+    ],
+    "outputs": [
+      "TR 1",
+      "TR 2",
+      "TR 3",
+      "TR 4",
+      "CV 1",
+      "CV 2",
+      "CV 3",
+      "CV 4"
+    ],
+    "params": {
+      "cv1_range": "cv1_range",
+      "cv2_range": "cv2_range",
+      "cv3_range": "cv3_range",
+      "cv4_range": "cv4_range",
+      "in_range": "in_range",
+      "param": "param"
+    },
+    "skipped": 0
   }
 }
