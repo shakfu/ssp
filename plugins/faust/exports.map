@@ -1,0 +1,7 @@
+/* fstr.so exports only its entry points; see CMakeLists.txt */
+{
+    global:
+        getApiVersion; createDescriptor; createInstance; apiExtensions; createExtendedDescriptor;
+        GetPluginFactory; ModuleEntry; ModuleExit;
+    local: *;
+};

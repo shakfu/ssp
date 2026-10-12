@@ -54,6 +54,12 @@ target_link_libraries(FAUST PRIVATE
         -L${LLVM_LIB_DIR} -lLLVM)
 
 set_target_properties(${PROJECT_NAME}_VST3 PROPERTIES PREFIX "")
+# Only the entry points are exported. fstr.so is the first library in Synthor to load libLLVM-9.so,
+# which then binds its own std:: template symbols to any copies fstr.so exports; libLLVM never
+# unloads, so neither could fstr.so (docs/dev/cleanup-problems.md).
+target_link_options(${PROJECT_NAME}_VST3 PRIVATE
+        -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exports.map)
+set_property(TARGET ${PROJECT_NAME}_VST3 APPEND PROPERTY LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/exports.map)
 
 if(INSTALL_PLUGIN)
     juce_enable_copy_plugin_step(${PROJECT_NAME})

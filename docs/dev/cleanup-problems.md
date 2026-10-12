@@ -6,7 +6,14 @@ Status as of 2026-10-12. Remaining work; nothing here is fixed yet.
 
 Synthor unloads a plugin's `.so` (`dlclose`) when its last module is deleted, and loads it again for the next one. Each reload runs the library's process-wide setup again. The previous copy's process-wide memory and threads are never released, because the code that would release them is gone. Max and Pd keep externals loaded, so `chuck-max` and `pd-chuck` never see this.
 
-Evidence that Synthor unloads: threads left running after a module's deletion crashed with the program counter on an unmapped address (gdb on the SSP, 2026-10-11).
+Confirmed 2026-10-12: after adding and deleting one `chuk` in a blank patch, `chuk.so` was no longer in `/proc/$(pidof SYNTHOR)/maps`.
+
+Two things kept plugins loaded after their last module was deleted (2026-10-12):
+
+1. **`fstr.so` from Synthor's startup scan on (fixed).** The scan opens all 52 plugins on the card and closes them again. `fstr.so` is the first library to load `libLLVM-9.so`, which is `NODELETE`. glibc's trace (`LD_DEBUG=files`) showed libLLVM binding its own `std::` template symbols to the copies `fstr.so` exported (1646 symbols), which made `fstr.so` a "relocation dependency" of a library that never unloads. `plugins/faust/exports.map` now exports only the 8 entry points. Confirmed: after Synthor's startup, no plugin is mapped.
+2. **Any plugin whose editor reaches JUCE's text shaper (open).** gdb on `__cxa_thread_atexit_impl` showed `juce::Unicode::performAnalysis` (`thread_local LruCache`, `juce_Unicode.cpp:84`) and `juce::BidiLine::computeVisualOrder` (`thread_local std::vector`, `juce_UnicodeBidi.cpp:60`) registering destructors on Synthor's main thread, from `Graphics::drawSingleLineText` in `ssp::EditorHost::drawBasicPanel`. glibc does not unload a library with pending `thread_local` destructors, and the main thread never exits. Seen in `fstr`, `chuk` and `csnd` after opening and cancelling the Load browser; adding and deleting `fstr` alone did not reach it.
+
+Tools used: `scripts/ssp-memlog.sh`, `scripts/ssp-crash.gdb`, a gdb breakpoint on `__cxa_thread_atexit_impl`, and a loader that `dlopen`s a plugin, runs one instance through the SSP API (optionally loading a program through its state), deletes it and `dlclose`s it under `LD_DEBUG=files`.
 
 ## Measurements
 
@@ -36,20 +43,31 @@ The mapping of cycles to modules is an assumption. Confirm it before acting on t
 
 ## Fixed already, same class
 
-Threads outliving their `.so`, each of which crashed Synthor:
+Threads that could outlive their `.so`:
 
-- `BaseProcessor`'s MIDI thread (all 12 plugins): detached, now joined.
-- `rack`'s track threads: detached, now joined.
-- ChucK's `KBHit` thread: compiled out (`__DISABLE_KBHIT__`, `__DISABLE_HID__`, `__ALTER_HID__`). The last `chuk` also runs `ChucK::globalCleanup()`.
+- `BaseProcessor`'s MIDI thread (all 12 plugins): detached, now joined. gdb caught a crash at an unmapped address with no usable backtrace; the cause was inferred from the code.
+- ChucK's `KBHit` thread: compiled out (`__DISABLE_KBHIT__`, `__DISABLE_HID__`, `__ALTER_HID__`). The last `chuk` also runs `ChucK::globalCleanup()`. Identified with gdb: the crashing thread's program counter was `kb_loop+60`.
+- `rack`'s track threads: detached, now joined. Found by reading the code; no crash observed.
 
 Each engine's tests check that no thread outlives the engine (`testNoThreadsLeft`).
 
 ## Options
 
-1. **Keep our plugin libraries loaded (recommended).**
+Rejected (user, 2026-10-12): keeping our libraries loaded on purpose. Plugins should clean up so that they unload. Fixed so far: `chuk` (`KBHit` compiled out, last-instance `ChucK::globalCleanup()`), `fstr` (exports map; last-instance `deleteAllDSPFactories()`). Fixed: the JUCE `thread_local` caches, patched by `scripts/patches/juce-8.0.10-thread-local.patch` (a lock-guarded static cache; a per-call vector), applied to a copy of `juce/` in the build directory. On the SSP (2026-10-12), `csnd`, `chuk` and `fstr` each unmapped after add, open browser, cancel, delete, with no `__cxa_thread_atexit_impl` calls.
+
+Open: one `fstr` cycle crashed Synthor (SIGSEGV on the main thread in `libLLVM-9.so`; the raw stack showed `MCJIT::generateCodeForModule` and `MCJIT::notifyObjectLoaded`). `fstr.so` was mapped at the time: it was its second copy in that process, after the startup scan's load and unload. The next identical cycle did not crash. A loader that loads and unloads `fstr.so` once, then compiles and runs in a second copy, did not reproduce it. Untested differences from that loader: Mesa sharing `libLLVM-9.so`, and gdb, which hooks LLVM's JIT debugger interface that `notifyObjectLoaded` calls. Which step of the cycle crashed was not recorded. Log: `/tmp/gdb-crash1.log` on the SSP until it reboots. The next 11 cycles in a fresh Synthor (add, wait 5 s, browser, cancel, delete, with gdb attached) did not crash: 1 crash in 12 cycles.
+
+Memory over those cycles, idle between them: 217.26 to 219.20 MB, about +0.3 MB per cycle, with open files back to 28 each time. Either per-load state left in `libLLVM-9.so`, which never unloads, or freed memory glibc keeps in fragmented pages; `VmRSS` cannot tell them apart.
+
+Earlier options, kept for the record:
+
+1. **Keep our plugin libraries loaded.**
    - At load time, each plugin reopens itself: `dlopen(own path, RTLD_NOW | RTLD_NOLOAD | RTLD_NODELETE)`, with the path from `dladdr`. Synthor's `dlclose` then leaves it mapped, as Max and Pd do.
    - Fixes: one-time setup runs once per process. That stops the `scsy` thread leak and its 0.4 s reload, and protects against any future thread that outlives its `.so`.
-   - Costs: each plugin type stays in memory after its last module is deleted: its code plus one-time globals.
+   - Costs:
+     - Each plugin type stays in memory after its last module is deleted: its code plus one-time globals.
+     - Process-wide state persists until Synthor restarts, so a fault in it no longer clears with a reload.
+     - On the device it hides threads that outlive their engine. The host checks (`testNoThreadsLeft`) still catch them.
    - Implementation: one helper in `plugins/common`, called from each plugin's entry point.
 2. **Last-instance cleanup per engine.**
    - `scsy`: call `World_Cleanup(world, true)` when the last engine closes, which runs `PluginUnload` and joins DiskIO's thread.
@@ -57,6 +75,6 @@ Each engine's tests check that no thread outlives the engine (`testNoThreadsLeft
 
 ## To verify a fix
 
-1. Deploy, start the sampler (`/tmp/memlog.sh` writes `uptime VmRSS Threads fds`), and attach gdb with `/tmp/crash3.gdb`. Both are in `/tmp`, so recreate them after a reboot. The commands are in the 2026-10-11 session; gdb cannot unwind past libc on the SSP, so the script dumps every thread's raw stack as symbols.
+1. Deploy, then start the sampler (`scripts/ssp-memlog.sh`) and attach gdb (`scripts/ssp-crash.gdb`). The usage lines at the top of each copy them to the SSP's `/tmp`, which a reboot clears.
 2. Record the order of modules and the number of cycles.
 3. With option 1, expect: idle threads back to baseline after every `scsy` cycle, and idle memory flat after each module's first cycle.

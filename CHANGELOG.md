@@ -22,7 +22,7 @@ First release of all the modules together, as `shakfu-ssp-plugins-0.2.0.zip`, ta
 
 ### Shared code
 
-- Removing any module could crash Synthor later, in whichever module was active. `BaseProcessor`'s MIDI thread was detached and given 100 ms to stop. When it overran, it read the freed processor, or ran code from an unloaded `.so`: a SIGSEGV at an unmapped address. It is now joined.
+- `BaseProcessor`'s MIDI thread was detached and given 100 ms to stop. If it overran, it read the freed processor, or ran code from a `.so` Synthor had unloaded. It is now joined.
 
 - `BaseProcessor`'s MIDI device lock tested `atomic_flag::test_and_set()` inverted: a device change from the panel and the async device check each went ahead when the other held the lock, and the check skipped every other pass. A `std::mutex` replaces it; the check still backs off when the lock is busy.
 
@@ -58,6 +58,8 @@ First release of all the modules together, as `shakfu-ssp-plugins-0.2.0.zip`, ta
 
 - `scripts/build_deps.sh` builds ChucK without `KBHit` and `Hid` (`__DISABLE_KBHIT__`, `__DISABLE_HID__`, `__ALTER_HID__`), whose process-wide threads outlived `chuk.so`. It records ChucK's defines in `build/chuck/.defs` and rebuilds ChucK when they change: `make` does not track flags, so new defines left the old objects in `libchuck.a`.
 
+- JUCE builds from a patched copy in the build directory, so the `juce` submodule stays at its commit. `scripts/patches/juce-8.0.10-thread-local.patch` replaces two `thread_local` caches in JUCE's text shaping (`juce_Unicode.cpp`, `juce_UnicodeBidi.cpp`). Their destructors were registered on Synthor's main thread, which never exits, and glibc does not unload a library with pending `thread_local` destructors: any plugin whose editor shaped text stayed loaded after its last module was deleted.
+
 - Each engine's tests check that no thread outlives the engine, the failure that crashed Synthor when it unloaded a plugin.
 
 - `make midisend` starts `tools/midisend` on the SSP: an ALSA sequencer port that a module can choose as its MIDI input, and that plays notes written to a FIFO over ssh. It tests MIDI without a keyboard.
@@ -66,7 +68,9 @@ First release of all the modules together, as `shakfu-ssp-plugins-0.2.0.zip`, ta
 
 ### Known issues
 
-- Synthor unloads a plugin's `.so` after its last module is deleted, and each reload leaks: `scsy` one thread, `chuk` and others some memory. See [docs/dev/cleanup-problems.md](docs/dev/cleanup-problems.md).
+- Synthor unloads a plugin's `.so` after its last module is deleted. Each reload of `scsy.so` leaks one thread (DiskIO's), and each `fstr` add/delete cycle grows Synthor by about 0.3 MB. See [docs/dev/cleanup-problems.md](docs/dev/cleanup-problems.md).
+
+- Once, a reloaded `fstr.so` crashed Synthor inside LLVM's JIT (`MCJIT::notifyObjectLoaded`): 1 crash in 12 cycles, not reproduced since. See [docs/dev/cleanup-problems.md](docs/dev/cleanup-problems.md).
 
 ### Release
 
@@ -87,6 +91,8 @@ First release of all the modules together, as `shakfu-ssp-plugins-0.2.0.zip`, ta
 - `tools/py2rack/modules-local.json` lists this repo's modules, read from the built plugins; a test fails when it is stale (`UPDATE_MANIFEST=1 make test`). `py2rack encode -m` can be given more than once.
 
 - `plugins/faust/bench/faust_bench.cpp` times one `.dsp` compiled, JIT-compiled and interpreted.
+
+- `scripts/ssp-memlog.sh` logs Synthor's memory, threads and open files once a second on the SSP. `scripts/ssp-crash.gdb` attaches to Synthor and records a crash: Synthor's stderr is `/dev/null`, and gdb on the SSP cannot unwind past libc.
 
 ### Presets
 

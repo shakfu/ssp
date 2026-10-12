@@ -1,0 +1,28 @@
+--- a/modules/juce_graphics/unicode/juce_Unicode.cpp
++++ b/modules/juce_graphics/unicode/juce_Unicode.cpp
+@@ -81,7 +81,11 @@
+         if (string.isEmpty())
+             return {};
+ 
+-        thread_local LruCache<Key, Array<Unicode::Codepoint>> cache;
++        // One cache for all threads: a thread_local with a destructor stops the library unloading
++        // until the thread exits, and a host's main thread never does.
++        static CriticalSection lock;
++        static LruCache<Key, Array<Unicode::Codepoint>> cache;
++        const ScopedLock sl (lock);
+ 
+         return cache.get (string, analysisCallback);
+     }
+--- a/modules/juce_graphics/unicode/juce_UnicodeBidi.cpp
++++ b/modules/juce_graphics/unicode/juce_UnicodeBidi.cpp
+@@ -57,8 +57,8 @@
+         if (runs.empty())
+             return;
+ 
+-        thread_local std::vector<size_t> codepointIndicesInVisualOrder;
+-        codepointIndicesInVisualOrder.clear();
++        // Not thread_local: one with a destructor stops the library unloading until the thread exits
++        std::vector<size_t> codepointIndicesInVisualOrder;
+         codepointIndicesInVisualOrder.reserve ((size_t) SBLineGetLength (line.get()));
+ 
+         jassert (SBLineGetOffset (line.get()) == 0);

@@ -165,8 +165,18 @@ private:
     int cv_ = -1;
 };
 
+static std::atomic<int> liveRuntimes{ 0 };
+
+FaustRuntime::FaustRuntime(std::string libraries) : libraries_(std::move(libraries)) {
+    liveRuntimes.fetch_add(1);
+}
+
 FaustRuntime::~FaustRuntime() {
     destroy(gate_.take());
+    if (liveRuntimes.fetch_sub(1) == 1) {
+        std::lock_guard<std::mutex> lock(compilerLock());
+        deleteAllDSPFactories();
+    }
 }
 
 void FaustRuntime::destroy(Instance* i) {

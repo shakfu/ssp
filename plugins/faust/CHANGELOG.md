@@ -20,6 +20,8 @@ A program that declares `[nvoices:N]` in its options plays N voices from the MID
 
 Loading a program could abort Synthor. libfaust asserts that a `pow` base's lower bound, the smallest denormal, is above 0 (`intervalPow.cpp`). Synthor's threads run with flush-to-zero, which reads that bound as 0, and the compile inherited it from whichever thread started it. The compile now runs in the default floating-point environment.
 
+`fstr.so` exports only its entry points (`exports.map`). It is the first library in Synthor to load `libLLVM-9.so`, which then bound its own `std::` symbols to the 1646 that `fstr.so` exported; libLLVM never unloads, so `fstr.so` stayed loaded from Synthor's startup scan on. The last `fstr` to close also deletes libfaust's remaining factories.
+
 ## [0.1.0] - 2026-10-08
 
 First release, as the module `fstr`: Faust programs from the card, run by libfaust 2.85.9's interpreter. Eight inputs and outputs, and the program's first 16 controls as p1..p16. See [README.md](README.md).

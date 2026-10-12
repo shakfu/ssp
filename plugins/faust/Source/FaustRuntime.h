@@ -17,7 +17,9 @@ namespace fstr {
 class FaustRuntime : public ssp::engine::ScriptEngine {
 public:
     // libraries: the Faust libraries folder (stdfaust.lib), searched after the program's own folder
-    explicit FaustRuntime(std::string libraries) : libraries_(std::move(libraries)) {}
+    explicit FaustRuntime(std::string libraries);
+    // The last runtime in the process deletes libfaust's remaining factories, before Synthor unloads
+    // fstr.so
     ~FaustRuntime() override;
 
     void process(const float* const* in, float* const* out, int n) override;

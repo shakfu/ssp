@@ -23,7 +23,35 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
 endif ()
 
 
-add_subdirectory(juce)
+# JUCE builds from a patched copy, so the submodule stays at its commit. The copy is redone when the
+# submodule's commit or a patch changes.
+file(GLOB JUCE_PATCHES ${CMAKE_SOURCE_DIR}/scripts/patches/juce-*.patch)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${JUCE_PATCHES})
+execute_process(COMMAND git -C ${CMAKE_SOURCE_DIR}/juce rev-parse HEAD
+        OUTPUT_VARIABLE JUCE_STAMP OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+foreach (p ${JUCE_PATCHES})
+    file(SHA256 ${p} h)
+    string(APPEND JUCE_STAMP " ${h}")
+endforeach ()
+set(JUCE_PATCHED ${CMAKE_BINARY_DIR}/juce-patched)
+set(JUCE_OLD_STAMP "")
+if (EXISTS ${JUCE_PATCHED}/.ssp-stamp)
+    file(READ ${JUCE_PATCHED}/.ssp-stamp JUCE_OLD_STAMP)
+endif ()
+if (NOT JUCE_OLD_STAMP STREQUAL JUCE_STAMP)
+    file(REMOVE_RECURSE ${JUCE_PATCHED})
+    # juceaide's own build caches the JUCE source path; it rebuilds from the new copy
+    file(REMOVE_RECURSE ${CMAKE_BINARY_DIR}/juce/tools)
+    file(COPY ${CMAKE_SOURCE_DIR}/juce/ DESTINATION ${JUCE_PATCHED} PATTERN .git EXCLUDE)
+    foreach (p ${JUCE_PATCHES})
+        execute_process(COMMAND patch -d ${JUCE_PATCHED} -p1 -s -i ${p} RESULT_VARIABLE rc)
+        if (NOT rc EQUAL 0)
+            message(FATAL_ERROR "${p} does not apply to juce")
+        endif ()
+    endforeach ()
+    file(WRITE ${JUCE_PATCHED}/.ssp-stamp "${JUCE_STAMP}")
+endif ()
+add_subdirectory(${JUCE_PATCHED} ${CMAKE_BINARY_DIR}/juce)
 
 string(TIMESTAMP TB_BUILD_DATE "%y%m%d")
 add_definitions(-DTB_BUILD_DATE="${TB_BUILD_DATE}")
