@@ -2,7 +2,9 @@
 
 `ttyp` runs [monome teletype](https://github.com/monome/teletype) 5 on the Percussa SSP. It is the unmodified teletype firmware, with its live, edit, pattern, preset and help modes, typed into from a USB keyboard. Scripts react to trigger inputs and drive trigger and CV outputs.
 
-The firmware runs against [monome-rack](https://github.com/Dewb/monome-rack)'s mock hardware layer, as in VCV Rack. The design is in [docs/dev/teletype.md](../../docs/dev/teletype.md); open work is in [TODO.md](TODO.md).
+New to `ttyp`? Start with [README-getting-started.md](README-getting-started.md).
+
+The firmware runs against [monome-rack](https://github.com/Dewb/monome-rack)'s mock hardware layer, as in VCV Rack. The design is in [docs/dev/teletype.md](../../docs/dev/teletype.md).
 
 `ttyp` makes no audio. Like the hardware, it is a control module: triggers in, triggers and CV out.
 
@@ -97,7 +99,7 @@ A teletype program is a **scene**: eight scripts, M and I, patterns, and a descr
 
 The status panel shows the counts and any error. The scene being edited is unchanged: load a slot with Esc to use what was read. A file's name without the `s` is never written, so files you write are never overwritten.
 
-This is how to write programs ahead of time, or use scenes others have shared: put `ttNN.txt` files in `/media/BOOT/teletype`, press Disk, then load the slot. [`examples/tt00.txt`](examples/tt00.txt) is one to start from. To keep a scene you made on the SSP, press Disk and rename its `ttNNs.txt` to `ttNN.txt`.
+This is how to write programs ahead of time, or use scenes others have shared: put `ttNN.txt` files in `/media/BOOT/teletype`, press Disk, then load the slot. The release puts three in `/media/BOOT/teletype/examples`, where Disk does not read them: [`tt00.txt`](examples/tt00.txt), a clock divider; [`tt01.txt`](examples/tt01.txt), a sample and hold in semitones; [`tt02.txt`](examples/tt02.txt), random gates from the metro. Copy one up a level to load it. To keep a scene you made on the SSP, press Disk and rename its `ttNNs.txt` to `ttNN.txt`.
 
 The format is teletype's own:
 
@@ -138,7 +140,6 @@ Compared with the hardware:
   - Some shortcuts need function keys. On a compact keyboard, use its Fn layer.
 - **Network typing** with `tools/ttyp_type.py` sends taps: no held keys, and no modifier but Shift. The port takes one client at a time.
 - **Instances.** Each instance runs its own copy of the firmware, about 1 MB with its scene memory, and its own 1 ms thread.
-- **Releases.** `ttyp` is not in the release package yet: teletype is GPL-2 and this repository AGPL-3, and that is unresolved.
 
 ## Troubleshooting
 
@@ -147,3 +148,7 @@ Compared with the hardware:
 - **Typing goes to the wrong instance:** show the instance you want to type into; the keyboard follows the screen.
 - **A trigger runs nothing:** check its number lights in the status panel while the signal is high. If it does not, check the patch goes to that Trig input and rises above 2.2 V. If it does, check the input is not muted (Ctrl+F1 to F8 toggles mutes).
 - **In reads nothing:** In is the 9th input, after Trig 1-8. The status panel shows its value.
+
+## Licence
+
+`ttyp` is GPL-3.0, unlike the AGPL-3.0 of the rest of this repository. [NOTICE.md](NOTICE.md) lists what the embedded firmware is built from and on what terms; [LICENSE](LICENSE) is the GPLv3 text.

@@ -28,7 +28,7 @@ clang++ "${cpu[@]}" -O2 -std=c++17 -Wall -pthread -I"$cxxinc" -I"$cxxinc/arm-roc
     "$root/plugins/teletype/tests/engine_test.cpp" "$src/Firmware.cpp" "$src/Teletype.cpp" "$src/KeyInput.cpp" \
     -ldl "${link[@]}" -o "$out/engine_test"
 clang "${cpu[@]}" -O2 -Wno-header-guard -D__AVR32_UC3B0512__ -I"$tt/monome-rack/firmware/mock_hardware/include" \
-    -I"$tt/libavr32/conf/teletype" -I"$tt/libavr32/src" "$root/plugins/teletype/spike/harness.c" -ldl "${link[@]}" \
+    -I"$root/plugins/teletype/firmware/include" -I"$tt/libavr32/src" "$root/plugins/teletype/spike/harness.c" -ldl "${link[@]}" \
     -o "$out/harness"
 
 ssh "$host" 'rm -rf /tmp/ttyp && mkdir -p /tmp/ttyp'

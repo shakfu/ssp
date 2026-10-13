@@ -17,6 +17,8 @@ Most of the modules are ports of engines from [sk-engines](https://github.com/sh
 | `plugins/glitch` | `gltc`: dual lo-fi noise voice, GPLv3. See [README](plugins/glitch/README.md) |
 | `plugins/chorus` | `chrs`: stereo chorus compiled from Faust. See [README](plugins/chorus/README.md) and [docs/dev/faust.md](docs/dev/faust.md) |
 | `plugins/faust` | `fstr`: Faust programs from the card, compiled by LLVM on the SSP. See [README](plugins/faust/README.md) |
+| `plugins/scsynth` | `scsy`: SuperCollider SynthDefs from the card, run in scsynth. See [README](plugins/scsynth/README.md) |
+| `plugins/teletype` | `ttyp`: monome teletype, live-coded from a USB keyboard, GPLv3. See [README](plugins/teletype/README.md) and the [guide](plugins/teletype/README-getting-started.md) |
 | `plugins/common` | shared SSP plugin framework, from TheTechnobear; `engine/` is shared by the engine plugins. See [docs/DEVELOPING.md](docs/DEVELOPING.md) |
 | `examples` | `svca` and `tremolo`, the worked examples of the plugin guides; built and tested on the host, never shipped |
 | `presets` | rack presets, installed with `make install-presets`. See [README](presets/README.md) |
@@ -27,7 +29,7 @@ Most of the modules are ports of engines from [sk-engines](https://github.com/sh
 
 ```
 git submodule update --init --recursive
-make deps     # build Csound, ChucK and libfaust for the csound, chuck and faust plugins
+make deps     # build Csound, ChucK, libfaust and libscsynth; fetch the teletype sources
 make          # cross build for the SSP
 make test     # all tests
 make release  # package releases/shakfu-ssp-plugins-<VERSION> (see VERSION) and its zip
@@ -55,4 +57,6 @@ See [docs/BUILDING.md](docs/BUILDING.md).
 
 - Rob Scape's [Noisferatu](https://github.com/rob-scape/noisferatu): the algorithms of `gltc`.
 
-Licence: AGPL-3.0, see [LICENSE](LICENSE). softcut and `plugins/glitch` are GPL-3.0.
+- [monome teletype](https://github.com/monome/teletype), run on the mock hardware of Dewb's [monome-rack](https://github.com/Dewb/monome-rack): the firmware of `ttyp`, fetched by `scripts/fetch_teletype.sh`.
+
+Licence: AGPL-3.0, see [LICENSE](LICENSE). softcut, `plugins/glitch` and `plugins/teletype` are GPL-3.0.

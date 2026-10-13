@@ -43,6 +43,6 @@ def engine_test(tmp_path_factory):
 
 
 def test_engine(engine_test, firmware):
-    r = subprocess.run([engine_test, firmware], capture_output=True, text=True, timeout=120)
+    r = subprocess.run([engine_test, firmware, HERE.parent / "examples"], capture_output=True, text=True, timeout=120)
     assert r.returncode == 0, r.stderr
     print(r.stdout.strip())

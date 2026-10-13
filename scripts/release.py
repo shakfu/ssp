@@ -29,6 +29,8 @@ DATA = {
     "chuk": [("plugins/chuck/examples", "chuck", "*")],
     "scsy": [("plugins/scsynth/examples", "scsy", "*"), ("{deps}/scsynth/plugins", "scsy/ugens", "**")],
     "rack": [("presets", "rack_presets", "*")],
+    # under examples/, where Disk does not read them into the scene slots
+    "ttyp": [("plugins/teletype/examples", "teletype/examples", "tt*.txt")],
 }
 
 # folders a module reads that the user fills
@@ -37,9 +39,12 @@ USER_DATA = {
     "bard": ("bard", "spoken-word recordings, one folder per shelf"),
     "strc": ("pstretch", "clips to stretch"),
     "sfct": ("samples", "WAV and AIFF files to load"),
+    "ttyp": ("teletype", "scene files: Disk reads `ttNN.txt` into slot NN and writes every slot to `ttNNs.txt`; "
+                         "`examples/` holds example scenes"),
 }
 
-LICENSES = {"gltc": "GPL-3.0", "sfct": "GPL-3.0, for softcut", "scsy": "GPL-3.0, for SuperCollider"}
+LICENSES = {"gltc": "GPL-3.0", "sfct": "GPL-3.0, for softcut", "scsy": "GPL-3.0, for SuperCollider",
+            "ttyp": "GPL-3.0, for monome teletype"}
 
 SK_ENGINES = "https://github.com/shakfu/sk-engines"
 
@@ -59,9 +64,6 @@ ORIGINS = {
     "ttyp": "[monome teletype](https://github.com/monome/teletype), on [monome-rack](https://github.com/Dewb/monome-rack)'s mock hardware",
 }
 
-
-# built and tested, but not packaged: ttyp's licence (GPL-2 teletype in an AGPL-3 repo) is unresolved
-UNRELEASED = {"ttyp"}
 
 PACKAGE = "shakfu-ssp-plugins"
 
@@ -90,7 +92,7 @@ def find_plugins(root: pathlib.Path) -> list[Plugin]:
     for cmake in sorted((root / "plugins").glob("*/CMakeLists.txt")):
         text = cmake.read_text()
         product = re.search(r'PRODUCT_NAME "([^"]+)"', text)
-        if product is None or product.group(1) in UNRELEASED:
+        if product is None:
             continue
         version = re.search(r"project\(\w+ VERSION ([\d.]+)", text)
         description = re.search(r'DESCRIPTION "([^"]*)"', text)
@@ -184,6 +186,7 @@ Folders a module reads that you fill:
 ## Requirements
 
 - `fstr` uses the SSP's own `/usr/lib/libLLVM-9.so`, part of its system.
+- `ttyp` takes a USB keyboard through a USB 2.0 hub on the SSP's free USB port.
 
 ## Licence
 

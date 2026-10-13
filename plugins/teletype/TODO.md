@@ -5,6 +5,7 @@
 - `tests/run_on_ssp.sh` passes (2026-10-12): the engine and firmware, without Synthor.
 - In Synthor (user, 2026-10-13): listed after a restart; a USB keyboard through a USB 2.0 hub types into it; TR 1 and TR 2 patched to Trig 1 and Trig 2 run scripts 1 and 2, by `TR.P` and from the metro.
 - Disk in Synthor (user, 2026-10-13): wrote 32 scenes, read `examples/tt00.txt` into slot 0; loaded with Esc and clocked, TR 1, TR 2 and CV 1 changed as the scene says.
+- All three example scenes in Synthor (user, 2026-10-13): Disk read 3; slot 2 (`tt02`, random gates) runs from loading with nothing patched.
 
 ## CV test
 
@@ -55,7 +56,3 @@ Checks CV out, In, both ranges, and the SSP's output ceiling. Done so far (user,
   - Tests: the host test enables input 10, holds it at 0.5 (2.5 V), types `cv 1 param`, and expects CV 1 at 0.5; with it unpatched, the encoder's value. Regenerate `tools/py2rack/modules-local.json` (`UPDATE_MANIFEST=1 make test`).
   - Docs: README's inputs table, controls and constraints ("PARAM is an encoder, not a jack" goes).
 - [ ] Falling-edge scripts (`$.POL`): the mock raises an interrupt on rising edges only.
-
-## Open
-
-- [ ] Licence: teletype and monome-rack are GPL-2 with no "or later" grant; this repo is AGPL-3. Until it is settled, `UNRELEASED` in `scripts/release.py` keeps `ttyp` out of release packages.

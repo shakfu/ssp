@@ -13,7 +13,7 @@ ROOT = release.ROOT
 def test_finds_every_plugin_with_its_version():
     plugins = {p.product: p for p in release.find_plugins(ROOT)}
     assert set(plugins) == {"bard", "chrs", "chuk", "csnd", "edrm", "fstr", "gltc", "strc", "rack", "rdio", "sfct",
-                            "scsy"}
+                            "scsy", "ttyp"}
     assert all(p.version and p.description for p in plugins.values())
 
 
@@ -64,6 +64,10 @@ def test_package_mirrors_the_card(tmp_path):
     assert (top / "docs" / "rack" / "README-json-presets.md").is_file()
     assert not list((top / "docs").rglob("TODO.md"))
     assert (top / "docs" / "sfct" / "softcut-LICENSE.txt").is_file()
+    assert (top / "BOOT" / "teletype" / "examples" / "tt00.txt").is_file()
+    assert not list((top / "BOOT" / "teletype").glob("tt*.txt"))  # Disk would read them into the slots
+    for name in ("LICENSE", "NOTICE.md", "LICENSE-avr32-headers.txt", "README-getting-started.md"):
+        assert (top / "docs" / "ttyp" / name).is_file()
 
     readme = (top / "README.md").read_text()
     assert all(f"`{p}`" in readme for p in products)

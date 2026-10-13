@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 #include <chrono>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -304,9 +305,71 @@ static void testThread() {
     CHECK(tr4);
 }
 
+// examples/ttNN.txt: each imports whole, and runs as its description says
+static void loadExample(Teletype& t, const std::string& dir, unsigned slot) {
+    char name[16];
+    std::snprintf(name, sizeof name, "/tt%02u.txt", slot);
+    std::string text = readAll(dir + name);
+    CHECK(!text.empty());
+    CHECK(t.importScene(slot, text));
+    // every script line survives the import: an op teletype rejects would be dropped
+    std::string out = t.exportScene(slot);
+    size_t scripts = text.find("\n#");
+    std::string upper;
+    for (char c : text.substr(scripts)) upper += char(std::toupper(static_cast<unsigned char>(c)));
+    size_t at = 0;
+    while (at < upper.size()) {
+        size_t end = upper.find('\n', at);
+        std::string line = upper.substr(at, end == std::string::npos ? std::string::npos : end - at);
+        if (!line.empty() && line[0] != '#') CHECK(contains(out, line.c_str()));
+        if (end == std::string::npos) break;
+        at = end + 1;
+    }
+    char cmd[16];
+    std::snprintf(cmd, sizeof cmd, "scene %u\n", slot);
+    tap(t, cmd);
+    t.keyTap(0x43, 0);  // F10: run I, as loading from the scene menu does
+    run(t, 20);
+}
+
+static void testExamples(const std::string& dir) {
+    auto t = boot();
+    loadExample(*t, dir, 0);  // clock divider: TR 1 on every 2nd clock
+    trigger(*t, 0);
+    bool first = t->tr(0);
+    t->setTrigger(0, true);
+    t->setTrigger(0, false);
+    run(*t, 5);
+    bool second = t->tr(0);
+    std::printf("examples: tt00 TR 1 after clocks 1, 2: %d %d\n", first, second);
+    CHECK(!first && second);
+
+    t = boot();
+    loadExample(*t, dir, 1);  // sample and hold: CV 1 takes In, in semitones
+    t->setIn(5.0f);
+    trigger(*t, 0);
+    std::printf("examples: tt01 CV 1 %.3f with In at 5 V\n", t->cv(0));
+    CHECK(near(t->cv(0), 5.0f));
+
+    t = boot();
+    loadExample(*t, dir, 2);  // random gates: the metro runs from I, with no input
+    std::vector<int> at;  // the ms of each pulse, on any TR output
+    bool was[Teletype::OUTS] = {};
+    for (int i = 0; i < 2000; i++) {
+        t->tick();
+        for (unsigned o = 0; o < Teletype::OUTS; o++) {
+            if (t->tr(o) && !was[o]) at.push_back(i);
+            was[o] = t->tr(o);
+        }
+    }
+    std::printf("examples: tt02 %zu pulses in 2 s, first at %d ms\n", at.size(), at.empty() ? -1 : at[0]);
+    CHECK(at.size() >= 9);  // M.RESET starts the 200 ms metro at once
+    for (size_t i = 1; i < at.size(); i++) CHECK(std::abs(at[i] - at[i - 1] - 200) <= 2);
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) {
-        std::fprintf(stderr, "usage: %s ttyp_firmware.so\n", argv[0]);
+        std::fprintf(stderr, "usage: %s ttyp_firmware.so [examples dir]\n", argv[0]);
         return 2;
     }
     std::ifstream f(argv[1], std::ios::binary);
@@ -325,6 +388,7 @@ int main(int argc, char** argv) {
     testDisk();
     testTcp();
     testThread();
+    if (argc > 2) testExamples(argv[2]);
     if (failures) std::fprintf(stderr, "%d failures\n", failures);
     return failures ? 1 : 0;
 }

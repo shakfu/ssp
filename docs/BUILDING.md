@@ -23,7 +23,7 @@ make
 
 On first run, `make` downloads the SSP buildroot (608 MB) into `./buildroot`. Set `SSP_BUILDROOT` to use an existing one. It then configures with the `ssp toolchain` preset (`xcSSP.cmake`) and builds into `build.cmake.ssp`.
 
-The csound, chuck and faust plugins link Csound, ChucK and libfaust, which `make deps` downloads and cross-builds into `build/deps/ssp` (about three minutes). Without them, `make` builds the other plugins and skips these three. Run `make configure` after `make deps`.
+The csound, chuck and faust plugins link Csound, ChucK and libfaust, which `make deps` downloads and cross-builds into `build/deps/ssp` (about three minutes). Without them, `make` builds the other plugins and skips these three. `make deps` also fetches the teletype sources that `ttyp` builds its firmware from (`scripts/fetch_teletype.sh`, into `build/deps/src/teletype`, checked against SHA-256); it builds ragel 6.10 there if ragel is not installed. Run `make configure` after `make deps`.
 
 Plugins land in `build.cmake.ssp/plugins/*/*_artefacts/Release/VST3/*.vst3/Contents/armv7l-linux/*.so`.
 
@@ -32,7 +32,7 @@ Plugins land in `build.cmake.ssp/plugins/*/*_artefacts/Release/VST3/*.vst3/Conte
 | `make` | build all plugins |
 | `make configure` | re-run CMake configure |
 | `make buildroot` | download the buildroot only |
-| `make deps` | build libsndfile, Csound, ChucK, libfaust, libscsynth and the SC UGens for the SSP (`scripts/build_deps.sh ssp`) |
+| `make deps` | build libsndfile, Csound, ChucK, libfaust, libscsynth and the SC UGens for the SSP (`scripts/build_deps.sh ssp`), and fetch the teletype sources (`scripts/fetch_teletype.sh`) |
 | `make install [MOD=sfct]` | copy all plugins, or one, to the mounted SD card |
 | `make install-faust` | copy the Faust libraries and `fstr` examples to the card's `BOOT/faust` |
 | `make install-presets [PRESETS=dir]` | check JSON presets with `py2rack`, then copy `presets/` or `dir` to the card |

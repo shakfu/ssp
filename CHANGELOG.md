@@ -2,13 +2,23 @@
 
 Changes to the build, tools and presets. Each plugin keeps its own changelog in `plugins/<name>/CHANGELOG.md`.
 
-## [Unreleased]
+## [0.3.0] - 2026-10-13
 
-- `teletype` (`ttyp`), new: monome teletype 5, live-coded from a USB keyboard. See [plugins/teletype/CHANGELOG.md](plugins/teletype/CHANGELOG.md).
+0.2.0 was prepared but never tagged or published, so 0.3.0 is the first release since 0.1.0. It contains the changes here and everything in the 0.2.0 section of [CHANGELOG.md](CHANGELOG.md): 0.1.0 released `sfct` alone, so every other module is new since then.
 
-- `make deps` also runs `scripts/fetch_teletype.sh`, which fetches the teletype sources at pinned, hash-checked commits. `ttyp` is configured only once they exist.
+### Plugins
+
+- `teletype` (`ttyp`), new: monome teletype 5, live-coded from a USB keyboard, with scene files on the card. GPL-3.0. See [plugins/teletype/CHANGELOG.md](plugins/teletype/CHANGELOG.md) and [README-getting-started.md](plugins/teletype/README-getting-started.md).
+
+### Build and tools
+
+- `make deps` also runs `scripts/fetch_teletype.sh`, which fetches the teletype sources at pinned, SHA-256-checked commits, and builds ragel if it is not installed. `ttyp` is configured only once they exist.
 
 - `tools/ttyp_type.py` types text into `ttyp` through its key port.
+
+- `plugin_host`'s `enable CH` marks an input as patched, as Synthor does.
+
+- The release package puts `ttyp`'s example scenes in `BOOT/teletype/examples` and lists its licence.
 
 ## [0.2.0] - 2026-10-10
 

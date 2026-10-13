@@ -24,12 +24,13 @@ list(APPEND FW_SRC
 add_library(ttyp_firmware SHARED ${FW_SRC})
 set_target_properties(ttyp_firmware PROPERTIES C_STANDARD 99 PREFIX "" OUTPUT_NAME "ttyp_firmware"
         C_VISIBILITY_PRESET hidden)
+# include/ replaces the headers monome-rack's build takes from libavr32/asf and libavr32/conf: they carry
+# Atmel's ASF licence, which allows redistribution only with Atmel microcontroller products. Neither
+# directory is on the path.
 target_include_directories(ttyp_firmware PRIVATE
+        "${CMAKE_CURRENT_LIST_DIR}/include"
         "${MOCK}" "${MOCK}/include"
         "${AVR}/src" "${AVR}/src/usb/midi" "${AVR}/src/usb/hid" "${AVR}/src/usb/cdc" "${AVR}/src/usb/ftdi"
-        "${AVR}/conf" "${AVR}/conf/teletype"
-        "${AVR}/asf/common/services/usb" "${AVR}/asf/common/services/usb/uhc"
-        "${AVR}/asf/common/services/usb/class/hid"
         "${TT}/src" "${TT}/src/ops" "${TT}"
         "${TT_SRC_DIR}/monome-rack/lib/cbbq")
 # ARCH_LIN or ARCH_MAC selects the mock API's export attribute; Rack's arch.mk sets it for monome-rack
