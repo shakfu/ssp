@@ -39,6 +39,9 @@ public:
     void setParam(float unit) { param_.store(unit, std::memory_order_relaxed); }  // 0-1
     float cv(unsigned i) const { return cv_[i].load(std::memory_order_relaxed); }  // 0-10 V
     bool tr(unsigned i) const { return tr_[i].load(std::memory_order_relaxed); }
+    // what the inputs last delivered, for display
+    float in() const { return in_.load(std::memory_order_relaxed); }  // 0-10 V, before the ADC clips
+    bool trigger(unsigned i) const { return i < TRIGS && level_[i].load(std::memory_order_relaxed); }
 
     // any thread
     void keyDown(uint8_t usage) { push({ K_DOWN, usage, 0 }); }  // HID usage, 0xE0-0xE7 for modifiers

@@ -35,6 +35,7 @@ protected:
     void onButton(unsigned btn, bool v) override;
 
 private:
+    void drawInputs(Graphics& g, ttyp::Teletype& tt, int x, int y);
     enum { B_FRONT = 0, B_RANGE = 1, B_DISK = 2 };
     PluginProcessor& processor_;
     ScreenImage screen_;

@@ -54,6 +54,8 @@ Keys follow teletype's [manual](https://monome.org/docs/teletype/manual/). The o
 
 The metro (`M`) and delays (`DEL`) run scripts without any input.
 
+The line under the screen shows In in teletype's volts and Trig 1-8, lit while high. An input Synthor reports as unpatched reads 0 and stays dark. The status panel shows the outputs.
+
 ## Controls
 
 | Control | Main page | Range page |
@@ -141,4 +143,5 @@ Compared with the hardware:
 - **Not in the module list:** restart the SSP; Synthor scans plugins at startup.
 - **Keyboard does nothing:** check the status panel says `keyboard: connected`. If not, plug the keyboard in through a USB 2.0 hub. `dmesg` on the SSP shows whether it enumerated.
 - **Typing goes to the wrong instance:** show the instance you want to type into; the keyboard follows the screen.
-- **A trigger runs nothing:** check the input is patched, that it rises above 2.2 V, and that the input is not muted (Ctrl+F1 to F8 toggles mutes).
+- **A trigger runs nothing:** check its number lights under the screen while the signal is high. If it does not, check the patch goes to that Trig input and rises above 2.2 V. If it does, check the input is not muted (Ctrl+F1 to F8 toggles mutes).
+- **In reads nothing:** In is the 9th input, after Trig 1-8. The line under the screen shows its value.

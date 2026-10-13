@@ -239,6 +239,13 @@ def type_ttyp(text, after):
     time.sleep(0.2)
 
 
+def amber_in(frame, x0, y0, x1, y1):
+    """Pixels of ttyp's amber, (255, 214, 140), in a rectangle of a 1600-wide BGRA frame."""
+    data = frame.read_bytes()
+    return sum(1 for y in range(y0, y1) for x in range(x0, x1)
+               if data[(y * 1600 + x) * 4:(y * 1600 + x) * 4 + 3] == bytes([140, 214, 255]))
+
+
 def run_ttyp(host, text, *cmds):
     """plugin_host with ttyp while text is typed into it, 2.5 s in (past the splash screen)."""
     proc = subprocess.Popen([host, so("teletype"), *map(str, cmds)], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -279,6 +286,14 @@ def test_teletype(plugins, tmp_path, monkeypatch):
     preset.write_bytes(struct.pack("<II", 0x21324356, len(xml)) + xml)
     levels, _ = run_ttyp(plugins, "cv 1 v x\n", "prepare", 48000, 128, "load", preset, "run", 8, 128, "level", 4)
     assert levels[4] == pytest.approx(0.6, abs=0.005)
+
+    # In and the trigger inputs, patched: In at 3 V reaches IN, and the line under the screen lights Trig 1
+    frame = tmp_path / "inputs.bgra"
+    levels, _ = run_ttyp(plugins, "cv 1 in\n", "prepare", 48000, 128, "enable", 0, "enable", 8, "in", 0, 1.0,
+                         "in", 8, 0.6, "run", 8, 128, "level", 4, "render", frame)
+    assert levels[4] == pytest.approx(0.6, abs=0.005)
+    assert amber_in(frame, 320, 420, 350, 452) > 0  # the "1" of Trig 1..8
+    assert amber_in(frame, 350, 420, 380, 452) == 0  # Trig 2, unpatched
 
     # Disk (soft key 3) as teletype's USB stick: every scene out to ttNNs.txt, tt07.txt into scene 7
     scenes = tmp_path / "scenes"

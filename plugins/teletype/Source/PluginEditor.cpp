@@ -49,6 +49,17 @@ void onTeletypeTimer(PluginProcessor& p, ScreenImage& screen) {
     }
 }
 
+// In in teletype's volts, and Trig 1-8 lit while high; one line, under the screen
+void PluginEditor::drawInputs(Graphics& g, ttyp::Teletype& tt, int x, int y) {
+    g.setFont(mono(24));
+    g.setColour(juce::Colours::white);
+    g.drawText(juce::String::formatted("In %6.3f V    Trig", tt.in()), x, y, 300, 32, juce::Justification::left);
+    for (unsigned i = 0; i < ttyp::Teletype::TRIGS; i++) {
+        g.setColour(tt.trigger(i) ? pixelColour : juce::Colours::darkgrey);
+        g.drawText(juce::String(i + 1), x + 300 + int(i) * 30, y, 30, 32, juce::Justification::centred);
+    }
+}
+
 PluginEditor::PluginEditor(PluginProcessor& p)
     : ssp::BaseEditor(&p),
       processor_(p),
@@ -89,6 +100,7 @@ void PluginEditor::onButton(unsigned btn, bool v) {
 void PluginEditor::drawView(Graphics& g) {
     g.fillAll(juce::Colours::black);
     screen_.draw(g, { 20, 20, W * 6, H * 6 });
+    if (auto* t = processor_.teletype()) drawInputs(g, *t, 20, 20 + H * 6 + 16);
 
     constexpr int x = 900, w = 680, lh = 32;
     int y = 20;

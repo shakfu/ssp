@@ -4,10 +4,11 @@
 
 - `tests/run_on_ssp.sh` passes (2026-10-12): the engine and firmware, without Synthor.
 - In Synthor (user, 2026-10-13): listed after a restart; a USB keyboard through a USB 2.0 hub types into it; TR 1 and TR 2 patched to Trig 1 and Trig 2 run scripts 1 and 2, by `TR.P` and from the metro.
+- Disk in Synthor (user, 2026-10-13): wrote 32 scenes, read `examples/tt00.txt` into slot 0; loaded with Esc and clocked, TR 1, TR 2 and CV 1 changed as the scene says.
 
 ## CV test
 
-Not run yet. Checks CV out, In, both ranges, and the SSP's output ceiling.
+Checks CV out, In, both ranges, and the SSP's output ceiling. Done so far (user, 2026-10-13, voltmeter on CV 1, plain cable): readings match the status panel up to 5 V, and `V 5`, `V 6` and `V 10` read 5 V, so outputs reach 5 V and clip there. A patch cable with LEDs read about 0.5 V low; measure with a plain cable. In: `IN` read 4877 (2.98 V) with about 3 V applied, within 1%. In is the 9th input; patched to input 1 (Trig 1), it read nothing. Whether the SSP could reach 5.2 V is untested: `ttyp` limits the signal to 1.0.
 
 **Setup.** One `ttyp`, both ranges at `0-5V` (button 2 for the range page, encoder 1 for CV 1; In's range is encoder 2 on the main page). Patch CV 1 (output 5) to In (input 9). Optional: a voltmeter on the CV 1 jack. Type in live mode.
 
@@ -38,7 +39,7 @@ Not run yet. Checks CV out, In, both ranges, and the SSP's output ceiling.
 - [ ] No keys reach the Linux console or SysRq (`EVIOCGRAB`).
 - [ ] Preset save and reload in Synthor and in rack; the compact editor in rack.
 - [ ] Front button (button 1) and the range page (button 2).
-- [ ] Disk (button 3): writing works in Synthor (user, 2026-10-13: "wrote 32"; all slots were empty). `examples/tt00.txt` is now in `/media/BOOT/teletype`. Next: press Disk (expect "read 1"), load slot 0 with Esc, and clock it, either from a clock patched into Trig 1 (remove the TR 1 -> Trig 1 patch) or from the metro (M script `$ 1`, then `M 250`, `M.ACT 1`). Expect TR 1 every 2nd clock, TR 2 every 4th, CV 1 random 0-4 V. The TR 1 -> Trig 1 feedback alone does not keep this scene running: script 1 pulses TR 1 only every 2nd run. Note how long the UI pauses while Disk writes.
+- [ ] Disk: how long the UI pauses while it writes the 32 files.
 - [ ] DSP load in Synthor's display; the firmware thread's CPU in `top`.
 - [ ] Unload: Synthor unloading `ttyp.so` with the key thread stopped.
 - [ ] A keyboard on the DWC2 port without a hub, after swapping the Ethernet dongle to the other port.

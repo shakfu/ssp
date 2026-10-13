@@ -6,6 +6,7 @@
 //   set NAME VALUE       sets attribute NAME="..." in the saved state (a custom value, or a PARAM's
 //                        value when NAME is a parameter id), then restores the state
 //   in CH VALUE          holds input CH at VALUE
+//   enable CH            PluginInterface::inputEnabled(CH, true), as Synthor reports a patched input
 //   run SECONDS BLOCK    processes, sleeping 2 ms per block so the plugin's worker thread runs
 //   wait SECONDS         sleeps, for work the worker does without audio (a compile, a file open)
 //   level CH             prints "level CH <mean |x|> <last sample>" over the last run's final block
@@ -101,6 +102,9 @@ int main(int argc, char** argv) {
             }
             putXml(p, xml);
             a += 2;
+        } else if (cmd == "enable") {
+            p->inputEnabled(std::atoi(argv[a + 1]), true);
+            a += 1;
         } else if (cmd == "in") {
             inValue[size_t(std::atoi(argv[a + 1]))] = float(std::atof(argv[a + 2]));
             a += 2;
