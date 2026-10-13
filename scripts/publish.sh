@@ -30,4 +30,4 @@ git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null || fail "tag
 command -v gh >/dev/null || fail "gh not found"
 ! gh release view "$tag" >/dev/null 2>&1 || fail "a release for $tag exists already"
 
-gh release create "$tag" "$zip" --title "shakfu-ssp-plugins $version" --notes-file "$notes" --verify-tag
+gh release create "$tag" "$zip" --title "ssp-plugins $version" --notes-file "$notes" --verify-tag

@@ -2,7 +2,7 @@
 
 Changes to the build, tools and presets. Each plugin keeps its own changelog in `plugins/<name>/CHANGELOG.md`.
 
-## [0.3.0] - 2026-10-13
+## [0.3.0]
 
 0.2.0 was prepared but never tagged or published, so 0.3.0 is the first release since 0.1.0. It contains the changes here and everything in the 0.2.0 section of [CHANGELOG.md](CHANGELOG.md): 0.1.0 released `sfct` alone, so every other module is new since then.
 
@@ -20,9 +20,7 @@ Changes to the build, tools and presets. Each plugin keeps its own changelog in 
 
 - The release package puts `ttyp`'s example scenes in `BOOT/teletype/examples` and lists its licence.
 
-## [0.2.0] - 2026-10-10
-
-First release of all the modules together, as `shakfu-ssp-plugins-0.2.0.zip`, tagged `0.2.0`. 0.1.0 released `sfct` alone.
+## [0.2.0]
 
 ### Plugins
 
