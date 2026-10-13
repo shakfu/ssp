@@ -46,6 +46,14 @@ Checks CV out, In, both ranges, and the SSP's output ceiling. Done so far (user,
 
 ## Planned
 
+- [ ] **Param input.** A 10th input, `Param`, feeding teletype's PARAM, its second analog input after IN. Scripts then read two CVs, `IN` and `PARAM`: as many as the firmware's two ADC channels allow.
+  - Index: after In (input 10), so inputs 1-9 and saved patches keep their order.
+  - Patched, it replaces the encoder: PARAM follows the voltage. Unpatched, encoder 1 sets PARAM as now. Alternative: the encoder as an offset added to the CV, as a knob beside a CV jack often works. Override is simpler and matches teletype, where PARAM is only a knob.
+  - Range: its own `param_range` (`0-5V` / `-5-5V`), as `in_range` is for In, on the main page's encoder 3.
+  - Panel: `Param` with its value on the inputs line, dimmed while unpatched, as In is.
+  - Code: `I_PARAM` in `PluginProcessor.h`; `processBlock` reads the block's last sample when `isInputEnabled(I_PARAM)`, else the encoder, into `Teletype::setParam`.
+  - Tests: the host test enables input 10, holds it at 0.5 (2.5 V), types `cv 1 param`, and expects CV 1 at 0.5; with it unpatched, the encoder's value. Regenerate `tools/py2rack/modules-local.json` (`UPDATE_MANIFEST=1 make test`).
+  - Docs: README's inputs table, controls and constraints ("PARAM is an encoder, not a jack" goes).
 - [ ] Falling-edge scripts (`$.POL`): the mock raises an interrupt on rising edges only.
 
 ## Open

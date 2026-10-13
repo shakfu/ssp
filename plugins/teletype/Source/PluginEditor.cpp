@@ -49,14 +49,24 @@ void onTeletypeTimer(PluginProcessor& p, ScreenImage& screen) {
     }
 }
 
-// In in teletype's volts, and Trig 1-8 lit while high; one line, under the screen
+// In in teletype's volts, and Trig 1-8: dark grey unpatched, white patched and low, amber high.
+// One line of the status panel.
 void PluginEditor::drawInputs(Graphics& g, ttyp::Teletype& tt, int x, int y) {
-    g.setFont(mono(24));
+    auto font = mono(24);
+    g.setFont(font);
+    bool inPatched = processor_.isInputEnabled(PluginProcessor::I_IN);
+    juce::String in = juce::String::formatted("In %6.3f V    ", tt.in()), trig = "Trig ";
+    int inW = int(juce::GlyphArrangement::getStringWidth(font, in));
+    g.setColour(inPatched ? juce::Colours::white : juce::Colours::darkgrey);
+    g.drawText(in, x, y, inW, 32, juce::Justification::left);
     g.setColour(juce::Colours::white);
-    g.drawText(juce::String::formatted("In %6.3f V    Trig", tt.in()), x, y, 300, 32, juce::Justification::left);
+    g.drawText(trig, x + inW, y, 100, 32, juce::Justification::left);
+    int at = x + inW + int(juce::GlyphArrangement::getStringWidth(font, trig));
+    int digit = int(juce::GlyphArrangement::getStringWidth(font, "0 "));
     for (unsigned i = 0; i < ttyp::Teletype::TRIGS; i++) {
-        g.setColour(tt.trigger(i) ? pixelColour : juce::Colours::darkgrey);
-        g.drawText(juce::String(i + 1), x + 300 + int(i) * 30, y, 30, 32, juce::Justification::centred);
+        bool patched = processor_.isInputEnabled(PluginProcessor::I_TRIG_1 + i);
+        g.setColour(tt.trigger(i) ? pixelColour : patched ? juce::Colours::white : juce::Colours::darkgrey);
+        g.drawText(juce::String(i + 1), at + int(i) * digit, y, digit, 32, juce::Justification::left);
     }
 }
 
@@ -100,7 +110,6 @@ void PluginEditor::onButton(unsigned btn, bool v) {
 void PluginEditor::drawView(Graphics& g) {
     g.fillAll(juce::Colours::black);
     screen_.draw(g, { 20, 20, W * 6, H * 6 });
-    if (auto* t = processor_.teletype()) drawInputs(g, *t, 20, 20 + H * 6 + 16);
 
     constexpr int x = 900, w = 680, lh = 32;
     int y = 20;
@@ -123,8 +132,10 @@ void PluginEditor::drawView(Graphics& g) {
     line((rangePage_ ? "enc 1-4: CV ranges" : "enc 1: param  enc 2: in range"), juce::Colours::cyan);
     line("param " + text(ID::param) + "   in " + text(ID::in_range), rangePage_ ? juce::Colours::grey : juce::Colours::white);
     y += lh / 2;
+    drawInputs(g, *tt, x, y);  // inputs, then outputs
+    y += lh;
     for (unsigned o = 0; o < ttyp::Teletype::OUTS; o++) {
-        line(juce::String::formatted("CV %u %6.3f V %-6s TR %u %s", o + 1, tt->cv(o),
+        line(juce::String::formatted("%s CV %u %6.3f V %-6s TR %u %s", o == 0 ? "Out" : "   ", o + 1, tt->cv(o),
                                      text(ID::cvRange(o)).toRawUTF8(), o + 1, tt->tr(o) ? "on" : "-"),
              active);
     }

@@ -279,6 +279,7 @@ def test_teletype(plugins, tmp_path, monkeypatch):
     data = frame.read_bytes()
     amber = sum(1 for i in range(0, len(data), 4) if data[i:i + 3] == bytes([140, 214, 255]))
     assert amber > 100  # the screen's lit pixels
+    assert amber_in(frame, 900, 164, 1580, 196) == 0  # no input high: no number lit
 
     # the preset restores the live scene: X is still 3 in a fresh instance
     preset = tmp_path / "ttyp.state"
@@ -287,13 +288,12 @@ def test_teletype(plugins, tmp_path, monkeypatch):
     levels, _ = run_ttyp(plugins, "cv 1 v x\n", "prepare", 48000, 128, "load", preset, "run", 8, 128, "level", 4)
     assert levels[4] == pytest.approx(0.6, abs=0.005)
 
-    # In and the trigger inputs, patched: In at 3 V reaches IN, and the line under the screen lights Trig 1
+    # In and the trigger inputs, patched: In at 3 V reaches IN, and the status panel's inputs line lights Trig 1
     frame = tmp_path / "inputs.bgra"
     levels, _ = run_ttyp(plugins, "cv 1 in\n", "prepare", 48000, 128, "enable", 0, "enable", 8, "in", 0, 1.0,
                          "in", 8, 0.6, "run", 8, 128, "level", 4, "render", frame)
     assert levels[4] == pytest.approx(0.6, abs=0.005)
-    assert amber_in(frame, 320, 420, 350, 452) > 0  # the "1" of Trig 1..8
-    assert amber_in(frame, 350, 420, 380, 452) == 0  # Trig 2, unpatched
+    assert amber_in(frame, 900, 164, 1580, 196) > 0  # a high trigger input lights its number
 
     # Disk (soft key 3) as teletype's USB stick: every scene out to ttNNs.txt, tt07.txt into scene 7
     scenes = tmp_path / "scenes"
