@@ -44,6 +44,9 @@ set_source_files_properties(Source/ScWorld.cpp PROPERTIES
         COMPILE_DEFINITIONS "SC_AUDIO_API=SC_AUDIO_API_SSP;SC_AUDIO_API_SSP=100;SC_MEMORY_ALIGNMENT=32"
         INCLUDE_DIRECTORIES "${SC}/include/common;${SC}/common;${SC}/include/server;${SC}/include/plugin_interface;${SC}/server/scsynth;${SC}/external_libraries/boost;${SC}/external_libraries/boost_sync/include;${SC}/external_libraries/TLSF-2.4.6/src;${SCSYNTH_DEPS}/include")
 
+# libsndfile's header, for the sizes of the sidecar's @buf files
+set_source_files_properties(Source/ScsynthEngine.cpp PROPERTIES INCLUDE_DIRECTORIES "${SCSYNTH_DEPS}/include")
+
 target_compile_definitions(SCSYNTH
         PUBLIC
         JUCE_WEB_BROWSER=0

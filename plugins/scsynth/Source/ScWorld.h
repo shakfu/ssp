@@ -3,12 +3,15 @@
 #include <atomic>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 struct World;
 struct ReplyAddress;
 
 namespace scsy {
+
+struct Score;
 
 // One scsynth World, run by the host's audio callback instead of an audio device. Inputs 1..8 are
 // audio buses 8..15 and outputs 1..8 are buses 0..7, as on a stock scsynth with 8 in and 8 out.
@@ -29,6 +32,21 @@ public:
         bool audio = false;
     };
 
+    // A buffer a sidecar names (`// @buf N ...`): a sound file read with /b_allocRead, or with an
+    // empty path, `seconds` of `channels` empty channels from /b_alloc.
+    struct Buffer {
+        int number = 0;
+        std::string path;
+        double seconds = 0.0;
+        int channels = 1;
+        long long modified = 0;  // the file's modification time
+        bool operator==(const Buffer& o) const {
+            return number == o.number && path == o.path && seconds == o.seconds && channels == o.channels &&
+                   modified == o.modified;
+        }
+    };
+    static constexpr int BUFFERS = 64;  // sidecar buffers 0..63
+
     ScWorld();
     ~ScWorld() { close(); }
     ScWorld(const ScWorld&) = delete;
@@ -42,8 +60,8 @@ public:
     void close();
     bool isOpen() const { return world_ != nullptr; }
 
-    // Worker thread: loads the first SynthDef in a .scsyndef and starts it in place of the running
-    // synth. On failure the running synth is left alone and `error` says why.
+    // Worker thread: loads the first SynthDef in a .scsyndef, or a score, and starts it in place of
+    // the running program. On failure the running program is left alone and `error` says why.
     bool load(const std::string& path, std::string& error, int timeoutMs = 5000);
     // As load(), from the file's bytes. mapped[i] names the control that reads bus i of bank
     // nextBank(): a control bus (setControl), or an audio bus (process's `controls`). With `voices`,
@@ -52,6 +70,16 @@ public:
     // read setPumpControl()'s values.
     bool loadDef(const std::string& bytes, std::string& error, const std::vector<Mapping>& mapped = {},
                  bool voices = false, bool pump = false, int timeoutMs = 5000);
+    // Worker thread, before loadDef() or loadScore(): allocates the buffers in `buffers` that this
+    // World does not hold as they are, waiting for scsynth to read each file, so a recording in an
+    // unchanged `alloc` buffer survives a reload. The load that follows frees the buffers it no
+    // longer names once it runs.
+    bool loadBuffers(const std::vector<Buffer>& buffers, std::string& error, bool pump = false, int timeoutMs = 5000);
+    // Worker thread: as loadDef(), for a score (see Score): runs its buffer commands, receives its
+    // voice defs, loads its main def, then starts its voices on schedule, looping, until the next
+    // load. On failure the running program is left alone, apart from buffers the score has written.
+    bool loadScore(const Score& score, std::string& error, const std::vector<Mapping>& mapped = {},
+                   bool pump = false, int timeoutMs = 5000);
     // Worker thread: sets a control of the running synth.
     void set(const std::string& control, float value);
 
@@ -97,6 +125,19 @@ private:
     std::string mapMessage(const char* address, int node, const std::vector<Mapping>& mapped, int bank,
                            bool audio) const;
     static constexpr int VOICE_GROUP = 900;
+    static constexpr int SCORE_GROUP = 901;  // a score's voices, before the main synth
+    static constexpr int MAX_SCORE_DEFS = 900;  // of scsynth's 1024 SynthDefs
+    // The score's voices go to scsynth this far ahead, as timed bundles. In OSC time: 2^32 a second.
+    static constexpr double SCORE_AHEAD = 0.5, SCORE_LATENCY = 0.05;
+    // Sends `commands`, each answering /done or /fail, in batches the reply ring holds; false if
+    // scsynth does not answer or any fails, with the first failure in `error`.
+    bool sendInBatches(const std::vector<std::string>& commands, std::string& error, int timeoutMs);
+    void freeStaleBuffers();
+    std::vector<Buffer> buffers_;  // held
+    std::vector<Buffer> wanted_;   // the next load's
+    // Ends the running score; with `free`, also its voices, their defs and its queued bundles.
+    void stopScore(bool free);
+    void feed();
     static constexpr int VOICE_FIRST = 2000, VOICE_IDS = 10000;  // voice node ids
     int audioControlBus(int k) const;
     // Worker: reads replies until one from `address` whose first argument is `arg`, or the timeout.
@@ -105,6 +146,16 @@ private:
                  std::vector<std::string>& failures);
 
     World* world_ = nullptr;
+    std::atomic<int64_t> oscNow_{ 0 };  // the OSC time of the next block; process() writes it
+
+    // the running score: its voices' def names, events and period, and the thread that feeds them
+    std::vector<std::string> scoreDefs_;
+    std::vector<std::pair<double, int>> scoreEvents_;
+    double scoreLength_ = 0.0;
+    int64_t scoreStart_ = 0;
+    bool scoreGroup_ = false;
+    std::thread feeder_;
+    std::atomic<bool> feeding_{ false };
     Reply replies_[REPLIES];
     std::atomic<unsigned> replyWrite_{ 0 };
     bool pump_ = false;

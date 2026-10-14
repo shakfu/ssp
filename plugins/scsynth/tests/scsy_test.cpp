@@ -3,11 +3,13 @@
 //        scsy_test example <UGen dir> <.scsyndef>   (an example sounds, with a signal on inputs 1, 2
 //                                                    and a held middle C)
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <fstream>
+#include <iterator>
 #include <string>
 #include <thread>
 #include <vector>
@@ -277,6 +279,68 @@ int main(int argc, char** argv) {
         NEAR(r.e.value(0), 0.55078125, 1e-6);
         auto x = r.run(10);
         NEAR(x.back(), 0.55078125, 1e-6);
+    }
+    {  // a score: its main def takes the controls; its voices start on schedule
+        std::ifstream f(defs + "/score.osc", std::ios::binary);
+        std::string bytes((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+        write(scratch + "/score.osc", bytes);
+        write(scratch + "/score.txt", "// @p1 level 0 2\n");
+        CHECK(r.load(scratch + "/score.osc").empty());
+        CHECK(r.e.spec(0).label == "level");
+        r.e.setParam(0, r.e.spec(0).unmap(2.0f));
+        float top = 0.0f;
+        for (int b = 0; b < 100; b++) {  // about real time, so the voices arrive ahead of their blocks
+            top = std::max(top, peak(r.run(1)));
+            std::this_thread::sleep_for(std::chrono::microseconds(2600));
+        }
+        NEAR(top, 1.0, 1e-6);  // the 0.5 voice at level 2
+    }
+    {  // @buf: a sound file, relative to the def's folder, read before the synth starts
+        std::ifstream f(defs + "/click.wav", std::ios::binary);
+        write(scratch + "/click.wav", std::string((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>()));
+        std::string path = copyDef("bufplay");
+        write(scratch + "/bufplay.txt", "// @buf 0 click.wav\n");
+        CHECK(r.load(path).empty());
+        // the file, frame i = i / 128, looped every 64 frames
+        auto loops = [&] {
+            auto x = r.run(4);
+            bool ok = true;
+            for (size_t i = 1; i < x.size(); i++) {
+                float step = x[i] - x[i - 1];
+                ok = ok && (std::fabs(step - 1.0f / 128) < 1e-6f || std::fabs(step + 63.0f / 128) < 1e-6f);
+            }
+            return ok;
+        };
+        CHECK(loops());
+        // a file it cannot open: an error naming it, and the running synth goes on
+        write(scratch + "/bufplay.txt", "// @buf 0 nope.wav\n");
+        std::string error = r.load(path);
+        CHECK(error.find("nope.wav") != std::string::npos);
+        CHECK(loops());
+    }
+    {  // @buf alloc: a recording survives a reload whose line is unchanged, not one whose line changed
+        std::fill(r.in[0].begin(), r.in[0].end(), 0.3f);
+        std::string rec = copyDef("bufrec"), read = copyDef("bufread");
+        write(scratch + "/bufrec.txt", "// @buf 1 alloc 0.1\n");
+        CHECK(r.load(rec).empty());
+        r.run(50);  // more than 0.1 s
+        std::fill(r.in[0].begin(), r.in[0].end(), 0.0f);
+        write(scratch + "/bufread.txt", "// @buf 1 alloc 0.1\n");
+        CHECK(r.load(read).empty());
+        auto x = r.run(4);
+        NEAR(*std::min_element(x.begin(), x.end()), 0.3, 1e-6);
+        write(scratch + "/bufread.txt", "// @buf 1 alloc 0.2\n");
+        CHECK(r.load(read).empty());
+        NEAR(peak(r.run(4)), 0.0, 1e-9);
+        // over the memory cap: an error before anything is sent
+        write(scratch + "/bufread.txt", "// @buf 1 alloc 2000 2\n");
+        CHECK(r.load(read).find("MB of buffers") != std::string::npos);
+        // a load naming no buffer frees them
+        write(scratch + "/bufread.txt", "");
+        CHECK(r.load(rec).empty());
+        write(scratch + "/bufrec.txt", "");
+        CHECK(r.load(read).empty());
+        NEAR(peak(r.run(4)), 0.0, 1e-9);
     }
     {  // MIDI: a def with a gate control is a voice per note
         CHECK(r.load(defs + "/voice.scsyndef").empty());

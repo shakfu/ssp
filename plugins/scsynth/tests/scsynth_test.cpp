@@ -175,6 +175,45 @@ static void engine(const std::string& plugins) {
     r.w.close();
 }
 
+// score.osc (defs/score.py): voices of 0.5 at 0 s and of a buffer's 0.25 at 0.05 s, every 0.1 s,
+// through the main synth. Voices start on the block holding their time.
+static void score(const std::string& plugins) {
+    Rig r;
+    std::string error;
+    CHECK(r.w.open(SR, plugins, error));
+    CHECK(load(r, "score.osc", error));
+    if (!error.empty())
+        std::fprintf(stderr, "score: %s\n", error.c_str());
+    // at about real time, so the voices reach scsynth ahead of their blocks
+    std::vector<float> y;
+    for (int b = 0; b < 300; b++) {
+        auto x = r.run(128, 128);
+        y.insert(y.end(), x.begin(), x.end());
+        std::this_thread::sleep_for(std::chrono::microseconds(2600));
+    }
+    auto at = [&](float v, size_t from) {
+        for (size_t i = from; i < y.size(); i++)
+            if (std::fabs(y[i] - v) < 1e-6f) return i;
+        return y.size();
+    };
+    size_t a = at(0.5f, 0), b = at(0.25f, a), c = at(0.5f, b);
+    CHECK(a < y.size() && b < y.size() && c < y.size());
+    if (c < y.size()) {
+        std::fprintf(stderr, "score: voices at %zu, %zu, %zu\n", a, b, c);
+        CHECK(a % 64 == 0 && b % 64 == 0 && c % 64 == 0);
+        CHECK(std::abs(long(b - a) - 2400) < 64);  // 0.05 s
+        CHECK(std::abs(long(c - a) - 4800) < 64);  // the loop, 0.1 s
+        bool held = true;
+        for (size_t i = a; i < a + 448; i++) held = held && y[i] == 0.5f;
+        CHECK(held);
+    }
+    // a def after the score: the score's voices stop
+    CHECK(load(r, "sine.scsyndef", error));
+    auto x = r.run(9600, 128);
+    CHECK(sineError(x, 440.0) < 1e-3);
+    r.w.close();
+}
+
 static void sc3(const std::string& plugins) {
     Rig r;
     std::string error;
@@ -229,8 +268,10 @@ int main(int argc, char** argv) {
     }
     std::string mode = argv[1], plugins = argv[2];
     defs = argv[3];
-    if (mode == "engine")
+    if (mode == "engine") {
         engine(plugins);
+        score(plugins);
+    }
     else if (mode == "sc3")
         sc3(plugins);
     else if (mode == "threads")

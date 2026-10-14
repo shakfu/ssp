@@ -7,6 +7,11 @@
 
 #include "ScsyBuiltin.h"
 
+#include <filesystem>
+#include <sstream>
+
+#include <sndfile.h>
+
 namespace scsy {
 
 void ScsynthEngine::prepare(float sampleRate, int maxBlock) {
@@ -150,6 +155,64 @@ bool ScsynthEngine::controlSpecs(const SynthDefInfo& info, const std::string& si
     return true;
 }
 
+bool ScsynthEngine::bufferSpecs(const std::string& sidecar, const std::string& dir, float rate,
+                                std::vector<ScWorld::Buffer>& buffers, std::string& error) {
+    buffers.clear();
+    long long bytes = 0;
+    std::istringstream lines(sidecar);
+    std::string line;
+    while (std::getline(lines, line)) {
+        size_t at = line.find("@buf");
+        if (line.compare(0, 2, "//") != 0 || at == std::string::npos) continue;
+        std::istringstream words(line.substr(at + 4));
+        ScWorld::Buffer b;
+        std::string what;
+        if (!(words >> b.number >> what) || b.number < 0 || b.number >= ScWorld::BUFFERS) {
+            error = "@buf: " + line.substr(at) + ": needs a number 0.." + std::to_string(ScWorld::BUFFERS - 1) +
+                    " and a file or alloc";
+            return false;
+        }
+        if (std::any_of(buffers.begin(), buffers.end(), [&](const ScWorld::Buffer& o) { return o.number == b.number; })) {
+            error = "@buf " + std::to_string(b.number) + " is named twice";
+            return false;
+        }
+        if (what == "alloc") {
+            if (!(words >> b.seconds) || b.seconds <= 0.0) {
+                error = "@buf " + std::to_string(b.number) + " alloc: needs a length in seconds";
+                return false;
+            }
+            if (!(words >> b.channels)) b.channels = 1;
+            if (b.channels < 1) {
+                error = "@buf " + std::to_string(b.number) + " alloc: needs 1 or more channels";
+                return false;
+            }
+            bytes += (long long)(b.seconds * rate) * b.channels * 4;
+        } else {
+            std::string rest;
+            std::getline(words, rest);
+            b.path = what + rest;  // a path may hold spaces
+            while (!b.path.empty() && std::isspace((unsigned char)b.path.back())) b.path.pop_back();
+            if (b.path[0] != '/' && !dir.empty()) b.path = dir + "/" + b.path;
+            SF_INFO info = {};
+            SNDFILE* f = sf_open(b.path.c_str(), SFM_READ, &info);
+            if (!f) {
+                error = "@buf " + std::to_string(b.number) + ": cannot open " + b.path;
+                return false;
+            }
+            sf_close(f);
+            bytes += (long long)info.frames * info.channels * 4;
+            std::error_code ec;
+            b.modified = std::filesystem::last_write_time(b.path, ec).time_since_epoch().count();
+        }
+        if (bytes > MAX_BUFFER_BYTES) {
+            error = "@buf: over " + std::to_string(MAX_BUFFER_BYTES >> 20) + " MB of buffers";
+            return false;
+        }
+        buffers.push_back(b);
+    }
+    return true;
+}
+
 bool ScsynthEngine::compile(const std::string& text, const std::string& path, std::string& error) {
     if (!world_.isOpen()) {
         error = openError_.empty() ? "scsynth is not running" : openError_;
@@ -157,8 +220,12 @@ bool ScsynthEngine::compile(const std::string& text, const std::string& path, st
     }
     std::string bytes = path.empty() ? std::string(reinterpret_cast<const char*>(BUILTIN_DEF), sizeof BUILTIN_DEF)
                                      : text;
+    // a score's controls are its main def's
+    Score score;
+    const bool scored = isScore(bytes);
+    if (scored && !readScore(bytes, score, error)) return false;
     SynthDefInfo info;
-    if (!readSynthDef(bytes, info, error)) return false;
+    if (!readSynthDef(scored ? score.main : bytes, info, error)) return false;
     std::string sidecar;
     if (path.empty()) {
         sidecar = BUILTIN_SPECS;
@@ -171,6 +238,10 @@ bool ScsynthEngine::compile(const std::string& text, const std::string& path, st
     Specs specs;
     std::vector<ScWorld::Mapping> mapped;
     if (!controlSpecs(info, sidecar, specs, mapped, error)) return false;
+    const std::string dir = std::filesystem::path(path).parent_path().string();
+    std::vector<ScWorld::Buffer> buffers;
+    if (!bufferSpecs(sidecar, dir, rate_, buffers, error)) return false;
+    for (auto& m : score.setup) m = resolveBufferPath(m, dir);
 
     const int bank = world_.nextBank();
     Ranges& r = ranges_[bank];  // not the running synth's bank, so the audio thread does not read it
@@ -189,7 +260,9 @@ bool ScsynthEngine::compile(const std::string& text, const std::string& path, st
         }
     }
     pending_.store(bank, std::memory_order_release);
-    bool ok = world_.loadDef(bytes, error, mapped, isVoice(info), pumping_);
+    bool ok = world_.loadBuffers(buffers, error, pumping_) &&
+              (scored ? world_.loadScore(score, error, mapped, pumping_)
+                      : world_.loadDef(bytes, error, mapped, isVoice(info), pumping_));
     if (ok) bank_.store(bank, std::memory_order_release);
     pending_.store(-1, std::memory_order_release);
     if (!ok) return false;

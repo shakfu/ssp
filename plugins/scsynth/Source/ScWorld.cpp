@@ -50,6 +50,8 @@ public:
         mOscPacketsToEngine.Perform();
     }
     void end() { mAudioSync.Signal(); }
+    // the OSC time of the next block
+    int64 now() const { return mOSCbuftime; }
 
     // one block of mBufLength frames; `controls`, if any, go to the `count` buses from `firstBus`
     void block(const float* const* in, float* const* out, const float* const* controls, int firstBus, int count) {
@@ -190,9 +192,11 @@ bool parseReply(const char* d, int size, std::string& address, std::vector<std::
     return true;
 }
 
-// messages performed together, before the next block
-std::string bundle(const std::vector<std::string>& messages) {
-    std::string b("#bundle\0\0\0\0\0\0\0\0\1", 16);  // timetag 1: now
+// messages performed together at OSC time `when`; 1 is before the next block
+std::string bundle(const std::vector<std::string>& messages, int64_t when = 1) {
+    std::string b("#bundle\0", 8);
+    putInt(b, int32_t(uint64_t(when) >> 32));
+    putInt(b, int32_t(uint32_t(uint64_t(when))));
     for (const auto& m : messages) {
         putInt(b, int32_t(m.size()));
         b += m;
@@ -254,6 +258,7 @@ bool ScWorld::open(float sampleRate, const std::string& pluginDir, std::string& 
         std::lock_guard<std::mutex> lock(noteLock_);
         world_ = world;
     }
+    oscNow_.store(static_cast<SC_SSPDriver*>(world->hw->mAudioDriver)->now(), std::memory_order_relaxed);
     send(Osc("/g_new").i(VOICE_GROUP).i(1).i(0).bytes());  // voices, after the running synth
     return true;
 }
@@ -263,6 +268,7 @@ void ScWorld::close() {
 }
 
 void ScWorld::close(bool unload) {
+    stopScore(false);
     std::lock_guard<std::mutex> lock(noteLock_);
     if (!world_)
         return;
@@ -274,6 +280,8 @@ void ScWorld::close(bool unload) {
         if (--openWorlds == 0 && unload) deinitialize_library();
     }
     world_ = nullptr;
+    buffers_.clear();
+    wanted_.clear();
     node_ = 0;
     bank_ = -1;
     def_.clear();
@@ -342,6 +350,10 @@ bool ScWorld::load(const std::string& path, std::string& error, int timeoutMs) {
         error = "cannot read " + path;
         return false;
     }
+    if (isScore(file)) {
+        Score score;
+        return readScore(file, score, error) && loadScore(score, error, {}, false, timeoutMs);
+    }
     return loadDef(file, error, {}, false, false, timeoutMs);
 }
 
@@ -401,6 +413,7 @@ bool ScWorld::loadDef(const std::string& file, std::string& error, const std::ve
         send(Osc("/d_free").s(def).bytes());
         return false;
     }
+    stopScore(true);
     std::lock_guard<std::mutex> lock(noteLock_);
     if (node_)
         send(Osc("/n_free").i(node_).bytes());
@@ -414,10 +427,163 @@ bool ScWorld::loadDef(const std::string& file, std::string& error, const std::ve
     node_ = voices ? 0 : node;
     bank_ = bank;
     def_ = def;
+    freeStaleBuffers();
+    wanted_.clear();
     voices_ = voices;
     mapped_ = mapped;
     error.clear();
     return true;
+}
+
+bool ScWorld::loadScore(const Score& score, std::string& error, const std::vector<Mapping>& mapped, bool pump,
+                        int timeoutMs) {
+    if (!world_) {
+        error = "scsynth is not running";
+        return false;
+    }
+    if (score.voices.size() > size_t(MAX_SCORE_DEFS)) {
+        error = "score has " + std::to_string(score.voices.size()) + " voice SynthDefs; at most " +
+                std::to_string(MAX_SCORE_DEFS);
+        return false;
+    }
+    pump_ = pump;
+    std::vector<std::string> failures;
+    waitFor("", "", 0, failures);  // drops stale replies
+    // Buffers, then the voice defs under names of this World's own.
+    std::vector<std::string> names, commands = score.setup;
+    for (const auto& v : score.voices) {
+        names.push_back("scsy" + std::to_string(gDefs.fetch_add(1) + 1));
+        commands.push_back(Osc("/d_recv").b(renameSynthDef(v, names.back())).bytes());
+    }
+    bool sent = sendInBatches(commands, error, timeoutMs);
+    pump_ = false;
+    auto freeDefs = [&] {
+        for (const auto& n : names) send(Osc("/d_free").s(n).bytes());
+    };
+    if (!sent) {
+        freeDefs();
+        return false;
+    }
+    if (!loadDef(score.main, error, mapped, false, pump, timeoutMs)) {  // stops the running score
+        freeDefs();
+        return false;
+    }
+    send(Osc("/g_new").i(SCORE_GROUP).i(2).i(node_).bytes());  // before the main synth, which reads the voices
+    scoreGroup_ = true;
+    scoreDefs_ = names;
+    scoreEvents_.clear();
+    for (const auto& e : score.events) scoreEvents_.push_back({ e.time, e.voice });
+    scoreLength_ = score.length;
+    if (!scoreEvents_.empty()) {
+        scoreStart_ = oscNow_.load(std::memory_order_relaxed) + int64_t(SCORE_LATENCY * 4294967296.0);
+        feeding_.store(true, std::memory_order_relaxed);
+        feeder_ = std::thread(&ScWorld::feed, this);
+    }
+    return true;
+}
+
+bool ScWorld::sendInBatches(const std::vector<std::string>& commands, std::string& error, int timeoutMs) {
+    // The reply ring drops replies it cannot hold, so each batch is closed by /sync.
+    std::vector<std::string> failures;
+    const size_t batch = REPLIES / 2;
+    for (size_t i = 0; i < commands.size() + 1; i += batch) {
+        for (size_t k = i; k < std::min(i + batch, commands.size()); k++) send(commands[k]);
+        const int sync = 7300 + int(i / batch);
+        if (!send(Osc("/sync").i(sync).bytes()) || !waitFor("/synced", std::to_string(sync), timeoutMs, failures)) {
+            error = "scsynth did not answer";
+            return false;
+        }
+    }
+    if (!failures.empty()) {
+        error = failures.front();
+        return false;
+    }
+    return true;
+}
+
+bool ScWorld::loadBuffers(const std::vector<Buffer>& buffers, std::string& error, bool pump, int timeoutMs) {
+    if (!world_) {
+        error = "scsynth is not running";
+        return false;
+    }
+    std::vector<std::string> commands;
+    std::vector<Buffer> sent;
+    for (const Buffer& b : buffers) {
+        if (std::find(buffers_.begin(), buffers_.end(), b) != buffers_.end()) continue;  // held as it is
+        sent.push_back(b);
+        if (b.path.empty())
+            commands.push_back(Osc("/b_alloc").i(b.number).i(int(std::lround(b.seconds * world_->mSampleRate)))
+                                   .i(b.channels).bytes());
+        else
+            commands.push_back(Osc("/b_allocRead").i(b.number).s(b.path).bytes());
+    }
+    pump_ = pump;
+    std::vector<std::string> stale;
+    waitFor("", "", 0, stale);  // drops stale replies
+    bool ok = sendInBatches(commands, error, timeoutMs);
+    pump_ = false;
+    // what scsynth now holds: the new buffers, and the old ones until a load runs without them. After
+    // a failure the buffers sent are in doubt, so the next load sends them again.
+    for (Buffer b : sent) {
+        if (!ok) b.modified = -1;
+        auto held = std::find_if(buffers_.begin(), buffers_.end(), [&](const Buffer& h) { return h.number == b.number; });
+        if (held != buffers_.end()) *held = b;
+        else buffers_.push_back(b);
+    }
+    if (ok) wanted_ = buffers;
+    return ok;
+}
+
+void ScWorld::freeStaleBuffers() {
+    for (auto h = buffers_.begin(); h != buffers_.end();) {
+        bool named = std::any_of(wanted_.begin(), wanted_.end(), [&](const Buffer& b) { return b.number == h->number; });
+        if (named) {
+            ++h;
+        } else {
+            send(Osc("/b_free").i(h->number).bytes());
+            h = buffers_.erase(h);
+        }
+    }
+}
+
+// Sends the score's voices as bundles timed SCORE_AHEAD ahead of the World's clock, which runs with
+// the audio, so a stalled host stalls the score too. Event k of a pass p starts at
+// p * length + time. A score of length 0 plays once.
+void ScWorld::feed() {
+    const double unit = 4294967296.0;
+    const size_t n = scoreEvents_.size();
+    uint64_t k = 0;
+    while (feeding_.load(std::memory_order_relaxed)) {
+        const int64_t horizon = oscNow_.load(std::memory_order_relaxed) + int64_t(SCORE_AHEAD * unit);
+        for (;;) {
+            const uint64_t pass = k / n;
+            if (pass > 0 && scoreLength_ <= 0.0)
+                return;
+            const auto& e = scoreEvents_[k % n];
+            const int64_t when = scoreStart_ + int64_t((double(pass) * scoreLength_ + e.first) * unit);
+            if (when > horizon)
+                break;
+            send(bundle({ Osc("/s_new").s(scoreDefs_[size_t(e.second)]).i(-1).i(0).i(SCORE_GROUP).bytes() }, when));
+            k++;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+}
+
+void ScWorld::stopScore(bool free) {
+    feeding_.store(false, std::memory_order_relaxed);
+    if (feeder_.joinable())
+        feeder_.join();
+    if (free && world_) {
+        if (scoreGroup_) {
+            send(Osc("/clearSched").bytes());  // voices sent for later
+            send(Osc("/n_free").i(SCORE_GROUP).bytes());
+        }
+        for (const auto& n : scoreDefs_) send(Osc("/d_free").s(n).bytes());
+    }
+    scoreGroup_ = false;
+    scoreDefs_.clear();
+    scoreEvents_.clear();
 }
 
 std::string ScWorld::mapMessage(const char* address, int node, const std::vector<Mapping>& mapped, int bank,
@@ -557,6 +723,7 @@ void ScWorld::process(const float* const* in, float* const* out, int n, const fl
         }
     }
     driver->end();
+    oscNow_.store(driver->now(), std::memory_order_relaxed);
 }
 
 }  // namespace scsy

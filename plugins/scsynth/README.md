@@ -27,8 +27,8 @@ The preset stores the file's path, not its contents.
 | UGens | any in `/media/BOOT/scsy/ugens`; a missing one fails the load with `UGen 'X' not installed` |
 
 - The SSP sets the sample rate. scsynth runs in 64-frame blocks; the SSP's 128-frame block adds no latency.
-- Only the file's first SynthDef runs.
-- No buffers (`PlayBuf`, `GrainBufJ`, ... have nothing to read), no StkInst (it reads rawwave files from a path).
+- Only the file's first SynthDef runs. A score runs several; see Scores.
+- Buffers come from the sidecar; see Buffers. No StkInst (it reads rawwave files from a path).
 
 ## Controls
 
@@ -45,6 +45,34 @@ A sidecar beside the def, `filter.txt` for `filter.scsyndef`, chooses the contro
 A label that names no control in the def fails the load. `cv N` at the end of a line makes input N move the control; see [CV in](#cv-in).
 
 A new def starts with its defaults on every control; Load then sets the knobs to those defaults. A control the def reads only at the start, such as `DC`'s input, keeps its default for the synth's life.
+
+## Buffers
+
+The sidecar names buffers, and `scsy` fills them before the synth starts. The def reads them by number, as `PlayBuf.ar(buffer_id=0, ...)`:
+
+```
+// @buf 0 samples/loop.wav
+// @buf 1 alloc 10 2
+```
+
+- `@buf N path`: a sound file libsndfile reads, such as WAV, AIFF or FLAC. A relative path is relative to the def's folder.
+- `@buf N alloc SECONDS [CHANNELS]`: an empty buffer, for recording. CHANNELS defaults to 1.
+- N is 0..63. A file that cannot be opened fails the load, and the running def keeps playing.
+- A reload skips a line that has not changed, file and modification time included, so a recording in an `alloc` buffer survives it. A number the new def no longer names is freed once it runs.
+- At most 256 MB of buffers, as 32-bit samples: about 23 minutes of mono at 48 kHz. Over that, the load fails before anything is read.
+- scsynth does not resample: play a file recorded at another rate with `BufRateScale`.
+- A rate change reopens scsynth, which reloads the def and its buffers; `alloc` buffers lose their recordings.
+
+## Scores
+
+A score is an NRT command file (scsynth's non-real-time format): timed bundles of OSC commands. [sapf-sc](https://github.com/shakfu/sapf-sc)'s `>nrt` writes one for a program whose `ola` starts a synth per sound. Load a score as a def; its sidecar has the same name, `texture.txt` for `texture.osc`.
+
+- The first `/s_new` starts the main synth. Its def takes `p1`..`p16`, the sidecar and MIDI as a `.scsyndef` would.
+- Every later `/s_new` starts a synth at its bundle's time, in a group before the main synth, so the main synth can read the buses they write. scsynth starts each on the 64-frame block that holds its time.
+- `/d_recv` and buffer commands (`/b_...`) run when the score loads, wherever they are in the file. A relative path in `/b_allocRead` is relative to the score's folder. The sidecar's `@buf` lines work as for a def.
+- The score loops at the time of its last bundle.
+- `/d_free`, `/c_set` and `/g_freeAll` are ignored; any other command fails the load.
+- At most 900 SynthDefs besides the main one.
 
 ## Inputs and outputs
 

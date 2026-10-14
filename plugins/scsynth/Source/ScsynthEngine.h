@@ -28,6 +28,10 @@ namespace scsy {
 // ScWorld::VOICES notes are held. Notes set those three, so p1..p16 leave them out. A def without
 // `gate` runs one synth, whose `freq` and `velocity` notes set when no control is mapped to them.
 //
+// A score (`foo.osc`, an NRT command file such as sapf-sc's >nrt writes; see Score) runs its first
+// /s_new as the main synth, with the controls above, and starts its other synths on schedule,
+// looping. A voice def in a score is not a MIDI voice.
+//
 // A new synth starts with its def's defaults on its controls, as the knobs will show after a Load;
 // a control read only at the start (an init-rate input, such as DC's) keeps that value. Its knobs
 // drive it from the next block. The two synths of a reload use different control buses, so a
@@ -49,6 +53,12 @@ public:
     // a control the def lacks. mapped[i] is the control p(i+1) drives.
     static bool controlSpecs(const SynthDefInfo& info, const std::string& sidecar, Specs& specs,
                              std::vector<ScWorld::Mapping>& mapped, std::string& error);
+    // The buffers `sidecar` names in `// @buf N path` and `// @buf N alloc SECONDS [CHANNELS]`
+    // lines, with relative paths from `dir`; false, with `error`, for a bad line, a file libsndfile
+    // cannot open, or more than MAX_BUFFER_BYTES at `rate`.
+    static bool bufferSpecs(const std::string& sidecar, const std::string& dir, float rate,
+                            std::vector<ScWorld::Buffer>& buffers, std::string& error);
+    static constexpr long long MAX_BUFFER_BYTES = 256LL << 20;  // as 32-bit float
 
 protected:
     bool compile(const std::string& text, const std::string& path, std::string& error) override;
