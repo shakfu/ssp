@@ -31,6 +31,8 @@ DATA = {
     "rack": [("presets", "rack_presets", "*")],
     # under examples/, where Disk does not read them into the scene slots
     "ttyp": [("plugins/teletype/examples", "teletype/examples", "tt*.txt")],
+    # its own copy of the UGens: scsy and sapf in one patch must not share the libraries
+    "sapf": [("{sapf}", "sapf", "sapf-prelude.txt"), ("{deps}/scsynth/plugins", "sapf/ugens", "**")],
 }
 
 # folders a module reads that the user fills
@@ -45,7 +47,7 @@ USER_DATA = {
 }
 
 LICENSES = {"gltc": "GPL-3.0", "sfct": "GPL-3.0, for softcut", "scsy": "GPL-3.0, for SuperCollider",
-            "ttyp": "GPL-3.0, for monome teletype", "dexd": "GPL-3.0, for Dexed"}
+            "ttyp": "GPL-3.0, for monome teletype", "dexd": "GPL-3.0, for Dexed", "sapf": "GPL-3.0, for sapf"}
 
 SK_ENGINES = "https://github.com/shakfu/sk-engines"
 
@@ -64,6 +66,7 @@ ORIGINS = {
     "fstr": "new",
     "dexd": "[Synth_Dexed](https://codeberg.org/dcoredump/Synth_Dexed), the [Dexed](https://github.com/asb2m10/dexed) engine",
     "ttyp": "[monome teletype](https://github.com/monome/teletype), on [monome-rack](https://github.com/Dewb/monome-rack)'s mock hardware",
+    "sapf": "[sapf-sc](https://github.com/shakfu/sapf-sc), [sapf](https://github.com/lfnoise/sapf) on SuperCollider's scsynth",
 }
 
 
@@ -86,6 +89,12 @@ class Plugin:
     product: str
     version: str
     description: str
+
+
+def sapf_source(root: pathlib.Path) -> pathlib.Path:
+    """The sapf-sc checkout scripts/fetch_sapf.sh fetches, at the commit it pins."""
+    ref = re.search(r"^SAPF_REF=([0-9a-f]+)", (root / "scripts" / "fetch_sapf.sh").read_text(), re.M).group(1)
+    return root / "build" / "deps" / "src" / f"sapf-sc-{ref}"
 
 
 def find_plugins(root: pathlib.Path) -> list[Plugin]:
@@ -153,7 +162,9 @@ def readme(version: str, tag: str, plugins: list[Plugin]) -> str:
                                                     "csound": "example orchestras", "chuck": "example programs",
                                                     "scsy": "example SynthDefs; `ugens/` holds the UGen plugins "
                                                             "they load",
-                                                    "rack_presets": "presets"}[folder]))
+                                                    "rack_presets": "presets",
+                                                    "sapf": "the prelude sapf loads, and the code it saves; `ugens/` "
+                                                            "holds the UGen plugins, a copy of scsy's"}[folder]))
     data = "\n".join(f"| `{f}` | {m if m == 'all' else f'`{m}`'} | {w} |" for f, m, w in data_rows)
     user = "\n".join(f"| `{f}` | `{m}` | {w} |" for m, (f, w) in USER_DATA.items())
     licences = "; ".join(f"`{m}` is {l}" for m, l in LICENSES.items())
@@ -188,7 +199,7 @@ Folders a module reads that you fill:
 ## Requirements
 
 - `fstr` uses the SSP's own `/usr/lib/libLLVM-9.so`, part of its system.
-- `ttyp` takes a USB keyboard through a USB 2.0 hub on the SSP's free USB port.
+- `ttyp` and `sapf` take a USB keyboard through a USB 2.0 hub on the SSP's free USB port.
 
 ## Licence
 
@@ -223,7 +234,8 @@ def to_pdf(dest: pathlib.Path, skip: list[pathlib.Path], render: Callable[[pathl
 
 
 def package(root: pathlib.Path, build_dir: pathlib.Path, deps_dir: pathlib.Path, out_dir: pathlib.Path,
-            version: str, strip: str | None, pdf: Callable[[pathlib.Path], None] | None = None) -> pathlib.Path:
+            version: str, strip: str | None, pdf: Callable[[pathlib.Path], None] | None = None,
+            sapf_dir: pathlib.Path | None = None) -> pathlib.Path:
     """Builds out_dir/shakfu-ssp-plugins-<version>/ and its zip; returns the zip's path. With pdf, the
     package's Markdown is rendered to PDF by that function and only the PDFs are kept."""
     release_tag = tag(version)
@@ -251,7 +263,7 @@ def package(root: pathlib.Path, build_dir: pathlib.Path, deps_dir: pathlib.Path,
 
     for sources in DATA.values():
         for src, folder, pattern in sources:
-            src_dir = pathlib.Path(src.format(deps=deps_dir))
+            src_dir = pathlib.Path(src.format(deps=deps_dir, sapf=sapf_dir or sapf_source(root)))
             src_dir = src_dir if src_dir.is_absolute() else root / src_dir
             if not src_dir.is_dir():
                 raise SystemExit(f"missing {src_dir}")

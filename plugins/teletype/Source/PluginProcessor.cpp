@@ -2,7 +2,7 @@
 
 #include <cstdlib>
 
-#include "KeyInput.h"
+#include "keys/KeyInput.h"
 #include "PluginEditor.h"
 #include "ssp/Log.h"
 
@@ -31,16 +31,16 @@ PluginProcessor::PluginProcessor(const AudioProcessor::BusesProperties& ioLayout
     for (unsigned o = 0; o < ttyp::Teletype::OUTS; o++) cvRange_[o] = vts().getParameter(ID::cvRange(o));
     init();
     teletype_ = std::make_unique<ttyp::Teletype>(ttyp_firmware_begin, size_t(ttyp_firmware_end - ttyp_firmware_begin));
-    ttyp::KeyInput::acquire();
+    ssp::KeyInput::acquire(ttyp::KEY_PORT, ttyp::KEYBOARD_ENV);
     if (teletype_->ok()) {
         teletype_->start();
-        ttyp::KeyInput::setTarget(teletype_.get());  // the newest instance takes the keys
+        ssp::KeyInput::setTarget(teletype_.get());  // the newest instance takes the keys
     }
 }
 
 PluginProcessor::~PluginProcessor() {
-    ttyp::KeyInput::clearTarget(teletype_.get());
-    ttyp::KeyInput::release();
+    ssp::KeyInput::clearTarget(teletype_.get());
+    ssp::KeyInput::release();
     teletype_.reset();
 }
 

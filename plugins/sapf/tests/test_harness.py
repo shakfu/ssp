@@ -1,7 +1,7 @@
 """The step 1 harness on the host: block splitting, determinism, runaway blocks, and compare.py.
 
-Needs a sapf-sc checkout at SAPF_SC_DIR, default ../sapf-sc; skipped without one. The device run is
-run_on_ssp.sh.
+Builds against SAPF_SC_DIR, a sapf-sc checkout, or else the commit scripts/fetch_sapf.sh pins (network on
+the first run). The device run is run_on_ssp.sh.
 """
 
 import os
@@ -15,7 +15,15 @@ import pytest
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
-SAPF = Path(os.environ.get("SAPF_SC_DIR", ROOT.parent / "sapf-sc"))
+
+def sapf_dir() -> Path:
+    if "SAPF_SC_DIR" in os.environ:
+        return Path(os.environ["SAPF_SC_DIR"])
+    out = subprocess.run([ROOT / "scripts" / "fetch_sapf.sh"], check=True, capture_output=True, text=True)
+    return Path(out.stdout.strip())
+
+
+SAPF = sapf_dir()
 PRELUDE = SAPF / "sapf-prelude.txt"
 
 sys.path.insert(0, str(HERE))
@@ -25,8 +33,6 @@ import examples  # noqa: E402
 
 @pytest.fixture(scope="module")
 def harness():
-    if not (SAPF / "src" / "engine" / "CMakeLists.txt").exists():
-        pytest.skip(f"no sapf-sc checkout at {SAPF}")
     if not shutil.which("clang++"):
         pytest.skip("no clang++")
     b = ROOT / "build" / "sapf-harness-test"

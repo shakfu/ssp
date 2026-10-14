@@ -303,6 +303,12 @@ void ScWorld::onReply(ReplyAddress* addr, char* buf, int size) {
     r.full.store(true, std::memory_order_release);
 }
 
+double ScWorld::now() const {
+    constexpr double FROM_1900 = 2208988800.0;  // OSC time counts from 1900
+    // unsigned: 32.32 time since 1900 has passed 2^63
+    return double(uint64_t(oscNow_.load(std::memory_order_relaxed))) / 4294967296.0 - FROM_1900;
+}
+
 bool ScWorld::send(const std::string& packet) {
     std::string copy = packet;  // World_SendPacket takes a mutable buffer and copies it
     return World_SendPacketWithContext(world_, int(copy.size()), copy.data(), onReply, this);

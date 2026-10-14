@@ -1,6 +1,6 @@
 #include "PluginEditor.h"
 
-#include "KeyInput.h"
+#include "keys/KeyInput.h"
 #include "SSP.h"
 
 namespace {
@@ -44,7 +44,7 @@ void onTeletypeEncoder(PluginProcessor& p, unsigned enc, float v, bool rangePage
 
 void onTeletypeTimer(PluginProcessor& p, ScreenImage& screen) {
     if (auto* tt = p.teletype()) {
-        ttyp::KeyInput::setTarget(tt);
+        ssp::KeyInput::setTarget(tt);  // also marks the editor as on screen
         screen.update(*tt);
     }
 }
@@ -125,8 +125,8 @@ void PluginEditor::drawView(Graphics& g) {
         line("firmware: " + processor_.error(), juce::Colours::red);
         return;
     }
-    line(ttyp::KeyInput::keyboardConnected() ? "keyboard: connected" : "keyboard: none (or tcp :" +
-                                                                           juce::String(ttyp::KeyInput::PORT) + ")");
+    line(ssp::KeyInput::keyboardConnected() ? "keyboard: connected" : "keyboard: none (or tcp :" +
+                                                                           juce::String(ttyp::KEY_PORT) + ")");
     auto text = [&](const juce::String& id) { return processor_.getParameter(id)->getCurrentValueAsText(); };
     auto active = rangePage_ ? juce::Colours::white : juce::Colours::grey;
     line((rangePage_ ? "enc 1-4: CV ranges" : "enc 1: param  enc 2: in range"), juce::Colours::cyan);

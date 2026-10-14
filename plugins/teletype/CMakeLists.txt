@@ -26,13 +26,14 @@ juce_add_plugin(TELETYPE
         PRODUCT_NAME "ttyp")
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/../common/CMakeLists.txt)
+include(${CMAKE_CURRENT_SOURCE_DIR}/../common/keys/CMakeLists.txt)
 
 target_sources(TELETYPE
         PUBLIC
         Source/SSPApi.cpp
         PRIVATE
         Source/Firmware.cpp
-        Source/KeyInput.cpp
+        ${KEYS_SRC}
         Source/PluginEditor.cpp
         Source/PluginProcessor.cpp
         Source/Teletype.cpp

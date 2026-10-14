@@ -9,13 +9,18 @@
 #include <vector>
 
 #include "Firmware.h"
+#include "keys/KeyInput.h"
 
 namespace ttyp {
+
+// ttyp's key port, and the variable whose value 0 turns its USB keyboard off (see ssp::KeyInput)
+constexpr uint16_t KEY_PORT = 7770;
+constexpr const char* KEYBOARD_ENV = "TTYP_KEYBOARD";
 
 // The teletype firmware on its own thread, ticked every 1 ms as the hardware's timer does. A script
 // can run for milliseconds (a 16000-step loop took 2.5-5.7 ms on the SSP), so the audio thread never
 // calls the firmware: it exchanges inputs and outputs through atomics. No JUCE, so it tests natively.
-class Teletype {
+class Teletype : public ssp::KeyTarget {
 public:
     static constexpr unsigned TRIGS = 8;
     static constexpr unsigned OUTS = 4;
@@ -44,10 +49,10 @@ public:
     bool trigger(unsigned i) const { return i < TRIGS && level_[i].load(std::memory_order_relaxed); }
 
     // any thread
-    void keyDown(uint8_t usage) { push({ K_DOWN, usage, 0 }); }  // HID usage, 0xE0-0xE7 for modifiers
-    void keyUp(uint8_t usage) { push({ K_UP, usage, 0 }); }
-    void releaseAll() { push({ K_RELEASE_ALL, 0, 0 }); }  // keyboard gone
-    void keyTap(uint8_t usage, uint8_t mod) { push({ K_TAP, usage, mod }); }  // typed text
+    void keyDown(uint8_t usage) override { push({ K_DOWN, usage, 0 }); }  // HID usage, 0xE0-0xE7 for modifiers
+    void keyUp(uint8_t usage) override { push({ K_UP, usage, 0 }); }
+    void releaseAll() override { push({ K_RELEASE_ALL, 0, 0 }); }  // keyboard gone
+    void keyTap(uint8_t usage, uint8_t mod) override { push({ K_TAP, usage, mod }); }  // typed text
     void setFront(bool pressed) { front_.store(pressed, std::memory_order_relaxed); }
 
     // UI thread: copy of the screen, one byte per pixel, 0-15; returns a count that changes with it

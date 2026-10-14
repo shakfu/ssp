@@ -12,6 +12,7 @@ import pytest
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
 SOURCE = HERE.parent / "Source"
+COMMON = ROOT / "plugins" / "common"
 FW_BUILD = ROOT / "build" / "ttyp-fw-host"
 
 
@@ -33,9 +34,9 @@ def engine_test(tmp_path_factory):
         pytest.skip("no host C++ compiler")
     exe = tmp_path_factory.mktemp("ttyp") / "engine_test"
     cmd = [
-        cxx, "-std=c++17", "-O2", "-Wall", "-pthread", f"-I{SOURCE}",
+        cxx, "-std=c++17", "-O2", "-Wall", "-pthread", f"-I{SOURCE}", f"-I{COMMON}",
         str(HERE / "engine_test.cpp"),
-        *(str(SOURCE / f) for f in ("Firmware.cpp", "Teletype.cpp", "KeyInput.cpp")),
+        *(str(SOURCE / f) for f in ("Firmware.cpp", "Teletype.cpp")), str(COMMON / "keys" / "KeyInput.cpp"),
         "-ldl", "-o", str(exe),
     ]
     subprocess.run(cmd, check=True)

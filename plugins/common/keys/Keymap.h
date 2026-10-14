@@ -5,10 +5,10 @@
 #ifdef __linux__
 #include <linux/input-event-codes.h>
 
-namespace ttyp {
+namespace ssp {
 
 // Linux evdev key code to HID keyboard usage (USB HID Usage Tables, page 0x07); 0 for keys
-// teletype has no use for.
+// KeyInput does not deliver.
 inline uint8_t hidUsage(unsigned code) {
     switch (code) {
         case KEY_A: return 0x04; case KEY_B: return 0x05; case KEY_C: return 0x06; case KEY_D: return 0x07;
@@ -47,5 +47,5 @@ inline uint8_t hidUsage(unsigned code) {
     }
 }
 
-}  // namespace ttyp
+}  // namespace ssp
 #endif

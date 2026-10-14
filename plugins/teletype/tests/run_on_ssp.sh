@@ -25,7 +25,8 @@ cpu=(--target=arm-linux-gnueabihf --sysroot="$sysroot" -mcpu=cortex-a17 -mfloat-
 link=(-fuse-ld=lld -L"$sysroot/lib" -B"$sysroot/lib" -Wl,-rpath-link,"$sysroot/lib" -L"$gcc" -B"$gcc"
     -Wl,-rpath-link,"$gcc")
 clang++ "${cpu[@]}" -O2 -std=c++17 -Wall -pthread -I"$cxxinc" -I"$cxxinc/arm-rockchip-linux-gnueabihf" -I"$src" \
-    "$root/plugins/teletype/tests/engine_test.cpp" "$src/Firmware.cpp" "$src/Teletype.cpp" "$src/KeyInput.cpp" \
+    -I"$root/plugins/common" "$root/plugins/teletype/tests/engine_test.cpp" "$src/Firmware.cpp" "$src/Teletype.cpp" \
+    "$root/plugins/common/keys/KeyInput.cpp" \
     -ldl "${link[@]}" -o "$out/engine_test"
 clang "${cpu[@]}" -O2 -Wno-header-guard -D__AVR32_UC3B0512__ -I"$tt/monome-rack/firmware/mock_hardware/include" \
     -I"$root/plugins/teletype/firmware/include" -I"$tt/libavr32/src" "$root/plugins/teletype/spike/harness.c" -ldl "${link[@]}" \

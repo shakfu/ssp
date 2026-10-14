@@ -13,7 +13,7 @@ ROOT = release.ROOT
 def test_finds_every_plugin_with_its_version():
     plugins = {p.product: p for p in release.find_plugins(ROOT)}
     assert set(plugins) == {"bard", "chrs", "chuk", "csnd", "edrm", "fstr", "gltc", "strc", "rack", "rdio", "sfct",
-                            "scsy", "ttyp", "dexd"}
+                            "scsy", "ttyp", "dexd", "sapf"}
     assert all(p.version and p.description for p in plugins.values())
 
 
@@ -40,12 +40,14 @@ def fake_build(tmp: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path]:
     (deps / "scsynth" / "plugins" / "sc3-plugins").mkdir(parents=True)
     (deps / "scsynth" / "plugins" / "OscUGens.so").write_bytes(b"so")
     (deps / "scsynth" / "plugins" / "sc3-plugins" / "TJUGens.so").write_bytes(b"so")
+    (tmp / "sapf-sc").mkdir()
+    (tmp / "sapf-sc" / "sapf-prelude.txt").write_text("")
     return build, deps
 
 
 def test_package_mirrors_the_card(tmp_path):
     build, deps = fake_build(tmp_path)
-    archive = release.package(ROOT, build, deps, tmp_path / "out", "9.9.9", None)
+    archive = release.package(ROOT, build, deps, tmp_path / "out", "9.9.9", None, sapf_dir=tmp_path / "sapf-sc")
     top = tmp_path / "out" / "shakfu-ssp-plugins-9.9.9"
     products = {p.product for p in release.find_plugins(ROOT)}
 
@@ -58,6 +60,8 @@ def test_package_mirrors_the_card(tmp_path):
     assert (top / "BOOT" / "scsy" / "filter.scsyndef").is_file()
     assert (top / "BOOT" / "scsy" / "filter.txt").is_file()
     assert (top / "BOOT" / "scsy" / "ugens" / "sc3-plugins" / "TJUGens.so").is_file()
+    assert (top / "BOOT" / "sapf" / "sapf-prelude.txt").is_file()
+    assert (top / "BOOT" / "sapf" / "ugens" / "OscUGens.so").is_file()
     for product in products:
         assert (top / "docs" / product / "README.md").is_file()
     assert (top / "docs" / "gltc" / "LICENSE").is_file()
@@ -89,7 +93,7 @@ def test_missing_build_stops(tmp_path):
     build, deps = fake_build(tmp_path)
     next(build.rglob("csnd.so")).unlink()
     try:
-        release.package(ROOT, build, deps, tmp_path / "out", "9.9.9", None)
+        release.package(ROOT, build, deps, tmp_path / "out", "9.9.9", None, sapf_dir=tmp_path / "sapf-sc")
     except SystemExit as e:
         assert "csnd" in str(e)
     else:
@@ -108,7 +112,7 @@ def test_pdf_package_keeps_only_pdfs(tmp_path):
     def fake_render(md):  # the PDF holds the text quarto would have rendered
         md.with_suffix(".pdf").write_text(md.read_text())
 
-    release.package(ROOT, build, deps, tmp_path / "out", "9.9.9", None, fake_render)
+    release.package(ROOT, build, deps, tmp_path / "out", "9.9.9", None, fake_render, tmp_path / "sapf-sc")
     top = tmp_path / "out" / "shakfu-ssp-plugins-9.9.9"
     libraries = top / "BOOT" / "faust" / "libraries"
     assert [md for md in top.rglob("*.md") if not md.is_relative_to(libraries)] == []

@@ -108,6 +108,16 @@ public:
     // buses; a null signal leaves its bus alone.
     void process(const float* const* in, float* const* out, int n, const float* const* controls = nullptr);
 
+    // Raw OSC, for a client with its own program model (the sapf plugin). Any thread: scsynth's driver
+    // lock orders packets.
+    bool send(const std::string& packet);
+    // Worker thread, one caller at a time: sends `commands`, each answering at most one reply, in
+    // batches the reply ring holds; false if scsynth does not answer or any fails, with the first
+    // failure in `error`.
+    bool sendInBatches(const std::vector<std::string>& commands, std::string& error, int timeoutMs);
+    // Any thread: the OSC time of the next block, in seconds since 1970. It advances with process().
+    double now() const;
+
 private:
     void close(bool unload);
 
@@ -119,7 +129,6 @@ private:
     };
     static constexpr int REPLIES = 16;
     static void onReply(ReplyAddress* addr, char* buf, int size);
-    bool send(const std::string& packet);
     int controlBus(int bank, int i) const;
     // /n_map or /n_mapa for `node`: the mapped controls of that kind, on `bank`'s buses
     std::string mapMessage(const char* address, int node, const std::vector<Mapping>& mapped, int bank,
@@ -129,9 +138,6 @@ private:
     static constexpr int MAX_SCORE_DEFS = 900;  // of scsynth's 1024 SynthDefs
     // The score's voices go to scsynth this far ahead, as timed bundles. In OSC time: 2^32 a second.
     static constexpr double SCORE_AHEAD = 0.5, SCORE_LATENCY = 0.05;
-    // Sends `commands`, each answering /done or /fail, in batches the reply ring holds; false if
-    // scsynth does not answer or any fails, with the first failure in `error`.
-    bool sendInBatches(const std::vector<std::string>& commands, std::string& error, int timeoutMs);
     void freeStaleBuffers();
     std::vector<Buffer> buffers_;  // held
     std::vector<Buffer> wanted_;   // the next load's

@@ -17,7 +17,7 @@
 #include <thread>
 #include <vector>
 
-#include "KeyInput.h"
+#include "keys/KeyInput.h"
 #include "Teletype.h"
 
 using ttyp::Teletype;
@@ -251,7 +251,7 @@ static bool portFree() {
     setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof one);
     sockaddr_in a = {};
     a.sin_family = AF_INET;
-    a.sin_port = htons(ttyp::KeyInput::PORT);
+    a.sin_port = htons(ttyp::KEY_PORT);
     a.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     bool ok = ::bind(fd, reinterpret_cast<sockaddr*>(&a), sizeof a) == 0;
     ::close(fd);
@@ -261,18 +261,18 @@ static bool portFree() {
 static void testTcp() {
     // connecting to another process's ttyp would type into it
     if (!portFree()) {
-        std::printf("tcp: skipped, port %u in use\n", ttyp::KeyInput::PORT);
+        std::printf("tcp: skipped, port %u in use\n", ttyp::KEY_PORT);
         return;
     }
     auto t = boot();
-    ttyp::KeyInput::setKeyboardScan(false);
-    ttyp::KeyInput::acquire();
-    ttyp::KeyInput::setTarget(t.get());
+    ssp::KeyInput::setKeyboardScan(false);
+    ssp::KeyInput::acquire(ttyp::KEY_PORT, ttyp::KEYBOARD_ENV);
+    ssp::KeyInput::setTarget(t.get());
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     int fd = ::socket(AF_INET, SOCK_STREAM, 0);
     sockaddr_in a = {};
     a.sin_family = AF_INET;
-    a.sin_port = htons(ttyp::KeyInput::PORT);
+    a.sin_port = htons(ttyp::KEY_PORT);
     a.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     bool connected = ::connect(fd, reinterpret_cast<sockaddr*>(&a), sizeof a) == 0;
     CHECK(connected);
@@ -282,8 +282,8 @@ static void testTcp() {
         run(*t, 20);
     }
     ::close(fd);
-    ttyp::KeyInput::clearTarget(t.get());
-    ttyp::KeyInput::release();
+    ssp::KeyInput::clearTarget(t.get());
+    ssp::KeyInput::release();
     std::printf("tcp: cv1 %.3f\n", t->cv(0));
     CHECK(near(t->cv(0), 6.0f));
 }

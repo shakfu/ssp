@@ -7,12 +7,12 @@
 # The host build uses clang, as the SSP's does: sapf-sc builds some graphs in an order that depends on
 # the compiler (probably function argument evaluation order), so gcc's defs differ in structure.
 #
-# usage: plugins/sapf/tests/run_on_ssp.sh   (SAPF_SC_DIR, default ../sapf-sc; SSP_HOST)
+# usage: plugins/sapf/tests/run_on_ssp.sh   (SAPF_SC_DIR, a sapf-sc checkout, default the pinned one; SSP_HOST)
 
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-sapf="$(cd "${SAPF_SC_DIR:-$root/../sapf-sc}" && pwd)"
+sapf="$(cd "${SAPF_SC_DIR:-$("$root/scripts/fetch_sapf.sh")}" && pwd)"
 host="${SSP_HOST:-root@192.168.1.6}"
 tests="$root/plugins/sapf/tests"
 out="$root/build/sapf-harness-out"

@@ -1,10 +1,9 @@
 #include "KeyInput.h"
 
-#include "Teletype.h"
-
 #ifdef __linux__
 #include <arpa/inet.h>
 #include <fcntl.h>
+#include <sys/mman.h>
 #include <linux/input.h>
 #include <netinet/in.h>
 #include <poll.h>
@@ -20,17 +19,31 @@
 #include "Keymap.h"
 #endif
 
-namespace ttyp {
+namespace ssp {
 
 KeyInput& KeyInput::get() {
     static KeyInput k;
     return k;
 }
 
-void KeyInput::acquire() {
+void KeyInput::acquire(uint16_t port, const char* keyboardEnv) {
     auto& k = get();
     std::lock_guard<std::mutex> lock(k.refLock_);
-    if (k.refs_++ == 0) k.start();
+    if (k.refs_++ == 0) {
+        k.port_ = port;
+        k.keyboardEnv_ = keyboardEnv;
+#ifdef __linux__
+        if (!k.claim_) {  // unmapped when the last instance releases
+            int fd = ::open(CLAIM_FILE, O_RDWR | O_CREAT | O_CLOEXEC, 0600);
+            if (fd >= 0 && ::ftruncate(fd, sizeof(uint64_t)) == 0) {
+                void* m = ::mmap(nullptr, sizeof(uint64_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+                if (m != MAP_FAILED) k.claim_ = static_cast<std::atomic<uint64_t>*>(m);
+            }
+            if (fd >= 0) ::close(fd);
+        }
+#endif
+        k.start();
+    }
 }
 
 void KeyInput::release() {
@@ -39,14 +52,48 @@ void KeyInput::release() {
     if (--k.refs_ == 0) k.stop();
 }
 
-void KeyInput::setTarget(Teletype* t) {
+void KeyInput::setTarget(KeyTarget* t) {
     auto& k = get();
+    k.shownAt_ = std::chrono::steady_clock::now().time_since_epoch().count();
+    k.claim();
     std::lock_guard<std::mutex> lock(k.lock_);
     if (k.target_ && k.target_ != t) k.target_->releaseAll();  // keys held while switching
     k.target_ = t;
 }
 
-void KeyInput::clearTarget(Teletype* t) {
+bool KeyInput::shown() const {
+    auto at = std::chrono::steady_clock::time_point(std::chrono::steady_clock::duration(shownAt_.load()));
+    return std::chrono::steady_clock::now() - at < HOLD;
+}
+
+namespace {
+uint64_t nowMs() {
+    using namespace std::chrono;
+    return uint64_t(duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count());
+}
+constexpr uint64_t MS_MASK = (uint64_t(1) << 48) - 1;
+}  // namespace
+
+void KeyInput::claim() {
+    if (claim_) claim_->store(uint64_t(port_) << 48 | (nowMs() & MS_MASK), std::memory_order_relaxed);
+}
+
+bool KeyInput::otherShown() const {
+    if (!claim_) return false;  // no claim file: keep the keyboard, as before libraries shared it
+    uint64_t c = claim_->load(std::memory_order_relaxed);
+    return uint16_t(c >> 48) != port_ && ((nowMs() - c) & MS_MASK) < uint64_t(HOLD.count());
+}
+
+bool KeyInput::wantsGrab() {
+    auto& k = get();
+    return k.shown() || !k.otherShown();
+}
+
+bool KeyInput::onScreen() {
+    return get().shown();
+}
+
+void KeyInput::clearTarget(KeyTarget* t) {
     auto& k = get();
     std::lock_guard<std::mutex> lock(k.lock_);
     if (k.target_ == t) k.target_ = nullptr;
@@ -75,8 +122,7 @@ void KeyInput::deliver(uint8_t kind, uint8_t usage, uint8_t mod) {
 // refLock_ is held: start and stop run only from acquire and release
 void KeyInput::start() {
 #ifdef __linux__
-    // TTYP_KEYBOARD=0: TCP only, for hosts whose keyboard the plugin must not grab
-    if (const char* e = std::getenv("TTYP_KEYBOARD"); e && std::string(e) == "0") scan_ = false;
+    if (const char* e = std::getenv(keyboardEnv_.c_str()); e && std::string(e) == "0") scan_ = false;
     running_ = true;
     thread_ = std::thread([this] { run(); });
 #endif
@@ -85,6 +131,10 @@ void KeyInput::start() {
 void KeyInput::stop() {
     running_ = false;
     if (thread_.joinable()) thread_.join();
+#ifdef __linux__
+    if (claim_) ::munmap(claim_, sizeof(uint64_t));
+    claim_ = nullptr;
+#endif
 }
 
 #ifdef __linux__
@@ -114,14 +164,14 @@ int openKeyboard() {
     return -1;
 }
 
-int openServer() {
+int openServer(uint16_t port) {
     int fd = ::socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
     if (fd < 0) return -1;
     int one = 1;
     setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof one);
     sockaddr_in a = {};
     a.sin_family = AF_INET;
-    a.sin_port = htons(KeyInput::PORT);
+    a.sin_port = htons(port);
     a.sin_addr.s_addr = htonl(INADDR_LOOPBACK);  // never the LAN: the port has no authentication
     if (::bind(fd, reinterpret_cast<sockaddr*>(&a), sizeof a) < 0 || ::listen(fd, 1) < 0) {
         ::close(fd);
@@ -135,7 +185,7 @@ int openServer() {
 void KeyInput::run() {
     using clock = std::chrono::steady_clock;
     int kbd = -1, cli = -1;
-    int srv = openServer();
+    int srv = openServer(port_);
     uint8_t rec[4];
     unsigned have = 0;
     auto lastScan = clock::now() - std::chrono::seconds(1);
@@ -154,7 +204,11 @@ void KeyInput::run() {
     };
 
     while (running_.load()) {
-        if (kbd < 0 && scan_.load() && clock::now() - lastScan >= std::chrono::seconds(1)) {
+        // the grab follows the screen: another library's plugin on screen can then take the keyboard
+        // off screen, retry slowly: the grab fails while another library holds the keyboard
+        const auto rescan = onScreen() ? std::chrono::milliseconds(200) : std::chrono::milliseconds(1000);
+        if (kbd >= 0 && !wantsGrab()) dropKeyboard();
+        if (kbd < 0 && wantsGrab() && scan_.load() && clock::now() - lastScan >= rescan) {
             kbd = openKeyboard();
             keyboard_ = kbd >= 0;
             lastScan = clock::now();
@@ -214,4 +268,4 @@ void KeyInput::run() {}
 
 #endif
 
-}  // namespace ttyp
+}  // namespace ssp
