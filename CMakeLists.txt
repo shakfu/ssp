@@ -78,10 +78,11 @@ endif()
 
 add_subdirectory(plugins)
 
-# the plugin guides' examples: built and tested on the host, never for the SSP or a release
+# the plugin guides' examples and host-only tests: never built for the SSP or a release
 if (NOT CMAKE_CROSSCOMPILING)
     add_subdirectory(examples/svca)
     add_subdirectory(examples/tremolo)
+    add_subdirectory(plugins/common/tests/midi)
 endif ()
 
 # set(CMAKE_FOLDER .)

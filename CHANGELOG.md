@@ -2,6 +2,12 @@
 
 Changes to the build, tools and presets. Each plugin keeps its own changelog in `plugins/<name>/CHANGELOG.md`.
 
+## [Unreleased]
+
+### Build and tools
+
+- `BaseProcessor::midiMessageInput` gives a plugin every channel message on its MIDI channel: pitch bend, controllers, aftertouch, program change, and notes while Note In is set. Before, plugins got only notes. It sits beside `midiNoteInput` rather than replacing it, so existing plugins are unchanged. `plugins/common/tests/midi` tests the dispatch on the host. For `dexd`; see [docs/dev/dexed.md](docs/dev/dexed.md).
+
 ## [0.3.0]
 
 0.2.0 was prepared but never tagged or published, so 0.3.0 is the first release since 0.1.0. It contains the changes here and everything in the 0.2.0 section of [CHANGELOG.md](CHANGELOG.md): 0.1.0 released `sfct` alone, so every other module is new since then.

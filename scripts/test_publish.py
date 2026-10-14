@@ -65,7 +65,7 @@ def test_publishes_a_ready_release(repo):
     tag_and_push(repo)
     r = publish(repo)
     assert r.returncode == 0, r.stderr
-    assert gh_calls(repo)[-1] == (f"release create {TAG} releases/{NAME}.zip --title shakfu-ssp-plugins 9.9.9 "
+    assert gh_calls(repo)[-1] == (f"release create {TAG} releases/{NAME}.zip --title ssp-plugins 9.9.9 "
                                   f"--notes-file releases/{NAME}-notes.md --verify-tag")
 
 
