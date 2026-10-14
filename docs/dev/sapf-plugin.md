@@ -1,6 +1,6 @@
 # sapf: live-coding plugin (design)
 
-Status: design, 2026-10-14. Nothing is built.
+Status: step 1 done, 2026-10-14 (see Step 1 results). Steps 2-4 not started.
 
 `sapf` runs the [sapf-sc](https://github.com/shakfu/sapf-sc) interpreter inside an SSP plugin. You type sapf code on a USB keyboard, evaluate it, and hear it through the plugin's own scsynth World. scsy already plays sapf-sc's `>nrt` scores and `@buf` sidecars on the SSP ([scsy-sapf-changes.md](scsy-sapf-changes.md)); this plugin removes the laptop step.
 
@@ -28,7 +28,7 @@ No scsy instance is needed. `sapf.so` links its own copy of `ScWorld.cpp` and `l
 Definitions persist across evaluations. The stack starts empty each time.
 
 - After an evaluation, values left on the stack are printed as a warning, then cleared. sapf's REPL keeps them; here a leftover usually means a typo. A typo dropped `osc` from a `>nrt` test score without any message (sapf-sc docs/dev/ssp.md).
-- The unit is a block: the lines around the cursor up to blank lines. A selection is not needed: sapf code has no statement separators across lines.
+- The unit is a block: the lines around the cursor up to blank lines outside brackets and strings. Three of sapf's examples have blank lines inside a bracket; splitting on every blank line broke them into six syntax errors. A selection is not needed: sapf code has no statement separators across lines.
 - Errors go to the output pane with the block's line number. The running sound keeps playing.
 
 Ctrl-Enter evaluates the block. Ctrl-. interrupts a running evaluation, then runs sapf's `stop`.
@@ -71,7 +71,7 @@ sapf-sc has no interrupt: the REPL relies on Ctrl-C ending the process. Forcing 
 
 ## Prelude
 
-1104 lines, loaded by `SapfEngine::loadPrelude` on the evaluation thread when the plugin starts. The editor accepts typing during the load and evaluates nothing until it ends. Load time on the SSP's RK3288 is unknown; step 1 measures it.
+1104 lines, loaded by `SapfEngine::loadPrelude` on the evaluation thread when the plugin starts: 0.2 s on the SSP, 6.3 MB peak RSS. The editor accepts typing during the load and evaluates nothing until it ends.
 
 ## Screen
 
@@ -89,9 +89,19 @@ sapf-sc has no interrupt: the REPL relies on Ctrl-C ending the process. Forcing 
 |-|-|-|
 | scsy and sapf share UGen libraries | Opening one path twice returns the same handle, and a UGen library's function table global then points at whichever server loaded it last. Unloading sapf while scsy runs could leave scsy's UGens calling unloaded code. Inferred; untested. | Separate UGen folder per plugin |
 | One interpreter per process | sapf's VM is a global (`vm`) | Second instance shows "one sapf per patch" and stays silent |
-| Engine never built for ARM | Accelerate shims and `log_nova` paths untested on ARM (sapf-sc docs/dev/ssp.md) | Step 1 |
-| Prelude load time | Unknown | Step 1; load in the background regardless |
-| Interpreter memory | Unknown; Synthor already uses 636 MB virtual (`ps`, 2026-10-14) | Measure RSS in step 1 |
+| Runaway evaluations | Any infinite computation, such as `ord 1e12 N +/`, blocks the evaluation thread; one that allocates exhausts the SSP's 2 GB (no swap; Synthor at 636 MB virtual) | The interrupt also needs a memory cap |
+| `log_nova` on ARM | Not exercised by step 1, which renders no audio | Step 2 renders |
+
+## Step 1 results
+
+`plugins/sapf/tests/run_on_ssp.sh` builds `harness.cpp` for the PC and the SSP, evaluates `sapf-examples.txt` (248 blocks, each `play` rewritten to a 2 s `>nrt`) on both, and compares with `compare.py`. `test_harness.py` covers the harness on the host.
+
+- Match: logs equal, 155 defs and scores, no block skipped. 8 wave-table scores differ in 1 to 14 of about 320,000 floats, by one float32 step (relative 1e-7 to 5e-6): the SSP's libm rounds differently.
+- Bug fixed in sapf-sc: `Array::setSize` and `addSize` took `size_t`. `Gen::produce` passes a negative delta; on 32-bit ARM it became 2^32 - k, and every list operation crashed. Both take `int64_t` now.
+- Compiler, not ARM: built with gcc, six of the PC's scores order UGens differently from clang's, with different random draws. The likely cause, not yet located: sapf-sc builds some graphs in function argument evaluation order, which C++ leaves unspecified. The comparison builds both sides with clang. A sapf-sc issue to fix separately.
+- Time: prelude 0.2 s on the SSP (0.04 s on the PC). Sound examples evaluate in milliseconds; the examples' number puzzles (Collatz, Kaprekar) run about 15 times slower than on the PC, up to 150 s.
+- Memory: 6.3 MB peak after the prelude, 67 MB after all examples.
+- Three examples (`native algorhythms`) grew past 2 GB on both machines: upstream `Z` calls an infinite stream finite, and `iseq` forced it to measure it. Fixed in sapf-sc (its docs/dev/upstream-sapf-bugs.md); all three now compile. The harness still evaluates each block first in a forked child with time and memory limits; the plugin cannot fork, so it needs the interrupt.
 
 ## Licence
 
@@ -101,7 +111,7 @@ GPL-3, as sapf and sapf-sc are. ttyp set the precedent in release 0.3.0.
 
 Each step ends with a check that must pass before the next.
 
-1. **ARM build of the interpreter.** `scripts/fetch_sapf.sh` pins sapf-sc by commit, as `fetch_teletype.sh` pins teletype. sapf-sc: replxx optional. A command-line harness on the SSP loads the prelude and compiles `sapf-examples.txt` blocks with `>sd`. Check: the defs match the PC's byte for byte; prelude time and RSS recorded.
+1. **ARM build of the interpreter.** Done, except `scripts/fetch_sapf.sh`, which needs the sapf-sc changes committed to pin. Check passed; see Step 1 results.
 2. **Server and clock.** sapf-sc: `ScsynthServer::now()`, the output hook. ssp: `ScWorld` raw-OSC api. A host test (pytest, as scsy's) drives a World from a loop, evaluates an `ola` program, and checks voice onsets against the score `>nrt` writes for the same program. Check: onsets within one 64-frame block.
 3. **Keys.** `KeyInput` to `plugins/common`, grab while shown, port per plugin. Check: ttyp alone unchanged on device; ttyp and a stub second plugin swap the keyboard as the screen changes.
 4. **Plugin.** Editor, output pane, evaluation thread, interrupt (sapf-sc), files. Check: device test script in `docs/dev/sapf-device-test.md`, covering typing, evaluation, errors, interrupt, audio in, unload and reload.
@@ -110,4 +120,4 @@ Each step ends with a check that must pass before the next.
 
 - Encoders: map the 16 parameters to `ctl` controls of the running synth, as scsy maps its sidecar's `@p` lines? sapf-sc's `>sd` `@p` work (its next-steps item 4) decides the format.
 - MIDI: scsy's note handling, or none?
-- A blank line as the block boundary: does that fit how you write sapf?
+- The block boundary (blank lines outside brackets): does that fit how you write sapf?
