@@ -20,6 +20,8 @@ public:
                         bool drawDefaults = true);
     ~EditorHost();
 
+    static constexpr int versionX = 1505;  // left edge of the version label, top right
+
     void paint(Graphics& g) override { drawBasicPanel(g); }
 
     void resized() override;

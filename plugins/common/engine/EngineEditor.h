@@ -44,6 +44,8 @@ protected:
     virtual void loaded(const juce::String& file, const juce::String& dir) {}
     // The file or directory the browser opens at; empty keeps its last place.
     virtual juce::String browseFrom() { return {}; }
+    // A short Left (-1) or Right (1) outside the browser.
+    virtual void step(int dir) {}
 
     void drawView(juce::Graphics& g) override;
     void onButton(unsigned id, bool v) override;

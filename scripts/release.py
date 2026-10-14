@@ -39,12 +39,13 @@ USER_DATA = {
     "bard": ("bard", "spoken-word recordings, one folder per shelf"),
     "strc": ("pstretch", "clips to stretch"),
     "sfct": ("samples", "WAV and AIFF files to load"),
+    "dexd": ("dexed", "DX7 cartridges: 32-voice `.syx` bulk dumps"),
     "ttyp": ("teletype", "scene files: Disk reads `ttNN.txt` into slot NN and writes every slot to `ttNNs.txt`; "
                          "`examples/` holds example scenes"),
 }
 
 LICENSES = {"gltc": "GPL-3.0", "sfct": "GPL-3.0, for softcut", "scsy": "GPL-3.0, for SuperCollider",
-            "ttyp": "GPL-3.0, for monome teletype"}
+            "ttyp": "GPL-3.0, for monome teletype", "dexd": "GPL-3.0, for Dexed"}
 
 SK_ENGINES = "https://github.com/shakfu/sk-engines"
 
@@ -61,6 +62,7 @@ ORIGINS = {
     "rack": "[TheTechnobear's trax](https://github.com/TheTechnobear/SSP)",
     "sfct": "[monome softcut](https://github.com/monome/softcut-lib)",
     "fstr": "new",
+    "dexd": "[Synth_Dexed](https://codeberg.org/dcoredump/Synth_Dexed), the [Dexed](https://github.com/asb2m10/dexed) engine",
     "ttyp": "[monome teletype](https://github.com/monome/teletype), on [monome-rack](https://github.com/Dewb/monome-rack)'s mock hardware",
 }
 

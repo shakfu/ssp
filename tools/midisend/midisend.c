@@ -1,11 +1,15 @@
-// An ALSA sequencer port that plays the notes written to a FIFO, so a test can play an SSP module
+// An ALSA sequencer port that plays the MIDI messages written to a FIFO, so a test can play an SSP module
 // over ssh without a MIDI keyboard. A module's general panel (RS + LS) lists it as the MIDI input
 // "midisend". Runs on the SSP; `make midisend` builds it, copies it to SSP_HOST and starts it.
 //
 // usage: midisend [FIFO]                      (default /tmp/midisend)
 //   echo "on 60 100" > /tmp/midisend          note on: note number, velocity 1..127
 //   echo "off 60" > /tmp/midisend             note off
-//   echo "ch 2" > /tmp/midisend               channel 1..16 for the notes after it; 1 at start
+//   echo "cc 64 127" > /tmp/midisend          controller: number, value 0..127
+//   echo "bend 8191" > /tmp/midisend          pitch bend: -8192..8191, 0 centred
+//   echo "pc 4" > /tmp/midisend               program change 0..127
+//   echo "at 90" > /tmp/midisend              channel aftertouch 0..127
+//   echo "ch 2" > /tmp/midisend               channel 1..16 for the messages after it; 1 at start
 
 #include <alsa/asoundlib.h>
 #include <errno.h>
@@ -45,6 +49,14 @@ int main(int argc, char** argv) {
                 snd_seq_ev_set_noteon(&ev, channel, a & 0x7F, b & 0x7F);
             } else if (sscanf(line, "off %d", &a) == 1) {
                 snd_seq_ev_set_noteoff(&ev, channel, a & 0x7F, 0);
+            } else if (sscanf(line, "cc %d %d", &a, &b) == 2) {
+                snd_seq_ev_set_controller(&ev, channel, a & 0x7F, b & 0x7F);
+            } else if (sscanf(line, "bend %d", &a) == 1) {
+                snd_seq_ev_set_pitchbend(&ev, channel, a < -8192 ? -8192 : a > 8191 ? 8191 : a);
+            } else if (sscanf(line, "pc %d", &a) == 1) {
+                snd_seq_ev_set_pgmchange(&ev, channel, a & 0x7F);
+            } else if (sscanf(line, "at %d", &a) == 1) {
+                snd_seq_ev_set_chanpress(&ev, channel, a & 0x7F);
             } else {
                 if (sscanf(line, "ch %d", &a) == 1 && a >= 1 && a <= 16) channel = a - 1;
                 continue;

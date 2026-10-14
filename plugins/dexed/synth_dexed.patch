@@ -1,0 +1,219 @@
+diff -ruN a/dexed.cpp b/dexed.cpp
+--- a/dexed.cpp	2026-10-14 05:31:21.479181501 +0300
++++ b/dexed.cpp	2026-10-14 05:35:07.765750667 +0300
+@@ -22,9 +22,13 @@
+    Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+ 
+ */
++#if defined(TEENSYDUINO) || defined(__circle__)
+ #include <arm_math.h>
++#endif
+ #include <limits.h>
+ #include <cstdlib>
++#include <cstring>
++#include <mutex>
+ #include <stdint.h>
+ #include <unistd.h>
+ #include "dexed.h"
+@@ -36,27 +40,41 @@
+ #include "controllers.h"
+ #include "PluginFx.h"
+ #include "porta.h"
++#if !defined(DISABLE_DEXED_COMPRESSOR)
+ #include "compressor.h"
++#endif
++
++
++static std::mutex tablesLock;
++static FRAC_NUM tablesRate = 0;
++
++static void initTables(FRAC_NUM rate)
++{
++  Exp2::init();
++  Tanh::init();
++  Sin::init();
++  if (rate == tablesRate)
++    return;
++  tablesRate = rate;
+ 
++  Freqlut::init(rate);
++  Lfo::init(rate);
++  PitchEnv::init(rate);
++  Env::init_sr(rate);
++  Porta::init_sr(rate);
++}
+ 
+ Dexed::Dexed(uint8_t maxnotes, uint32_t rate)
+  : voices{nullptr},
+-   samplerate{float32_t(rate)},
++   samplerate{FRAC_NUM(rate)},
+    max_notes{maxnotes},
+    engineMsfa{nullptr}, engineMkI{nullptr}, engineOpl{nullptr}
+-#if !defined(TEENSYDUINO)
++#if !defined(TEENSYDUINO) && !defined(DISABLE_DEXED_COMPRESSOR)
+    , compressor{nullptr}
+ #endif // !defined(TEENSYDUINO)
+    {
+-  Exp2::init();
+-  Tanh::init();
+-  Sin::init();
+-
+-  Freqlut::init(samplerate);
+-  Lfo::init(samplerate);
+-  PitchEnv::init(samplerate);
+-  Env::init_sr(samplerate);
+-  Porta::init_sr(samplerate);
++  std::lock_guard<std::mutex> lock(tablesLock);  // also covers EngineMkI's tables, filled below
++  initTables(samplerate);
+   fx.init(samplerate);
+ 
+   currentNote = 0;
+@@ -102,7 +120,7 @@
+   engineMkI = new EngineMkI;
+   engineOpl = new EngineOpl;
+   setEngineType(MKI);
+-#ifndef TEENSYDUINO
++#if !defined(TEENSYDUINO) && !defined(DISABLE_DEXED_COMPRESSOR)
+   compressor = new Compressor(samplerate);
+ #endif
+   use_compressor = false;
+@@ -118,7 +136,7 @@
+   delete engineMsfa;
+   delete engineMkI;
+   delete engineOpl;
+-#if !defined(TEENSYDUINO)
++#if !defined(TEENSYDUINO) && !defined(DISABLE_DEXED_COMPRESSOR)
+   delete compressor;
+ #endif // !defined(TEENSYDUINO)
+ }
+@@ -190,7 +208,7 @@
+     refreshVoice = false;
+   }
+ 
+-  arm_fill_f32(0.0, buffer, n_samples);
++  memset(buffer, 0, n_samples * sizeof(float));
+ 
+   for (uint16_t i = 0; i < n_samples; i += _N_)
+   {
+@@ -221,12 +239,13 @@
+ 
+   fx.process(buffer, n_samples); // Needed for fx.Gain()!!!
+ 
+-#ifndef TEENSYDUINO
++#if !defined(TEENSYDUINO) && !defined(DISABLE_DEXED_COMPRESSOR)
+   if (use_compressor == true)
+     compressor->doCompression(buffer, n_samples);
+ #endif
+ }
+ 
++#if defined(TEENSYDUINO) || defined(__circle__)
+ void Dexed::getSamples(int16_t* buffer, uint16_t n_samples)
+ {
+   float tmp[n_samples];
+@@ -234,6 +253,7 @@
+   getSamples(tmp, n_samples);
+   arm_float_to_q15(tmp, (q15_t*)buffer, n_samples);
+ }
++#endif
+ 
+ void Dexed::keydown(uint8_t pitch, uint8_t velo) {
+   if ( velo == 0 ) {
+@@ -342,7 +362,7 @@
+       voices[note].dx7_note->init(data, pitch, velo, srcnote, porta, &controllers);
+       if ( data[136] )
+         voices[note].dx7_note->oscSync();
+-      voices[i].key_pressed_timer = millis();
++      voices[note].key_pressed_timer = millis();
+       keydown_counter++;
+       break;
+     }
+@@ -1845,7 +1865,7 @@
+   setVelocityScale(velocity_offset, velocity_max);
+ }
+ 
+-#ifndef TEENSYDUINO
++#if !defined(TEENSYDUINO) && !defined(DISABLE_DEXED_COMPRESSOR)
+ void Dexed::setCompressor(bool enable_compressor)
+ {
+   use_compressor = enable_compressor;
+diff -ruN a/dexed.h b/dexed.h
+--- a/dexed.h	2026-10-14 05:31:21.479251313 +0300
++++ b/dexed.h	2026-10-14 05:35:07.767024279 +0300
+@@ -30,7 +30,9 @@
+ 
+ #include <stdint.h>
+ #include <cstdlib>
++#if defined(TEENSYDUINO) || defined(__circle__)
+ #include <arm_math.h>
++#endif
+ #if defined(TEENSYDUINO)
+ #include <Audio.h>
+ #endif
+@@ -43,7 +45,9 @@
+ #include "dx7note.h"
+ #include "lfo.h"
+ #include "PluginFx.h"
++#if !defined(DISABLE_DEXED_COMPRESSOR)
+ #include "compressor.h"
++#endif
+ #include "EngineMsfa.h"
+ #include "EngineMkI.h"
+ #include "EngineOpl.h"
+@@ -198,7 +202,7 @@
+     void setEngineType(uint8_t engine);
+     uint8_t getEngineType(void);
+     FmCore* getEngineAddress(void);
+-#ifndef TEENSYDUINO
++#if !defined(TEENSYDUINO) && !defined(DISABLE_DEXED_COMPRESSOR)
+     void setCompressor(bool comp);
+     bool getCompressor(void);
+     void setCompressorPreGain_dB(float pre_gain);
+@@ -387,13 +391,15 @@
+     EngineMkI* engineMkI;
+     EngineOpl* engineOpl;
+     void getSamples(float* buffer, uint16_t n_samples);
++#if defined(TEENSYDUINO) || defined(__circle__)
+     void getSamples(int16_t* buffer, uint16_t n_samples);
++#endif
+     void compress(float* wav_in, float* wav_out, uint16_t n, float threshold, float slope, uint16_t sr,  float tla, float twnd, float tatt, float trel);
+     bool use_compressor;
+     uint8_t velocity_offset;
+     uint8_t velocity_max;
+     float velocity_diff;
+-#ifndef TEENSYDUINO
++#if !defined(TEENSYDUINO) && !defined(DISABLE_DEXED_COMPRESSOR)
+     Compressor* compressor;
+ #endif
+ };
+diff -ruN a/synth.h b/synth.h
+--- a/synth.h	2026-10-14 05:31:21.480577741 +0300
++++ b/synth.h	2026-10-14 05:35:07.767625253 +0300
+@@ -60,9 +60,14 @@
+ #define SQRT_FUNC sqrtf
+ // #define ARM_SQRT_FUNC arm_sqrt_f32 // fast but not as accurate
+ 
+-#if defined(__circle__)
++#if defined(__circle__) || !defined(TEENSYDUINO)
+ 
++#if defined(__circle__)
+ #include <circle/timer.h>
++#else
++#include <chrono>
++#include <cmath>
++#endif
+ 
+ #ifndef M_PI
+   #define M_PI 3.14159265358979323846
+@@ -94,7 +99,12 @@
+ 
+ static inline uint32_t millis (void)
+ {
++#if defined(__circle__)
+         return uint32_t(CTimer::Get ()->GetClockTicks () / (CLOCKHZ / 1000));
++#else
++        return uint32_t(std::chrono::duration_cast<std::chrono::milliseconds>(
++                            std::chrono::steady_clock::now().time_since_epoch()).count());
++#endif
+ }
+ 
+ #endif

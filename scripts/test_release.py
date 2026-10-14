@@ -13,7 +13,7 @@ ROOT = release.ROOT
 def test_finds_every_plugin_with_its_version():
     plugins = {p.product: p for p in release.find_plugins(ROOT)}
     assert set(plugins) == {"bard", "chrs", "chuk", "csnd", "edrm", "fstr", "gltc", "strc", "rack", "rdio", "sfct",
-                            "scsy", "ttyp"}
+                            "scsy", "ttyp", "dexd"}
     assert all(p.version and p.description for p in plugins.values())
 
 
@@ -61,6 +61,8 @@ def test_package_mirrors_the_card(tmp_path):
     for product in products:
         assert (top / "docs" / product / "README.md").is_file()
     assert (top / "docs" / "gltc" / "LICENSE").is_file()
+    for name in ("LICENSE", "LICENSE-msfa.txt", "NOTICE.md"):
+        assert (top / "docs" / "dexd" / name).is_file()
     assert (top / "docs" / "rack" / "README-json-presets.md").is_file()
     assert not list((top / "docs").rglob("TODO.md"))
     assert (top / "docs" / "sfct" / "softcut-LICENSE.txt").is_file()

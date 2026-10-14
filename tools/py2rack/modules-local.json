@@ -172,6 +172,39 @@
     },
     "skipped": 0
   },
+  "dexd": {
+    "inputs": [
+      "Cutoff CV",
+      "Mod CV"
+    ],
+    "outputs": [
+      "Out L",
+      "Out R"
+    ],
+    "params": {
+      "algorithm": "algorithm",
+      "bend_range": "bend_range",
+      "cutoff": "cutoff",
+      "engine": "engine",
+      "feedback": "feedback",
+      "level": "level",
+      "lfo_depth": "lfo_depth",
+      "lfo_rate": "lfo_rate",
+      "mono": "mono",
+      "op1": "op1",
+      "op2": "op2",
+      "op3": "op3",
+      "op4": "op4",
+      "op5": "op5",
+      "op6": "op6",
+      "portamento": "portamento",
+      "resonance": "resonance",
+      "transpose": "transpose",
+      "voice": "voice",
+      "voices": "voices"
+    },
+    "skipped": 0
+  },
   "edrm": {
     "inputs": [
       "Clock",

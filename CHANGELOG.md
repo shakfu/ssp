@@ -4,7 +4,17 @@ Changes to the build, tools and presets. Each plugin keeps its own changelog in 
 
 ## [Unreleased]
 
+### Plugins
+
+- `dexed` (`dexd`), new: a 6-operator FM synth played from MIDI, on the Dexed engine through Synth_Dexed, with DX7 cartridges from the card. GPL-3.0. See [plugins/dexed/CHANGELOG.md](plugins/dexed/CHANGELOG.md) and [docs/dev/dexed.md](docs/dev/dexed.md).
+
+- Every `EngineEditor` module ends its DSP readout before the version label. The readout was right-aligned to x=1590 and drew over the label, which starts at x=1505.
+
+- `EngineEditor` passes a short Left or Right press to the module through `step(dir)`; long presses still move between page groups. `dexd` uses it for PG- and PG+.
+
 ### Build and tools
+
+- `midisend` also sends controllers, pitch bend, program change and channel aftertouch: `cc N V`, `bend V`, `pc N`, `at V`.
 
 - `BaseProcessor::midiMessageInput` gives a plugin every channel message on its MIDI channel: pitch bend, controllers, aftertouch, program change, and notes while Note In is set. Before, plugins got only notes. It sits beside `midiNoteInput` rather than replacing it, so existing plugins are unchanged. `plugins/common/tests/midi` tests the dispatch on the host. For `dexd`; see [docs/dev/dexed.md](docs/dev/dexed.md).
 
