@@ -42,6 +42,7 @@ def fake_build(tmp: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path]:
     (deps / "scsynth" / "plugins" / "sc3-plugins" / "TJUGens.so").write_bytes(b"so")
     (tmp / "sapf-sc").mkdir()
     (tmp / "sapf-sc" / "sapf-prelude.txt").write_text("")
+    (tmp / "sapf-sc" / "sapf-examples.txt").write_text("")
     return build, deps
 
 
@@ -61,6 +62,7 @@ def test_package_mirrors_the_card(tmp_path):
     assert (top / "BOOT" / "scsy" / "filter.txt").is_file()
     assert (top / "BOOT" / "scsy" / "ugens" / "sc3-plugins" / "TJUGens.so").is_file()
     assert (top / "BOOT" / "sapf" / "sapf-prelude.txt").is_file()
+    assert (top / "BOOT" / "sapf" / "sapf-examples.txt").is_file()
     assert (top / "BOOT" / "sapf" / "ugens" / "OscUGens.so").is_file()
     for product in products:
         assert (top / "docs" / product / "README.md").is_file()

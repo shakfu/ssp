@@ -4,7 +4,7 @@
 
 ## Install
 
-Copy `sapf.so` to the `plugins` folder on the SSP's SD card, run `make install-sapf` with the card mounted, and restart the SSP. `make install-sapf` copies the UGen plugins to `BOOT/sapf/ugens` and the prelude to `BOOT/sapf/sapf-prelude.txt`.
+Copy `sapf.so` to the `plugins` folder on the SSP's SD card, run `make install-sapf` with the card mounted, and restart the SSP. `make install-sapf` copies the UGen plugins to `BOOT/sapf/ugens`, and the prelude and sapf's examples to `BOOT/sapf`.
 
 ## Keyboard
 
@@ -14,11 +14,15 @@ As for `ttyp`: a USB keyboard through a USB 2.0 hub, or port 7771 on 127.0.0.1 o
 |-|-|
 | Ctrl-Enter | evaluates the block around the cursor |
 | Ctrl-. or Esc | interrupts the evaluation, and stops every sound |
-| Ctrl-S | saves the code to `BOOT/sapf/live.sapf` |
-| Ctrl-O | opens `BOOT/sapf/live.sapf` |
+| Ctrl-S | saves the code to the file opened last, `live.sapf` at first, in `BOOT/sapf` |
+| Ctrl-O | lists the `.sapf` and `.txt` files in `BOOT/sapf`; Enter opens one in place of the code, Esc closes the list |
 | arrows, Home, End, PageUp, PageDown | move; with Ctrl, Home and End go to the start and end |
 
 Encoder 1 moves the cursor by rows, encoder 2 by columns. A held key repeats. Tab inserts spaces to the next multiple of 4. The layout is US.
+
+## Files
+
+Code longer than a line is easier to bring than to type: copy `.sapf` files into `BOOT/sapf` by card or scp, then open them with Ctrl-O. `sapf-examples.txt`, sapf's own examples, is there after `make install-sapf`: open it, move to an example, and press Ctrl-Enter. Opening a file replaces the code; Ctrl-S first keeps it. The status line shows the current file and line.
 
 ## Evaluating
 

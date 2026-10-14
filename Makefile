@@ -36,7 +36,7 @@ help:
 	@echo "make install [MOD=x]    build, copy plugins to the mounted SD card (SSP_PLUGINS)"
 	@echo "make install-faust      copy the Faust libraries and fstr examples to the card"
 	@echo "make install-scsy       copy the UGen plugins and scsy examples to the card"
-	@echo "make install-sapf       copy the UGen plugins and the sapf prelude to the card"
+	@echo "make install-sapf       copy the UGen plugins and sapf's prelude and examples to the card"
 	@echo "make midisend           build tools/midisend, copy it to SSP_HOST's /tmp and start it: a MIDI input for tests"
 	@echo "make install-presets     check, then copy presets/ (or PRESETS=dir) to the card (SSP_PRESETS)"
 	@echo "make test               run the py2rack and plugin tests"

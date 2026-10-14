@@ -77,16 +77,25 @@ void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midi) 
 }
 
 String PluginProcessor::save() {
-    juce::File f(file());
+    juce::File f(filesDir() + "/" + current_);
     f.getParentDirectory().createDirectory();
     return f.replaceWithText(text_.text() + "\n") ? "saved " + f.getFullPathName() : "cannot write " + f.getFullPathName();
 }
 
-String PluginProcessor::open() {
-    juce::File f(file());
+String PluginProcessor::open(const String& name) {
+    juce::File f(filesDir() + "/" + name);
     if (!f.existsAsFile()) return "no " + f.getFullPathName();
     text_.setText(f.loadFileAsString().trimEnd().toStdString());
+    current_ = name;
     return "opened " + f.getFullPathName();
+}
+
+StringArray PluginProcessor::files() const {
+    StringArray names;
+    for (const auto& f : juce::File(filesDir()).findChildFiles(juce::File::findFiles, false, "*.sapf;*.txt"))
+        names.add(f.getFileName());
+    names.sort(true);
+    return names;
 }
 
 AudioProcessorEditor* PluginProcessor::createEditor() {
@@ -97,10 +106,14 @@ AudioProcessorEditor* PluginProcessor::createEditor() {
 // the code, so a patch reopens with it
 void PluginProcessor::customToXml(juce::XmlElement* xml) {
     xml->setAttribute("CODE", String(text_.text()));
+    xml->setAttribute("FILE", current_);
 }
 
 void PluginProcessor::customFromXml(juce::XmlElement* xml) {
     if (xml->hasAttribute("CODE")) text_.setText(xml->getStringAttribute("CODE").toStdString());
+    // a name only: a preset cannot point the code's saves outside filesDir()
+    String name = xml->getStringAttribute("FILE", "live.sapf");
+    if (name.isNotEmpty() && !name.containsAnyOf("/\\") && name != "." && name != "..") current_ = name;
 }
 
 AudioProcessor* JUCE_CALLTYPE createPluginFilter() {

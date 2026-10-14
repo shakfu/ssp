@@ -4,6 +4,7 @@
 #include <memory>
 #include <mutex>
 
+#include "FilePicker.h"
 #include "KeyQueue.h"
 #include "Session.h"
 #include "TextBuffer.h"
@@ -33,12 +34,15 @@ public:
     // the code; message thread
     sapf::TextBuffer& text() { return text_; }
 
-    // Ctrl-S and Ctrl-O: the code to and from file(), a line for the output
+    // Ctrl-S: the code to the current file; Ctrl-O: a file from files() as the code and the current
+    // file. A line for the output.
     String save();
-    String open();
-    // SAPF_FILES, else /media/BOOT/sapf: the code, and what >sd and >nrt write
+    String open(const String& name);
+    StringArray files() const;  // the .sapf and .txt files in filesDir(), by name
+    const String& currentFile() const { return current_; }
+    sapf::FilePicker& picker() { return picker_; }
+    // SAPF_FILES, else /media/BOOT/sapf: the code, the examples, and what >sd and >nrt write
     static String filesDir();
-    static String file() { return filesDir() + "/live.sapf"; }
 
     float load() const { return loadAvg_.load(std::memory_order_relaxed); }  // of the audio callback's time
 
@@ -58,6 +62,8 @@ private:
     std::unique_ptr<sapf::Session> session_;
     sapf::KeyQueue keys_;
     sapf::TextBuffer text_;
+    sapf::FilePicker picker_;
+    String current_ = "live.sapf";  // in filesDir()
     double sampleRate_ = 48000.0;
     int maxBlock_ = 0;
     AudioSampleBuffer in_, spare_;  // inputs, copied before outputs overwrite their channels

@@ -38,6 +38,7 @@ if (SCSYNTH_DEPS)
     # Step 4: the plugin's Session, TextBuffer and KeyQueue
     set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/../Source)
     add_executable(sapf_session_test session_test.cpp ${SRC}/Session.cpp ${SRC}/TextBuffer.cpp ${SRC}/KeyQueue.cpp
+            ${SRC}/FilePicker.cpp
             ${SRC}/SapfServer.cpp ${SCSY}/ScWorld.cpp ${SCSY}/ScsyDef.cpp)
     target_include_directories(sapf_session_test PRIVATE ${SRC} ${SCSY} ${CMAKE_CURRENT_SOURCE_DIR}/../../common)
     target_link_libraries(sapf_session_test PRIVATE sapf_engine ${SCSYNTH_DEPS}/lib/libscsynth.a

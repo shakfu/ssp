@@ -13,6 +13,7 @@
 #include <thread>
 #include <vector>
 
+#include "FilePicker.h"
 #include "KeyQueue.h"
 #include "Session.h"
 #include "TextBuffer.h"
@@ -144,6 +145,22 @@ void testKeyQueue() {
     std::printf("key queue: done\n");
 }
 
+void testFilePicker() {
+    sapf::FilePicker p;
+    p.show({ "a.sapf", "live.sapf", "sapf-examples.txt" }, "live.sapf");
+    CHECK(p.shown() && p.selected() == 1);  // the current file
+    CHECK(p.key(0x51) == sapf::FilePicker::NONE && p.selected() == 2);  // Down
+    p.key(0x51);
+    CHECK(p.selected() == 2);  // clamped
+    p.key(0x4A);               // Home
+    CHECK(p.selected() == 0);
+    CHECK(p.key(0x28) == sapf::FilePicker::OPEN);    // Enter
+    CHECK(p.key(0x29) == sapf::FilePicker::CANCEL);  // Esc
+    p.show({}, "live.sapf");
+    CHECK(p.selected() == 0 && p.key(0x28) == sapf::FilePicker::CANCEL);  // nothing to open
+    std::printf("file picker: done\n");
+}
+
 bool waitFor(std::function<bool()> cond, double seconds) {
     auto end = std::chrono::steady_clock::now() + std::chrono::duration<double>(seconds);
     while (std::chrono::steady_clock::now() < end) {
@@ -242,6 +259,7 @@ int main(int argc, char** argv) {
     if (argc != 4) return 2;
     testTextBuffer();
     testKeyQueue();
+    testFilePicker();
     testSession(argv[1], argv[2], argv[3]);  // the Session's destructor runs here
     CHECK(runningTextures() == 0);
     std::printf("%s\n", failures ? "FAILED" : "all passed");

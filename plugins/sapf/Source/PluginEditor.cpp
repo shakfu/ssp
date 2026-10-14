@@ -30,7 +30,19 @@ void KeyPump::tick() {
     ssp::KeyInput::setTarget(&processor_.keys());  // also marks this editor as on screen
     auto& text = processor_.text();
     auto& session = processor_.session();
+    auto& picker = processor_.picker();
     for (const auto& k : processor_.keys().take(sapf::KeyQueue::Clock::now())) {
+        if (picker.shown()) {  // Ctrl-O's list takes the keys until it closes
+            switch (picker.key(k.usage)) {
+                case sapf::FilePicker::OPEN:
+                    picker.hide();
+                    session.note(processor_.open(picker.names()[size_t(picker.selected())]).toStdString());
+                    break;
+                case sapf::FilePicker::CANCEL: picker.hide(); break;
+                default: break;
+            }
+            continue;
+        }
         switch (text.key(k.usage, k.mods)) {
             case sapf::TextBuffer::EVALUATE: {
                 int first, last;
@@ -43,7 +55,12 @@ void KeyPump::tick() {
             }
             case sapf::TextBuffer::STOP: session.stop(); break;
             case sapf::TextBuffer::SAVE: session.note(processor_.save().toStdString()); break;
-            case sapf::TextBuffer::OPEN: session.note(processor_.open().toStdString()); break;
+            case sapf::TextBuffer::OPEN: {
+                std::vector<std::string> names;
+                for (const auto& n : processor_.files()) names.push_back(n.toStdString());
+                picker.show(names, processor_.currentFile().toStdString());
+                break;
+            }
             default: break;
         }
     }
@@ -58,7 +75,11 @@ PluginEditor::PluginEditor(PluginProcessor& p) : ssp::BaseView(&p, false), proce
 }
 
 void PluginEditor::onEncoder(unsigned enc, float v) {
-    // as the arrow keys
+    // as the arrow keys; in Ctrl-O's list, encoder 1 moves the selection
+    if (processor_.picker().shown()) {
+        if (enc == 0) processor_.picker().move(v > 0 ? 1 : -1);
+        return;
+    }
     if (enc == 0) processor_.text().key(v > 0 ? 0x51 : 0x52, 0);
     else if (enc == 1) processor_.text().key(v > 0 ? 0x4F : 0x50, 0);
 }
@@ -73,6 +94,27 @@ void PluginEditor::drawView(Graphics& g) {
     const int codeRows = (outputY - 6) / LINE;
     const auto& text = processor_.text();
     const auto& lines = text.lines();
+
+    const auto& picker = processor_.picker();
+    if (picker.shown()) {  // Ctrl-O's list in place of the code, the selection kept in view
+        const auto& names = picker.names();
+        g.setColour(amber);
+        g.drawText(names.empty() ? "no .sapf or .txt files in " + PluginProcessor::filesDir()
+                                 : "open (Enter), or Esc: " + PluginProcessor::filesDir(),
+                   MARGIN, 4, W - 2 * MARGIN, LINE, juce::Justification::left, false);
+        const int shown = codeRows - 1, first = std::clamp(picker.selected() - shown / 2, 0,
+                                                            std::max(0, int(names.size()) - shown));
+        for (int i = 0; i < shown && first + i < int(names.size()); i++) {
+            const int y = 4 + (i + 1) * LINE;
+            if (first + i == picker.selected()) {
+                g.setColour(flash);
+                g.fillRect(0, y, W, LINE);
+            }
+            g.setColour(juce::Colours::white);
+            g.drawText(String(names[size_t(first + i)]), MARGIN + 2 * int(charW), y, W - 2 * MARGIN, LINE,
+                       juce::Justification::left, false);
+        }
+    }
 
     // screen rows: each line in pieces of `cols` characters
     struct Row {
@@ -89,7 +131,7 @@ void PluginEditor::drawView(Graphics& g) {
 
     int flashFirst, flashLast;
     const bool flashOn = pump_.flashing(flashFirst, flashLast);
-    for (int i = 0; i < codeRows && top_ + i < int(rows.size()); i++) {
+    for (int i = 0; !picker.shown() && i < codeRows && top_ + i < int(rows.size()); i++) {
         const Row& row = rows[size_t(top_ + i)];
         const int y = 4 + i * LINE;
         if (flashOn && row.line >= flashFirst && row.line <= flashLast) {
@@ -101,7 +143,7 @@ void PluginEditor::drawView(Graphics& g) {
                    LINE, juce::Justification::left, false);
     }
     // the cursor, a bar before its column
-    if (cursorRow >= top_ && cursorRow < top_ + codeRows) {
+    if (!picker.shown() && cursorRow >= top_ && cursorRow < top_ + codeRows) {
         const int x = MARGIN + int(std::round((text.col() - rows[size_t(cursorRow)].start) * charW));
         g.setColour(amber);
         g.fillRect(x - 1, 4 + (cursorRow - top_) * LINE + 2, 3, LINE - 4);
@@ -119,8 +161,9 @@ void PluginEditor::drawView(Graphics& g) {
     const bool usb = ssp::KeyInput::keyboardConnected();
     String status = "sapf " + String(JucePlugin_VersionString) + "   " + stateText(processor_.session()) +
                     "   dsp " + String(int(processor_.load() * 100.f)) + "%   keys " +
-                    (usb ? "usb" : "tcp :" + String(SAPF_KEY_PORT)) + "   line " + String(text.row() + 1) +
-                    "   Ctrl-Enter run  Ctrl-. stop  Ctrl-S save  Ctrl-O open";
+                    (usb ? "usb" : "tcp :" + String(SAPF_KEY_PORT)) + "   " + processor_.currentFile() + ":" +
+                    String(text.row() + 1) +
+                    "   C-Enter run  C-. stop  C-S save  C-O open";
     g.setColour(amber);
     g.drawText(status, MARGIN, statusY, W - 2 * MARGIN, LINE, juce::Justification::left, false);
 }

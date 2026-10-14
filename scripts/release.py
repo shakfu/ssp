@@ -32,7 +32,8 @@ DATA = {
     # under examples/, where Disk does not read them into the scene slots
     "ttyp": [("plugins/teletype/examples", "teletype/examples", "tt*.txt")],
     # its own copy of the UGens: scsy and sapf in one patch must not share the libraries
-    "sapf": [("{sapf}", "sapf", "sapf-prelude.txt"), ("{deps}/scsynth/plugins", "sapf/ugens", "**")],
+    "sapf": [("{sapf}", "sapf", "sapf-prelude.txt"), ("{sapf}", "sapf", "sapf-examples.txt"),
+             ("{deps}/scsynth/plugins", "sapf/ugens", "**")],
 }
 
 # folders a module reads that the user fills
@@ -156,15 +157,16 @@ def readme(version: str, tag: str, plugins: list[Plugin]) -> str:
     data_rows = [("plugins", "all", "the modules")]
     for product, sources in DATA.items():
         for _, folder, _ in sources:
-            if "/" not in folder:
+            if "/" not in folder and folder not in {r[0] for r in data_rows}:
                 data_rows.append((folder, product, {"faust": "example programs; `libraries/` holds the Faust "
                                                              "libraries that `import(\"stdfaust.lib\")` needs",
                                                     "csound": "example orchestras", "chuck": "example programs",
                                                     "scsy": "example SynthDefs; `ugens/` holds the UGen plugins "
                                                             "they load",
                                                     "rack_presets": "presets",
-                                                    "sapf": "the prelude sapf loads, and the code it saves; `ugens/` "
-                                                            "holds the UGen plugins, a copy of scsy's"}[folder]))
+                                                    "sapf": "the prelude sapf loads, sapf's examples to open "
+                                                            "with Ctrl-O, and the code it saves; `ugens/` holds the "
+                                                            "UGen plugins, a copy of scsy's"}[folder]))
     data = "\n".join(f"| `{f}` | {m if m == 'all' else f'`{m}`'} | {w} |" for f, m, w in data_rows)
     user = "\n".join(f"| `{f}` | `{m}` | {w} |" for m, (f, w) in USER_DATA.items())
     licences = "; ".join(f"`{m}` is {l}" for m, l in LICENSES.items())

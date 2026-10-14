@@ -37,6 +37,7 @@ target_sources(SAPF
         PUBLIC
         Source/SSPApi.cpp
         PRIVATE
+        Source/FilePicker.cpp
         Source/KeyQueue.cpp
         Source/PluginEditor.cpp
         Source/PluginProcessor.cpp

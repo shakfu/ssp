@@ -1,6 +1,6 @@
 # sapf: device test
 
-Step 4 of [sapf-plugin.md](sapf-plugin.md). Needs `sapf.so` in `BOOT/plugins`, and `BOOT/sapf/ugens` and `BOOT/sapf/sapf-prelude.txt` (`make install-sapf`). A USB keyboard through a USB 2.0 hub, or port 7771 over ssh.
+Step 4 of [sapf-plugin.md](sapf-plugin.md). Needs `sapf.so` in `BOOT/plugins`, and `BOOT/sapf/ugens`, `sapf-prelude.txt` and `sapf-examples.txt` (`make install-sapf`). Steps 6-10's code is long: put it in `BOOT/sapf/live.sapf` and open that with Ctrl-O. A USB keyboard through a USB 2.0 hub, or port 7771 over ssh.
 
 Each step lists what to type, then what should happen. Ctrl-Enter evaluates the block at the cursor.
 
@@ -16,10 +16,11 @@ Each step lists what to type, then what should happen. Ctrl-Enter evaluates the 
 | 8 | `ord 1e9 N reverse` | within seconds, `error: memory grew past 256 MB; interrupted`; Synthor keeps running |
 | 9 | Patch a signal into input 1; `0 soundin play` | the input on output 1 |
 | 10 | Type `[440` / blank line / `550] 0 sinosc .1 * play` on three lines; Ctrl-Enter on the blank line | two sines; the three lines flash |
-| 11 | Ctrl-S; change the code; Ctrl-O | output `saved ...`, then `opened ...`; the saved code is back |
+| 11 | Ctrl-S; change the code; Ctrl-O, Enter on `live.sapf` | output `saved ...`; the list shows `live.sapf` selected, `sapf-examples.txt` and the prelude; then `opened ...` and the saved code is back |
 | 12 | Save the patch; reload it | the code is back |
 | 13 | Add `ttyp`; switch between `ttyp` and `sapf` | the keyboard follows the screen |
 | 14 | Play step 6's texture; remove `sapf` from the patch; add it again | no crash; the new `sapf` loads the prelude and plays |
 | 15 | Add a second `sapf` | its status says another sapf runs; it stays silent |
+| 16 | Ctrl-O, open `sapf-examples.txt`; PageDown to an example with `play`; Ctrl-Enter | the example plays; the status shows `sapf-examples.txt:` and the line |
 
 Note the DSP figure on the status line during step 6.
