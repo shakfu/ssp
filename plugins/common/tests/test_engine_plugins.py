@@ -47,7 +47,8 @@ def plugins():
 
 # source folder -> product name; Synthor lists only names of up to four characters
 PRODUCTS = {"radio": "rdio", "csound": "csnd", "chuck": "chuk", "edrums": "edrm", "pstretch": "strc", "bard": "bard",
-            "glitch": "gltc", "chorus": "chrs", "faust": "fstr", "scsynth": "scsy", "teletype": "ttyp"}
+            "glitch": "gltc", "chorus": "chrs", "faust": "fstr", "scsynth": "scsy", "teletype": "ttyp",
+            "dexed": "dexd"}
 # examples/: built and tested on the host, never shipped, so not in the manifest
 EXAMPLES = {"svca": "svca", "tremolo": "trem"}
 
@@ -304,6 +305,41 @@ def test_teletype(plugins, tmp_path, monkeypatch):
                          "button", 2, 1, "button", 2, 0, "run", 8, 128, "level", 7)
     assert sorted(p.name for p in scenes.glob("tt*s.txt")) == [f"tt{i:02d}s.txt" for i in range(32)]
     assert levels[7] == pytest.approx(0.4, abs=0.005)  # CV 4 = output 7
+
+
+def cartridge(path, names):
+    """a DX7 32-voice bulk dump: zero voices with these names"""
+    data = b"".join(bytes(118) + n.ljust(10).encode() for n in names)
+    path.write_bytes(bytes([0xF0, 0x43, 0, 9, 0x20, 0]) + data + bytes([(-sum(data)) & 0x7F, 0xF7]))
+
+
+def test_dexed(plugins, tmp_path):
+    bank = tmp_path / "bank.syx"
+    cartridge(bank, [f"V{i}" for i in range(32)])
+    r = subprocess.run([plugins, so("dexed"), "channels"], capture_output=True, text=True, timeout=60)
+    assert r.stdout.split("\n")[:5] == ["io 2 2", "input Cutoff CV", "input Mod CV", "output Out L", "output Out R"]
+    # no notes: silent; the preset keeps the cartridge and the chosen voice's 155 bytes
+    levels, state = run(plugins, "dexed", "prepare", 48000, 128, "set", "voice", 3, "set", "cartridge", bank,
+                        "run", 0.1, 300, "level", 0, "render", tmp_path / "f.bgra", "state")
+    assert levels[0] == (0.0, 0.0)
+    assert f'cartridge="{bank}"' in state
+    assert re.search(r'voice_data="[0-9a-f]{310}"', state)
+    # PG- (Left) from voice 1 wraps to 32; PG+ (Right) twice reaches 2
+    press = lambda n: ("button", n, 1, "button", n, 0)
+    _, pg = run(plugins, "dexed", "prepare", 48000, 128, "render", tmp_path / "f.bgra", *press(8), "state")
+    assert 'id="voice" value="32.0"' in pg
+    _, pg = run(plugins, "dexed", "prepare", 48000, 128, "render", tmp_path / "f.bgra", *press(8), *press(9),
+                *press(9), "state")
+    assert 'id="voice" value="2.0"' in pg
+    # the file gone: the preset's voice, from the state, in every slot
+    voice_data = re.search(r'voice_data="([0-9a-f]+)"', state).group(1)
+    bank.rename(tmp_path / "gone.syx")
+    preset = tmp_path / "preset.bin"
+    xml = state.encode()
+    preset.write_bytes(struct.pack("<II", 0x21324356, len(xml) + 1) + xml + b"\0")  # JUCE's copyXmlToBinary
+    _, state = run(plugins, "dexed", "load", preset, "prepare", 48000, 128, "set", "voice", 7, "run", 0.1, 128, "state")
+    assert f'cartridge="{bank}"' in state
+    assert f'voice_data="{voice_data}"' in state
 
 
 def manifest_entry(host, plugin):

@@ -73,6 +73,9 @@ public:
     void midiLearn(bool b);
 
     virtual void midiNoteInput(unsigned note, unsigned velocity) { ; }
+    // MIDI input thread: each channel message on midiChannel(); notes only while noteInput() is set.
+    // Notes also reach midiNoteInput, so a plugin overrides one of the two for notes.
+    virtual void midiMessageInput(const juce::MidiMessage&) { ; }
 
     void midiChannel(unsigned ch) { midiChannel_ = ch; }
     int midiChannel() const { return midiChannel_; }

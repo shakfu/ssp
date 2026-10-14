@@ -1,5 +1,6 @@
 #include "EngineEditor.h"
 
+#include "ssp/EditorHost.h"
 #include "ssp/controls/MiniControl.h"
 #include "ssp/controls/ParamControl.h"
 #include "ssp/editors/BarParamEditor.h"
@@ -164,7 +165,7 @@ void EngineEditor::drawView(juce::Graphics& g) {
     g.setColour(juce::Colours::white);
     g.drawText(juce::String::formatted("DSP %4.1f%% pk %4.1f%%", processor_.loadAverage() * 100.0f,
                                        processor_.loadPeak() * 100.0f),
-               panelX + 330, 8, 1590 - panelX - 330, 30, juce::Justification::right);
+               panelX + 330, 8, ssp::EditorHost::versionX - 10 - panelX - 330, 30, juce::Justification::right);
     drawStatus(g, { panelX, 45, 1590 - panelX, 320 });
 }
 
@@ -217,11 +218,13 @@ void EngineEditor::onRightButton(bool v) {
 void EngineEditor::eventLeft(bool longPress) {
     if (fileMode()) base_type::eventLeft(longPress);
     else if (longPress) main_->fromGlobals();
+    else step(-1);
 }
 
 void EngineEditor::eventRight(bool longPress) {
     if (fileMode()) base_type::eventRight(longPress);
     else if (longPress) main_->toGlobals();
+    else step(1);
 }
 
 EngineMiniEditor::EngineMiniEditor(EngineProcessor& p, const std::vector<ParamPage>& pages,

@@ -9,6 +9,7 @@ add_subdirectory(edrums)
 add_subdirectory(pstretch)
 add_subdirectory(bard)
 add_subdirectory(chorus)
+add_subdirectory(dexed)
 
 # teletype builds its firmware from sources `make deps` fetches (scripts/fetch_teletype.sh)
 if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../build/deps/src/teletype/monome-rack")

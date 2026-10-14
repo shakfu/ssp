@@ -441,6 +441,11 @@ void BaseProcessor::automateParam(int idx, const MidiAutomation& a, const juce::
 }
 
 void BaseProcessor::handleMidi(const juce::MidiMessage& msg) {
+    int ch = msg.getChannel();  // 0 for system messages
+    if (ch > 0 && (midiChannel_ == 0 || ch == midiChannel_) && (noteInput_ || !msg.isNoteOnOrOff())) {
+        midiMessageInput(msg);
+    }
+
     if (msg.isController() || msg.isNoteOnOrOff()) {
         if (midiChannel_ == 0 || msg.getChannel() == midiChannel_) {
             if (midiLearn_) {

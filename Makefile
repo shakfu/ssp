@@ -113,7 +113,7 @@ install-faust:
 install-scsy:
 	scripts/install-scsy.sh
 
-# a MIDI input on the SSP that plays notes written to /tmp/midisend over ssh; /tmp is RAM, so a
+# a MIDI input on the SSP that plays MIDI messages written to /tmp/midisend over ssh; /tmp is RAM, so a
 # reboot removes it
 MIDISEND_BR := $(or $(SSP_BUILDROOT),$(BUILDROOT),$(CURDIR)/$(BUILDROOT_DIR))
 MIDISEND_SYSROOT := $(MIDISEND_BR)/arm-rockchip-linux-gnueabihf/sysroot
