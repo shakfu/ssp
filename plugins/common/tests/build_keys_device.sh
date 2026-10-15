@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Cross-compile keys_device.cpp for the SSP and copy it to /tmp/keys_device there (RAM). Run it over
-# ssh while ttyp is loaded in Synthor; see docs/dev/sapf-plugin.md, step 3.
+# ssh while ttyp is loaded in Synthor; see docs/dev/sapf-sc-plugin.md, step 3.
 #
 # usage: plugins/common/tests/build_keys_device.sh   (SSP_HOST, default root@192.168.1.6)
 

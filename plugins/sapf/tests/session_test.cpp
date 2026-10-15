@@ -1,7 +1,7 @@
-// Step 4 of docs/dev/sapf-plugin.md, on the host: the editor's TextBuffer and KeyQueue, and the Session
+// Step 3 of docs/dev/sapf-plugin.md, on the host: the editor's TextBuffer and KeyQueue, and the Session
 // the plugin runs, with a thread standing in for the audio callback.
 //
-// usage: sapf_session_test PRELUDE UGENS OUTDIR
+// usage: sapf_session_test PRELUDE OUTDIR
 
 #include <algorithm>
 #include <atomic>
@@ -17,7 +17,6 @@
 #include "KeyQueue.h"
 #include "Session.h"
 #include "TextBuffer.h"
-#include "Texture.hpp"
 
 namespace {
 
@@ -180,26 +179,27 @@ bool idle(const sapf::Session& s) {
     return s.state() == sapf::Session::State::IDLE;
 }
 
-void testSession(const char* prelude, const char* ugens, const char* outdir) {
-    sapf::Session s({ ugens, prelude, outdir });
+void testSession(const char* prelude, const char* outdir) {
+    sapf::Session s({ prelude, outdir });
     s.prepare(48000.f);
     CHECK(waitFor([&] { return idle(s); }, 30));
 
-    // the audio callback
+    // the audio callback, in real time; input 1 holds .25
     std::atomic<bool> running{ true };
-    std::atomic<float> peak{ 0.f };
+    std::atomic<float> peak{ 0.f }, mean{ 0.f };
     std::thread audio([&] {
-        constexpr int N = 256;
-        static float in[sapf::Session::CHANNELS][N] = {}, out[sapf::Session::CHANNELS][N];
-        const float* ins[sapf::Session::CHANNELS];
-        float* outs[sapf::Session::CHANNELS];
-        for (int c = 0; c < sapf::Session::CHANNELS; c++) ins[c] = in[c], outs[c] = out[c];
+        constexpr int N = 128, C = sapf::Session::CHANNELS;
+        static float in[C][N] = {}, out[C][N];
+        std::fill(in[0], in[0] + N, 0.25f);
+        const float* ins[C];
+        float* outs[C];
+        for (int c = 0; c < C; c++) ins[c] = in[c], outs[c] = out[c];
         auto next = std::chrono::steady_clock::now();
         while (running) {
             s.process(ins, outs, N);
-            float p = 0.f;
-            for (float x : out[0]) p = std::max(p, std::fabs(x));
-            peak = p;
+            float p = 0.f, m = 0.f;
+            for (float x : out[0]) p = std::max(p, std::fabs(x)), m += x / N;
+            peak = p, mean = m;
             next += std::chrono::microseconds(int64_t(1e6 * N / 48000));
             std::this_thread::sleep_until(next);
         }
@@ -231,23 +231,32 @@ void testSession(const char* prelude, const char* ugens, const char* outdir) {
     CHECK(s.evaluate("ord 1e9 N reverse"));
     CHECK(waitFor([&] { return outputText(s).find("memory grew") != std::string::npos && idle(s); }, 30));
 
-    // sound, then silence after stop
+    // sound through the render thread, then silence after stop
     CHECK(s.evaluate("440 0 sinosc .5 * play"));
     CHECK(waitFor([&] { return peak > 0.4f; }, 5));
+    CHECK(s.renderLoad() > 0.f);
     s.stop();
     CHECK(waitFor([&] { return peak == 0.f; }, 3));
 
+    // input 1 through adc
+    CHECK(waitFor([&] { return idle(s); }, 5));
+    CHECK(s.evaluate("0 adc play"));
+    CHECK(waitFor([&] { return std::fabs(mean - 0.25f) < 1e-6f; }, 5));
+    s.stop();
+    CHECK(waitFor([&] { return peak == 0.f; }, 3));
+
+    CHECK(waitFor([&] { return idle(s); }, 5));
+
     // a second Session in the process stays silent
     {
-        sapf::Session second({ ugens, prelude, outdir });
+        sapf::Session second({ prelude, outdir });
         second.prepare(48000.f);
         CHECK(second.state() == sapf::Session::State::SECOND && !second.evaluate("1"));
     }
 
-    // teardown with ola voices playing: their threads end first
-    CHECK(waitFor([&] { return idle(s); }, 5));
-    CHECK(s.evaluate("\\[0 0 impulse 64 N] .1 .2 randz 1 1 ola play"));
-    CHECK(waitFor([&] { return runningTextures() > 0; }, 5));
+    // teardown with ola voices playing
+    CHECK(s.evaluate("\\[440 0 sinosc .3 * 2400 N] .1 .2 randz 1 1 ola play"));
+    CHECK(waitFor([&] { return peak > 0.f; }, 5));
     running = false;
     audio.join();
     std::printf("session: done\n");
@@ -256,12 +265,11 @@ void testSession(const char* prelude, const char* ugens, const char* outdir) {
 }  // namespace
 
 int main(int argc, char** argv) {
-    if (argc != 4) return 2;
+    if (argc != 3) return 2;
     testTextBuffer();
     testKeyQueue();
     testFilePicker();
-    testSession(argv[1], argv[2], argv[3]);  // the Session's destructor runs here
-    CHECK(runningTextures() == 0);
+    testSession(argv[1], argv[2]);  // the Session's destructor runs here
     std::printf("%s\n", failures ? "FAILED" : "all passed");
     return failures ? 1 : 0;
 }

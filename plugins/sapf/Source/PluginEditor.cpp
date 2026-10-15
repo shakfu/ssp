@@ -9,6 +9,16 @@
 namespace {
 
 constexpr int W = 1600, H = 480, MARGIN = 10, LINE = 26, OUTPUT_ROWS = 5;
+constexpr int STATUS_Y = H - LINE, OUTPUT_Y = STATUS_Y - OUTPUT_ROWS * LINE - 4;
+// the meters: two groups of 2 bars right of the output pane, each after its label
+// 32: MonoVuMeter's bar is METER_W / 2 - 10 px wide, 6 px here
+constexpr int METER_W = 32, METER_LABEL_W = 44,
+              METER_GROUP_W = METER_LABEL_W + PluginProcessor::METERED * METER_W + 16;
+// the last bar ends RIGHT_CLEAR from the edge: Synthor draws its menu letters over the last ~46 px
+constexpr int RIGHT_CLEAR = 60;
+constexpr int METERS_X = W - RIGHT_CLEAR - (2 * METER_GROUP_W - 16);  // 16: the gap after a group
+// out, then in; in is 4 px closer to out than a group's gap, to clear the menu letters
+constexpr int OUT_X = METERS_X, IN_X = METERS_X + METER_GROUP_W - 4;
 const juce::Colour amber(255, 214, 140), flash(30, 50, 90), dim(150, 150, 150);
 
 juce::Font mono(float h) {
@@ -72,6 +82,27 @@ bool KeyPump::flashing(int& first, int& last) const {
 }
 
 PluginEditor::PluginEditor(PluginProcessor& p) : ssp::BaseView(&p, false), processor_(p), pump_(p) {
+    constexpr int C = PluginProcessor::METERED;
+    for (int i = 0; i < 2 * C; i++) {
+        auto& m = meters_[i];
+        m.init(String(i % C + 1));
+        m.labelColour(i < C ? dim : amber);
+        m.active(true);
+        m.enabled(true);
+        const int group = i / C;
+        m.setBounds((group ? OUT_X : IN_X) + METER_LABEL_W + (i % C) * METER_W, OUTPUT_Y, METER_W,
+                    STATUS_Y - OUTPUT_Y - 2);
+        addAndMakeVisible(m);
+    }
+}
+
+void PluginEditor::onSSPTimer() {
+    pump_.tick();
+    constexpr int C = PluginProcessor::METERED;
+    for (int c = 0; c < C; c++) {
+        meters_[c].level(processor_.inLevel(c));
+        meters_[C + c].level(processor_.outLevel(c));
+    }
 }
 
 void PluginEditor::onEncoder(unsigned enc, float v) {
@@ -90,7 +121,8 @@ void PluginEditor::drawView(Graphics& g) {
     g.setFont(font);
     const float charW = juce::GlyphArrangement::getStringWidth(font, "M");
     const int cols = std::max(1, int((W - 2 * MARGIN) / charW));
-    const int statusY = H - LINE, outputY = statusY - OUTPUT_ROWS * LINE - 4;
+    const int outCols = std::max(1, int((METERS_X - 2 * MARGIN) / charW));  // the output pane, left of the meters
+    const int statusY = STATUS_Y, outputY = OUTPUT_Y;
     const int codeRows = (outputY - 6) / LINE;
     const auto& text = processor_.text();
     const auto& lines = text.lines();
@@ -154,13 +186,23 @@ void PluginEditor::drawView(Graphics& g) {
     const auto out = processor_.session().output(OUTPUT_ROWS);
     for (int i = 0; i < int(out.size()); i++) {
         g.setColour(out[size_t(i)].error ? juce::Colours::red : dim);
-        g.drawText(String(out[size_t(i)].text.substr(0, size_t(cols))), MARGIN, outputY + i * LINE, W - 2 * MARGIN,
-                   LINE, juce::Justification::left, false);
+        g.drawText(String(out[size_t(i)].text.substr(0, size_t(outCols))), MARGIN, outputY + i * LINE,
+                   METERS_X - 2 * MARGIN, LINE, juce::Justification::left, false);
     }
+    g.setColour(dim);
+    g.drawText("in", IN_X, outputY, METER_LABEL_W, statusY - outputY, juce::Justification::centred, false);
+    g.setColour(amber);
+    g.drawText("out", OUT_X, outputY, METER_LABEL_W, statusY - outputY,
+               juce::Justification::centred, false);
 
     const bool usb = ssp::KeyInput::keyboardConnected();
-    String status = "sapf " + String(JucePlugin_VersionString) + "   " + stateText(processor_.session()) +
-                    "   dsp " + String(int(processor_.load() * 100.f)) + "%   keys " +
+    const auto& session = processor_.session();
+    // dsp: the render thread's share of real time; late: sound the callback lacked, since the start
+    const uint64_t late = session.lateFrames();
+    String status = "sapf " + String(JucePlugin_VersionString) + "   " + stateText(session) + "   dsp " +
+                    String(int(session.renderLoad() * 100.f)) + "%" + (session.renderRealtime() ? " rt" : "") +
+                    (late ? "   late " + String(int(late * 1000 / uint64_t(processor_.sampleRate()))) + " ms" : "") +
+                    "   keys " +
                     (usb ? "usb" : "tcp :" + String(SAPF_KEY_PORT)) + "   " + processor_.currentFile() + ":" +
                     String(text.row() + 1) +
                     "   C-Enter run  C-. stop  C-S save  C-O open";

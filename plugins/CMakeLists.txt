@@ -32,13 +32,13 @@ foreach (P csound chuck faust scsynth)
     endif ()
 endforeach ()
 
-# sapf: sapf-sc at the commit scripts/fetch_sapf.sh pins, or SAPF_SC_DIR; and scsynth's libraries
+# sapf: the sapf fork at the commit scripts/fetch_sapf.sh pins, or SAPF_DIR; and the deps' libsndfile
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/fetch_sapf.sh" SAPF_REF_LINE REGEX "^SAPF_REF=")
 string(REGEX REPLACE "^SAPF_REF=([0-9a-f]+).*" "\\1" SAPF_REF "${SAPF_REF_LINE}")
-if (NOT SAPF_SC_DIR)
-    set(SAPF_SC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../build/deps/src/sapf-sc-${SAPF_REF}")
+if (NOT SAPF_DIR)
+    set(SAPF_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../build/deps/src/sapf-${SAPF_REF}")
 endif ()
-if (EXISTS "${SAPF_SC_DIR}/src/engine/CMakeLists.txt" AND EXISTS "${DEPS_DIR}/lib/libscsynth.a")
+if (EXISTS "${SAPF_DIR}/src/engine/CMakeLists.txt" AND EXISTS "${DEPS_DIR}/lib/libsndfile.a")
     add_subdirectory(sapf)
 else ()
     message(STATUS "skipping sapf: run `make deps`")

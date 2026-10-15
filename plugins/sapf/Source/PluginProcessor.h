@@ -9,6 +9,7 @@
 #include "Session.h"
 #include "TextBuffer.h"
 #include "ssp/BaseProcessor.h"
+#include "ssp/controls/RmsTrack.h"
 
 using namespace juce;
 
@@ -41,10 +42,15 @@ public:
     StringArray files() const;  // the .sapf and .txt files in filesDir(), by name
     const String& currentFile() const { return current_; }
     sapf::FilePicker& picker() { return picker_; }
-    // SAPF_FILES, else /media/BOOT/sapf: the code, the examples, and what >sd and >nrt write
+    // SAPF_FILES, else /media/BOOT/sapf: the code, the examples, and what >sf and >sfo write
     static String filesDir();
 
-    float load() const { return loadAvg_.load(std::memory_order_relaxed); }  // of the audio callback's time
+    double sampleRate() const { return sampleRate_; }
+    // inputs and outputs 1-2, the ones code uses first (Synthor shows all eight): each one's peak,
+    // averaged over 100 blocks; audio and CV alike
+    static constexpr int METERED = 2;
+    float inLevel(int c) { return inLevel_[c].lvl(); }
+    float outLevel(int c) { return outLevel_[c].lvl(); }
 
     static BusesProperties getBusesProperties() {
         BusesProperties props;
@@ -69,7 +75,7 @@ private:
     AudioSampleBuffer in_, spare_;  // inputs, copied before outputs overwrite their channels
     const float* inPtrs_[CHANNELS] = {};
     float* outPtrs_[CHANNELS] = {};
-    std::atomic<float> loadAvg_{ 0.0f };
+    ssp::RmsTrack inLevel_[METERED], outLevel_[METERED];
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)
 };

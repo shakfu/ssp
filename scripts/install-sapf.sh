@@ -1,19 +1,14 @@
 #!/usr/bin/env bash
-# copy the UGen plugins, sapf-sc's prelude and its examples to the SSP's SD card, mounted locally, as
-# BOOT/sapf/ugens, BOOT/sapf/sapf-prelude.txt and BOOT/sapf/sapf-examples.txt, where sapf looks for them. sapf has its own copy of the UGens: scsy and
-# sapf in one patch must not share the libraries (docs/dev/sapf-plugin.md, Risks).
+# copy sapf's prelude and its examples to the SSP's SD card, mounted locally, as BOOT/sapf/sapf-prelude.txt
+# and BOOT/sapf/sapf-examples.txt, where the sapf plugin looks for them.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PLUGINS="${SSP_PLUGINS:-/media/$USER/BOOT/plugins}"
 DEST="$(dirname "$PLUGINS")/sapf"
-UGENS="$ROOT/build/deps/ssp/scsynth/plugins"
-SAPF="${SAPF_SC_DIR:-$("$ROOT/scripts/fetch_sapf.sh")}"
+SAPF="${SAPF_DIR:-$("$ROOT/scripts/fetch_sapf.sh")}"
 
 [ -d "$(dirname "$PLUGINS")" ] || { echo "$(dirname "$PLUGINS") not found; is the SD card mounted?" >&2; exit 1; }
-[ -f "$UGENS/OscUGens.so" ] || { echo "no UGen plugins in $UGENS; run make deps" >&2; exit 1; }
 
 mkdir -p "$DEST"
-rm -rf "$DEST/ugens"
-cp -r "$UGENS" "$DEST/ugens"
 cp -v "$SAPF/sapf-prelude.txt" "$SAPF/sapf-examples.txt" "$DEST"/
 sync  # flush to the card before it is unmounted

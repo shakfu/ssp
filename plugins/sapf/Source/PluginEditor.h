@@ -2,6 +2,7 @@
 
 #include "PluginProcessor.h"
 #include "ssp/BaseView.h"
+#include "ssp/controls/VuMeter.h"
 
 // Keys from the queue into the code, and the actions they ask for. Shared by both editors: the instance
 // whose editor runs takes the keyboard.
@@ -25,13 +26,15 @@ public:
     void drawView(Graphics&) override;
 
 protected:
-    void onSSPTimer() override { pump_.tick(); }
+    void onSSPTimer() override;
     void onEncoder(unsigned enc, float v) override;  // 1: rows, 2: columns
 
 private:
     PluginProcessor& processor_;
     KeyPump pump_;
     int top_ = 0;  // the first screen row of the code shown
+    // inputs 1-2, then outputs 1-2, right of the output pane
+    ssp::MonoVuMeter meters_[2 * PluginProcessor::METERED];
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginEditor)
 };
 

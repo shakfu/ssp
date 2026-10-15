@@ -1,20 +1,18 @@
 cmake_minimum_required(VERSION 3.15)
 project(SAPF VERSION 0.1.0)  # see CHANGELOG.md
 
-# scsynth from scripts/build_deps.sh; sapf-sc from scripts/fetch_sapf.sh (SAPF_SC_DIR); see docs/BUILDING.md
+# The sapf fork's engine and FFTW, from scripts/fetch_sapf.sh (SAPF_DIR); libsndfile from scripts/build_deps.sh,
+# whose copy is PIC; see docs/BUILDING.md
 if (TARGET_SSP)
-    set(SCSYNTH_DEPS "${PROJECT_SOURCE_DIR}/../../build/deps/ssp")
+    set(SAPF_DEPS "${PROJECT_SOURCE_DIR}/../../build/deps/ssp")
 else ()
-    set(SCSYNTH_DEPS "${PROJECT_SOURCE_DIR}/../../build/deps/host")
+    set(SAPF_DEPS "${PROJECT_SOURCE_DIR}/../../build/deps/host")
 endif ()
-set(SC "${SCSYNTH_DEPS}/include/supercollider")
-set(SCSY "${PROJECT_SOURCE_DIR}/../scsynth/Source")
-
-# sapf-sc's interpreter, without replxx. Linked by file, not as a target: its warning flags stay its own.
-# USE_REPLXX must match: it changes the layout of sapf's Thread.
-set(SAPF_ROOT ${SAPF_SC_DIR})
-add_subdirectory(${SAPF_SC_DIR}/src/engine sapf_engine)
-set_target_properties(sapf_engine PROPERTIES POSITION_INDEPENDENT_CODE ON)
+add_library(SndFile::sndfile STATIC IMPORTED)
+set_target_properties(SndFile::sndfile PROPERTIES IMPORTED_LOCATION "${SAPF_DEPS}/lib/libsndfile.a"
+        INTERFACE_INCLUDE_DIRECTORIES "${SAPF_DEPS}/include")
+set(SAPF_ENGINE_ONLY ON)
+add_subdirectory(${SAPF_DIR} sapf_fork)
 
 include_directories("${PROJECT_SOURCE_DIR}/../common")
 
@@ -41,20 +39,12 @@ target_sources(SAPF
         Source/KeyQueue.cpp
         Source/PluginEditor.cpp
         Source/PluginProcessor.cpp
-        Source/SapfServer.cpp
         Source/Session.cpp
         Source/TextBuffer.cpp
-        ${SCSY}/ScWorld.cpp
-        ${SCSY}/ScsyDef.cpp
         ${KEYS_SRC}
         ${COMMON_SRC}
         )
-target_include_directories(SAPF PRIVATE Source ${SCSY} ${SAPF_SC_DIR}/include)
-
-# scsynth's headers and defines only where they are used, as in plugins/scsynth/CMakeLists.txt
-set_source_files_properties(${SCSY}/ScWorld.cpp PROPERTIES
-        COMPILE_DEFINITIONS "SC_AUDIO_API=SC_AUDIO_API_SSP;SC_AUDIO_API_SSP=100;SC_MEMORY_ALIGNMENT=32"
-        INCLUDE_DIRECTORIES "${SC}/include/common;${SC}/common;${SC}/include/server;${SC}/include/plugin_interface;${SC}/server/scsynth;${SC}/external_libraries/boost;${SC}/external_libraries/boost_sync/include;${SC}/external_libraries/TLSF-2.4.6/src;${SCSYNTH_DEPS}/include")
+target_include_directories(SAPF PRIVATE Source ${SAPF_DIR}/include)
 
 target_compile_definitions(SAPF
         PUBLIC
@@ -64,22 +54,22 @@ target_compile_definitions(SAPF
         SSP_TITLE_NO_MANUFACTURER=1
         SSP_VERSION_FROM_PROJECT=1
         PRIVATE
-        USE_REPLXX=0)
+        USE_REPLXX=0)  # as the engine-only build exports: it changes the layout of sapf's Thread
 
-# gcc 8 keeps std::filesystem in libstdc++fs, beside the toolchain's libstdc++ rather than in the
-# sysroot; glibc 2.32 keeps shm_open in librt
+# gcc 8 keeps std::filesystem in libstdc++fs, beside the toolchain's libstdc++ rather than in the sysroot
 if (TARGET_SSP)
     set(STDCXXFS "${BUILDROOT}/arm-rockchip-linux-gnueabihf/lib/libstdc++fs.a")
 else ()
     set(STDCXXFS stdc++fs)
 endif ()
-add_dependencies(SAPF sapf_engine)
+# The engine by file, not as a target: its public warning flags would reach JUCE's sources.
+add_dependencies(SAPF sapf_engine fftw3)
 target_link_libraries(SAPF PRIVATE
         juce::juce_audio_utils
         $<TARGET_FILE:sapf_engine>
-        ${SCSYNTH_DEPS}/lib/libscsynth.a
-        ${SCSYNTH_DEPS}/lib/libsndfile.a
-        ${STDCXXFS} rt dl pthread m)
+        $<TARGET_FILE:fftw3>
+        SndFile::sndfile
+        ${STDCXXFS} pthread m)
 
 set_target_properties(${PROJECT_NAME}_VST3 PROPERTIES PREFIX "")
 

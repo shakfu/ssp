@@ -32,11 +32,11 @@ help:
 	@echo "make clean-releases     delete releases/: every version's package, zip and notes"
 	@echo "make release-notes      write CHANGELOG.md's section for VERSION to releases/shakfu-ssp-plugins-<VERSION>-notes.md"
 	@echo "make deploy             build, copy all plugins to SSP_HOST"
-	@echo "make deploy-mod MOD=x   build, copy one plugin to SSP_HOST"
+	@echo "make deploy-mod MOD=x   build one plugin, copy it to SSP_HOST (Synthor stopped)"
 	@echo "make install [MOD=x]    build, copy plugins to the mounted SD card (SSP_PLUGINS)"
 	@echo "make install-faust      copy the Faust libraries and fstr examples to the card"
 	@echo "make install-scsy       copy the UGen plugins and scsy examples to the card"
-	@echo "make install-sapf       copy the UGen plugins and sapf's prelude and examples to the card"
+	@echo "make install-sapf       copy sapf's prelude and examples to the card"
 	@echo "make midisend           build tools/midisend, copy it to SSP_HOST's /tmp and start it: a MIDI input for tests"
 	@echo "make install-presets     check, then copy presets/ (or PRESETS=dir) to the card (SSP_PRESETS)"
 	@echo "make test               run the py2rack and plugin tests"
@@ -103,7 +103,8 @@ release-notes:
 deploy: ssp
 	scripts/copybuild.ssp.sh
 
-deploy-mod: ssp
+# builds only MOD's target; refuses while Synthor runs
+deploy-mod: $(BUILD_DIR)/Makefile
 	scripts/copymod.ssp.sh $(MOD)
 
 install: ssp

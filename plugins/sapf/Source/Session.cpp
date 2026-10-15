@@ -1,22 +1,31 @@
 #include "Session.h"
 
+#include <pthread.h>
+#include <sched.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <fstream>
 
-#include "Scsynth.hpp"
-#include "Texture.hpp"
 #include "VM.hpp"
 #include "sapf/Engine.hpp"
+#include "sapf/MaxAudioBackend.hpp"
 
 namespace sapf {
 
 namespace {
 
-std::atomic<bool> gOwned{ false };  // a Session holds sapf-sc's globals
-std::string gPrelude;               // sapf-sc keeps a pointer to the prelude's path
+std::atomic<bool> gOwned{ false };  // a Session holds sapf's globals
+std::string gPrelude;               // sapf keeps a pointer to the prelude's path
+
+// False where the process may not, such as a desktop user without rtprio
+bool setRealtime(bool on) {
+    sched_param p{};
+    p.sched_priority = on ? Session::RENDER_PRIORITY : 0;
+    return pthread_setschedparam(pthread_self(), on ? SCHED_FIFO : SCHED_OTHER, &p) == 0;
+}
 
 size_t resident() {
     std::ifstream f("/proc/self/statm");
@@ -76,58 +85,77 @@ Session::~Session() {
     jobReady_.notify_all();
     if (thread_.joinable()) thread_.join();
     if (watchdog_.joinable()) watchdog_.join();
+    renderQuit_ = true;
+    renderWake_.notify_all();
+    if (renderer_.joinable()) renderer_.join();
     if (owner_) {
-        // ola threads run code from this library: none may outlive it
-        stopTextures();
-        for (int i = 0; i < 300 && runningTextures() > 0; i++) std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        setEmbeddedScsynth(nullptr);
-        setPostHandler({});
+        if (MaxAudioBackend* b = backend_.load()) b->stopAll();  // players run code from this library
+        SapfSetPostHook(nullptr, nullptr);
         gInterrupt = false;
+        gOwned = false;
     }
-    world_.close();
-    if (owner_) gOwned = false;
 }
 
 void Session::prepare(float rate) {
     if (!owner_) return;
-    if (!world_.isOpen() || rate != rate_) {
-        if (world_.isOpen()) {  // a new rate: nothing may use the World while it reopens
-            stopTextures();
-            for (int i = 0; i < 300 && runningTextures() > 0; i++)
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            open_ = false;
-            setEmbeddedScsynth(nullptr);
-            world_.close();
-        }
-        std::string err;
-        if (!world_.open(rate, paths_.ugens, err)) {
-            error_ = "scsynth: " + err;
-            state_ = State::FAILED;
-            return;
-        }
-        rate_ = rate;
-        if (!server_) server_ = std::make_unique<SapfServer>(world_);
-        setEmbeddedScsynth(server_.get());
-        open_ = true;
+    if (thread_.joinable()) {
+        if (rate != rate_) note("sapf runs at " + std::to_string(int(rate_)) + " Hz until the patch reloads");
+        return;
     }
-    if (!thread_.joinable()) {
-        setPostHandler([this](const char* s) { post(s); });
-        if (!paths_.files.empty()) {
-            setenv("SAPF_SYNTHDEFS", paths_.files.c_str(), 0);
-            setenv("SAPF_RECORDINGS", paths_.files.c_str(), 0);
-        }
-        thread_ = std::thread([this] { run(); });
-        watchdog_ = std::thread([this] { watch(); });
-    }
+    rate_ = rate;
+    SapfSetPostHook(&Session::postHook, this);
+    if (!paths_.files.empty()) setenv("SAPF_RECORDINGS", paths_.files.c_str(), 0);
+    thread_ = std::thread([this] { run(); });
+    watchdog_ = std::thread([this] { watch(); });
+    renderer_ = std::thread([this] { render(); });
 }
 
 void Session::process(const float* const* in, float* const* out, int n) {
-    if (open_.load(std::memory_order_acquire)) {
-        world_.process(in, out, n);
+    const uint64_t w = written_.load(std::memory_order_acquire);
+    if (w == 0) {  // before the first render: not late
+        for (int c = 0; c < CHANNELS; c++) std::fill(out[c], out[c] + n, 0.0f);
         return;
     }
-    for (int c = 0; c < CHANNELS; c++) std::fill(out[c], out[c] + n, 0.0f);
+    MaxMSPSetInputBuffers(in, CHANNELS, n);
+    const uint64_t r = read_.load(std::memory_order_relaxed);
+    const int have = int(std::min<uint64_t>(w - r, uint64_t(n)));
+    for (int c = 0; c < CHANNELS; c++) {
+        for (int i = 0; i < have; i++) out[c][i] = ring_[c][(r + uint64_t(i)) & (RING - 1)];
+        std::fill(out[c] + have, out[c] + n, 0.0f);
+    }
+    read_.store(r + uint64_t(have), std::memory_order_release);
+    if (have < n) late_.fetch_add(uint64_t(n - have), std::memory_order_relaxed);
+    renderWake_.notify_one();
+}
+
+void Session::render() {
+    float block[CHANNELS][BLOCK];
+    float* outs[CHANNELS];
+    for (int c = 0; c < CHANNELS; c++) outs[c] = block[c];
+    const double period = BLOCK / double(rate_);
+    const bool canRealtime = setRealtime(true);
+    realtime_ = canRealtime;
+    std::unique_lock<std::mutex> lock(renderLock_);
+    while (!renderQuit_) {
+        MaxAudioBackend* backend = backend_.load(std::memory_order_acquire);
+        const uint64_t w = written_.load(std::memory_order_relaxed);
+        if (!backend || w - read_.load(std::memory_order_acquire) + BLOCK > uint64_t(FIFO_BLOCKS * BLOCK)) {
+            // a timeout too: process notifies without the lock, so a wake can be missed
+            renderWake_.wait_for(lock, std::chrono::milliseconds(1));
+            continue;
+        }
+        auto t0 = std::chrono::steady_clock::now();
+        backend->render(outs, CHANNELS, BLOCK);
+        double dt = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+        for (int c = 0; c < CHANNELS; c++)
+            for (int i = 0; i < BLOCK; i++) ring_[c][(w + uint64_t(i)) & (RING - 1)] = block[c][i];
+        written_.store(w + BLOCK, std::memory_order_release);
+        float avg = renderLoad_.load(std::memory_order_relaxed);
+        avg += 0.01f * (float(dt / period) - avg);
+        renderLoad_.store(avg, std::memory_order_relaxed);
+        const bool rt = realtime_.load(std::memory_order_relaxed);
+        if (canRealtime && rt != (avg < (rt ? REALTIME_EXIT : REALTIME_ENTER)) && setRealtime(!rt)) realtime_ = !rt;
+    }
 }
 
 bool Session::evaluate(const std::string& code) {
@@ -163,6 +191,9 @@ std::string Session::error() const {
 void Session::run() {
     SapfEngineConfig config;
     config.sampleRate = rate_;
+    config.blockSize = BLOCK;
+    config.enableManta = false;
+    config.openFiles = false;  // system() would fork the host
     if (!paths_.prelude.empty()) {
         gPrelude = paths_.prelude;
         config.preludeFile = gPrelude.c_str();
@@ -170,8 +201,12 @@ void Session::run() {
     SapfEngine& engine = GetSapfEngine();
     engine.configure(config);
     engine.initialize();
+    MaxAudioBackend& backend = InstallMaxMSPBackend();
+    RegisterMaxAudioPrimitives();
+    MaxMSPSetInputLead(FIFO_BLOCKS * BLOCK);
     Thread th;
     engine.loadPrelude(th);
+    backend_.store(&backend, std::memory_order_release);
     state_ = State::IDLE;
 
     for (;;) {

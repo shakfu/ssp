@@ -31,9 +31,7 @@ DATA = {
     "rack": [("presets", "rack_presets", "*")],
     # under examples/, where Disk does not read them into the scene slots
     "ttyp": [("plugins/teletype/examples", "teletype/examples", "tt*.txt")],
-    # its own copy of the UGens: scsy and sapf in one patch must not share the libraries
-    "sapf": [("{sapf}", "sapf", "sapf-prelude.txt"), ("{sapf}", "sapf", "sapf-examples.txt"),
-             ("{deps}/scsynth/plugins", "sapf/ugens", "**")],
+    "sapf": [("{sapf}", "sapf", "sapf-prelude.txt"), ("{sapf}", "sapf", "sapf-examples.txt")],
 }
 
 # folders a module reads that the user fills
@@ -67,7 +65,7 @@ ORIGINS = {
     "fstr": "new",
     "dexd": "[Synth_Dexed](https://codeberg.org/dcoredump/Synth_Dexed), the [Dexed](https://github.com/asb2m10/dexed) engine",
     "ttyp": "[monome teletype](https://github.com/monome/teletype), on [monome-rack](https://github.com/Dewb/monome-rack)'s mock hardware",
-    "sapf": "[sapf-sc](https://github.com/shakfu/sapf-sc), [sapf](https://github.com/lfnoise/sapf) on SuperCollider's scsynth",
+    "sapf": "[sapf](https://github.com/lfnoise/sapf), through the fork [shakfu/sapf](https://github.com/shakfu/sapf)",
 }
 
 
@@ -93,9 +91,9 @@ class Plugin:
 
 
 def sapf_source(root: pathlib.Path) -> pathlib.Path:
-    """The sapf-sc checkout scripts/fetch_sapf.sh fetches, at the commit it pins."""
+    """The sapf checkout scripts/fetch_sapf.sh fetches, at the commit it pins."""
     ref = re.search(r"^SAPF_REF=([0-9a-f]+)", (root / "scripts" / "fetch_sapf.sh").read_text(), re.M).group(1)
-    return root / "build" / "deps" / "src" / f"sapf-sc-{ref}"
+    return root / "build" / "deps" / "src" / f"sapf-{ref}"
 
 
 def find_plugins(root: pathlib.Path) -> list[Plugin]:
@@ -165,8 +163,7 @@ def readme(version: str, tag: str, plugins: list[Plugin]) -> str:
                                                             "they load",
                                                     "rack_presets": "presets",
                                                     "sapf": "the prelude sapf loads, sapf's examples to open "
-                                                            "with Ctrl-O, and the code it saves; `ugens/` holds the "
-                                                            "UGen plugins, a copy of scsy's"}[folder]))
+                                                            "with Ctrl-O, and the code it saves"}[folder]))
     data = "\n".join(f"| `{f}` | {m if m == 'all' else f'`{m}`'} | {w} |" for f, m, w in data_rows)
     user = "\n".join(f"| `{f}` | `{m}` | {w} |" for m, (f, w) in USER_DATA.items())
     licences = "; ".join(f"`{m}` is {l}" for m, l in LICENSES.items())
