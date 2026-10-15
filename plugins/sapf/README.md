@@ -40,7 +40,7 @@ The code is saved with the patch. One `sapf` runs per patch; a second shows a me
 
 A thread of its own renders sapf 10.7 ms ahead of the SSP's audio. Code that renders slower than real time makes sapf's sound break up, and the status line shows `late` and the milliseconds of sound missed since the start; the rest of the patch plays on. `dsp` on the status line is the render thread's share of real time. Right of the output, meters show inputs 1-2 and outputs 1-2: each one's peak, averaged over about 0.3 s, from -70 to +6 dB. CV shows too, with 0 dB at 5 V; below -40 dB (50 mV) a meter reads nothing, so an unplugged input stays dark. Synthor's own view shows all eight. Input through `adc` arrives about 27 ms late: the FIFO, the same again so the render thread can run ahead, and two blocks.
 
-Noise UGens draw random values as they compute, 128 frames at a time; sapf on a desktop computes 512, so the same seed gives other noise there.
+`setseed` fixes everything an evaluation plays, noise and `ola` voices included: the same seeded code sounds the same each time. Noise UGens draw random values as they compute, 128 frames at a time; sapf on a desktop computes 512, so the same seed gives other noise there.
 
 ## Limits
 
