@@ -1,7 +1,8 @@
 #include "PluginProcessor.h"
 
 PluginProcessor::PluginProcessor()
-    : ScriptProcessor(std::make_unique<csnd::CsoundEngine>(), "/media/BOOT/csound") {
+    : ScriptProcessor(std::make_unique<csnd::CsoundEngine>(), "/media/BOOT/csound",
+                      { 7773, "CSND_KEYBOARD", ".csd", ";" }) {
     noteInput(true);
 }
 

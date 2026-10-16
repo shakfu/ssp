@@ -227,6 +227,40 @@ static void testEngine(const std::string& dir) {
 }
 
 // audio, worker and MIDI threads together while programs swap; run under ThreadSanitizer
+// Ctrl-E's blocks: orchestra code into the running instance, or score events inside <CsScore>
+static void testParts(const std::string& dir) {
+    Rig r;
+    std::string pass = write(dir, "parts.csd", "nchnls = 8\nnchnls_i = 8\n0dbfs = 1\n"
+                                               "instr 1\n  outch 2, a(0.25)\nendin\nschedule 1, 0, -1");
+    r.load(pass);
+    r.run(4);
+    NEAR(r.out[1][BLOCK - 1], 0.25f, 1e-6);
+    const std::string orc = "<CsoundSynthesizer>\n<CsInstruments>\n";
+    // a new instrument and its schedule, the section's tag line taken in by the block
+    r.e.evaluate("<CsInstruments>\ninstr 2\n  outch 4, a(p4)\nendin\nschedule 2, 0, -1, 0.5\n", "<CsoundSynthesizer>\n", pass);
+    r.e.idle();
+    CHECK(r.e.error().empty() && r.e.note() == "orchestra code compiled");
+    r.run(4);
+    NEAR(r.out[3][BLOCK - 1], 0.5f, 1e-6);
+    NEAR(r.out[1][BLOCK - 1], 0.25f, 1e-6);  // the program still runs
+    // a score line, inside <CsScore>; 2.1, as a held 2 would tie to the running one
+    r.e.evaluate("i 2.1 0 -1 0.75\n", orc + "instr 2\nendin\n</CsInstruments>\n<CsScore>\n", pass);
+    r.e.idle();
+    CHECK(r.e.error().empty() && r.e.note() == "events sent");
+    r.run(4);
+    NEAR(r.out[3][BLOCK - 1], 1.25f, 1e-6);  // two instances of instr 2
+    // an error leaves the running orchestra alone
+    r.e.evaluate("instr 3\n  outch 5, nosuchopcode()\nendin\n", orc, pass);
+    r.e.idle();
+    CHECK(!r.e.error().empty());
+    r.run(2);
+    NEAR(r.out[1][BLOCK - 1], 0.25f, 1e-6);
+    // a csnd part cannot be removed
+    r.e.removePart(0);
+    r.e.idle();
+    CHECK(r.e.error() == "no parts to remove");
+}
+
 static void testThreads(const std::string& dir) {
     Rig r;
     std::string pass = write(dir, "pass.csd", PASS);
@@ -337,6 +371,7 @@ int main(int argc, char** argv) {
     else {
         testNoThreadsLeft(argv[1]);
         testEngine(argv[1]);
+        testParts(argv[1]);
         testCv(argv[1]);
     }
     if (failures) std::fprintf(stderr, "%d failures\n", failures);

@@ -4,6 +4,10 @@ faust follows [semantic versioning](https://semver.org). Until 1.0.0, a minor ve
 
 The version is set in `CMakeLists.txt` (`project(FAUST VERSION ...)`) and shown at the top right of the screen.
 
+## [Unreleased]
+
+A USB keyboard, or TCP port 7772, edits the program in a Code view. Ctrl-Enter compiles the edited text in place of the program without writing its file; Ctrl-S writes it. The preset stores the code run, so a patch keeps a live edit even when the file is unsaved or changed later. See [README.md](README.md#keyboard).
+
 ## [0.2.0] - 2026-10-10
 
 Programs run as machine code from libfaust's LLVM JIT, in place of its interpreter, which used ~15x the CPU of a compiled module on the SSP. LLVM is the SSP's own `libLLVM-9.so`, which the SSP's Mesa drivers already link; a static copy would add ~25 MB and could clash with it.

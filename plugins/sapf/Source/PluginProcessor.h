@@ -5,9 +5,9 @@
 #include <mutex>
 
 #include "FilePicker.h"
-#include "KeyQueue.h"
+#include "keys/KeyQueue.h"
 #include "Session.h"
-#include "TextBuffer.h"
+#include "keys/TextBuffer.h"
 #include "ssp/BaseProcessor.h"
 #include "ssp/controls/RmsTrack.h"
 
@@ -31,9 +31,9 @@ public:
     bool hasEditor() const override { return true; }
 
     sapf::Session& session() { return *session_; }
-    sapf::KeyQueue& keys() { return keys_; }
+    ssp::KeyQueue& keys() { return keys_; }
     // the code; message thread
-    sapf::TextBuffer& text() { return text_; }
+    ssp::TextBuffer& text() { return text_; }
 
     // Ctrl-S: the code to the current file; Ctrl-O: a file from files() as the code and the current
     // file. A line for the output.
@@ -66,8 +66,8 @@ protected:
 
 private:
     std::unique_ptr<sapf::Session> session_;
-    sapf::KeyQueue keys_;
-    sapf::TextBuffer text_;
+    ssp::KeyQueue keys_;
+    ssp::TextBuffer text_;
     sapf::FilePicker picker_;
     String current_ = "live.sapf";  // in filesDir()
     double sampleRate_ = 48000.0;

@@ -12,7 +12,26 @@ Copy `csnd.so` to the `plugins` folder on the SD card. The module is `csnd`: the
 
 Load (button 5) opens a browser. Choose a `.csd` and press Load again. The screen shows the file, and the compile error if there is one. A program that fails to compile leaves the previous one running. With no program, a built-in drone plays: pitch, level and cutoff. MIDI notes play it too.
 
-The preset stores the file's path, not its contents.
+The preset stores the file's path, not its contents, unless the code ran from the [keyboard](#keyboard).
+
+## Keyboard
+
+A USB keyboard, or port 7773 on 127.0.0.1 over ssh (`ssh -L 7773:127.0.0.1:7773 root@192.168.1.6`), edits the program as text. The first key typed opens the Code view; Code (button 6) or Esc returns to the pages. The keyboard goes to the keyboard module on screen, as for `sapf` and `ttyp`.
+
+| Key | Does |
+|-|-|
+| Ctrl-Enter | compiles the whole code in place of the program; the file is unchanged |
+| Ctrl-S | writes the code to the program's file; for the built-in, to `BOOT/csound/live.csd` |
+| Ctrl-O | opens the browser, as Load |
+| Ctrl-E | runs the block around the cursor in the running orchestra: the lines up to blank lines outside brackets, strings and comments; on a blank line, the block above |
+| Esc | returns to the pages |
+| arrows, Home, End, PageUp, PageDown | move; with Ctrl, Home and End go to the start and end |
+
+Encoder 1 moves the cursor by rows, encoder 2 by columns. A held key repeats. Tab inserts spaces to the next multiple of 4. The layout is US. Relative paths in the code resolve next to the program's file. Controls keep their positions when the code runs; Load sets a program's defaults.
+
+Ctrl-E sends a block inside `<CsScore>` as score events, such as `i 2 0 4`. Elsewhere it compiles the block as orchestra code: `schedule 2, 0, 4` plays, `instr 2 ... endin` replaces instrument 2, and `gkx = 0.5` sets a global. A replaced instrument applies to notes that start after it; a held note keeps the old definition until it ends. A block ends at a blank line, so keep an instrument free of blank lines to send it whole. A held note on the same instrument number ties to the running one; use a fractional number, such as `i 2.1`, for a second voice. Errors in an event show only when it plays, not on Ctrl-E.
+
+The preset stores the code last run, and the text when it holds an edit not yet run. It does not store what Ctrl-E added.
 
 ## The orchestra
 

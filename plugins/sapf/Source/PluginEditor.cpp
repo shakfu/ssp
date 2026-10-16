@@ -1,9 +1,9 @@
 #include "PluginEditor.h"
 
 #include <algorithm>
-#include <cmath>
 
 #include "SSP.h"
+#include "keys/CodeText.h"
 #include "keys/KeyInput.h"
 
 namespace {
@@ -41,7 +41,7 @@ void KeyPump::tick() {
     auto& text = processor_.text();
     auto& session = processor_.session();
     auto& picker = processor_.picker();
-    for (const auto& k : processor_.keys().take(sapf::KeyQueue::Clock::now())) {
+    for (const auto& k : processor_.keys().take(ssp::KeyQueue::Clock::now())) {
         if (picker.shown()) {  // Ctrl-O's list takes the keys until it closes
             switch (picker.key(k.usage)) {
                 case sapf::FilePicker::OPEN:
@@ -54,7 +54,7 @@ void KeyPump::tick() {
             continue;
         }
         switch (text.key(k.usage, k.mods)) {
-            case sapf::TextBuffer::EVALUATE: {
+            case ssp::TextBuffer::EVALUATE: {
                 int first, last;
                 if (!text.block(first, last)) break;
                 if (session.evaluate(text.lines(first, last))) {
@@ -63,9 +63,9 @@ void KeyPump::tick() {
                 }
                 break;
             }
-            case sapf::TextBuffer::STOP: session.stop(); break;
-            case sapf::TextBuffer::SAVE: session.note(processor_.save().toStdString()); break;
-            case sapf::TextBuffer::OPEN: {
+            case ssp::TextBuffer::STOP: session.stop(); break;
+            case ssp::TextBuffer::SAVE: session.note(processor_.save().toStdString()); break;
+            case ssp::TextBuffer::OPEN: {
                 std::vector<std::string> names;
                 for (const auto& n : processor_.files()) names.push_back(n.toStdString());
                 picker.show(names, processor_.currentFile().toStdString());
@@ -120,12 +120,10 @@ void PluginEditor::drawView(Graphics& g) {
     const auto font = mono(22);
     g.setFont(font);
     const float charW = juce::GlyphArrangement::getStringWidth(font, "M");
-    const int cols = std::max(1, int((W - 2 * MARGIN) / charW));
     const int outCols = std::max(1, int((METERS_X - 2 * MARGIN) / charW));  // the output pane, left of the meters
     const int statusY = STATUS_Y, outputY = OUTPUT_Y;
     const int codeRows = (outputY - 6) / LINE;
     const auto& text = processor_.text();
-    const auto& lines = text.lines();
 
     const auto& picker = processor_.picker();
     if (picker.shown()) {  // Ctrl-O's list in place of the code, the selection kept in view
@@ -146,39 +144,10 @@ void PluginEditor::drawView(Graphics& g) {
             g.drawText(String(names[size_t(first + i)]), MARGIN + 2 * int(charW), y, W - 2 * MARGIN, LINE,
                        juce::Justification::left, false);
         }
-    }
-
-    // screen rows: each line in pieces of `cols` characters
-    struct Row {
-        int line, start;
-    };
-    std::vector<Row> rows;
-    int cursorRow = 0;
-    for (int r = 0; r < int(lines.size()); r++) {
-        const int len = int(lines[size_t(r)].size()), pieces = std::max(1, (len + cols - 1) / cols);
-        if (r == text.row()) cursorRow = int(rows.size()) + std::min(text.col() / cols, pieces - 1);
-        for (int k = 0; k < pieces; k++) rows.push_back({ r, k * cols });
-    }
-    top_ = std::clamp(top_, cursorRow - codeRows + 1, cursorRow);
-
-    int flashFirst, flashLast;
-    const bool flashOn = pump_.flashing(flashFirst, flashLast);
-    for (int i = 0; !picker.shown() && i < codeRows && top_ + i < int(rows.size()); i++) {
-        const Row& row = rows[size_t(top_ + i)];
-        const int y = 4 + i * LINE;
-        if (flashOn && row.line >= flashFirst && row.line <= flashLast) {
-            g.setColour(flash);
-            g.fillRect(0, y, W, LINE);
-        }
-        g.setColour(juce::Colours::white);
-        g.drawText(String(lines[size_t(row.line)].substr(size_t(row.start), size_t(cols))), MARGIN, y, W - 2 * MARGIN,
-                   LINE, juce::Justification::left, false);
-    }
-    // the cursor, a bar before its column
-    if (!picker.shown() && cursorRow >= top_ && cursorRow < top_ + codeRows) {
-        const int x = MARGIN + int(std::round((text.col() - rows[size_t(cursorRow)].start) * charW));
-        g.setColour(amber);
-        g.fillRect(x - 1, 4 + (cursorRow - top_) * LINE + 2, 3, LINE - 4);
+    } else {
+        int flashFirst, flashLast;
+        if (!pump_.flashing(flashFirst, flashLast)) flashFirst = 0, flashLast = -1;
+        ssp::drawCode(g, text, { MARGIN, 4, W - 2 * MARGIN, codeRows * LINE }, LINE, top_, flashFirst, flashLast);
     }
 
     g.setColour(juce::Colour(60, 60, 60));

@@ -54,13 +54,14 @@ protected:
     void eventLeft(bool longPress) override;
     void eventRight(bool longPress) override;
     void setView(unsigned newView) override;
+    void browse();  // opens the browser at browseFrom(), as Load does
 
     static constexpr int panelX = 910;
     using base_type = ssp::BaseViewEditor;
+    enum { V_MAIN, V_FILE };  // views a subclass adds follow
+    enum { B_LOAD = 4, B_CANCEL = 6 };
 
 private:
-    enum { V_MAIN, V_FILE };
-    enum { B_LOAD = 4, B_CANCEL = 6 };
     class PageView;
 
     bool fileMode() const { return view_ == V_FILE; }

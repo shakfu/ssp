@@ -10,6 +10,7 @@
 #include <fstream>
 #include <string>
 #include <thread>
+#include <tuple>
 #include <vector>
 #include <dirent.h>
 
@@ -127,6 +128,32 @@ static void testEngine(const std::string& dir) {
     r.run(2);
     NEAR(r.out[0][BLOCK - 1], 0.5f, 1e-4);
 
+    // code in place of its file: me.dir() is still the file's directory, a rate change recompiles
+    // the code, not the file, and a failed compile keeps the code running
+    std::string code = "SndBuf b => dac.chan(1);\nme.dir() + \"half.wav\" => b.read;\n"
+                       "1 => b.loop;\nwhile (true) 1::second => now;\n";
+    r.e.loadCode(code, buf);
+    std::string got;
+    CHECK(r.e.loading() && r.e.code(got) && got == code);
+    r.e.idle();
+    CHECK(!r.e.loading() && r.e.error().empty() && r.e.path() == buf);
+    r.run(2);
+    NEAR(r.out[1][BLOCK - 1], 0.5f, 1e-4);
+    CHECK(r.out[0][BLOCK - 1] == 0.0f);  // buf.ck's own shred is gone
+    r.e.prepare(48000.0f, BLOCK);
+    r.run(2);
+    NEAR(r.out[1][BLOCK - 1], 0.5f, 1e-4);
+    CHECK(r.out[0][BLOCK - 1] == 0.0f);
+    r.e.loadCode("SinOsc s => nosuchthing;\n", buf);
+    r.e.idle();
+    CHECK(r.e.error().find("buf.ck:1:") == 0);
+    r.run(2);
+    NEAR(r.out[1][BLOCK - 1], 0.5f, 1e-4);
+    r.load(buf);  // back to the file
+    CHECK(r.e.error().empty() && !r.e.code(got));
+    r.run(2);
+    NEAR(r.out[0][BLOCK - 1], 0.5f, 1e-4);
+
     // the host's rate
     Rig r44(44100.0f);
     r44.load(write(dir, "rate.ck", "Step s => dac.chan(0);\nsecond / samp / 100000 => s.next;\n"
@@ -147,6 +174,66 @@ static void testEngine(const std::string& dir) {
     r.load("");
     CHECK(r.e.error().empty() && r.e.path().empty());
     CHECK(r.run(20) > 0.01);
+}
+
+static std::string step(char name, int chan, const char* level) {
+    return std::string("Step ") + name + " => dac.chan(" + std::to_string(chan) + ");\n" + level + " => " + name +
+           ".next;\nwhile (true) 1::second => now;\n";
+}
+
+// Ctrl-E's parts: shreds beside the program, listed in the order added
+static void testParts(const std::string& dir) {
+    Rig r;
+    std::string quiet = write(dir, "quiet.ck", "while (true) 1::second => now;\n");
+    r.e.load(quiet);  // runs before the parts queued after it
+    for (auto [n, c, v] : { std::tuple{ 'a', 5, "0.25" }, { 'b', 6, "0.5" }, { 'c', 7, "0.75" } })
+        r.e.evaluate(step(n, c, v), "", quiet);
+    unsigned seq = r.e.noteSeq();
+    r.run(2);
+    CHECK(r.e.error().empty() && r.e.noteSeq() == seq + 3 && r.e.note() == "shred 3: Step c => dac.chan(7);");
+    NEAR(r.out[5][BLOCK - 1], 0.25f, 1e-6);
+    NEAR(r.out[6][BLOCK - 1], 0.5f, 1e-6);
+    NEAR(r.out[7][BLOCK - 1], 0.75f, 1e-6);
+    CHECK(r.e.parts() == "shreds  1 Step a => dac.chan(5);   2 Step b => dac.chan(6);   3 Step c => dac.chan(7);");
+
+    r.e.removePart(2);  // by index
+    r.run(2);
+    CHECK(r.out[6][BLOCK - 1] == 0.0f);
+    NEAR(r.out[7][BLOCK - 1], 0.75f, 1e-6);
+    CHECK(r.e.parts() == "shreds  1 Step a => dac.chan(5);   2 Step c => dac.chan(7);");
+    r.e.removePart(0);  // the newest
+    r.run(2);
+    CHECK(r.out[7][BLOCK - 1] == 0.0f);
+    NEAR(r.out[5][BLOCK - 1], 0.25f, 1e-6);
+    CHECK(r.e.parts() == "shreds  1 Step a => dac.chan(5);");
+    r.e.removePart(5);
+    r.run(1);
+    CHECK(r.e.error() == "no shred 5");
+
+    // a part that ends leaves the list; one that fails to compile leaves the others running
+    r.e.evaluate("// ends\nStep d => dac.chan(6);\n1::samp => now;\n", "", quiet);
+    r.e.evaluate("nosuch x;\n", "", quiet);
+    r.run(2);
+    CHECK(r.e.error().find("quiet.ck:1:") == 0);
+    CHECK(r.e.parts() == "shreds  1 Step a => dac.chan(5);");
+    NEAR(r.out[5][BLOCK - 1], 0.25f, 1e-6);
+
+    // me.dir() is the program's directory, as for the program
+    r.e.evaluate("SndBuf b => dac.chan(4);\nme.dir() + \"half.wav\" => b.read;\n1 => b.loop;\n"
+                 "while (true) 1::second => now;\n", "", dir + "/buf.ck");
+    r.run(2);
+    NEAR(r.out[4][BLOCK - 1], 0.5f, 1e-4);
+
+    // clearing ends the program too; a new program ends every part
+    r.e.clearParts();
+    r.run(2);
+    CHECK(r.e.parts().empty() && r.out[5][BLOCK - 1] == 0.0f && r.out[4][BLOCK - 1] == 0.0f);
+    r.e.evaluate(step('a', 5, "0.25"), "", quiet);
+    r.run(2);
+    CHECK(!r.e.parts().empty());
+    r.load(quiet);
+    r.run(2);
+    CHECK(r.e.parts().empty() && r.out[5][BLOCK - 1] == 0.0f);
 }
 
 // audio and worker threads together while programs swap; run under ThreadSanitizer
@@ -180,6 +267,9 @@ static void testThreads(const std::string& dir) {
     std::thread worker([&] {
         for (int k = 0; !quit; k++) {
             if (k % 20 == 0) r.e.load(k % 60 < 20 ? pass : k % 60 < 40 ? midi : std::string());
+            if (k % 20 == 5) r.e.evaluate(step('a', 5, "0.25"), "", pass);
+            if (k % 20 == 10) r.e.removePart(k % 40 < 20 ? 0 : 1);
+            if (k % 100 == 15) r.e.clearParts();
             r.e.idle();
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
@@ -284,6 +374,7 @@ int main(int argc, char** argv) {
     else {
         testNoThreadsLeft(argv[1]);
         testEngine(argv[1]);
+        testParts(argv[1]);
         testMidi(argv[1]);
     }
     if (failures) std::fprintf(stderr, "%d failures\n", failures);

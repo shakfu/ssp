@@ -4,6 +4,12 @@ csound follows [semantic versioning](https://semver.org). Until 1.0.0, a minor v
 
 The version is set in `CMakeLists.txt` (`project(CSOUND VERSION ...)`) and shown at the top right of the screen.
 
+## [Unreleased]
+
+A USB keyboard, or TCP port 7773, edits the program in a Code view. Ctrl-Enter compiles the edited text in place of the program without writing its file; Ctrl-S writes it. The preset stores the code run, so a patch keeps a live edit even when the file is unsaved or changed later. See [README.md](README.md#keyboard).
+
+Ctrl-E evaluates the block around the cursor in the running orchestra: score events inside `<CsScore>`, orchestra code (`csoundCompileOrc`) elsewhere. Global state and running notes survive, unlike Ctrl-Enter's full restart.
+
 ## [0.1.0] - 2026-10-10
 
 First release, as the module `csnd`. Csound 7.0.0-beta.17, linked in. Runs a `.csd` chosen with Load, or a built-in drone. Eight audio inputs and outputs, controls `p1`..`p16`, and MIDI notes through Csound's MIDI opcodes. A failed compile keeps the previous program running. A comment line `@pN label [min max [unit]] [log]` names a control and sets its range; the editor shows only declared controls. Five example orchestras in `examples/`. The status panel counts MIDI notes. See [README.md](README.md).

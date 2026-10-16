@@ -36,12 +36,11 @@ target_sources(SAPF
         Source/SSPApi.cpp
         PRIVATE
         Source/FilePicker.cpp
-        Source/KeyQueue.cpp
         Source/PluginEditor.cpp
         Source/PluginProcessor.cpp
         Source/Session.cpp
-        Source/TextBuffer.cpp
         ${KEYS_SRC}
+        ${TEXT_SRC}
         ${COMMON_SRC}
         )
 target_include_directories(SAPF PRIVATE Source ${SAPF_DIR}/include)

@@ -185,6 +185,46 @@ bool CsoundEngine::compile(const std::string& text, const std::string& path, std
     return true;
 }
 
+// Csound runs orchestra code compiled into a running instance: new instrument definitions apply to
+// notes started after, and global-space code (schedule, ftgen) runs once. Audio waits at the gate, so
+// the instance is not performing.
+bool CsoundEngine::runPart(const std::string& part, const std::string& before, const std::string&,
+                           std::string& result) {
+    size_t open = before.rfind("<CsScore"), close = before.rfind("</CsScore");
+    const bool score = open != std::string::npos && (close == std::string::npos || close < open);
+    // the block may take in a section's tag line
+    std::string code;
+    size_t at = 0;
+    while (at < part.size()) {
+        size_t end = part.find('\n', at);
+        if (end == std::string::npos) end = part.size();
+        std::string line = part.substr(at, end - at);
+        size_t c = line.find_first_not_of(" \t");
+        if (c == std::string::npos || (line.compare(c, 3, "<Cs") != 0 && line.compare(c, 4, "</Cs") != 0))
+            code += line + "\n";
+        at = end + 1;
+    }
+    Instance* i = gate_.take();
+    if (i == nullptr) {
+        result = "no orchestra running";
+        return false;
+    }
+    std::string log;
+    i->log = &log;
+    bool ok;
+    if (score) {
+        csoundEventString(i->cs, code.c_str(), 0);
+        ok = log.find("rror") == std::string::npos;
+    } else {
+        ok = csoundCompileOrc(i->cs, code.c_str(), 0) == 0;
+    }
+    i->log = nullptr;
+    gate_.publish(i);
+    if (ok) result = score ? "events sent" : "orchestra code compiled";
+    else if ((result = lastLines(log)).empty()) result = "evaluation failed";
+    return ok;
+}
+
 void CsoundEngine::process(const float* const* in, float* const* out, int n) {
     Instance* i = gate_.begin();
     if (i == nullptr) {

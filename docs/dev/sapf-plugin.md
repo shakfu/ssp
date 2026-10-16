@@ -19,7 +19,7 @@ This replaces a design built on sapf-sc, which compiled sapf to scsynth graphs (
 |-|-|-|
 | Interpreter and UGens | the fork's engine, `SAPF_ENGINE_ONLY` | fetched, pinned by commit (`scripts/fetch_sapf.sh`) |
 | Audio | the fork's `MaxAudioBackend`: `render` on a thread of its own, 128-frame sapf blocks, a 4-block FIFO; `adc` for input | `Session` |
-| Keys, editor, evaluation thread | `plugins/common/keys`, `plugins/sapf` (`TextBuffer`, `KeyQueue`, `Session`) | kept from the sapf-sc plugin |
+| Keys, editor, evaluation thread | `plugins/common/keys` (`TextBuffer`, `KeyQueue`), `plugins/sapf` (`Session`) | kept from the sapf-sc plugin |
 
 The evaluation model, keys, prelude, screen and file layout carry over from [sapf-sc-plugin.md](sapf-sc-plugin.md).
 

@@ -10,6 +10,8 @@ Changes to the build, tools and presets. Each plugin keeps its own changelog in 
 
 - Every `EngineEditor` module ends its DSP readout before the version label. The readout was right-aligned to x=1590 and drew over the label, which starts at x=1505.
 
+- `fstr`, `csnd` and `chuk` edit their program from a keyboard, as `sapf` does. `ScriptProcessor` provides it for plugins that pass it a key port; `scsy` passes none, since its programs are binary SynthDefs. `TextBuffer` and `KeyQueue` move from `plugins/sapf` to `plugins/common/keys`, along with sapf's code drawing (`drawCode`). `TextBuffer::block` takes the language's comment marker: with sapf's `;`, a ChucK line such as `0 => int i; while (i < 4) {` ended its bracket count at the `;`. `ScriptEngine` runs Ctrl-E blocks through engine overrides; `chuk` and `csnd` implement them.
+
 - `EngineEditor` passes a short Left or Right press to the module through `step(dir)`; long presses still move between page groups. `dexd` uses it for PG- and PG+.
 
 ### Build and tools

@@ -12,7 +12,29 @@ Copy `chuk.so` to the `plugins` folder on the SD card. The module is `chuk`: the
 
 Load (button 5) opens a browser. Choose a `.ck` and press Load again. The screen shows the file, and the compile error if there is one. A program that fails to compile leaves the previous one running. With no program, a built-in drone plays: pitch, level and cutoff.
 
-Audio stops while a program compiles. The preset stores the file's path, not its contents.
+Audio stops while a program compiles. The preset stores the file's path, not its contents, unless the code ran from the [keyboard](#keyboard).
+
+## Keyboard
+
+A USB keyboard, or port 7774 on 127.0.0.1 over ssh (`ssh -L 7774:127.0.0.1:7774 root@192.168.1.6`), edits the program as text. The first key typed opens the Code view; Code (button 6) or Esc returns to the pages. The keyboard goes to the keyboard module on screen, as for `sapf` and `ttyp`.
+
+| Key | Does |
+|-|-|
+| Ctrl-Enter | compiles the whole code in place of the program; the file is unchanged |
+| Ctrl-S | writes the code to the program's file; for the built-in, to `BOOT/chuck/live.ck` |
+| Ctrl-O | opens the browser, as Load |
+| Ctrl-E | runs the block around the cursor as a new shred beside the program: the lines up to blank lines outside brackets, strings and comments; on a blank line, the block above |
+| Ctrl-1 .. Ctrl-9, Ctrl-0 | removes Ctrl-E shred 1 to 10, numbered in the order added |
+| Ctrl-- | removes the newest Ctrl-E shred |
+| Ctrl-. | removes every shred, the program's too: silence until the next Ctrl-Enter |
+| Esc | returns to the pages |
+| arrows, Home, End, PageUp, PageDown | move; with Ctrl, Home and End go to the start and end |
+
+Encoder 1 moves the cursor by rows, encoder 2 by columns. A held key repeats. Tab inserts spaces to the next multiple of 4. The layout is US. Relative paths in the code resolve next to the program's file. Controls keep their positions when the code runs; Load sets a program's defaults.
+
+The Code view lists the Ctrl-E shreds still running above the status line; a shred that ends leaves the list. Ctrl-Enter replaces the program and ends every shred. Up to 16 run at once.
+
+The preset stores the code last run, and the text when it holds an edit not yet run. It does not store Ctrl-E shreds.
 
 ## The program
 

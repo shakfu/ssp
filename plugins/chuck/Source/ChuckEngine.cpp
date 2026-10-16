@@ -101,14 +101,7 @@ void ChuckEngine::prepare(float sampleRate, int maxBlock) {
     ScriptEngine::prepare(sampleRate, maxBlock);
 }
 
-// Compiles with the VM out of the audio path, then swaps the program in: audio is silent for the
-// compile. A failed compile keeps the old program's shreds.
-bool ChuckEngine::compile(const std::string& text, const std::string& path, std::string& error) {
-    if (vm_ == nullptr) {
-        error = "ChucK failed to start";
-        return false;
-    }
-    gate_.take();
+Chuck_VM_Code* ChuckEngine::compileText(const std::string& text, const std::string& path, std::string& error) {
     std::string log;
     compileLog = &log;
     EM_reset_msg();
@@ -117,25 +110,142 @@ bool ChuckEngine::compile(const std::string& text, const std::string& path, std:
     bool ok = c->compileCode(text, path);  // path: me.dir() and @import resolve next to the file
     c->m_originHint = ckte_origin_UNKNOWN;
     compileLog = nullptr;
-    if (ok) {
-        Chuck_VM_Code* code = c->output();
+    if (ok) return c->output();
+    const char* last = EM_lasterror();
+    error = last != nullptr && *last ? std::string(last) : log;
+    if (error.empty()) error = "compile failed";
+    std::string name = path.empty() ? "builtin" : path.substr(path.find_last_of('/') + 1);
+    for (size_t at; (at = error.find(CHUCK_CODE_LITERAL_SIGNIFIER)) != std::string::npos;)
+        error.replace(at, std::strlen(CHUCK_CODE_LITERAL_SIGNIFIER), name);
+    return nullptr;
+}
+
+void ChuckEngine::removeAll() {
+    // removal happens at the top of the next compute, so run one frame before any new spork
+    vm_->removeAllShreds();
+    vm_->run(in_.data(), out_.data(), 1);
+    clearSources(vm_->vm()->m_dac);
+    clearSources(vm_->vm()->m_bunghole);
+    std::lock_guard<std::mutex> lock(partsLock_);
+    partCount_.store(0);
+    live_.store(0);
+}
+
+// Compiles with the VM out of the audio path, then swaps the program in: audio is silent for the
+// compile. A failed compile keeps the old program's shreds and parts.
+bool ChuckEngine::compile(const std::string& text, const std::string& path, std::string& error) {
+    if (vm_ == nullptr) {
+        error = "ChucK failed to start";
+        return false;
+    }
+    gate_.take();
+    Chuck_VM_Code* code = compileText(text, path, error);
+    if (code != nullptr) {
         code->name = path.empty() ? "builtin" : path;
-        // removal happens at the top of the next compute, so run one frame before the new spork
-        vm_->removeAllShreds();
-        vm_->run(in_.data(), out_.data(), 1);
-        clearSources(vm_->vm()->m_dac);
-        clearSources(vm_->vm()->m_bunghole);
+        removeAll();
         vm_->vm()->spork(code, nullptr, TRUE);
-    } else {
-        const char* last = EM_lasterror();
-        error = last != nullptr && *last ? std::string(last) : log;
-        if (error.empty()) error = "compile failed";
-        std::string name = path.empty() ? "builtin" : path.substr(path.find_last_of('/') + 1);
-        for (size_t at; (at = error.find(CHUCK_CODE_LITERAL_SIGNIFIER)) != std::string::npos;)
-            error.replace(at, std::strlen(CHUCK_CODE_LITERAL_SIGNIFIER), name);
     }
     gate_.publish(vm_);
-    return ok;
+    return code != nullptr;
+}
+
+// the part's first line of code, for parts()
+static std::string label(const std::string& part) {
+    size_t at = 0;
+    while (at < part.size()) {
+        size_t end = part.find('\n', at);
+        if (end == std::string::npos) end = part.size();
+        size_t c = part.find_first_not_of(" \t", at);
+        if (c < end && part.compare(c, 2, "//") != 0) return part.substr(c, std::min<size_t>(end - c, 24));
+        at = end + 1;
+    }
+    return "?";
+}
+
+int ChuckEngine::livePart(int index) const {
+    const uint32_t live = live_.load();
+    const int count = partCount_.load();
+    int seen = 0, newest = -1;
+    for (int k = 0; k < count; k++) {
+        if (!(live >> k & 1)) continue;
+        newest = k;
+        if (++seen == index) return k;
+    }
+    return index == 0 ? newest : -1;
+}
+
+// A new shred, compiled and sporked as compile() does, beside the running ones
+bool ChuckEngine::runPart(const std::string& part, const std::string&, const std::string& path,
+                          std::string& result) {
+    if (vm_ == nullptr) {
+        result = "ChucK failed to start";
+        return false;
+    }
+    gate_.take();
+    {
+        // forget parts that ended; their slots go to the new one
+        std::lock_guard<std::mutex> lock(partsLock_);
+        const uint32_t live = live_.load();
+        int kept = 0;
+        for (int k = 0; k < partCount_.load(); k++)
+            if (live >> k & 1) parts_[kept++] = parts_[k];
+        partCount_.store(kept);
+        live_.store((1u << kept) - 1);
+    }
+    bool ok = partCount_.load() < MAX_PARTS;
+    if (!ok) result = std::to_string(MAX_PARTS) + " shreds running: remove one first";
+    Chuck_VM_Code* code = ok ? compileText(part, path, result) : nullptr;
+    if (code != nullptr) {
+        Part p{ 0, label(part) };
+        code->name = p.label;
+        p.xid = vm_->vm()->spork(code, nullptr, TRUE)->xid;
+        std::lock_guard<std::mutex> lock(partsLock_);
+        const int k = partCount_.load();
+        parts_[k] = p;
+        partCount_.store(k + 1);
+        live_.store((1u << (k + 1)) - 1);
+        result = "shred " + std::to_string(k + 1) + ": " + p.label;
+    }
+    gate_.publish(vm_);
+    return code != nullptr;
+}
+
+// Through the VM's message queue, which the audio thread reads at the top of each compute; only this
+// thread writes it. The part leaves parts() when the audio thread finds it gone.
+bool ChuckEngine::dropPart(int index, std::string& result) {
+    const int k = livePart(index);
+    if (vm_ == nullptr || k < 0) {
+        result = index == 0 ? "no shreds to remove" : "no shred " + std::to_string(index);
+        return false;
+    }
+    auto* msg = new Chuck_Msg;
+    msg->type = CK_MSG_REMOVE;
+    msg->param = parts_[k].xid;
+    vm_->vm()->queue_msg(msg);
+    result = "removed " + parts_[k].label;
+    return true;
+}
+
+bool ChuckEngine::dropAll(std::string& result) {
+    if (vm_ == nullptr) {
+        result = "ChucK failed to start";
+        return false;
+    }
+    gate_.take();
+    removeAll();
+    gate_.publish(vm_);
+    result = "cleared every shred; Ctrl-Enter runs the program again";
+    return true;
+}
+
+std::string ChuckEngine::parts() const {
+    std::lock_guard<std::mutex> lock(partsLock_);
+    const uint32_t live = live_.load();
+    std::string s;
+    int n = 0;
+    for (int k = 0; k < partCount_.load(); k++)
+        if (live >> k & 1) s += (s.empty() ? "shreds  " : "   ") + std::to_string(++n) + " " + parts_[k].label;
+    return s;
 }
 
 void ChuckEngine::idle() {
@@ -181,6 +291,12 @@ void ChuckEngine::process(const float* const* in, float* const* out, int n) {
     for (int f = 0; f < n; f++)
         for (int c = 0; c < CHANNELS; c++) *ii++ = in[c][f];
     vm->run(in_.data(), out_.data(), n);
+    // which parts still run: lookup walks the live shreds, without allocating
+    const int count = partCount_.load();
+    uint32_t live = 0;
+    for (int k = 0; k < count; k++)
+        if (vm->vm()->shreduler()->lookup(parts_[k].xid) != nullptr) live |= 1u << k;
+    live_.store(live);
     const float* oo = out_.data();
     for (int f = 0; f < n; f++)
         for (int c = 0; c < CHANNELS; c++) out[c][f] = *oo++;

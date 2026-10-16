@@ -19,6 +19,23 @@ Load (button 5) picks a `.dsp` file. A program that fails to compile shows its e
 - **CV**: `[cv:N]` in a control's label makes input N move it; see [CV in](#cv-in).
 - **MIDI**: a program with `declare options "[nvoices:N]";` plays N voices from MIDI notes; see [MIDI](#midi).
 
+## Keyboard
+
+A USB keyboard, or port 7772 on 127.0.0.1 over ssh (`ssh -L 7772:127.0.0.1:7772 root@192.168.1.6`), edits the program as text. The first key typed opens the Code view; Code (button 6) or Esc returns to the pages. The keyboard goes to the keyboard module on screen, as for `sapf` and `ttyp`.
+
+| Key | Does |
+|-|-|
+| Ctrl-Enter | compiles the whole code in place of the program; the file is unchanged |
+| Ctrl-S | writes the code to the program's file; for the built-in, to `BOOT/faust/live.dsp` |
+| Ctrl-O | opens the browser, as Load |
+| Ctrl-E | none: a Faust program compiles only whole, with Ctrl-Enter |
+| Esc | returns to the pages |
+| arrows, Home, End, PageUp, PageDown | move; with Ctrl, Home and End go to the start and end |
+
+Encoder 1 moves the cursor by rows, encoder 2 by columns. A held key repeats. Tab inserts spaces to the next multiple of 4. The layout is US. Relative paths in the code resolve next to the program's file. Controls keep their positions when the code runs; Load sets a program's defaults.
+
+The preset stores the code last run, and the text when it holds an edit not yet run.
+
 ## Inputs and outputs
 
 Inputs 1..8 and outputs 1..8 carry audio and CV alike. An SSP signal of 1.0 is 5 V, so CV is 0.2 per volt: 1 V is 0.2, and 1 V/oct pitch is 0.2 per octave.

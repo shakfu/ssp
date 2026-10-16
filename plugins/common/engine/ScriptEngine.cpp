@@ -133,37 +133,98 @@ void ScriptEngine::readCv(const float* const* in) {
 void ScriptEngine::prepare(float sampleRate, int maxBlock) {
     sampleRate_ = sampleRate;
     maxBlock_ = maxBlock;
-    std::string p;
+    Source src;
     {
         std::lock_guard<std::mutex> lock(lock_);
-        p = hasPending_ ? pending_ : path_;
+        src = hasPending_ ? pending_ : current_;
         hasPending_ = false;
     }
     running_ = false;  // the running program, if any, is at the old rate
-    run(p);
+    run(src);
 }
 
 void ScriptEngine::load(const std::string& path) {
     std::lock_guard<std::mutex> lock(lock_);
-    pending_ = path;
+    pending_ = { path, std::string(), false };
+    hasPending_ = true;
+}
+
+void ScriptEngine::loadCode(const std::string& code, const std::string& path) {
+    std::lock_guard<std::mutex> lock(lock_);
+    pending_ = { path, code, true };
     hasPending_ = true;
 }
 
 void ScriptEngine::idle() {
-    std::string p;
+    Source src;
+    bool load;
+    std::deque<std::function<bool(std::string&)>> jobs;
     {
         std::lock_guard<std::mutex> lock(lock_);
-        if (!hasPending_) return;
-        p = pending_;
+        load = hasPending_;
+        src = pending_;
         hasPending_ = false;
+        jobs.swap(jobs_);
     }
-    run(p);
+    if (load) run(src);
+    for (auto& job : jobs) {
+        std::string result;
+        bool ok = job(result);
+        std::lock_guard<std::mutex> lock(lock_);
+        if (ok) {
+            error_.clear();
+            note_ = result;
+            noteSeq_.fetch_add(1, std::memory_order_release);
+        } else {
+            error_ = result;
+        }
+    }
 }
 
-void ScriptEngine::run(const std::string& path) {
-    std::string text, err;
+void ScriptEngine::post(std::function<bool(std::string&)> job) {
+    std::lock_guard<std::mutex> lock(lock_);
+    jobs_.push_back(std::move(job));
+}
+
+void ScriptEngine::evaluate(const std::string& part, const std::string& before, const std::string& path) {
+    post([=](std::string& result) { return runPart(part, before, path, result); });
+}
+
+void ScriptEngine::removePart(int index) {
+    post([=](std::string& result) { return dropPart(index, result); });
+}
+
+void ScriptEngine::clearParts() {
+    post([=](std::string& result) { return dropAll(result); });
+}
+
+bool ScriptEngine::runPart(const std::string&, const std::string&, const std::string&, std::string& result) {
+    result = "runs whole programs only: Ctrl-Enter";
+    return false;
+}
+
+bool ScriptEngine::dropPart(int, std::string& result) {
+    result = "no parts to remove";
+    return false;
+}
+
+bool ScriptEngine::dropAll(std::string& result) {
+    result = "no parts to clear";
+    return false;
+}
+
+std::string ScriptEngine::note() const {
+    std::lock_guard<std::mutex> lock(lock_);
+    return note_;
+}
+
+void ScriptEngine::run(const Source& src) {
+    const std::string& path = src.path;
+    std::string text = src.code, err;
     bool ok;
-    if (path.empty()) {
+    if (src.hasCode) {
+        ok = compile(text, path, err);
+    } else if (path.empty()) {
         ok = compile(builtin(), path, err);
     } else if (!readProgram(path, text)) {
         ok = false;
@@ -173,22 +234,34 @@ void ScriptEngine::run(const std::string& path) {
     }
     // nothing running: fall back to the built-in, so the plugin always sounds
     bool fellBack = false;
-    if (!ok && !running_ && !path.empty()) {
+    if (!ok && !running_ && (src.hasCode || !path.empty())) {
         std::string ignored;
         fellBack = compile(builtin(), std::string(), ignored);
     }
     running_ = running_ || ok || fellBack;
-    if (ok) setSpecs(declared(path.empty() ? std::string(builtin()) : text));
+    if (ok) setSpecs(declared(path.empty() && !src.hasCode ? std::string(builtin()) : text));
     else if (fellBack) setSpecs(declared(builtin()));
     // keep a failed choice, so a preset saved now still names it
     std::lock_guard<std::mutex> lock(lock_);
-    path_ = path;
+    current_ = src;
     error_ = ok ? std::string() : fellBack ? err + " (built-in running)" : err;
 }
 
 std::string ScriptEngine::path() const {
     std::lock_guard<std::mutex> lock(lock_);
-    return hasPending_ ? pending_ : path_;
+    return hasPending_ ? pending_.path : current_.path;
+}
+
+bool ScriptEngine::code(std::string& code) const {
+    std::lock_guard<std::mutex> lock(lock_);
+    const Source& src = hasPending_ ? pending_ : current_;
+    if (src.hasCode) code = src.code;
+    return src.hasCode;
+}
+
+bool ScriptEngine::loading() const {
+    std::lock_guard<std::mutex> lock(lock_);
+    return hasPending_;
 }
 
 std::string ScriptEngine::error() const {

@@ -8,7 +8,7 @@
 
 #include "keys/KeyInput.h"
 
-namespace sapf {
+namespace ssp {
 
 // Keys from KeyInput's thread, for the editor's timer on the message thread: modifier state, and the
 // repeat of a held key, since KeyInput drops the keyboard's own repeats. No JUCE, so it tests natively.
@@ -43,4 +43,4 @@ private:
     Clock::time_point next_;  // its next repeat
 };
 
-}  // namespace sapf
+}  // namespace ssp

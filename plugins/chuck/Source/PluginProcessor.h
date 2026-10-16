@@ -7,7 +7,10 @@ using namespace juce;
 
 class PluginProcessor : public ssp::engine::ScriptProcessor {
 public:
-    PluginProcessor() : ScriptProcessor(std::make_unique<ck::ChuckEngine>(), "/media/BOOT/chuck") { noteInput(true); }
+    PluginProcessor()
+        : ScriptProcessor(std::make_unique<ck::ChuckEngine>(), "/media/BOOT/chuck", { 7774, "CHUK_KEYBOARD", ".ck" }) {
+        noteInput(true);
+    }
     const String getName() const override { return JucePlugin_Name; }
 
 protected:

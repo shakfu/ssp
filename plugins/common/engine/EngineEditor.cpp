@@ -154,7 +154,7 @@ void EngineEditor::setView(unsigned newView) {
 
 void EngineEditor::drawView(juce::Graphics& g) {
     base_type::drawView(g);
-    if (fileMode()) return;
+    if (view_ != V_MAIN) return;
     g.setFont(juce::Font(juce::FontOptions(juce::Font::getDefaultMonospacedFontName(), 20, juce::Font::plain)));
     unsigned pg = main_->page();
     if (pg < pages_.size()) {
@@ -174,14 +174,18 @@ void EngineEditor::onLoadButton(bool v) {
     loadBtn_.onButton(v);
     if (v) return;
     if (!fileMode()) {
-        juce::String from = browseFrom();
-        if (from.isNotEmpty()) browser_->setFile(from);
-        setView(V_FILE);
+        browse();
         return;
     }
     juce::String sel = browser_->selectedFile();
     loaded(sel, sel.isEmpty() ? browser_->baseDir() : juce::String());
     setView(V_MAIN);
+}
+
+void EngineEditor::browse() {
+    juce::String from = browseFrom();
+    if (from.isNotEmpty()) browser_->setFile(from);
+    setView(V_FILE);
 }
 
 void EngineEditor::onCancelButton(bool v) {

@@ -14,7 +14,8 @@ namespace csnd {
 
 // Runs a Csound orchestra (.csd). The orchestra keeps its own ksmps and channel counts; the host sets
 // the sample rate. Controls arrive as channels "p1".."p8" (chnget), audio as inch 1..8 or ins, and
-// MIDI through Csound's standard MIDI opcodes (massign, notnum, veloc, ...).
+// MIDI through Csound's standard MIDI opcodes (massign, notnum, veloc, ...). A block evaluated beside
+// the program goes to the running instance: score events inside <CsScore>, orchestra code elsewhere.
 class CsoundEngine : public ssp::engine::ScriptEngine {
 public:
     ~CsoundEngine() override;
@@ -30,6 +31,8 @@ public:
 protected:
     bool compile(const std::string& text, const std::string& path, std::string& error) override;
     const char* builtin() const override;
+    bool runPart(const std::string& part, const std::string& before, const std::string& path,
+                 std::string& result) override;
 
 private:
     struct Instance;

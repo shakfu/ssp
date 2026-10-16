@@ -14,8 +14,11 @@ set(FAUST_SRC
         ${CMAKE_CURRENT_LIST_DIR}/FaustProcessor.cpp
 )
 
-# plugins built on ScriptProcessor add these too
+# plugins built on ScriptProcessor add these too; they include its code editor
+include(${CMAKE_CURRENT_LIST_DIR}/../keys/CMakeLists.txt)
 set(SCRIPT_SRC
         ${CMAKE_CURRENT_LIST_DIR}/ScriptEngine.cpp
         ${CMAKE_CURRENT_LIST_DIR}/ScriptProcessor.cpp
+        ${KEYS_SRC}
+        ${TEXT_SRC}
 )

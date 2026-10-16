@@ -259,6 +259,96 @@ def run_ttyp(host, text, *cmds):
     return levels, state
 
 
+CTRL = 0x01
+
+
+def key_records(text, mod=0):
+    """Tap records for text on a US keyboard, upper case shifted; with mod, each key is a chord."""
+    recs = []
+    for c in text:
+        if c.isupper():
+            recs.append(bytes([ttyp_type.TAP, ttyp_type.UNSHIFTED[c.lower()], ttyp_type.SHIFT | mod, 0]))
+        else:
+            recs.extend(r[:2] + bytes([r[2] | mod]) + r[3:] for r in ttyp_type.records(c))
+    return recs
+
+
+def run_typed(host, plugin, port, batches, *cmds):
+    """plugin_host while key records reach the key port: batches is [(seconds after start, records)], or
+    records sent once the port accepts. Returns each channel's last-sample levels in order, and the state."""
+    if batches and isinstance(batches[0], bytes):
+        batches = [(0, batches)]
+    proc = subprocess.Popen([host, so(plugin), *map(str, cmds)], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            text=True)
+    start = time.monotonic()
+    for at, recs in batches:
+        time.sleep(max(0.0, at - (time.monotonic() - start)))
+        while True:
+            try:
+                with socket.create_connection(("127.0.0.1", port), timeout=1) as sock:
+                    for r in recs:
+                        sock.sendall(r)
+                break
+            except OSError:
+                assert time.monotonic() - start < 10, f"key port {port} never opened"
+                time.sleep(0.05)
+    out, err = proc.communicate(timeout=120)
+    assert proc.returncode == 0, err[-4000:]
+    levels = {}
+    for f in (line.split() for line in out.splitlines()):
+        if f[0] == "level":
+            levels.setdefault(int(f[1]), []).append(float(f[3]))
+    state = next((line[6:] for line in out.splitlines() if line.startswith("state ")), "")
+    return levels, state
+
+
+def test_script_code_editor(plugins, tmp_path, monkeypatch):
+    """chuk's code view: keys typed over TCP, run with Ctrl-Enter in place of the file, kept by the preset."""
+    monkeypatch.setenv("CHUK_KEYBOARD", "0")  # never grab this machine's keyboard
+    ck = tmp_path / "prog.ck"
+    ck.write_text("// x\n")
+    code = "Step s => dac.chan(2);\n0.5 => s.next;\nwhile (true) 1::second => now;\n"
+    frame = tmp_path / "code.bgra"
+    # the first render shows the editor and takes the keyboard; the second takes the keys typed meanwhile
+    levels, state = run_typed(plugins, "chuck", 7774, key_records(code) + key_records("\n", CTRL),
+                              "prepare", 48000, 128, "set", "program", ck, "wait", 0.5, "render", frame, "wait", 2,
+                              "render", frame, "wait", 1, "run", 0.2, 128, "level", 2, "state", "render", frame)
+    assert levels[2] == [pytest.approx(0.5, abs=1e-6)]
+    assert ck.read_text() == "// x\n"  # Ctrl-Enter runs the code; only Ctrl-S writes the file
+    assert f'program="{ck}"' in state and 'code="Step s' in state
+    assert 'text=' not in state  # the text is the code run
+    assert amber_in(frame, 0, 298, 1600, 324) > 0  # the code view's status line
+
+    # the preset runs the code, not the file; an edit not run is kept as text, and Ctrl-S writes it
+    preset = tmp_path / "chuk.state"
+    xml = state.encode() + b"\0"
+    preset.write_bytes(struct.pack("<II", 0x21324356, len(xml)) + xml)
+    levels, state = run_typed(plugins, "chuck", 7774, key_records("// y\n") + key_records("s", CTRL),
+                              "prepare", 48000, 128, "load", preset, "wait", 0.5, "render", frame, "wait", 1,
+                              "render", frame, "run", 0.2, 128, "level", 2, "state")
+    assert levels[2] == [pytest.approx(0.5, abs=1e-6)]
+    assert ck.read_text() == "// y\n" + code + "// x\n"
+    assert 'code="Step s' in state and 'text="// y' in state
+
+
+def test_script_code_parts(plugins, tmp_path, monkeypatch):
+    """chuk's Ctrl-E blocks as shreds beside the program, Ctrl-<n> removing one, Ctrl-. clearing all."""
+    monkeypatch.setenv("CHUK_KEYBOARD", "0")
+    ck = tmp_path / "empty.ck"
+    ck.write_text("")
+    a = "Step a => dac.chan(2);\n0.25 => a.next;\nwhile (true) 1::second => now;\n"
+    b = "Step b => dac.chan(3);\n0.5 => b.next;\nwhile (true) 1::second => now;\n"
+    # each batch lands between renders, about 3.3 s apart; Ctrl-E on the blank line after a block runs it
+    ctrl_e = key_records("e", CTRL)
+    batches = [(0, key_records(a) + ctrl_e + key_records("\n" + b) + ctrl_e), (4.5, key_records("1", CTRL)),
+               (7.8, key_records(".", CTRL))]
+    measure = ["wait", 2, "render", tmp_path / "f.bgra", "wait", 1, "run", 0.2, 128, "level", 2, "level", 3]
+    levels, _ = run_typed(plugins, "chuck", 7774, batches, "prepare", 48000, 128, "set", "program", ck,
+                          "wait", 0.5, "render", tmp_path / "f.bgra", *measure, *measure, *measure)
+    assert levels[2] == [pytest.approx(0.25, abs=1e-6), 0.0, 0.0]
+    assert levels[3] == [pytest.approx(0.5, abs=1e-6), pytest.approx(0.5, abs=1e-6), 0.0]
+
+
 def test_teletype(plugins, tmp_path, monkeypatch):
     monkeypatch.setenv("TTYP_KEYBOARD", "0")  # never grab this machine's keyboard
     r = subprocess.run([plugins, so("teletype"), "channels"], capture_output=True, text=True, timeout=60)

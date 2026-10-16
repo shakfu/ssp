@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace sapf {
+namespace ssp {
 
 // The editor's text and cursor, edited by HID key usages (page 0x07) on a US layout. No JUCE, so it
 // tests natively. Lines hold no newline; a tab key inserts spaces.
@@ -26,10 +26,10 @@ public:
     int row() const { return row_; }
     int col() const { return col_; }
 
-    // The block Ctrl-Enter evaluates: the lines around the cursor up to blank lines outside brackets
-    // and strings; on a blank line between blocks, the block above. First and last row, or false if
-    // there is none.
-    bool block(int& first, int& last) const;
+    // The block around the cursor: its lines up to blank lines outside brackets, strings and comments
+    // from `comment` to the line's end; on a blank line between blocks, the block above. First and
+    // last row, or false if there is none.
+    bool block(int& first, int& last, const std::string& comment = ";") const;
     std::string lines(int first, int last) const;
 
     // the printable character for a usage, 0 for none
@@ -47,4 +47,4 @@ private:
     int goalCol_ = 0;  // the column up and down aim for, across short lines
 };
 
-}  // namespace sapf
+}  // namespace ssp

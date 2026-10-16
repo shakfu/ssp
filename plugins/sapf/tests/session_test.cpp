@@ -14,9 +14,9 @@
 #include <vector>
 
 #include "FilePicker.h"
-#include "KeyQueue.h"
+#include "keys/KeyQueue.h"
 #include "Session.h"
-#include "TextBuffer.h"
+#include "keys/TextBuffer.h"
 
 namespace {
 
@@ -29,7 +29,7 @@ int failures = 0;
         }                                                          \
     } while (0)
 
-using sapf::TextBuffer;
+using ssp::TextBuffer;
 constexpr uint8_t ENTER = 0x28, BACKSPACE = 0x2A, LEFT = 0x50, UP = 0x52, DOWN = 0x51, ESC = 0x29, DOT = 0x37,
                   LSHIFT = 0xE1, LCTRL = 0xE0;
 
@@ -107,8 +107,8 @@ void testTextBuffer() {
 }
 
 void testKeyQueue() {
-    using Clock = sapf::KeyQueue::Clock;
-    sapf::KeyQueue q;
+    using Clock = ssp::KeyQueue::Clock;
+    ssp::KeyQueue q;
     q.keyDown(LSHIFT);
     q.keyDown(0x04);  // a
     q.keyUp(0x04);

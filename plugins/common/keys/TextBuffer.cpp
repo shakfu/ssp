@@ -1,8 +1,8 @@
-#include "TextBuffer.h"
+#include "keys/TextBuffer.h"
 
 #include <algorithm>
 
-namespace sapf {
+namespace ssp {
 
 namespace {
 
@@ -163,7 +163,7 @@ std::string TextBuffer::lines(int first, int last) const {
     return s;
 }
 
-bool TextBuffer::block(int& first, int& last) const {
+bool TextBuffer::block(int& first, int& last, const std::string& comment) const {
     // the blocks, as the harness splits files: a blank line ends one only outside brackets and strings
     int depth = 0, start = -1;
     bool quoted = false;
@@ -178,9 +178,10 @@ bool TextBuffer::block(int& first, int& last) const {
             continue;
         }
         if (start < 0) start = r;
-        for (char c : s) {
+        for (size_t k = 0; k < s.size(); k++) {
+            const char c = s[k];
             if (quoted) quoted = c != '"';
-            else if (c == ';') break;
+            else if (s.compare(k, comment.size(), comment) == 0) break;
             else if (c == '"') quoted = true;
             else if (c == '(' || c == '[' || c == '{') depth++;
             else if (c == ')' || c == ']' || c == '}') depth--;
@@ -204,4 +205,4 @@ bool TextBuffer::block(int& first, int& last) const {
     return true;
 }
 
-}  // namespace sapf
+}  // namespace ssp

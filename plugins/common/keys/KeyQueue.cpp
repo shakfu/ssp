@@ -1,8 +1,8 @@
-#include "KeyQueue.h"
+#include "keys/KeyQueue.h"
 
-#include "TextBuffer.h"
+#include "keys/TextBuffer.h"
 
-namespace sapf {
+namespace ssp {
 
 namespace {
 
@@ -67,4 +67,4 @@ std::vector<KeyQueue::Key> KeyQueue::take(Clock::time_point now) {
     return out;
 }
 
-}  // namespace sapf
+}  // namespace ssp
