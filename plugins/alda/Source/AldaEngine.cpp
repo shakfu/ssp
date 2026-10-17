@@ -91,7 +91,26 @@ bool clockLine(const std::string& text, AldaEngine::Score& s, std::string& error
 
 }  // namespace
 
-AldaEngine::AldaEngine() {}
+AldaEngine::AldaEngine() {
+    std::memset(sent_, -1, sizeof sent_);
+    declare(controls());
+}
+
+AldaEngine::Specs AldaEngine::controls() {
+    Specs s;
+    auto set = [&](int i, const char* label, const char* unit, float min, float max, float def, bool log = false) {
+        auto& sp = s[size_t(i)];
+        sp.label = label, sp.unit = unit, sp.min = min, sp.max = max, sp.log = log;
+        sp.def = sp.unmap(def);
+    };
+    set(TRANSPOSE, "Transpose", "st", -24.0f, 24.0f, 0.0f);
+    set(TEMPO, "Tempo", "x", 0.25f, 4.0f, 1.0f, true);
+    set(VELOCITY, "Velocity", "x", 0.0f, 2.0f, 1.0f);
+    set(SWING, "Swing", "%", 50.0f, 75.0f, 50.0f);
+    static const char* mutes[VOICES] = { "Mute 1", "Mute 2", "Mute 3", "Mute 4" };
+    for (int k = 0; k < VOICES; k++) set(MUTE + k, mutes[k], "", 0.0f, 1.0f, 0.0f);
+    return s;
+}
 
 AldaEngine::~AldaEngine() {
     delete score_;
@@ -225,6 +244,7 @@ void AldaEngine::release() {
             for (uint32_t bits = sounding_[ch][w]; bits; bits &= bits - 1)
                 send(uint8_t(0x80 | ch), uint8_t(w * 32 + __builtin_ctz(bits)), 0);
     std::memset(sounding_, 0, sizeof sounding_);
+    std::memset(sent_, -1, sizeof sent_);
     int gap = int(GAP_MS * 0.001f * sampleRate());
     for (Voice& v : voices_) {
         if (v.count) v.quiet = gap;
@@ -260,14 +280,24 @@ void AldaEngine::apply(const Event& e) {
         return;
     case Event::ON:
     case Event::OFF: {
-        uint32_t& word = sounding_[e.channel][e.value >> 5];
-        uint32_t bit = 1u << (e.value & 31);
+        int8_t& sent = sent_[e.channel][e.value];
         if (e.type == Event::ON) {
-            word |= bit;
-            send(uint8_t(0x90 | e.channel), uint8_t(e.value), e.data2);
-        } else if (word & bit) {  // a note the restart already released sends nothing
-            word &= ~bit;
-            send(uint8_t(0x80 | e.channel), uint8_t(e.value), 0);
+            bool muted = e.voice != Event::NO_VOICE && mute_[e.voice];
+            int note = std::min(std::max(e.value + transpose_, 0), 127);
+            int vel = std::min(int(std::lround(e.data2 * velocity_)), 127);
+            if (muted || vel < 1) break;  // velocity 0 would be a note-off
+            if (sent >= 0) send(uint8_t(0x80 | e.channel), uint8_t(sent), 0);  // the same note again
+            sent = int8_t(note);
+            sounding_[e.channel][note >> 5] |= 1u << (note & 31);
+            send(uint8_t(0x90 | e.channel), uint8_t(note), uint8_t(vel));
+        } else if (sent >= 0) {  // a note the restart already released sends nothing
+            uint32_t& word = sounding_[e.channel][sent >> 5];
+            uint32_t bit = 1u << (sent & 31);
+            if (word & bit) {
+                word &= ~bit;
+                send(uint8_t(0x80 | e.channel), uint8_t(sent), 0);
+            }
+            sent = -1;
         }
         break;
     }
@@ -298,6 +328,14 @@ void AldaEngine::midiClock(double seconds) {
     midiPulses_.fetch_add(1, std::memory_order_release);
 }
 
+double AldaEngine::swung(double pos) const {
+    if (swing_ <= 0.0) return pos;
+    constexpr double SIXTEENTH = TICKS_PER_QUARTER / 4.0;
+    double base = std::floor(pos / (2 * SIXTEENTH)) * 2 * SIXTEENTH, off = pos - base;
+    double first = SIXTEENTH * (1.0 + swing_);  // the first 16th of each pair lasts longer
+    return base + (off < first ? off / (1.0 + swing_) : SIXTEENTH + (off - first) / (1.0 - swing_));
+}
+
 void AldaEngine::pulse(double interval) {
     const double tpp = double(TICKS_PER_QUARTER) / score_->ppqn;
     if (interval > 0.0) rate_ = tpp / interval;
@@ -324,6 +362,11 @@ void AldaEngine::process(const float* const* in, float* const* out, int n) {
     }
     const double perSample = double(TICKS_PER_QUARTER) / 60.0 / double(sampleRate());
     const Clock clock = score_ ? score_->clock : FREE;
+    transpose_ = int(std::lround(value(TRANSPOSE)));
+    tempo_ = value(TEMPO);
+    velocity_ = value(VELOCITY);
+    swing_ = (value(SWING) - 50.0) / 50.0;
+    for (int k = 0; k < VOICES; k++) mute_[k] = value(MUTE + k) >= 0.5f;
     if (clock == MIDI) {
         switch (transport_.exchange(NONE, std::memory_order_acq_rel)) {
         case START:
@@ -361,18 +404,19 @@ void AldaEngine::process(const float* const* in, float* const* out, int n) {
         if (sinceEdge_ > 0.0 || clockHigh_) sinceEdge_ = std::min(sinceEdge_ + 1.0, 1e9);
         if (score_) {
             const auto& ev = score_->events;
-            while (cursor_ < ev.size() && ev[cursor_].tick <= pos_) apply(ev[cursor_++]);
+            const double at = swung(pos_);
+            while (cursor_ < ev.size() && ev[cursor_].tick <= at) apply(ev[cursor_++]);
         }
         for (int k = 0; k < VOICES; k++) {
             Voice& v = voices_[k];
-            out[k][i] = v.count && !v.quiet ? GATE_HIGH : 0.0f;
+            out[k][i] = v.count && !v.quiet && !mute_[k] ? GATE_HIGH : 0.0f;
             if (v.quiet) v.quiet--;
-            float cv = float(v.pitch - 60) / 12.0f * SIGNAL_PER_VOLT;
+            float cv = float(v.pitch + transpose_ - 60) / 12.0f * SIGNAL_PER_VOLT;
             out[VOICES + k][i] = std::min(1.0f, std::max(-1.0f, cv));
         }
         if (score_ && !(clock == MIDI && halted_)) {
             if (clock == FREE) {
-                pos_ += bpm_ * perSample;
+                pos_ += bpm_ * tempo_ * perSample;
             } else {
                 double limit = lastGrid_ + double(TICKS_PER_QUARTER) / score_->ppqn;
                 pos_ = std::min(pos_ + (rate_ > 0.0 ? rate_ : bpm_ * perSample), std::nextafter(limit, 0.0));
@@ -385,7 +429,7 @@ void AldaEngine::process(const float* const* in, float* const* out, int n) {
         }
     }
     posShown_.store(pos_, std::memory_order_relaxed);
-    double bpm = clock != FREE && rate_ > 0.0 ? rate_ / perSample : bpm_;
+    double bpm = clock != FREE && rate_ > 0.0 ? rate_ / perSample : bpm_ * tempo_;
     bpmShown_.store(score_ ? bpm : 0.0, std::memory_order_relaxed);
 }
 

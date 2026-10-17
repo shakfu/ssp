@@ -43,6 +43,8 @@ public:
     void loadCode(const std::string& code, const std::string& path);
     // The chosen program's file, queued or running; empty for the built-in. A failed load sets error().
     std::string path() const;
+    // Message thread: the program's file becomes `path`, without a load: Save As wrote the text there.
+    void rename(const std::string& path);
     // The code loadCode() chose, queued or running; false when the program comes from path().
     bool code(std::string& code) const;
     bool loading() const;  // a load not yet compiled
@@ -123,6 +125,9 @@ protected:
 
     float sampleRate() const { return sampleRate_; }
     int maxBlock() const { return maxBlock_; }
+    // In a constructor: controls the engine declares itself, before any program compiles. An engine that
+    // does also overrides declared(), so a compile keeps them.
+    void declare(const Specs& specs) { setSpecs(specs); }
 
 private:
     void setSpecs(const Specs& specs);

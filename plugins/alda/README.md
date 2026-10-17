@@ -19,7 +19,7 @@ The first four parts, in the order the score declares them, are mono voices:
 | 3 | out 3, `Gate 3` | out 7, `CV 3` |
 | 4 | out 4, `Gate 4` | out 8, `CV 4` |
 
-Synthor labels the jacks by name: `Gate k` and `CV k` are voice k's pair.
+Synthor labels the jacks by name: `Gate k` and `CV k` are voice k's pair; the inputs are `Reset` (In 1), `Clock` (In 2) and `In 3`-`In 8`, unused.
 
 - Gate: 5 V while a note sounds. Alda shortens each note to 90% of its length by default (`(quant 90)`), so repeated notes retrigger.
 - Pitch: 1 V/octave, C4 (MIDI 60) at 0 V, within the SSP's +-5 V. It holds after the gate closes.
@@ -28,6 +28,18 @@ Synthor labels the jacks by name: `Gate k` and `CV k` are voice k's pair.
 - In 1: a rising edge restarts the loop. A gate open at the restart closes for 1 ms, so the next note retriggers.
 
 The score's own tempo sets the speed, `(tempo! 120)` by default, unless it follows a clock.
+
+## Controls
+
+The control pages hold `alda`'s own controls; `@pN` comments in a score are ignored. Each starts neutral, and loading a score returns them there.
+
+| Page | Control | Range | Does |
+|-|-|-|-|
+| 1 | Transpose | -24 to +24 semitones | moves the pitch CV at once, and MIDI notes from their next note-on |
+| 1 | Tempo | x0.25 to x4 | scales the score's tempo; ignored while a clock drives it |
+| 1 | Velocity | x0 to x2 | scales MIDI velocities; at 0 no MIDI notes are sent, though the gates play |
+| 1 | Swing | 50% to 75% | delays every second 16th: 50% is straight, 66% triplet feel, 75% the most |
+| 2 | Mute 1-4 | off below the middle, on above | closes voice k's gate and drops its part's MIDI notes; the CV still follows |
 
 ## Clock
 
@@ -79,6 +91,7 @@ A USB keyboard, or port 7775 on 127.0.0.1 over ssh (`ssh -L 7775:127.0.0.1:7775 
 | Ctrl-L | empties the code view, which the score keeps playing; again on the empty view, brings the text back |
 | Ctrl-R | resets: stops, empties the code view, and forgets the program file; Ctrl-L brings the text back |
 | Ctrl-S | writes the code to its file, or `BOOT/alda/live.alda` after a reset or for the built-in |
+| Ctrl-Shift-S | Save As: type a file name (beside the current file; `.alda` added if missing); Enter saves, and Ctrl-S then writes there; an existing file needs a second Enter; Esc cancels |
 | Ctrl-O | opens the browser, as Load |
 
 The Code view's status line lists these keys, and shows the bar and tempo, or `stopped`, where other modules show `running`. Ctrl-E is not supported yet. The code is coloured by psnd's Alda grammar (`external/tree-sitter-alda`).
@@ -87,7 +100,6 @@ The Code view's status line lists these keys, and shows the bar and tempo, or `s
 
 - Ctrl-E: a block played once beside the loop.
 - Tempo from a control.
-- The controls p1..p16 do nothing.
 
 ## Licence
 

@@ -399,6 +399,60 @@ def test_alda_stop_clear_reset(plugins, tmp_path, monkeypatch, keys, gate, attrs
         assert a not in state, state
 
 
+def tap(usage, mods=0):
+    """One key record: a HID usage with modifiers (CTRL, ttyp_type.SHIFT)."""
+    return bytes([ttyp_type.TAP, usage, mods, 0])
+
+
+@pytest.mark.parametrize("name, enters, existing, saved", [
+    ("copy", 1, None, True),        # a new file: one Enter
+    ("other", 1, "x\n", False),     # an existing file: the first Enter only asks
+    ("other", 2, "x\n", True),      # the second overwrites
+    ("copy", 0, None, False),       # Esc cancels
+])
+def test_save_as(plugins, tmp_path, monkeypatch, name, enters, existing, saved):
+    """Ctrl-Shift-S: the code view's text to a named file beside the program's, which becomes the program."""
+    monkeypatch.setenv("ALDA_KEYBOARD", "0")
+    score = tmp_path / "prog.alda"
+    score.write_text("piano: o5 c1\n")
+    target = tmp_path / f"{name}.alda"
+    if existing:
+        target.write_text(existing)
+    keys = [tap(0x16, CTRL | ttyp_type.SHIFT)] + [tap(0x2A)] * len("prog.alda") + key_records(name)
+    keys += [tap(0x28)] * enters if enters else [tap(0x29)]
+    frame = tmp_path / "code.bgra"
+    _, state = run_typed(plugins, "alda", 7775, keys, "prepare", 48000, 128, "set", "program", score, "wait", 0.5,
+                         "render", frame, "wait", 1.5, "render", frame, "state")
+    if saved:
+        assert target.read_text() == "piano: o5 c1\n"
+        assert f'program="{target}"' in state  # Ctrl-S now writes there
+    else:
+        assert target.read_text() == existing if existing else not target.exists()
+        assert f'program="{score}"' in state
+    assert score.read_text() == "piano: o5 c1\n"
+
+
+def alda_preset(path, values, custom):
+    params = "".join(f'<PARAM id="p{i}" value="{values.get(i, 0.0)}"/>' for i in range(1, 17))
+    xml = (f'<?xml version="1.0" encoding="UTF-8"?> <VST><state>{params}</state>'
+           f'<MIDI MIDI_IN="" MIDI_OUT="" MIDI_CH="0" MIDI_NOTE_IN="0"><Automation/></MIDI>'
+           f'<CUSTOM program="" {custom}/></VST>').encode() + b"\0"
+    path.write_bytes(struct.pack("<II", 0x21324356, len(xml)) + xml)
+
+
+@pytest.mark.parametrize("custom, values, want", [
+    ("", {}, {1: 0.5, 2: 0.5, 3: 0.5, 4: 0.0}),               # saved before the controls: neutral instead
+    ('controls="1"', {3: 0.25}, {1: 0.0, 2: 0.0, 3: 0.25}),  # saved with them: kept as saved
+])
+def test_alda_old_patch_controls(plugins, tmp_path, custom, values, want):
+    preset = tmp_path / "alda.state"
+    alda_preset(preset, values, custom)
+    _, state = run(plugins, "alda", "prepare", 48000, 128, "load", preset, "state")
+    for i, v in want.items():
+        assert f'<PARAM id="p{i}" value="{v}"/>' in state, state
+    assert 'controls="1"' in state
+
+
 def test_alda_status_line_fits(plugins, tmp_path, monkeypatch):
     """alda's Code view status line, the longest: its run state and key list end inside the screen."""
     monkeypatch.setenv("ALDA_KEYBOARD", "0")
@@ -408,7 +462,7 @@ def test_alda_status_line_fits(plugins, tmp_path, monkeypatch):
     data = frame.read_bytes()
     xs = [(i // 4) % 1600 for i in range(1600 * 298 * 4, 1600 * 324 * 4, 4) if data[i:i + 3] == bytes([140, 214, 255])]
     assert xs, "no status line"
-    assert max(xs) < 1580  # drawText clips at 1590 without an ellipsis
+    assert max(xs) < 1515  # the view clips text at about x=1530, without an ellipsis
 
 
 @pytest.mark.parametrize("plugin, port, env, colours", [

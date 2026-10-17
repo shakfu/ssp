@@ -48,6 +48,7 @@ struct Rig {
             ip[c] = in[c].data();
             op[c] = out[c].data();
         }
+        for (int i = 0; i < AldaEngine::PARAMS; i++) e.setParam(i, std::max(e.spec(i).def, 0.0f));
         e.prepare(SR, BLOCK);
         if (!code.empty()) load(code);
     }
@@ -345,6 +346,66 @@ static void testClockLine() {
     CHECK(!AldaEngine::build("# @clock fast\npiano: c", "", s, err) && err.find("@clock") != std::string::npos);
 }
 
+static void setControl(Rig& r, int i, float v) {
+    r.e.setParam(i, r.e.spec(i).unmap(v));
+}
+
+// p1 Transpose: MIDI notes and pitch CV; a note releases as sent, though the control moved meanwhile
+static void testTranspose() {
+    Rig r("piano: c2 d");
+    setControl(r, AldaEngine::TRANSPOSE, 12.0f);
+    r.runTo(QUARTER);
+    CHECK(same(r.midi(), { "c0 00", "b0 0b 64", "b0 0a 40", "90 48 45" }));
+    NEAR(r.out[AldaEngine::VOICES][BLOCK - 1], 1.0f * VOLT, 1e-6);
+    setControl(r, AldaEngine::TRANSPOSE, 0.0f);
+    r.runTo(2 * QUARTER + QUARTER / 2);
+    CHECK(same(r.midi(), { "80 48 00", "90 3e 45" }));
+}
+
+// p2 Tempo doubles the speed; p3 Velocity scales MIDI velocities, and 0 sends no note
+static void testTempoVelocity() {
+    Rig r("piano: c4 d");
+    setControl(r, AldaEngine::TEMPO, 2.0f);
+    setControl(r, AldaEngine::VELOCITY, 0.5f);
+    r.runTo(QUARTER);
+    CHECK(r.rises[0].size() == 2);
+    if (r.rises[0].size() == 2) CHECK(nearFrame(r.rises[0][1], QUARTER / 2));
+    auto m = r.midi();
+    CHECK(std::count(m.begin(), m.end(), "90 3c 23") == 1);  // 69 x 0.5, rounded
+    setControl(r, AldaEngine::VELOCITY, 0.0f);
+    r.runTo(r.frame + 2 * QUARTER);
+    m = r.midi();
+    CHECK(std::none_of(m.begin(), m.end(), [](const std::string& s) { return s.compare(0, 2, "90") == 0; }));
+    CHECK(r.rises[0].size() > 2);  // gates still play
+}
+
+// p4 Swing 75%: the second 16th of each pair starts 3/4 of the way through it, not halfway
+static void testSwing() {
+    Rig r("piano: c16 d");
+    setControl(r, AldaEngine::SWING, 75.0f);
+    r.runTo(QUARTER);
+    CHECK(r.rises[0].size() == 2);
+    if (r.rises[0].size() == 2) CHECK(nearFrame(r.rises[0][1], QUARTER * 3 / 8));
+}
+
+// p5 Mute 1: voice 1's gate and its part's MIDI notes; voice 2 plays on
+static void testMute() {
+    Rig r("piano: c4 d\nviolin: e4 f");
+    setControl(r, AldaEngine::MUTE, 1.0f);
+    r.runTo(QUARTER + QUARTER / 2);
+    CHECK(r.rises[0].empty() && r.rises[1].size() == 2);
+    auto m = r.midi();
+    CHECK(std::none_of(m.begin(), m.end(), [](const std::string& s) { return s.compare(0, 5, "90 3c") == 0; }));
+    CHECK(std::count_if(m.begin(), m.end(), [](const std::string& s) { return s.compare(0, 4, "91 4") == 0; }) == 2);  // violin, channel 2
+}
+
+static void testControlsDeclared() {
+    AldaEngine e;
+    CHECK(e.spec(AldaEngine::TRANSPOSE).label == "Transpose" && e.spec(AldaEngine::MUTE + 3).label == "Mute 4");
+    NEAR(e.spec(AldaEngine::TEMPO).map(e.spec(AldaEngine::TEMPO).def), 1.0, 1e-5);
+    NEAR(e.spec(AldaEngine::TRANSPOSE).map(e.spec(AldaEngine::TRANSPOSE).def), 0.0, 1e-5);
+}
+
 // The worker compiles while the audio thread plays: run under ThreadSanitizer.
 static void testThreads() {
     Rig r("piano: c8 d e f");
@@ -418,6 +479,11 @@ int main(int argc, char** argv) {
         testClockInput();
         testClockMidi();
         testClockLine();
+        testTranspose();
+        testTempoVelocity();
+        testSwing();
+        testMute();
+        testControlsDeclared();
     }
     if (failures) {
         std::fprintf(stderr, "%d failures\n", failures);

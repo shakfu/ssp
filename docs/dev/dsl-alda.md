@@ -77,7 +77,7 @@ The audio thread integrates a beat position per sample, at the current tempo.
 - `compile(text)`: interpret and build a `Score`; parse errors (`alda_parse`) become `error`.
 - `runPart(block)`: build an overlay `Score`; `dropPart`/`dropAll` stop it.
 - Comment: `#`, as `CodeKeys::comment`. `ScriptEngine::parseSpecs` accepts `@pN` after `;` or `//` only (`ScriptEngine.cpp:59`); pass it the marker, as Bog needs too.
-- Controls `p1`..`p16`: Alda has no runtime values. Uses: `# @p1 transpose -24 24` style fixed meanings, applied by the audio thread to pitches and velocities. Which meanings is open question 2.
+- Controls: fixed, declared by the engine (`ScriptEngine::declare`, and `declared()` returns them after every compile), read once a block. Built 2026-10-17: Transpose (CV live, MIDI at note-on; `sent_` keeps each note's sent number, so its off matches), Tempo (free-running only), Velocity (0 sends no note-on: velocity 0 would read as note-off), Swing (16ths, MPC-style: the event position is a warp of the clock position, so clocked scores swing too), Mute 1-4.
 - `status()`: score length, loop position in bars, tempo, parts and their channels.
 
 ## I/O
@@ -163,7 +163,7 @@ Still to test: Ctrl-E overlay.
 ## Open questions
 
 1. Home of the code: a fork of psnd's Alda as its own repository, or fetch psnd's subtree. midi-langs and psnd already share it, so one upstream would serve all three.
-2. Controls: which fixed meanings for `p1`..`p16`? Transpose, velocity scale and swing are candidates. Or none, and Alda stays a pure player.
+2. Controls: settled (see Engine). A CV input per control, as `@pN ... cv N` gives other modules, is not offered: the inputs are 2 (clock) and 1 (reset) so far.
 3. Loop or one-shot: should a score without `# @loop` play once and stop?
 4. Name: `alda` fits the 4-character rule. alda.io is a separate project (Clojure/Go); the name may read as an official port.
 

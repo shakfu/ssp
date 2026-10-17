@@ -23,6 +23,7 @@ A USB keyboard, or port 7774 on 127.0.0.1 over ssh (`ssh -L 7774:127.0.0.1:7774 
 | Ctrl-Enter | compiles the whole code in place of the program; the file is unchanged |
 | Ctrl-S | writes the code to the program's file; for the built-in, to `BOOT/chuck/live.ck` |
 | Ctrl-O | opens the browser, as Load |
+| Ctrl-Shift-S | Save As: type a file name (beside the current file; the extension added if missing), Enter saves and makes it the program's file; an existing file needs a second Enter; Esc cancels |
 | Ctrl-L | empties the code view; again on the empty view, brings the text back |
 | Ctrl-E | runs the block around the cursor as a new shred beside the program: the lines up to blank lines outside brackets, strings and comments; on a blank line, the block above |
 | Ctrl-1 .. Ctrl-9, Ctrl-0 | removes Ctrl-E shred 1 to 10, numbered in the order added |

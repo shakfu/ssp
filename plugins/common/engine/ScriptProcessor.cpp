@@ -94,6 +94,19 @@ void ScriptProcessor::runCode() {
     script().loadCode(text_.text() + "\n", codePath().toStdString());
 }
 
+juce::File ScriptProcessor::saveAsTarget(const juce::String& name) {
+    juce::String n = name.trim();
+    if (!n.containsChar('.') || n.lastIndexOfChar('.') < n.lastIndexOfChar('/')) n += keys_.ext;
+    return juce::File::isAbsolutePath(n) ? juce::File(n) : juce::File(codePath()).getSiblingFile(n);
+}
+
+juce::String ScriptProcessor::saveAs(const juce::File& target) {
+    target.getParentDirectory().createDirectory();
+    if (!target.replaceWithText(text_.text() + "\n")) return "cannot write " + target.getFullPathName();
+    script().rename(target.getFullPathName().toStdString());
+    return "saved " + target.getFullPathName();
+}
+
 void ScriptProcessor::clearText() {
     std::string now = text_.text();
     if (now.empty()) {
@@ -206,6 +219,19 @@ public:
         note_ = s;
         noteUntil_ = juce::Time::getMillisecondCounter() + 3000;
     }
+    // The Save As prompt: open while prompting(); its text is the file's name.
+    bool prompting() const { return prompting_; }
+    ssp::TextBuffer& prompt() { return prompt_; }
+    void openPrompt(const juce::String& name) {
+        prompt_.setText(name.toStdString());
+        prompt_.key(0x4D, 0);  // End: the cursor after the name
+        prompting_ = true;
+        overwrite_ = false;
+    }
+    void closePrompt() { prompting_ = false; }
+    bool overwrite() const { return overwrite_; }  // an existing file: the next Enter overwrites it
+    void armOverwrite(bool on) { overwrite_ = on; }
+
     // rows a Ctrl-E sent, highlighted for a moment
     void flash(int first, int last) {
         flashFirst_ = first, flashLast_ = last;
@@ -251,9 +277,9 @@ public:
         const auto& keys = processor_.codeKeys();
         juce::String status =
             (path.isEmpty() ? juce::String("built-in") : juce::File(path).getFileName()) + ":" +
-            juce::String(processor_.text().row() + 1) + "   " +
-            (script.loading() ? "compiling" : !error.isEmpty() ? "error" : runState(script)) + "   dsp " +
-            juce::String(int(processor_.loadAverage() * 100.0f)) + "%   keys " +
+            juce::String(processor_.text().row() + 1) + "  " +
+            (script.loading() ? "compiling" : !error.isEmpty() ? "error" : runState(script)) + "  dsp " +
+            juce::String(int(processor_.loadAverage() * 100.0f)) + "%  " +
             (ssp::KeyInput::keyboardConnected() ? juce::String("usb") : "tcp :" + juce::String(keys.port)) +
             "   " + (keys.hint ? keys.hint : CodeKeys::DEFAULT_HINT);
         g.setColour(amber);
@@ -263,8 +289,18 @@ public:
         // a highlights query that fails to compile is a build error; show it rather than hide it
         const juce::String shown = noting ? note_ : error.isNotEmpty() || !highlighter_ ? error
                                                                        : juce::String(highlighter_->error());
-        g.setColour(noting ? dim : juce::Colours::orange);
         g.setFont(mono(18));
+        if (prompting_) {
+            const std::string& name = prompt_.lines()[0];
+            juce::String line = "save as: " + juce::String(name.substr(0, size_t(prompt_.col()))) + "|" +
+                                juce::String(name.substr(size_t(prompt_.col()))) +
+                                (overwrite_ ? "   exists: Enter again overwrites, Esc cancels"
+                                            : "   Enter saves, Esc cancels");
+            g.setColour(amber);
+            g.drawText(line, MARGIN, ERROR_Y, W - 2 * MARGIN, LINE, juce::Justification::left, false);
+            return;
+        }
+        g.setColour(noting ? dim : juce::Colours::orange);
         g.drawFittedText(shown, MARGIN, ERROR_Y, W - 2 * MARGIN, 2 * LINE, juce::Justification::topLeft, 2, 1.0f);
     }
 
@@ -276,6 +312,8 @@ private:
     int flashFirst_ = 0, flashLast_ = -1;
     juce::uint32 flashUntil_ = 0;
     std::unique_ptr<ssp::Highlighter> highlighter_;
+    ssp::TextBuffer prompt_;
+    bool prompting_ = false, overwrite_ = false;
 };
 
 ScriptEditor::ScriptEditor(ScriptProcessor& p)
@@ -318,6 +356,16 @@ void ScriptEditor::takeKeys() {
             if (k.usage == ESC) continue;
             setView(codeView_);
         }
+        if (code_->prompting()) {
+            promptKey(k.usage, k.mods);
+            continue;
+        }
+        constexpr uint8_t S = 0x16;
+        constexpr uint8_t CTRL_SHIFT = ssp::TextBuffer::CTRL | ssp::TextBuffer::SHIFT;
+        if ((k.mods & CTRL_SHIFT) == CTRL_SHIFT && k.usage == S) {  // Save As
+            code_->openPrompt(juce::File(processor_.codePath()).getFileName());
+            continue;
+        }
         if ((k.mods & ssp::TextBuffer::CTRL) && chord(k.usage)) continue;
         switch (processor_.text().key(k.usage, k.mods)) {
             case ssp::TextBuffer::EVALUATE: processor_.runCode(); break;
@@ -332,6 +380,31 @@ void ScriptEditor::takeKeys() {
         noteSeq_ = seq;
         code_->note(processor_.script().note());
     }
+}
+
+void ScriptEditor::promptKey(uint8_t usage, uint8_t mods) {
+    constexpr uint8_t ENTER = 0x28, ESC = 0x29;
+    if (usage == ESC) {
+        code_->closePrompt();
+        code_->note("not saved");
+        return;
+    }
+    if (usage == ENTER) {
+        juce::String name(code_->prompt().lines()[0]);
+        if (name.trim().isEmpty()) return;
+        juce::File target = processor_.saveAsTarget(name);
+        bool other = target.getFullPathName() != juce::File(processor_.codePath()).getFullPathName();
+        if (other && target.existsAsFile() && !code_->overwrite()) {
+            code_->armOverwrite(true);
+            return;
+        }
+        code_->closePrompt();
+        code_->note(processor_.saveAs(target));
+        return;
+    }
+    if (mods & ssp::TextBuffer::CTRL) return;
+    code_->prompt().key(usage, mods);
+    code_->armOverwrite(false);  // a changed name asks again
 }
 
 // Ctrl-E runs the block; Ctrl-1..9 and Ctrl-0 remove parts 1..10, Ctrl-- the newest; Ctrl-. clears;

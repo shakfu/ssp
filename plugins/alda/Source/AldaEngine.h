@@ -26,6 +26,10 @@ namespace alda {
 // position; between pulses it runs at the last interval's rate, never past the next pulse, so it stays
 // locked and halts when the clock stops.
 //
+// The controls are fixed: p1 Transpose (semitones, CV and MIDI), p2 Tempo (a factor on the score's,
+// free-running only), p3 Velocity (a factor on MIDI velocities), p4 Swing (every second 16th later, 50% to
+// 75%), p5-p8 Mute 1-4 (a voice's gate and its part's MIDI notes). Their neutral settings are the defaults.
+//
 // A new score replaces the running one when the loop next ends, or at once while stopped. Stop (Ctrl-.)
 // ends the score at the next block; a score with no notes stops too, so the editor's reset unloads.
 //
@@ -88,10 +92,14 @@ public:
 
     bool canReset() const override { return true; }
 
+    enum Control { TRANSPOSE, TEMPO, VELOCITY, SWING, MUTE };  // MUTE + k: voice k's mute
+    static Specs controls();
+
 protected:
     bool compile(const std::string& text, const std::string& path, std::string& error) override;
     const char* builtin() const override;
     bool dropAll(std::string& result) override;  // Ctrl-.: stop
+    Specs declared(const std::string&) const override { return controls(); }
 
 private:
     struct Voice {
@@ -105,6 +113,7 @@ private:
     void apply(const Event& e);
     void send(uint8_t status, uint8_t d1, uint8_t d2, uint8_t size = 3);  // audio thread
     void pulse(double interval);  // audio thread: a clock pulse, `interval` samples after the last; 0 unknown
+    double swung(double pos) const;  // audio thread: the score position the clock position `pos` plays
 
     // The worker hands scores to the audio thread through pending_, and the audio thread hands the one it
     // replaced back through retired_, so neither side frees on the audio thread. A swap waits while
@@ -121,6 +130,12 @@ private:
     Voice voices_[VOICES];
     bool resetHigh_ = false;
     uint32_t sounding_[16][4] = {};  // MIDI notes on, a bit per note and channel
+    int8_t sent_[16][128];           // the note sent for each score note sounding, transposed; -1 none
+
+    // the controls, read once a block
+    int transpose_ = 0;
+    double tempo_ = 1.0, velocity_ = 1.0, swing_ = 0.0;  // swing_: 0 straight .. 0.5 (75%)
+    bool mute_[VOICES] = {};
 
     // clocked scores, audio thread
     double lastGrid_ = 0.0;  // the last pulse's position, ticks; the score stays below lastGrid_ + one pulse

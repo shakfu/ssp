@@ -22,7 +22,7 @@ struct CodeKeys {
     bool lastWins = false;  // the query's later patterns override earlier ones, as nvim-treesitter's do
     // the keys the Code view's status line lists; null for the default, DEFAULT_HINT
     const char* hint = nullptr;
-    static constexpr const char* DEFAULT_HINT = "C-Enter run  C-E block  C-L clear  C-S save  C-O open  Esc pages";
+    static constexpr const char* DEFAULT_HINT = "C-Enter run  C-E block  C-L clear  C-S save  C-S-S as  C-O open  Esc pages";
 };
 
 // Hosts a ScriptEngine: eight audio inputs and outputs, controls p1..p16, and the program file in
@@ -60,6 +60,11 @@ public:
     bool runBlock(int& first, int& last);
     // the program's file, or programDir/live<ext> for the built-in
     juce::String codePath();
+    // Save As: `name` as a file: an absolute path as is, else beside codePath(); the extension added when
+    // the name has none.
+    juce::File saveAsTarget(const juce::String& name);
+    // Writes text() to `target`, which becomes the program's file; returns a line for the status.
+    juce::String saveAs(const juce::File& target);
     // Ctrl-L: empties text(); on an empty text, brings back what the last clear or reset removed.
     void clearText();
     // Ctrl-R, where the engine canReset(): stops it, clears the text, and runs an empty program with no
@@ -111,6 +116,7 @@ private:
     class CodeView;
     void takeKeys();
     bool chord(uint8_t usage);  // a Ctrl chord the editor handles; false to pass it to the text
+    void promptKey(uint8_t usage, uint8_t mods);  // a key while the Save As prompt is open
 
     ScriptProcessor& processor_;
     unsigned specsGen_;

@@ -1,8 +1,8 @@
 {
   "alda": {
     "inputs": [
-      "In 1",
-      "In 2",
+      "Reset",
+      "Clock",
       "In 3",
       "In 4",
       "In 5",

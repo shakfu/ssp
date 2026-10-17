@@ -2,13 +2,13 @@
 
 The code view of `fstr`, `csnd` and `chuk`, and the keyboard shared with `sapf` and `ttyp`. Needs the five `.so` files from one build in `BOOT/plugins`, the examples in `BOOT/chuck`, `BOOT/csound` and `BOOT/faust`, and `BOOT/faust/libraries` (`make install-faust`). A USB keyboard through a USB 2.0 hub. Listen on outputs 1 and 2.
 
-Each step lists what to do, then what should happen. Code typed on one line here is one line in the editor; "a blank line" means press Enter on an empty line. The status line under the code reads `<file>:<row>   <state>   dsp N%   keys usb|tcp :PORT`.
+Each step lists what to do, then what should happen. Code typed on one line here is one line in the editor; "a blank line" means press Enter on an empty line. The status line under the code reads `<file>:<row>  <state>  dsp N%  usb|tcp :PORT`, then the module's keys.
 
 ## chuk: code view
 
 | # | Do | Expect |
 |-|-|-|
-| 1 | Add `chuk` to a patch; show it; press Down | the Code view opens on the built-in drone's code; status `built-in:2   running ... keys usb` |
+| 1 | Add `chuk` to a patch; show it; press Down | the Code view opens on the built-in drone's code; status `built-in:2  running ... usb` |
 | 2 | Esc; then Down; then button 6 (Code) | pages; Code view; pages. The Code label is hidden while Load's browser is open |
 | 3 | In the Code view, turn encoders 1 and 2 | the cursor moves by rows, then by columns |
 | 4 | On the `(0.15 + p2 * 0.85) * 0.3 => s.gain;` line, change `0.3` to `0.1`; Ctrl-Enter | status `compiling`, then `running`; the drone is quieter; the file shows as `live.ck`. Note any gap in the sound |
@@ -63,7 +63,7 @@ Start from step 8's program, or Ctrl-O `filter.ck`. Put each block below the pro
 |-|-|-|
 | 32 | One patch with `sapf`, `ttyp`, `chuk`, `csnd` and `fstr`. Show each in turn and type a character | it goes to the module on screen only |
 | 33 | Leave every module's screen (Synthor's main page); type `zz`; show `chuk` | the `zz` typed off screen may appear in the code: the last module shown keeps the keyboard and queues up to 256 keys. Record where it lands |
-| 34 | Show `chuk`; unplug the keyboard; plug it in again | status `keys tcp :7774`, then `keys usb` |
+| 34 | Show `chuk`; unplug the keyboard; plug it in again | status `tcp :7774`, then `usb` |
 | 35 | With `chuk` on screen, `ssh root@192.168.1.6 "python3 -c 'import socket; socket.create_connection((\"127.0.0.1\", 7774)).sendall(bytes([2, 4, 0, 0]))'"` | an `a` at the cursor. Ports 7772 (`fstr`) and 7773 (`csnd`) work the same way when shown |
 | 36 | Add a second `chuk`; show each | keys go to the one on screen |
 | 37 | Remove all five modules from the patch | no crash |

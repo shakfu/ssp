@@ -14,7 +14,7 @@ Each step lists what to do, then what should happen. Code goes in the Code view;
 
 | # | Do | Expect |
 |-|-|-|
-| 1 | Add `alda` to a patch; show it | listed as `alda`; outputs labelled `Gate 1`-`Gate 4`, `CV 1`-`CV 4`; status `bar 1/2  120 bpm` and `lead bass`; the bar count moves |
+| 1 | Add `alda` to a patch; show it | listed as `alda`; inputs labelled `Reset`, `Clock`, `In 3`-`In 8`, outputs `Gate 1`-`Gate 4`, `CV 1`-`CV 4`; status `bar 1/2  120 bpm` and `lead bass`; the bar count moves |
 | 2 | Scope outs 1, 2, 5, 6 | gates 0 / 5 V on outs 1-2; stepped pitch CV on outs 5-6 |
 | 3 | `(quant 100)` / `piano: o5 c1`; Ctrl-Enter | after the running loop ends: out 1 at 5 V, out 5 at +1.000 V |
 | 4 | `piano: o3 c1 \| o4 c1 \| o5 c1 \| o6 c1` | out 5 steps -1, 0, +1, +2 V, each within 5 mV; an oscillator on out 5 plays four Cs in octave tune |
@@ -47,6 +47,11 @@ Each step lists what to do, then what should happen. Code goes in the Code view;
 | 28b | Open the Code view | the status line shows `bar n/m  bpm` (or `stopped`), and ends `C-Enter run  C-. stop  C-L clear  C-R reset  C-S save  C-O open  Esc pages`, not cut off at the right |
 | 29 | Ctrl-L; then Ctrl-L again | the view empties and the score plays on; then the text is back |
 | 30 | Ctrl-R; then Ctrl-S | silence and an empty view; Ctrl-S writes `BOOT/alda/live.alda` |
+| 30b | Ctrl-Shift-S, Backspace the name, type `mine`, Enter | `saved .../mine.alda`; Ctrl-S then writes `mine.alda`; Load lists it |
+| 30c | Ctrl-Shift-S, type an existing name, Enter | `exists: Enter again overwrites`; Esc leaves the file as it was |
+| 30d | Control page 1: Transpose +12 | the CV and the MIDI notes an octave up; notes held when it moved still end |
+| 30e | Tempo x2; Velocity x0.5; Swing 66% | twice as fast; `dexd` quieter; a shuffle on 16ths |
+| 30f | Page 2: Mute 1 on | voice 1's gate silent, its MIDI part silent; the other voices play |
 | 31 | `# @clock` / `piano: c4 d e f`; a clock (16ths) into In 2 | one note every 4 pulses; the status bpm follows the clock's; stop the clock: the score halts; change its rate: the notes follow |
 | 32 | `# @clock 24` with a 24 ppqn clock on In 2 | as step 31, at 24 pulses a note |
 | 33 | `# @clock midi`; a DAW or sequencer sending MIDI clock to `alda`'s MIDI IN (general panel) | Start plays from the beginning in time; Stop halts and releases notes; Continue resumes where it stopped |

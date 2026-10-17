@@ -6,7 +6,15 @@ Changes to the build, tools and presets. Each plugin keeps its own changelog in 
 
 ### Plugins
 
-- `alda`, new: an Alda score plays in a loop as gates and 1 V/octave pitch CV, four mono voices on jacks labelled `Gate 1`-`4` and `CV 1`-`4`, and as MIDI on every part, through an ALSA port of its own that `dexd` and other modules choose as MIDI IN, edited from a USB keyboard. `ScriptProcessor` now takes a plugin's own bus names; the others keep `In N` and `Out N`. Ctrl-L empties any code view, and pressed again on the empty view brings the text back, as there is no undo. The Code view's status line lists each module's own keys (`CodeKeys::hint`) and can show the engine's state in place of `running` (`ScriptEngine::runState`). Ctrl-R resets where the engine runs an empty program as silence (`ScriptEngine::canReset`): `alda` only; Csound, for one, rejects an empty program and keeps the last. It embeds psnd's C implementation of Alda, fetched by `scripts/fetch_alda.sh` (`make deps`). GPL-3.0. See [plugins/alda/CHANGELOG.md](plugins/alda/CHANGELOG.md) and [docs/dev/dsl-alda.md](docs/dev/dsl-alda.md).
+- `alda`, new: an Alda score plays in a loop as gates and 1 V/octave pitch CV on four mono voices, and as MIDI on every part through an ALSA port of its own, which `dexd` and other modules choose as MIDI IN. It follows the score's tempo, a clock on In 2, or MIDI clock. Its controls are Transpose, Tempo, Velocity, Swing and a mute per voice. It embeds psnd's C implementation of Alda, fetched by `scripts/fetch_alda.sh` (`make deps`). GPL-3.0. See [plugins/alda/CHANGELOG.md](plugins/alda/CHANGELOG.md) and [docs/dev/dsl-alda.md](docs/dev/dsl-alda.md).
+
+- Code view, in every keyboard module:
+  - Ctrl-Shift-S saves the text under a name typed in a prompt, beside the current file. That file becomes the program's, so Ctrl-S writes there next. An existing file is overwritten only on a second Enter.
+  - Ctrl-L empties the view; pressed again on the empty view, it brings the text back, as there is no undo.
+  - Ctrl-R stops, empties and forgets the program file, where the engine runs an empty program as silence (`ScriptEngine::canReset`): `alda` only. Csound rejects an empty program and keeps the last.
+  - The status line lists the module's own keys (`CodeKeys::hint`) and can show the engine's state in place of `running` (`ScriptEngine::runState`). It is shorter (`keys usb` is now `usb`): the view clips text at about x=1530, and the longest key list ran past it.
+
+- `ScriptProcessor` takes a plugin's own jack names, and an engine can declare its own controls (`ScriptEngine::declare`). Other plugins keep `In N`, `Out N` and their `@pN` comments. For `alda`.
 
 - `dexed` (`dexd`), new: a 6-operator FM synth played from MIDI, on the Dexed engine through Synth_Dexed, with DX7 cartridges from the card. GPL-3.0. See [plugins/dexed/CHANGELOG.md](plugins/dexed/CHANGELOG.md) and [docs/dev/dexed.md](docs/dev/dexed.md).
 

@@ -252,6 +252,12 @@ std::string ScriptEngine::path() const {
     return hasPending_ ? pending_.path : current_.path;
 }
 
+void ScriptEngine::rename(const std::string& path) {
+    std::lock_guard<std::mutex> lock(lock_);
+    if (hasPending_) pending_.path = path;
+    current_.path = path;
+}
+
 bool ScriptEngine::code(std::string& code) const {
     std::lock_guard<std::mutex> lock(lock_);
     const Source& src = hasPending_ ? pending_ : current_;
