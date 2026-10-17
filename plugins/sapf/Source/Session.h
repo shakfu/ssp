@@ -60,6 +60,9 @@ public:
 
     State state() const { return state_.load(); }
     std::string error() const;  // why the Session is silent
+    // sapf's built-in words and the prelude's, sorted; empty until the prelude has loaded (state() is not
+    // LOADING), and for a second Session
+    const std::vector<std::string>& words() const { return words_; }
 
     // the render thread's time per second of audio, smoothed; and the frames the callback lacked
     float renderLoad() const { return renderLoad_.load(std::memory_order_relaxed); }
@@ -87,6 +90,7 @@ private:
     std::atomic<State> state_{ State::LOADING };
     std::string error_;
     float rate_ = 0.0f;
+    std::vector<std::string> words_;  // written before state_ leaves LOADING, then fixed
 
     std::thread thread_, watchdog_, renderer_;
     mutable std::mutex jobLock_;

@@ -188,6 +188,20 @@ std::string Session::error() const {
     return error_;
 }
 
+// the names in sapf's built-ins and in the workspace's forms, as the prelude leaves them
+static std::vector<std::string> definedWords(Thread& th) {
+    std::vector<std::string> words;
+    auto add = [&](GTable* table) {
+        for (const auto& node : table->sorted())
+            if (node->mKey.isString()) words.push_back(static_cast<String*>(node->mKey.o())->s);
+    };
+    add(vm.builtins());
+    for (GForm* form = th.mWorkspace(); form; form = form->mNextForm()) add(form->mTable());
+    std::sort(words.begin(), words.end());
+    words.erase(std::unique(words.begin(), words.end()), words.end());
+    return words;
+}
+
 void Session::run() {
     SapfEngineConfig config;
     config.sampleRate = rate_;
@@ -206,6 +220,7 @@ void Session::run() {
     MaxMSPSetInputLead(FIFO_BLOCKS * BLOCK);
     Thread th;
     engine.loadPrelude(th);
+    words_ = definedWords(th);
     backend_.store(&backend, std::memory_order_release);
     state_ = State::IDLE;
 

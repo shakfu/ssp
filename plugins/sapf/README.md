@@ -18,7 +18,7 @@ As for `ttyp`: a USB keyboard through a USB 2.0 hub, or port 7771 on 127.0.0.1 o
 | Ctrl-O | lists the `.sapf` and `.txt` files in `BOOT/sapf`; Enter opens one in place of the code, Esc closes the list |
 | arrows, Home, End, PageUp, PageDown | move; with Ctrl, Home and End go to the start and end |
 
-Encoder 1 moves the cursor by rows, encoder 2 by columns. A held key repeats. Tab inserts spaces to the next multiple of 4. The layout is US.
+The code is coloured by syntax; built-in words are cyan, words you define stay white. Encoder 1 moves the cursor by rows, encoder 2 by columns. A held key repeats. Tab inserts spaces to the next multiple of 4. The layout is US.
 
 ## Files
 

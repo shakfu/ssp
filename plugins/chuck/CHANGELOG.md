@@ -8,6 +8,8 @@ The version is set in `CMakeLists.txt` (`project(CHUCK VERSION ...)`) and shown 
 
 A USB keyboard, or TCP port 7774, edits the program in a Code view. Ctrl-Enter compiles the edited text in place of the program without writing its file; Ctrl-S writes it. The preset stores the code run, so a patch keeps a live edit even when the file is unsaved or changed later. See [README.md](README.md#keyboard).
 
+The code view colours ChucK with [tree-sitter-chuck](https://github.com/DBraun/tree-sitter-chuck)'s highlight query. After each key it reparses from the previous tree and queries only the lines near the cursor: 9 ms per key on the SSP at 517 lines, against 63 ms for a full parse and query. It adds 358 KB to `chuk.so`.
+
 Ctrl-E runs the block around the cursor as a shred beside the program. Ctrl-1 to Ctrl-0 remove one by its place in the list, Ctrl-- the newest, and Ctrl-. every shred. Removal goes through the VM's message queue, so audio continues; adding a shred stops audio for its compile, as Ctrl-Enter does.
 
 ## [0.1.0] - 2026-10-10

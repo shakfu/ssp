@@ -23,7 +23,7 @@ help:
 	@echo "make [ssp]              download buildroot if needed, configure, build all plugins"
 	@echo "make configure          re-run cmake configure"
 	@echo "make buildroot          download and extract the SSP buildroot into ./buildroot"
-	@echo "make deps               build Csound, ChucK, libfaust and libscsynth for the SSP, fetch teletype (then re-run make configure)"
+	@echo "make deps               build Csound, ChucK, libfaust and libscsynth for the SSP, fetch teletype, sapf and alda (then re-run make configure)"
 	@echo "make faust-kernels      regenerate the Faust kernel headers (needs uv)"
 	@echo "make scsy-builtin       regenerate scsy's built-in SynthDef header (needs uv)"
 	@echo "make release            build, package releases/shakfu-ssp-plugins-$$(cat VERSION) and its zip, then release-notes"
@@ -62,6 +62,7 @@ deps: | $(BUILDROOT_DEP)
 	scripts/build_deps.sh ssp
 	scripts/fetch_teletype.sh
 	scripts/fetch_sapf.sh
+	scripts/fetch_alda.sh
 
 # kernel headers are committed, so the build does not need cyfaust
 faust-kernels:

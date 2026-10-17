@@ -55,6 +55,7 @@ void BaseProcessor::processBlock(juce::AudioSampleBuffer&, juce::MidiBuffer&) {
 }
 
 void BaseProcessor::releaseResources() {
+    std::lock_guard<std::mutex> lock(midiDeviceChangeLock);
     if (midiInDevice_) {
         midiInDevice_->stop();
         midiOutDevice_ = nullptr;
@@ -411,8 +412,11 @@ void BaseProcessor::connectMidiOutDevice(const std::string& id) {
     }
 }
 
-void BaseProcessor::sendMidiMessagesNow(const juce::MidiBuffer& midimsgs) {
+bool BaseProcessor::sendMidiMessagesNow(const juce::MidiBuffer& midimsgs) {
+    std::lock_guard<std::mutex> lock(midiDeviceChangeLock);
+    if (!midiOutDevice_) return false;
     midiOutDevice_->sendBlockOfMessagesNow(midimsgs);
+    return true;
 }
 
 

@@ -36,6 +36,7 @@ target_sources(CSOUND
         ${ENGINE_SRC}
         ${SCRIPT_SRC}
         )
+ssp_highlights(CSOUND csound)  # the code view's colours
 
 target_compile_definitions(CSOUND
         PUBLIC

@@ -27,6 +27,7 @@ DATA = {
     "fstr": [("plugins/faust/examples", "faust", "*.dsp"), ("{deps}/share/faust", "faust/libraries", "**")],
     "csnd": [("plugins/csound/examples", "csound", "*")],
     "chuk": [("plugins/chuck/examples", "chuck", "*")],
+    "alda": [("plugins/alda/examples", "alda", "*")],
     "scsy": [("plugins/scsynth/examples", "scsy", "*"), ("{deps}/scsynth/plugins", "scsy/ugens", "**")],
     "rack": [("presets", "rack_presets", "*")],
     # under examples/, where Disk does not read them into the scene slots
@@ -46,7 +47,8 @@ USER_DATA = {
 }
 
 LICENSES = {"gltc": "GPL-3.0", "sfct": "GPL-3.0, for softcut", "scsy": "GPL-3.0, for SuperCollider",
-            "ttyp": "GPL-3.0, for monome teletype", "dexd": "GPL-3.0, for Dexed", "sapf": "GPL-3.0, for sapf"}
+            "ttyp": "GPL-3.0, for monome teletype", "dexd": "GPL-3.0, for Dexed", "sapf": "GPL-3.0, for sapf",
+            "alda": "GPL-3.0, for psnd's Alda"}
 
 SK_ENGINES = "https://github.com/shakfu/sk-engines"
 
@@ -66,6 +68,7 @@ ORIGINS = {
     "dexd": "[Synth_Dexed](https://codeberg.org/dcoredump/Synth_Dexed), the [Dexed](https://github.com/asb2m10/dexed) engine",
     "ttyp": "[monome teletype](https://github.com/monome/teletype), on [monome-rack](https://github.com/Dewb/monome-rack)'s mock hardware",
     "sapf": "[sapf](https://github.com/lfnoise/sapf), through the fork [shakfu/sapf](https://github.com/shakfu/sapf)",
+    "alda": "[psnd](https://github.com/shakfu/psnd)'s C implementation of [Alda](https://alda.io)",
 }
 
 
@@ -159,6 +162,7 @@ def readme(version: str, tag: str, plugins: list[Plugin]) -> str:
                 data_rows.append((folder, product, {"faust": "example programs; `libraries/` holds the Faust "
                                                              "libraries that `import(\"stdfaust.lib\")` needs",
                                                     "csound": "example orchestras", "chuck": "example programs",
+                                                    "alda": "example scores",
                                                     "scsy": "example SynthDefs; `ugens/` holds the UGen plugins "
                                                             "they load",
                                                     "rack_presets": "presets",

@@ -14,11 +14,13 @@ set(FAUST_SRC
         ${CMAKE_CURRENT_LIST_DIR}/FaustProcessor.cpp
 )
 
-# plugins built on ScriptProcessor add these too; they include its code editor
+# plugins built on ScriptProcessor add these too; they include its code editor, which a plugin colours by
+# adding a tree-sitter grammar's parser.c (external/tree-sitter-<language>)
 include(${CMAKE_CURRENT_LIST_DIR}/../keys/CMakeLists.txt)
 set(SCRIPT_SRC
         ${CMAKE_CURRENT_LIST_DIR}/ScriptEngine.cpp
         ${CMAKE_CURRENT_LIST_DIR}/ScriptProcessor.cpp
         ${KEYS_SRC}
         ${TEXT_SRC}
+        ${HIGHLIGHT_SRC}
 )

@@ -6,15 +6,21 @@ Changes to the build, tools and presets. Each plugin keeps its own changelog in 
 
 ### Plugins
 
+- `alda`, new: an Alda score plays in a loop as gates and 1 V/octave pitch CV, four mono voices on jacks labelled `Gate 1`-`4` and `CV 1`-`4`, and as MIDI on every part, through an ALSA port of its own that `dexd` and other modules choose as MIDI IN, edited from a USB keyboard. `ScriptProcessor` now takes a plugin's own bus names; the others keep `In N` and `Out N`. Ctrl-L empties any code view, and pressed again on the empty view brings the text back, as there is no undo. The Code view's status line lists each module's own keys (`CodeKeys::hint`) and can show the engine's state in place of `running` (`ScriptEngine::runState`). Ctrl-R resets where the engine runs an empty program as silence (`ScriptEngine::canReset`): `alda` only; Csound, for one, rejects an empty program and keeps the last. It embeds psnd's C implementation of Alda, fetched by `scripts/fetch_alda.sh` (`make deps`). GPL-3.0. See [plugins/alda/CHANGELOG.md](plugins/alda/CHANGELOG.md) and [docs/dev/dsl-alda.md](docs/dev/dsl-alda.md).
+
 - `dexed` (`dexd`), new: a 6-operator FM synth played from MIDI, on the Dexed engine through Synth_Dexed, with DX7 cartridges from the card. GPL-3.0. See [plugins/dexed/CHANGELOG.md](plugins/dexed/CHANGELOG.md) and [docs/dev/dexed.md](docs/dev/dexed.md).
 
 - Every `EngineEditor` module ends its DSP readout before the version label. The readout was right-aligned to x=1590 and drew over the label, which starts at x=1505.
 
 - `fstr`, `csnd` and `chuk` edit their program from a keyboard, as `sapf` does. `ScriptProcessor` provides it for plugins that pass it a key port; `scsy` passes none, since its programs are binary SynthDefs. `TextBuffer` and `KeyQueue` move from `plugins/sapf` to `plugins/common/keys`, along with sapf's code drawing (`drawCode`). `TextBuffer::block` takes the language's comment marker: with sapf's `;`, a ChucK line such as `0 => int i; while (i < 4) {` ended its bracket count at the `;`. `ScriptEngine` runs Ctrl-E blocks through engine overrides; `chuk` and `csnd` implement them.
 
+- The code view can colour code from a tree-sitter grammar: `CodeKeys` takes the grammar and its `highlights.scm`, and `Highlighter` applies the query. `chuk`, `csnd`, `fstr` and `sapf` use it; `ssp_highlights()` adds a grammar to a plugin. The runtime (v0.27.0) and the ChucK, Faust and Csound grammars are vendored in `external/`; sapf's is new, a token grammar after sapf's own lexer. The Csound grammar, from psnd, gained two fixes: section tags other than `<CsoundSynthesizer>`, and one-character tokens and spaces that its catch-all token took in. See [docs/dev/syntax-highlighting.md](docs/dev/syntax-highlighting.md).
+
 - `EngineEditor` passes a short Left or Right press to the module through `step(dir)`; long presses still move between page groups. `dexd` uses it for PG- and PG+.
 
 ### Build and tools
+
+- `BaseProcessor::sendMidiMessagesNow` takes the device lock and returns false without a device; it dereferenced `midiOutDevice_` unchecked, so a send after a disconnect, or during the async check's reconnection, crashed. `releaseResources` takes the lock too. No plugin called it before `alda`.
 
 - `midisend` also sends controllers, pitch bend, program change and channel aftertouch: `cc N V`, `bend V`, `pc N`, `at V`.
 

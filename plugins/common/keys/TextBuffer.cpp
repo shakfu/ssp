@@ -95,17 +95,40 @@ void TextBuffer::clampCol() {
     col_ = std::min(col_, int(lines_[row_].size()));
 }
 
+uint32_t TextBuffer::offset(int row, int col) const {
+    uint32_t at = 0;
+    for (int r = 0; r < row; r++) at += uint32_t(lines_[size_t(r)].size()) + 1;
+    return at + uint32_t(col);
+}
+
+void TextBuffer::record(int row0, int col0, int row1, int col1, size_t inserted, int row2, int col2) {
+    const uint32_t start = offset(row0, col0);
+    edits_.push_back({ start, offset(row1, col1), start + uint32_t(inserted), uint32_t(row0), uint32_t(col0),
+                       uint32_t(row1), uint32_t(col1), uint32_t(row2), uint32_t(col2) });
+    if (edits_.size() > MAX_EDITS) edits_.pop_front();
+    version_++;
+}
+
+bool TextBuffer::editsSince(unsigned version, std::vector<Edit>& out) const {
+    const unsigned n = version_ - version;
+    if (n > edits_.size()) return false;
+    out.assign(edits_.end() - n, edits_.end());
+    return true;
+}
+
 void TextBuffer::insert(const std::string& s) {
+    record(row_, col_, row_, col_, s.size(), row_, col_ + int(s.size()));
     lines_[row_].insert(size_t(col_), s);
     col_ += int(s.size());
 }
 
 void TextBuffer::newline() {
+    // keep the line's indent: its spaces before the cursor
+    size_t indent = lines_[row_].find_first_not_of(' ');
+    std::string pad(std::min(indent == std::string::npos ? lines_[row_].size() : indent, size_t(col_)), ' ');
+    record(row_, col_, row_, col_, 1 + pad.size(), row_ + 1, int(pad.size()));
     std::string rest = lines_[row_].substr(size_t(col_));
     lines_[row_].erase(size_t(col_));
-    // keep the line's indent
-    size_t indent = lines_[row_].find_first_not_of(' ');
-    std::string pad(indent == std::string::npos ? lines_[row_].size() : indent, ' ');
     lines_.insert(lines_.begin() + row_ + 1, pad + rest);
     row_++;
     col_ = int(pad.size());
@@ -113,9 +136,12 @@ void TextBuffer::newline() {
 
 void TextBuffer::backspace() {
     if (col_ > 0) {
+        record(row_, col_ - 1, row_, col_, 0, row_, col_ - 1);
         lines_[row_].erase(size_t(--col_), 1);
     } else if (row_ > 0) {
-        col_ = int(lines_[row_ - 1].size());
+        const int end = int(lines_[row_ - 1].size());
+        record(row_ - 1, end, row_, 0, 0, row_ - 1, end);
+        col_ = end;
         lines_[row_ - 1] += lines_[row_];
         lines_.erase(lines_.begin() + row_--);
     }
@@ -123,8 +149,10 @@ void TextBuffer::backspace() {
 
 void TextBuffer::del() {
     if (col_ < int(lines_[row_].size())) {
+        record(row_, col_, row_, col_ + 1, 0, row_, col_);
         lines_[row_].erase(size_t(col_), 1);
     } else if (row_ + 1 < int(lines_.size())) {
+        record(row_, col_, row_ + 1, 0, 0, row_, col_);
         lines_[row_] += lines_[row_ + 1];
         lines_.erase(lines_.begin() + row_ + 1);
     }
@@ -135,6 +163,8 @@ std::string TextBuffer::text() const {
 }
 
 void TextBuffer::setText(const std::string& text) {
+    version_++;
+    edits_.clear();  // editsSince() across it fails: no edit spans it
     lines_.clear();
     size_t start = 0;
     for (;;) {

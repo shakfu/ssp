@@ -1,6 +1,9 @@
 #pragma once
 
+#include <memory>
+
 #include "PluginProcessor.h"
+#include "keys/Highlight.h"
 #include "ssp/BaseView.h"
 #include "ssp/controls/VuMeter.h"
 
@@ -33,6 +36,8 @@ private:
     PluginProcessor& processor_;
     KeyPump pump_;
     int top_ = 0;  // the first screen row of the code shown
+    std::unique_ptr<ssp::Highlighter> highlighter_;  // colours the code
+    bool words_ = false;  // the session's built-in words given to highlighter_
     // inputs 1-2, then outputs 1-2, right of the output pane
     ssp::MonoVuMeter meters_[2 * PluginProcessor::METERED];
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginEditor)

@@ -36,6 +36,7 @@ def plugins():
     if not all((DEPS / "lib" / lib).exists() for lib in ("libchuck.a", "libfaust.a", "libscsynth.a")):
         subprocess.run([ROOT / "scripts" / "build_deps.sh", "host"], check=True, capture_output=True)
     subprocess.run([ROOT / "scripts" / "fetch_teletype.sh"], check=True, capture_output=True)
+    subprocess.run([ROOT / "scripts" / "fetch_alda.sh"], check=True, capture_output=True)
     subprocess.run(["cmake", "-S", ROOT, "-B", BUILD, "-DCMAKE_BUILD_TYPE=Release"], check=True, capture_output=True)
     targets = [f"{name.upper()}_VST3" for name in [*PRODUCTS, *EXAMPLES]]
     subprocess.run(["cmake", "--build", BUILD, "-j8", "--target", *targets], check=True, capture_output=True)
@@ -48,7 +49,7 @@ def plugins():
 # source folder -> product name; Synthor lists only names of up to four characters
 PRODUCTS = {"radio": "rdio", "csound": "csnd", "chuck": "chuk", "edrums": "edrm", "pstretch": "strc", "bard": "bard",
             "glitch": "gltc", "chorus": "chrs", "faust": "fstr", "scsynth": "scsy", "teletype": "ttyp",
-            "dexed": "dexd"}
+            "dexed": "dexd", "alda": "alda"}
 # examples/: built and tested on the host, never shipped, so not in the manifest
 EXAMPLES = {"svca": "svca", "tremolo": "trem"}
 
@@ -118,6 +119,43 @@ def test_chuck(plugins, tmp_path):
     assert levels[2][1] == pytest.approx(0.75, abs=1e-6)
     assert levels[3][1] == pytest.approx(0.3, abs=1e-6)
     assert f'program="{ck}"' in state
+
+
+def test_alda(plugins, tmp_path):
+    levels, _ = run(plugins, "alda", "prepare", 48000, 128, "run", 0.4, 128, "level", 0)
+    assert levels[0][0] > 0.01  # the built-in's first part gates output 1
+    score = tmp_path / "prog.alda"
+    score.write_text("piano: o5 c1\nbass: o3 g1\n")
+    levels, state = run(plugins, "alda", "prepare", 48000, 128, "set", "program", score, "wait", 1.0,
+                        "run", 0.3, 300, "level", 0, "level", 1, "level", 4, "level", 5, "state")
+    assert levels[0][1] == 1.0 and levels[1][1] == 1.0  # both gates open
+    assert levels[4][1] == pytest.approx(0.2, abs=1e-6)  # C5: 1 V, 0.2 at 5 V per 1.0
+    assert levels[5][1] == pytest.approx(-5 / 12 * 0.2, abs=1e-6)  # G3
+    assert f'program="{score}"' in state
+
+
+def test_alda_midi_port(plugins):
+    """alda's own ALSA port, the MIDI in that other modules choose: it carries the score's notes."""
+    if shutil.which("aseqdump") is None or not os.access("/dev/snd/seq", os.R_OK | os.W_OK):
+        pytest.skip("needs aseqdump and the ALSA sequencer")
+    cmds = ["prepare", 48000, 128, "wait", 2.0, "run", 1.0, 128, "wait", 2.0]
+    host = subprocess.Popen([plugins, so("alda"), *map(str, cmds)],
+                            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+    try:
+        port = None
+        for _ in range(50):
+            listing = subprocess.run(["aseqdump", "-l"], capture_output=True, text=True).stdout
+            port = next((line.split()[0] for line in listing.splitlines() if line.split()[1:2] == ["alda"]), None)
+            if port:
+                break
+            time.sleep(0.05)
+        assert port, "no alda port in aseqdump -l"
+        dump = subprocess.run(["timeout", "3", "aseqdump", "-p", port], capture_output=True, text=True).stdout
+    finally:
+        host.wait(timeout=30)
+    assert "Program change" in dump
+    assert re.search(r"Note on\s+0, note 60, velocity 69", dump), dump  # the built-in's first note, c on channel 1
+    assert host.returncode == 0, host.stderr[-4000:]
 
 
 def wav(path, frames, sample):
@@ -240,11 +278,15 @@ def type_ttyp(text, after):
     time.sleep(0.2)
 
 
+def colour_in(frame, rgb, x0, y0, x1, y1):
+    """Pixels of colour rgb in a rectangle of a 1600-wide BGRA frame."""
+    data, bgr = frame.read_bytes(), bytes(reversed(rgb))
+    return sum(1 for y in range(y0, y1) for x in range(x0, x1) if data[(y * 1600 + x) * 4:(y * 1600 + x) * 4 + 3] == bgr)
+
+
 def amber_in(frame, x0, y0, x1, y1):
-    """Pixels of ttyp's amber, (255, 214, 140), in a rectangle of a 1600-wide BGRA frame."""
-    data = frame.read_bytes()
-    return sum(1 for y in range(y0, y1) for x in range(x0, x1)
-               if data[(y * 1600 + x) * 4:(y * 1600 + x) * 4 + 3] == bytes([140, 214, 255]))
+    """Pixels of ttyp's amber, (255, 214, 140)."""
+    return colour_in(frame, (255, 214, 140), x0, y0, x1, y1)
 
 
 def run_ttyp(host, text, *cmds):
@@ -318,6 +360,9 @@ def test_script_code_editor(plugins, tmp_path, monkeypatch):
     assert f'program="{ck}"' in state and 'code="Step s' in state
     assert 'text=' not in state  # the text is the code run
     assert amber_in(frame, 0, 298, 1600, 324) > 0  # the code view's status line
+    # coloured by the ChucK grammar: Step as a type, 0.5 as a number (CodeText.cpp's palette)
+    assert colour_in(frame, (229, 192, 123), 0, 0, 1600, 290) > 0
+    assert colour_in(frame, (209, 154, 102), 0, 0, 1600, 290) > 0
 
     # the preset runs the code, not the file; an edit not run is kept as text, and Ctrl-S writes it
     preset = tmp_path / "chuk.state"
@@ -329,6 +374,58 @@ def test_script_code_editor(plugins, tmp_path, monkeypatch):
     assert levels[2] == [pytest.approx(0.5, abs=1e-6)]
     assert ck.read_text() == "// y\n" + code + "// x\n"
     assert 'code="Step s' in state and 'text="// y' in state
+
+
+@pytest.mark.parametrize("keys, gate, attrs, absent", [
+    ("l", 1.0, ['text=""'], []),           # Ctrl-L empties the text; the score plays on
+    ("ll", 1.0, [], ["text="]),            # again on the empty text: it is back
+    (".", 0.0, ['program="{score}"'], []),  # Ctrl-.: the score stops; the program stays
+    ("r", 0.0, ['program=""'], ["text="]),  # Ctrl-R: stopped, cleared, no program
+    ("rl", 0.0, ['program=""', "text="], []),  # Ctrl-L after the reset brings the text back
+])
+def test_alda_stop_clear_reset(plugins, tmp_path, monkeypatch, keys, gate, attrs, absent):
+    monkeypatch.setenv("ALDA_KEYBOARD", "0")  # never grab this machine's keyboard
+    score = tmp_path / "prog.alda"
+    score.write_text("(quant 100)\npiano: o5 c1\n")
+    frame = tmp_path / "code.bgra"
+    # the first render shows the editor and takes the keyboard; the second takes the keys typed meanwhile
+    levels, state = run_typed(plugins, "alda", 7775, [r for k in keys for r in key_records(k, CTRL)],
+                              "prepare", 48000, 128, "set", "program", score, "wait", 0.5, "render", frame,
+                              "wait", 1.5, "render", frame, "wait", 0.5, "run", 0.2, 128, "level", 0, "state")
+    assert levels[0] == [gate]
+    for a in attrs:
+        assert a.format(score=score) in state, state
+    for a in absent:
+        assert a not in state, state
+
+
+def test_alda_status_line_fits(plugins, tmp_path, monkeypatch):
+    """alda's Code view status line, the longest: its run state and key list end inside the screen."""
+    monkeypatch.setenv("ALDA_KEYBOARD", "0")
+    frame = tmp_path / "code.bgra"
+    run_typed(plugins, "alda", 7775, [r for k in "ll" for r in key_records(k, CTRL)],
+              "prepare", 48000, 128, "wait", 0.5, "render", frame, "wait", 1.5, "run", 0.5, 128, "render", frame)
+    data = frame.read_bytes()
+    xs = [(i // 4) % 1600 for i in range(1600 * 298 * 4, 1600 * 324 * 4, 4) if data[i:i + 3] == bytes([140, 214, 255])]
+    assert xs, "no status line"
+    assert max(xs) < 1580  # drawText clips at 1590 without an ellipsis
+
+
+@pytest.mark.parametrize("plugin, port, env, colours", [
+    # the built-in .csd: tags and instr as keywords, ; comments
+    ("csound", 7773, "CSND_KEYBOARD", [(198, 120, 221), (130, 130, 130)]),
+    # the built-in .dsp: declare as a keyword, "built-in" as a string, numbers
+    ("faust", 7772, "FSTR_KEYBOARD", [(198, 120, 221), (152, 195, 121), (209, 154, 102)]),
+])
+def test_code_view_colours(plugins, tmp_path, monkeypatch, plugin, port, env, colours):
+    """csnd's and fstr's code views, coloured by their grammars (CodeText.cpp's palette)."""
+    monkeypatch.setenv(env, "0")
+    frame = tmp_path / "code.bgra"
+    run_typed(plugins, plugin, port, [bytes([2, 0x51, 0, 0])], "prepare", 48000, 128, "wait", 0.5, "render", frame,
+              "wait", 1, "render", frame)
+    assert amber_in(frame, 0, 298, 1600, 324) > 0  # the code view's status line
+    for rgb in colours:
+        assert colour_in(frame, rgb, 0, 0, 1600, 290) > 0, rgb
 
 
 def test_script_code_parts(plugins, tmp_path, monkeypatch):

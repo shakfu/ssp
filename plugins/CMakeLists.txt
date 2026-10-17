@@ -43,3 +43,15 @@ if (EXISTS "${SAPF_DIR}/src/engine/CMakeLists.txt" AND EXISTS "${DEPS_DIR}/lib/l
 else ()
     message(STATUS "skipping sapf: run `make deps`")
 endif ()
+
+# alda: psnd's Alda core at the commit scripts/fetch_alda.sh pins, or ALDA_DIR
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/fetch_alda.sh" ALDA_REF_LINE REGEX "^ALDA_REF=")
+string(REGEX REPLACE "^ALDA_REF=([0-9a-f]+).*" "\\1" ALDA_REF "${ALDA_REF_LINE}")
+if (NOT ALDA_DIR)
+    set(ALDA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../build/deps/src/alda-${ALDA_REF}")
+endif ()
+if (EXISTS "${ALDA_DIR}/impl/interpreter.c")
+    add_subdirectory(alda)
+else ()
+    message(STATUS "skipping alda: run `make deps`")
+endif ()

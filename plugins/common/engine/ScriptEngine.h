@@ -60,10 +60,15 @@ public:
     unsigned noteSeq() const { return noteSeq_.load(std::memory_order_acquire); }
     // the program an empty path runs
     virtual const char* builtin() const = 0;
+    // An empty program runs as silence, so the editor's reset (Ctrl-R) can unload the program.
+    virtual bool canReset() const { return false; }
     // The last load's error, or empty.
     std::string error() const;
     // UI thread: lines about the running program for the status panel, or empty.
     virtual std::string status() const { return {}; }
+    // UI thread: what the Code view's status line shows in place of "running", such as a position; empty
+    // for "running".
+    virtual std::string runState() const { return {}; }
 
     // A control as the running program declares it.
     struct ParamSpec {

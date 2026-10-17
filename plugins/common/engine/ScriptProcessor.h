@@ -6,6 +6,8 @@
 #include "keys/KeyQueue.h"
 #include "keys/TextBuffer.h"
 
+struct TSLanguage;
+
 namespace ssp::engine {
 
 // The keys a plugin's code editor reads (ssp::KeyInput); port 0 for no editor.
@@ -14,6 +16,13 @@ struct CodeKeys {
     const char* env = nullptr;  // the variable whose value 0 turns the USB keyboard off
     const char* ext = nullptr;  // the built-in's file when saved: programDir/live<ext>
     const char* comment = "//";  // a line comment's start, which Ctrl-E's block skips
+    // the tree-sitter grammar and highlights.scm that colour the code; null for none
+    const TSLanguage* (*language)() = nullptr;
+    const char* highlights = nullptr;
+    bool lastWins = false;  // the query's later patterns override earlier ones, as nvim-treesitter's do
+    // the keys the Code view's status line lists; null for the default, DEFAULT_HINT
+    const char* hint = nullptr;
+    static constexpr const char* DEFAULT_HINT = "C-Enter run  C-E block  C-L clear  C-S save  C-O open  Esc pages";
 };
 
 // Hosts a ScriptEngine: eight audio inputs and outputs, controls p1..p16, and the program file in
@@ -24,8 +33,10 @@ public:
     static constexpr int CHANNELS = ScriptEngine::CHANNELS;
     static constexpr int PARAMS = ScriptEngine::PARAMS;
 
-    // programDir: where the browser opens until a program is loaded
-    ScriptProcessor(std::unique_ptr<ScriptEngine> engine, const juce::String& programDir, CodeKeys keys = {});
+    // programDir: where the browser opens until a program is loaded. buses: CHANNELS mono inputs and outputs;
+    // a plugin that names its jacks passes its own getBusesProperties(), which Synthor's descriptor also reads.
+    ScriptProcessor(std::unique_ptr<ScriptEngine> engine, const juce::String& programDir, CodeKeys keys = {},
+                    const BusesProperties& buses = getBusesProperties());
     ~ScriptProcessor() override;
 
     juce::AudioProcessorEditor* createEditor() override;
@@ -49,6 +60,11 @@ public:
     bool runBlock(int& first, int& last);
     // the program's file, or programDir/live<ext> for the built-in
     juce::String codePath();
+    // Ctrl-L: empties text(); on an empty text, brings back what the last clear or reset removed.
+    void clearText();
+    // Ctrl-R, where the engine canReset(): stops it, clears the text, and runs an empty program with no
+    // file. False, and nothing changes, where it cannot.
+    bool resetCode();
 
     // The controls the running program declares, four to a page; all of them if it declares none.
     std::vector<ParamPage> pages();
@@ -71,6 +87,7 @@ private:
     const CodeKeys keys_;
     ssp::KeyQueue keyQueue_;
     ssp::TextBuffer text_;
+    std::string cleared_;  // the text the last clear or reset removed
 };
 
 // Shows the program and its compile error; Load picks a program file. With CodeKeys, a Code view

@@ -1,6 +1,7 @@
 #include "ScriptProcessor.h"
 
 #include "keys/CodeText.h"
+#include "keys/Highlight.h"
 #include "keys/KeyInput.h"
 #include "ssp/EditorHost.h"
 
@@ -43,8 +44,8 @@ private:
 };
 
 ScriptProcessor::ScriptProcessor(std::unique_ptr<ScriptEngine> engine, const juce::String& programDir,
-                                 CodeKeys keys)
-    : EngineProcessor(getBusesProperties(), createParameterLayout(), std::move(engine)),
+                                 CodeKeys keys, const BusesProperties& buses)
+    : EngineProcessor(buses, createParameterLayout(), std::move(engine)),
       programDir_(programDir),
       keys_(keys) {
     init();
@@ -91,6 +92,24 @@ juce::String ScriptProcessor::codePath() {
 
 void ScriptProcessor::runCode() {
     script().loadCode(text_.text() + "\n", codePath().toStdString());
+}
+
+void ScriptProcessor::clearText() {
+    std::string now = text_.text();
+    if (now.empty()) {
+        text_.setText(cleared_);
+        return;
+    }
+    cleared_ = now;
+    text_.setText("");
+}
+
+bool ScriptProcessor::resetCode() {
+    if (!script().canReset()) return false;
+    if (!text_.text().empty()) cleared_ = text_.text();
+    text_.setText("");
+    script().loadCode("\n", "");
+    return true;
 }
 
 bool ScriptProcessor::runBlock(int& first, int& last) {
@@ -176,7 +195,11 @@ class ScriptEditor::CodeView : public ssp::BaseEditor {
 public:
     static constexpr int H = 376;
 
-    explicit CodeView(ScriptProcessor& p) : BaseEditor(&p), processor_(p) {}
+    explicit CodeView(ScriptProcessor& p) : BaseEditor(&p), processor_(p) {
+        const auto& keys = p.codeKeys();
+        if (keys.language && keys.highlights)
+            highlighter_ = std::make_unique<ssp::Highlighter>(keys.language(), keys.highlights, keys.lastWins);
+    }
 
     // a line shown for a moment in place of the error
     void note(const juce::String& s) {
@@ -195,6 +218,11 @@ public:
         else if (enc == 1) processor_.text().key(v > 0 ? 0x4F : 0x50, 0);
     }
 
+    static juce::String runState(const ScriptEngine& script) {
+        std::string s = script.runState();
+        return s.empty() ? juce::String("running") : juce::String(s);
+    }
+
     void drawView(juce::Graphics& g) override {
         constexpr int W = 1600, MARGIN = 10, LINE = 26, ERROR_Y = H - 2 * LINE, STATUS_Y = ERROR_Y - LINE;
         const juce::Colour amber(255, 214, 140), dim(150, 150, 150);
@@ -204,9 +232,14 @@ public:
         const juce::String parts = script.parts();
         const int codeBottom = parts.isEmpty() ? STATUS_Y : STATUS_Y - LINE;  // parts take a row
         const bool flashing = juce::Time::getMillisecondCounter() < flashUntil_;
+        // The cursor's line is on screen, and a line takes at least one screen row, so every line shown
+        // is within a screen's rows of it; only those are queried
+        const int rows = (codeBottom - 12) / LINE + 1, row = processor_.text().row();
+        if (highlighter_) highlighter_->update(processor_.text(), row - rows, row + rows);
         g.setFont(mono(22));
         ssp::drawCode(g, processor_.text(), { MARGIN, 4, W - 2 * MARGIN, codeBottom - 8 }, LINE, top_,
-                      flashing ? flashFirst_ : 0, flashing ? flashLast_ : -1);
+                      flashing ? flashFirst_ : 0, flashing ? flashLast_ : -1,
+                      highlighter_ ? &highlighter_->kinds() : nullptr);
         g.setColour(juce::Colour(60, 60, 60));
         g.drawHorizontalLine(codeBottom - 3, 0.f, float(W));
         if (parts.isNotEmpty()) {
@@ -219,18 +252,20 @@ public:
         juce::String status =
             (path.isEmpty() ? juce::String("built-in") : juce::File(path).getFileName()) + ":" +
             juce::String(processor_.text().row() + 1) + "   " +
-            (script.loading() ? "compiling" : error.isEmpty() ? "running" : "error") + "   dsp " +
+            (script.loading() ? "compiling" : !error.isEmpty() ? "error" : runState(script)) + "   dsp " +
             juce::String(int(processor_.loadAverage() * 100.0f)) + "%   keys " +
             (ssp::KeyInput::keyboardConnected() ? juce::String("usb") : "tcp :" + juce::String(keys.port)) +
-            "   C-Enter run  C-E block  C-S save  C-O open  Esc pages";
+            "   " + (keys.hint ? keys.hint : CodeKeys::DEFAULT_HINT);
         g.setColour(amber);
         g.drawText(status, MARGIN, STATUS_Y, W - 2 * MARGIN, LINE, juce::Justification::left, false);
 
         const bool noting = juce::Time::getMillisecondCounter() < noteUntil_;
+        // a highlights query that fails to compile is a build error; show it rather than hide it
+        const juce::String shown = noting ? note_ : error.isNotEmpty() || !highlighter_ ? error
+                                                                       : juce::String(highlighter_->error());
         g.setColour(noting ? dim : juce::Colours::orange);
         g.setFont(mono(18));
-        g.drawFittedText(noting ? note_ : error, MARGIN, ERROR_Y, W - 2 * MARGIN, 2 * LINE,
-                         juce::Justification::topLeft, 2, 1.0f);
+        g.drawFittedText(shown, MARGIN, ERROR_Y, W - 2 * MARGIN, 2 * LINE, juce::Justification::topLeft, 2, 1.0f);
     }
 
 private:
@@ -240,6 +275,7 @@ private:
     juce::uint32 noteUntil_ = 0;
     int flashFirst_ = 0, flashLast_ = -1;
     juce::uint32 flashUntil_ = 0;
+    std::unique_ptr<ssp::Highlighter> highlighter_;
 };
 
 ScriptEditor::ScriptEditor(ScriptProcessor& p)
@@ -298,9 +334,10 @@ void ScriptEditor::takeKeys() {
     }
 }
 
-// Ctrl-E runs the block; Ctrl-1..9 and Ctrl-0 remove parts 1..10, Ctrl-- the newest; Ctrl-. clears.
+// Ctrl-E runs the block; Ctrl-1..9 and Ctrl-0 remove parts 1..10, Ctrl-- the newest; Ctrl-. clears;
+// Ctrl-L clears the text; Ctrl-R resets.
 bool ScriptEditor::chord(uint8_t usage) {
-    constexpr uint8_t E = 0x08, ONE = 0x1E, ZERO = 0x27, MINUS = 0x2D, DOT = 0x37;
+    constexpr uint8_t E = 0x08, L = 0x0F, R = 0x15, ONE = 0x1E, ZERO = 0x27, MINUS = 0x2D, DOT = 0x37;
     auto& script = processor_.script();
     if (usage == E) {
         int first, last;
@@ -311,6 +348,13 @@ bool ScriptEditor::chord(uint8_t usage) {
         script.removePart(0);
     } else if (usage == DOT) {
         script.clearParts();
+    } else if (usage == L) {
+        bool had = !processor_.text().text().empty();
+        processor_.clearText();
+        code_->note(had ? "cleared: Ctrl-L again brings it back" : "restored");
+    } else if (usage == R) {
+        code_->note(processor_.resetCode() ? "reset: stopped, cleared, no program; Ctrl-L brings the text back"
+                                       : "no reset in this module");
     } else {
         return false;
     }

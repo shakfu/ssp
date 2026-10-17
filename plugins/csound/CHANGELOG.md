@@ -8,6 +8,8 @@ The version is set in `CMakeLists.txt` (`project(CSOUND VERSION ...)`) and shown
 
 A USB keyboard, or TCP port 7773, edits the program in a Code view. Ctrl-Enter compiles the edited text in place of the program without writing its file; Ctrl-S writes it. The preset stores the code run, so a patch keeps a live edit even when the file is unsaved or changed later. See [README.md](README.md#keyboard).
 
+The code view colours Csound with a token grammar from psnd (`external/tree-sitter-csound`): section tags, keywords, opcodes, header variables, numbers, strings and comments.
+
 Ctrl-E evaluates the block around the cursor in the running orchestra: score events inside `<CsScore>`, orchestra code (`csoundCompileOrc`) elsewhere. Global state and running notes survive, unlike Ctrl-Enter's full restart.
 
 ## [0.1.0] - 2026-10-10

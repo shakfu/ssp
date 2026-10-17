@@ -5,6 +5,9 @@
 #include "SSP.h"
 #include "keys/CodeText.h"
 #include "keys/KeyInput.h"
+#include "tree-sitter-sapf-highlights.h"
+
+extern "C" const TSLanguage* tree_sitter_sapf(void);
 
 namespace {
 
@@ -81,7 +84,11 @@ bool KeyPump::flashing(int& first, int& last) const {
     return juce::Time::getMillisecondCounter() < flashUntil_;
 }
 
-PluginEditor::PluginEditor(PluginProcessor& p) : ssp::BaseView(&p, false), processor_(p), pump_(p) {
+PluginEditor::PluginEditor(PluginProcessor& p)
+    : ssp::BaseView(&p, false),
+      processor_(p),
+      pump_(p),
+      highlighter_(std::make_unique<ssp::Highlighter>(tree_sitter_sapf(), SAPF_HIGHLIGHTS)) {
     constexpr int C = PluginProcessor::METERED;
     for (int i = 0; i < 2 * C; i++) {
         auto& m = meters_[i];
@@ -147,7 +154,16 @@ void PluginEditor::drawView(Graphics& g) {
     } else {
         int flashFirst, flashLast;
         if (!pump_.flashing(flashFirst, flashLast)) flashFirst = 0, flashLast = -1;
-        ssp::drawCode(g, text, { MARGIN, 4, W - 2 * MARGIN, codeRows * LINE }, LINE, top_, flashFirst, flashLast);
+        const auto& session = processor_.session();
+        if (!words_ && session.state() != sapf::Session::State::LOADING) {
+            words_ = true;  // built-ins in their own colour; words the code defines stay plain
+            highlighter_->setWords("word", { session.words().begin(), session.words().end() },
+                                   ssp::Highlighter::BUILTIN);
+        }
+        // the cursor's line is on screen and a line takes a row or more: the lines shown are within codeRows of it
+        highlighter_->update(text, text.row() - codeRows, text.row() + codeRows);
+        ssp::drawCode(g, text, { MARGIN, 4, W - 2 * MARGIN, codeRows * LINE }, LINE, top_, flashFirst, flashLast,
+                      &highlighter_->kinds());
     }
 
     g.setColour(juce::Colour(60, 60, 60));

@@ -28,11 +28,12 @@ A USB keyboard, or port 7772 on 127.0.0.1 over ssh (`ssh -L 7772:127.0.0.1:7772 
 | Ctrl-Enter | compiles the whole code in place of the program; the file is unchanged |
 | Ctrl-S | writes the code to the program's file; for the built-in, to `BOOT/faust/live.dsp` |
 | Ctrl-O | opens the browser, as Load |
+| Ctrl-L | empties the code view; again on the empty view, brings the text back |
 | Ctrl-E | none: a Faust program compiles only whole, with Ctrl-Enter |
 | Esc | returns to the pages |
 | arrows, Home, End, PageUp, PageDown | move; with Ctrl, Home and End go to the start and end |
 
-Encoder 1 moves the cursor by rows, encoder 2 by columns. A held key repeats. Tab inserts spaces to the next multiple of 4. The layout is US. Relative paths in the code resolve next to the program's file. Controls keep their positions when the code runs; Load sets a program's defaults.
+The code is coloured by syntax. Encoder 1 moves the cursor by rows, encoder 2 by columns. A held key repeats. Tab inserts spaces to the next multiple of 4. The layout is US. Relative paths in the code resolve next to the program's file. Controls keep their positions when the code runs; Load sets a program's defaults.
 
 The preset stores the code last run, and the text when it holds an edit not yet run.
 

@@ -38,6 +38,7 @@ target_sources(CHUCK
         ${ENGINE_SRC}
         ${SCRIPT_SRC}
         )
+ssp_highlights(CHUCK chuck)  # the code view's colours
 
 target_compile_definitions(CHUCK
         PUBLIC

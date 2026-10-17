@@ -41,9 +41,11 @@ target_sources(SAPF
         Source/Session.cpp
         ${KEYS_SRC}
         ${TEXT_SRC}
+        ${HIGHLIGHT_SRC}
         ${COMMON_SRC}
         )
 target_include_directories(SAPF PRIVATE Source ${SAPF_DIR}/include)
+ssp_highlights(SAPF sapf)  # the code's colours
 
 target_compile_definitions(SAPF
         PUBLIC

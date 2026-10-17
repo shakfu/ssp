@@ -23,11 +23,12 @@ A USB keyboard, or port 7773 on 127.0.0.1 over ssh (`ssh -L 7773:127.0.0.1:7773 
 | Ctrl-Enter | compiles the whole code in place of the program; the file is unchanged |
 | Ctrl-S | writes the code to the program's file; for the built-in, to `BOOT/csound/live.csd` |
 | Ctrl-O | opens the browser, as Load |
+| Ctrl-L | empties the code view; again on the empty view, brings the text back |
 | Ctrl-E | runs the block around the cursor in the running orchestra: the lines up to blank lines outside brackets, strings and comments; on a blank line, the block above |
 | Esc | returns to the pages |
 | arrows, Home, End, PageUp, PageDown | move; with Ctrl, Home and End go to the start and end |
 
-Encoder 1 moves the cursor by rows, encoder 2 by columns. A held key repeats. Tab inserts spaces to the next multiple of 4. The layout is US. Relative paths in the code resolve next to the program's file. Controls keep their positions when the code runs; Load sets a program's defaults.
+The code is coloured by syntax. Encoder 1 moves the cursor by rows, encoder 2 by columns. A held key repeats. Tab inserts spaces to the next multiple of 4. The layout is US. Relative paths in the code resolve next to the program's file. Controls keep their positions when the code runs; Load sets a program's defaults.
 
 Ctrl-E sends a block inside `<CsScore>` as score events, such as `i 2 0 4`. Elsewhere it compiles the block as orchestra code: `schedule 2, 0, 4` plays, `instr 2 ... endin` replaces instrument 2, and `gkx = 0.5` sets a global. A replaced instrument applies to notes that start after it; a held note keeps the old definition until it ends. A block ends at a blank line, so keep an instrument free of blank lines to send it whole. A held note on the same instrument number ties to the running one; use a fractional number, such as `i 2.1`, for a second voice. Errors in an event show only when it plays, not on Ctrl-E.
 

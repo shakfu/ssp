@@ -184,6 +184,12 @@ void testSession(const char* prelude, const char* outdir) {
     s.prepare(48000.f);
     CHECK(waitFor([&] { return idle(s); }, 30));
 
+    // the words for the editor's colours: built-ins (sinosc, +) and the prelude's (prall), sorted
+    const auto& w = s.words();
+    auto has = [&](const char* word) { return std::binary_search(w.begin(), w.end(), std::string(word)); };
+    CHECK(std::is_sorted(w.begin(), w.end()) && has("sinosc") && has("play") && has("+") && has("prall"));
+    CHECK(!has("analog_bubbles") && w.size() > 500);
+
     // the audio callback, in real time; input 1 holds .25
     std::atomic<bool> running{ true };
     std::atomic<float> peak{ 0.f }, mean{ 0.f };
@@ -251,7 +257,7 @@ void testSession(const char* prelude, const char* outdir) {
     {
         sapf::Session second({ prelude, outdir });
         second.prepare(48000.f);
-        CHECK(second.state() == sapf::Session::State::SECOND && !second.evaluate("1"));
+        CHECK(second.state() == sapf::Session::State::SECOND && !second.evaluate("1") && second.words().empty());
     }
 
     // teardown with ola voices playing

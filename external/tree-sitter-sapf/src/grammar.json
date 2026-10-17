@@ -1,0 +1,173 @@
+{
+  "$schema": "https://tree-sitter.github.io/tree-sitter/assets/schemas/grammar.schema.json",
+  "name": "sapf",
+  "rules": {
+    "source_file": {
+      "type": "REPEAT",
+      "content": {
+        "type": "SYMBOL",
+        "name": "_token"
+      }
+    },
+    "_token": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "comment"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "string"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "number"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "each_op"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "quote_symbol"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "backquote_symbol"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "dot_symbol"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "comma_symbol"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "colon_symbol"
+        },
+        {
+          "type": "STRING",
+          "value": "="
+        },
+        {
+          "type": "STRING",
+          "value": "\\"
+        },
+        {
+          "type": "STRING",
+          "value": "("
+        },
+        {
+          "type": "STRING",
+          "value": ")"
+        },
+        {
+          "type": "STRING",
+          "value": "["
+        },
+        {
+          "type": "STRING",
+          "value": "]"
+        },
+        {
+          "type": "STRING",
+          "value": "{"
+        },
+        {
+          "type": "STRING",
+          "value": "}"
+        },
+        {
+          "type": "STRING",
+          "value": "#["
+        },
+        {
+          "type": "SYMBOL",
+          "name": "word"
+        },
+        {
+          "type": "TOKEN",
+          "content": {
+            "type": "PREC",
+            "value": -1,
+            "content": {
+              "type": "PATTERN",
+              "value": "\\S"
+            }
+          }
+        }
+      ]
+    },
+    "comment": {
+      "type": "PATTERN",
+      "value": ";[^\\n]*"
+    },
+    "string": {
+      "type": "PATTERN",
+      "value": "\"([^\"]|\"\")*\""
+    },
+    "number": {
+      "type": "TOKEN",
+      "content": {
+        "type": "CHOICE",
+        "members": [
+          {
+            "type": "PATTERN",
+            "value": "[+-]?(\\d+\\.?\\d*|\\.\\d+)([eE][+-]?\\d+)?(pi|[Mkhcmu])?(\\/(\\d+\\.?\\d*|\\.\\d+)([eE][+-]?\\d+)?(pi|[Mkhcmu])?)?"
+          },
+          {
+            "type": "PATTERN",
+            "value": "[+-]?pi"
+          },
+          {
+            "type": "PATTERN",
+            "value": "0x[0-9a-fA-F]+"
+          }
+        ]
+      }
+    },
+    "each_op": {
+      "type": "PATTERN",
+      "value": "@(@+|[2-9]|[01]+)?"
+    },
+    "quote_symbol": {
+      "type": "PATTERN",
+      "value": "'[^\\s;()\\[\\]{}.`,:\"]+"
+    },
+    "backquote_symbol": {
+      "type": "PATTERN",
+      "value": "`[^\\s;()\\[\\]{}.`,:\"]+"
+    },
+    "dot_symbol": {
+      "type": "PATTERN",
+      "value": "\\.[^\\s;()\\[\\]{}.`,:\"]+"
+    },
+    "comma_symbol": {
+      "type": "PATTERN",
+      "value": ",[^\\s;()\\[\\]{}.`,:\"]+"
+    },
+    "colon_symbol": {
+      "type": "PATTERN",
+      "value": ":[^\\s;()\\[\\]{}.`,:\"]+"
+    },
+    "word": {
+      "type": "PATTERN",
+      "value": "[^\\s;()\\[\\]{}.`,:\"@'\\\\#][^\\s;()\\[\\]{}.`,:\"]*"
+    }
+  },
+  "extras": [
+    {
+      "type": "PATTERN",
+      "value": "\\s+"
+    }
+  ],
+  "conflicts": [],
+  "precedences": [],
+  "externals": [],
+  "inline": [],
+  "supertypes": [],
+  "reserved": {}
+}

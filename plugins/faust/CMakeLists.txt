@@ -39,6 +39,7 @@ target_sources(FAUST
         ${ENGINE_SRC}
         ${SCRIPT_SRC}
         )
+ssp_highlights(FAUST faust)  # the code view's colours
 
 target_compile_definitions(FAUST
         PUBLIC

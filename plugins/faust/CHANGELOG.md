@@ -8,6 +8,8 @@ The version is set in `CMakeLists.txt` (`project(FAUST VERSION ...)`) and shown 
 
 A USB keyboard, or TCP port 7772, edits the program in a Code view. Ctrl-Enter compiles the edited text in place of the program without writing its file; Ctrl-S writes it. The preset stores the code run, so a patch keeps a live edit even when the file is unsaved or changed later. See [README.md](README.md#keyboard).
 
+The code view colours Faust with [tree-sitter-faust](https://github.com/khiner/tree-sitter-faust)'s highlight query. That query is written for nvim-treesitter, whose later patterns override earlier ones, so `fstr` asks `Highlighter` for that order.
+
 ## [0.2.0] - 2026-10-10
 
 Programs run as machine code from libfaust's LLVM JIT, in place of its interpreter, which used ~15x the CPU of a compiled module on the SSP. LLVM is the SSP's own `libLLVM-9.so`, which the SSP's Mesa drivers already link; a static copy would add ~25 MB and could clash with it.

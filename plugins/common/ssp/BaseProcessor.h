@@ -117,7 +117,9 @@ public:
         void recall(juce::XmlElement*);
     };
 
-    void sendMidiMessagesNow(const juce::MidiBuffer& midimsgs);
+    // Any thread but audio: sends `midimsgs` on the MIDI out device; false if none is connected. Holds the
+    // device lock while ALSA writes, so a reconnection cannot free the device mid-send.
+    bool sendMidiMessagesNow(const juce::MidiBuffer& midimsgs);
 
 
 protected:

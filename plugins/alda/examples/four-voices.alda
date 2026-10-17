@@ -1,0 +1,14 @@
+# Four parts: gates on outs 1-4, pitch CV on outs 5-8. Eight quarter notes: two bars.
+(tempo! 110)
+
+lead:
+  o4 e8 g a > c < a g e4 | d8 e g a g e d4
+
+bass:
+  o2 c4 r8 c g4 c | f4 r8 f c4 g
+
+arp:
+  o5 c16 e g e c e g e c e g e c e g e | d f a f d f a f d f a f d f a f
+
+drone:
+  o3 c1 | f1
