@@ -8,6 +8,8 @@ Changes to the build, tools and presets. Each plugin keeps its own changelog in 
 
 - `alda`, new: an Alda score plays in a loop as gates and 1 V/octave pitch CV on four mono voices, and as MIDI on every part through an ALSA port of its own, which `dexd` and other modules choose as MIDI IN. It follows the score's tempo, a clock on In 2, or MIDI clock. Its controls are Transpose, Tempo, Velocity, Swing and a mute per voice. It embeds psnd's C implementation of Alda, fetched by `scripts/fetch_alda.sh` (`make deps`). GPL-3.0. See [plugins/alda/CHANGELOG.md](plugins/alda/CHANGELOG.md) and [docs/dev/dsl-alda.md](docs/dev/dsl-alda.md).
 
+- `fsyn`, new: FluidSynth 2.6.1 plays SF2 soundfonts from MIDI in stereo, a General MIDI synth for `alda`'s port. It ships FluidR3_GM (148 MB, MIT): of the three GM fonts tried on the SSP it sounds best at the same DSP cost, 4-5% playing `alda` scores. A font loads into a second synth on the worker thread and swaps in: `fluid_synth_sfload` holds the synth's lock for the whole read, 2.4 s for the 148 MB FluidR3_GM on the SSP, which would stall MIDI fed from the audio thread. SF2 only; SF3 needs libsndfile with Ogg/Vorbis. `scripts/build_fluidsynth.sh` builds FluidSynth (`make deps`), and `make install-fsyn` copies the font to the card. See [plugins/fsyn/README.md](plugins/fsyn/README.md).
+
 - Code view, in every keyboard module:
   - Ctrl-Shift-S saves the text under a name typed in a prompt, beside the current file. That file becomes the program's, so Ctrl-S writes there next. An existing file is overwritten only on a second Enter.
   - Ctrl-L empties the view; pressed again on the empty view, it brings the text back, as there is no undo.

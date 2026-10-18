@@ -377,6 +377,22 @@
     },
     "skipped": 0
   },
+  "fsyn": {
+    "inputs": [
+      "Gain CV"
+    ],
+    "outputs": [
+      "Out L",
+      "Out R"
+    ],
+    "params": {
+      "chorus": "chorus",
+      "gain": "gain",
+      "reverb": "reverb",
+      "voices": "voices"
+    },
+    "skipped": 0
+  },
   "gltc": {
     "inputs": [
       "A Pitch",

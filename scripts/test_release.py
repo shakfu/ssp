@@ -13,7 +13,7 @@ ROOT = release.ROOT
 def test_finds_every_plugin_with_its_version():
     plugins = {p.product: p for p in release.find_plugins(ROOT)}
     assert set(plugins) == {"bard", "chrs", "chuk", "csnd", "edrm", "fstr", "gltc", "strc", "rack", "rdio", "sfct",
-                            "scsy", "ttyp", "dexd", "sapf", "alda"}
+                            "scsy", "ttyp", "dexd", "sapf", "alda", "fsyn"}
     assert all(p.version and p.description for p in plugins.values())
 
 
@@ -40,6 +40,8 @@ def fake_build(tmp: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path]:
     (deps / "scsynth" / "plugins" / "sc3-plugins").mkdir(parents=True)
     (deps / "scsynth" / "plugins" / "OscUGens.so").write_bytes(b"so")
     (deps / "scsynth" / "plugins" / "sc3-plugins" / "TJUGens.so").write_bytes(b"so")
+    (tmp / "src").mkdir()
+    (tmp / "src" / "FluidR3_GM.sf2").write_bytes(b"sfbk")
     (tmp / "sapf").mkdir()
     (tmp / "sapf" / "sapf-prelude.txt").write_text("")
     (tmp / "sapf" / "sapf-examples.txt").write_text("")
@@ -64,6 +66,9 @@ def test_package_mirrors_the_card(tmp_path):
     assert (top / "BOOT" / "sapf" / "sapf-prelude.txt").is_file()
     assert (top / "BOOT" / "sapf" / "sapf-examples.txt").is_file()
     assert not (top / "BOOT" / "sapf" / "ugens").exists()  # sapf has its own UGens
+    assert [f.name for f in (top / "BOOT" / "fsyn").iterdir()] == ["FluidR3_GM.sf2"]
+    for name in ("LICENSE-fluidsynth.txt", "LICENSE-FluidR3_GM.txt", "NOTICE.md"):
+        assert (top / "docs" / "fsyn" / name).is_file()
     for product in products:
         assert (top / "docs" / product / "README.md").is_file()
     assert (top / "docs" / "gltc" / "LICENSE").is_file()

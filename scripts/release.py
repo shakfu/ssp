@@ -28,6 +28,7 @@ DATA = {
     "csnd": [("plugins/csound/examples", "csound", "*")],
     "chuk": [("plugins/chuck/examples", "chuck", "*")],
     "alda": [("plugins/alda/examples", "alda", "*")],
+    "fsyn": [("{deps}/../src", "fsyn", "FluidR3_GM.sf2")],  # scripts/build_fluidsynth.sh fetches it
     "scsy": [("plugins/scsynth/examples", "scsy", "*"), ("{deps}/scsynth/plugins", "scsy/ugens", "**")],
     "rack": [("presets", "rack_presets", "*")],
     # under examples/, where Disk does not read them into the scene slots
@@ -48,7 +49,8 @@ USER_DATA = {
 
 LICENSES = {"gltc": "GPL-3.0", "sfct": "GPL-3.0, for softcut", "scsy": "GPL-3.0, for SuperCollider",
             "ttyp": "GPL-3.0, for monome teletype", "dexd": "GPL-3.0, for Dexed", "sapf": "GPL-3.0, for sapf",
-            "alda": "GPL-3.0, for psnd's Alda"}
+            "alda": "GPL-3.0, for psnd's Alda",
+            "fsyn": "AGPL-3.0, with FluidSynth (LGPL-2.1-or-later), and its `FluidR3_GM.sf2` is MIT"}
 
 SK_ENGINES = "https://github.com/shakfu/sk-engines"
 
@@ -69,6 +71,7 @@ ORIGINS = {
     "ttyp": "[monome teletype](https://github.com/monome/teletype), on [monome-rack](https://github.com/Dewb/monome-rack)'s mock hardware",
     "sapf": "[sapf](https://github.com/lfnoise/sapf), through the fork [shakfu/sapf](https://github.com/shakfu/sapf)",
     "alda": "[psnd](https://github.com/shakfu/psnd)'s C implementation of [Alda](https://alda.io)",
+    "fsyn": "[FluidSynth](https://github.com/FluidSynth/fluidsynth)",
 }
 
 
@@ -163,6 +166,8 @@ def readme(version: str, tag: str, plugins: list[Plugin]) -> str:
                                                              "libraries that `import(\"stdfaust.lib\")` needs",
                                                     "csound": "example orchestras", "chuck": "example programs",
                                                     "alda": "example scores",
+                                                    "fsyn": "soundfonts: `FluidR3_GM.sf2`, the default; add "
+                                                            "other `.sf2` files",
                                                     "scsy": "example SynthDefs; `ugens/` holds the UGen plugins "
                                                             "they load",
                                                     "rack_presets": "presets",

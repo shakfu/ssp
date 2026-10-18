@@ -37,6 +37,8 @@ def plugins():
         subprocess.run([ROOT / "scripts" / "build_deps.sh", "host"], check=True, capture_output=True)
     subprocess.run([ROOT / "scripts" / "fetch_teletype.sh"], check=True, capture_output=True)
     subprocess.run([ROOT / "scripts" / "fetch_alda.sh"], check=True, capture_output=True)
+    if not (DEPS / "lib" / "libfluidsynth.a").exists():
+        subprocess.run([ROOT / "scripts" / "build_fluidsynth.sh", "host"], check=True, capture_output=True)
     subprocess.run(["cmake", "-S", ROOT, "-B", BUILD, "-DCMAKE_BUILD_TYPE=Release"], check=True, capture_output=True)
     targets = [f"{name.upper()}_VST3" for name in [*PRODUCTS, *EXAMPLES]]
     subprocess.run(["cmake", "--build", BUILD, "-j8", "--target", *targets], check=True, capture_output=True)
@@ -49,7 +51,7 @@ def plugins():
 # source folder -> product name; Synthor lists only names of up to four characters
 PRODUCTS = {"radio": "rdio", "csound": "csnd", "chuck": "chuk", "edrums": "edrm", "pstretch": "strc", "bard": "bard",
             "glitch": "gltc", "chorus": "chrs", "faust": "fstr", "scsynth": "scsy", "teletype": "ttyp",
-            "dexed": "dexd", "alda": "alda"}
+            "dexed": "dexd", "alda": "alda", "fsyn": "fsyn"}
 # examples/: built and tested on the host, never shipped, so not in the manifest
 EXAMPLES = {"svca": "svca", "tremolo": "trem"}
 
@@ -581,6 +583,22 @@ def test_dexed(plugins, tmp_path):
     _, state = run(plugins, "dexed", "load", preset, "prepare", 48000, 128, "set", "voice", 7, "run", 0.1, 128, "state")
     assert f'cartridge="{bank}"' in state
     assert f'voice_data="{voice_data}"' in state
+
+
+def test_fsyn(plugins, tmp_path):
+    font = ROOT / "build" / "deps" / "src" / "TimGM6mb.sf2"
+    r = subprocess.run([plugins, so("fsyn"), "channels"], capture_output=True, text=True, timeout=60)
+    assert r.stdout.split("\n")[:4] == ["io 1 2", "input Gain CV", "output Out L", "output Out R"]
+    # the font loads on the worker, and the preset keeps it; no notes: silent
+    levels, state = run(plugins, "fsyn", "prepare", 48000, 128, "set", "soundfont", font, "wait", 1.0,
+                        "run", 0.1, 300, "level", 0, "render", tmp_path / "f.bgra", "state")
+    assert levels[0] == (0.0, 0.0)
+    assert f'soundfont="{font}"' in state
+    # a font that fails to load leaves the one playing, which the preset keeps
+    _, state = run(plugins, "fsyn", "prepare", 48000, 128, "set", "soundfont", font, "wait", 1.0,
+                   "set", "soundfont", tmp_path / "missing.sf2", "wait", 1.0, "run", 0.1, 128,
+                   "render", tmp_path / "f.bgra", "state")
+    assert f'soundfont="{font}"' in state
 
 
 def manifest_entry(host, plugin):

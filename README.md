@@ -20,6 +20,7 @@ Most of the modules are ports of engines from [sk-engines](https://github.com/sh
 | `plugins/scsynth` | `scsy`: SuperCollider SynthDefs from the card, run in scsynth. See [README](plugins/scsynth/README.md) |
 | `plugins/teletype` | `ttyp`: monome teletype, live-coded from a USB keyboard, GPLv3. See [README](plugins/teletype/README.md) and the [guide](plugins/teletype/README-getting-started.md) |
 | `plugins/dexed` | `dexd`: 6-operator FM synth played from MIDI, on the Dexed engine; DX7 cartridges from the card, GPLv3. See [README](plugins/dexed/README.md) |
+| `plugins/fsyn` | `fsyn`: SF2 soundfont synth played from MIDI, on FluidSynth; ships the FluidR3_GM General MIDI set. See [README](plugins/fsyn/README.md) |
 | `plugins/common` | shared SSP plugin framework, from TheTechnobear; `engine/` is shared by the engine plugins. See [docs/DEVELOPING.md](docs/DEVELOPING.md) |
 | `examples` | `svca` and `tremolo`, the worked examples of the plugin guides; built and tested on the host, never shipped |
 | `presets` | rack presets, installed with `make install-presets`. See [README](presets/README.md) |

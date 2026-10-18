@@ -17,13 +17,13 @@ BUILDROOT_DEP := $(BUILDROOT_DIR)
 endif
 
 .DEFAULT_GOAL := ssp
-.PHONY: ssp configure buildroot deps faust-kernels scsy-builtin release release-pdf release-notes publish clean-releases deploy deploy-mod install install-faust install-scsy install-sapf install-presets midisend test clean help
+.PHONY: ssp configure buildroot deps faust-kernels scsy-builtin release release-pdf release-notes publish clean-releases deploy deploy-mod install install-faust install-scsy install-sapf install-fsyn install-presets midisend test clean help
 
 help:
 	@echo "make [ssp]              download buildroot if needed, configure, build all plugins"
 	@echo "make configure          re-run cmake configure"
 	@echo "make buildroot          download and extract the SSP buildroot into ./buildroot"
-	@echo "make deps               build Csound, ChucK, libfaust and libscsynth for the SSP, fetch teletype, sapf and alda (then re-run make configure)"
+	@echo "make deps               build Csound, ChucK, libfaust, libscsynth and FluidSynth for the SSP, fetch teletype, sapf and alda (then re-run make configure)"
 	@echo "make faust-kernels      regenerate the Faust kernel headers (needs uv)"
 	@echo "make scsy-builtin       regenerate scsy's built-in SynthDef header (needs uv)"
 	@echo "make release            build, package releases/shakfu-ssp-plugins-$$(cat VERSION) and its zip, then release-notes"
@@ -37,6 +37,7 @@ help:
 	@echo "make install-faust      copy the Faust libraries and fstr examples to the card"
 	@echo "make install-scsy       copy the UGen plugins and scsy examples to the card"
 	@echo "make install-sapf       copy sapf's prelude and examples to the card"
+	@echo "make install-fsyn       copy fsyn's soundfont, FluidR3_GM.sf2, to the card"
 	@echo "make midisend           build tools/midisend, copy it to SSP_HOST's /tmp and start it: a MIDI input for tests"
 	@echo "make install-presets     check, then copy presets/ (or PRESETS=dir) to the card (SSP_PRESETS)"
 	@echo "make test               run the py2rack and plugin tests"
@@ -63,6 +64,7 @@ deps: | $(BUILDROOT_DEP)
 	scripts/fetch_teletype.sh
 	scripts/fetch_sapf.sh
 	scripts/fetch_alda.sh
+	scripts/build_fluidsynth.sh ssp
 
 # kernel headers are committed, so the build does not need cyfaust
 faust-kernels:
@@ -119,6 +121,9 @@ install-scsy:
 
 install-sapf:
 	scripts/install-sapf.sh
+
+install-fsyn:
+	scripts/install-fsyn.sh
 
 # a MIDI input on the SSP that plays MIDI messages written to /tmp/midisend over ssh; /tmp is RAM, so a
 # reboot removes it
