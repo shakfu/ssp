@@ -1,5 +1,8 @@
 #include "ScriptProcessor.h"
 
+#include <algorithm>
+#include <cmath>
+
 #include "keys/CodeText.h"
 #include "keys/Highlight.h"
 #include "keys/KeyInput.h"
@@ -32,7 +35,12 @@ public:
         return engine_ && sp.cv >= 0 ? sp.unmap(engine_->value(index_)) : -1.0f;
     }
     juce::String getText(float normalised, int) const override {
-        float v = spec().map(normalised);
+        auto sp = spec();
+        float v = sp.map(normalised);
+        if (!sp.choices.empty()) {
+            long c = std::lround(v - sp.min);
+            return juce::String(sp.choices[size_t(std::clamp(c, 0L, long(sp.choices.size()) - 1))]);
+        }
         float a = std::fabs(v);
         return juce::String(v, a >= 100.0f ? 0 : a >= 10.0f ? 1 : a >= 1.0f ? 2 : 3);
     }
@@ -185,7 +193,12 @@ std::vector<ParamPage> ScriptProcessor::pages() {
         ParamPage page;
         page.name = declared ? juce::String("controls")
                              : "p" + juce::String(shown[at] + 1) + "-p" + juce::String(shown[at] + 4);
-        for (size_t k = 0; k < 4 && at + k < shown.size(); k++) page.c[k] = { params_[size_t(shown[at + k])], 0.05f, 0.005f };
+        for (size_t k = 0; k < 4 && at + k < shown.size(); k++) {
+            int i = shown[at + k];
+            size_t n = script().spec(i).choices.size();
+            float step = n > 1 ? 1.0f / float(n - 1) : 0.0f;  // a choice per click
+            page.c[k] = { params_[size_t(i)], n > 1 ? step : 0.05f, n > 1 ? step : 0.005f };
+        }
         pages.push_back(page);
     }
     return pages;

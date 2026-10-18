@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(FAUST VERSION 0.2.0)
+project(FAUST VERSION 0.3.0)
 
 # built by scripts/build_deps.sh ssp|host; see docs/BUILDING.md
 # libfaust links the shared libLLVM: the SSP's (in its rootfs, and the sysroot) or the host's

@@ -32,6 +32,7 @@ PluginProcessor::PluginProcessor()
         }
     }
     applyDefaults();  // the controls' neutral settings; a preset restored later replaces them
+    clockFromScore();
     midiTransportInput(true);
     midiThread_ = std::thread([this] { midiLoop(); });
 }
@@ -60,12 +61,19 @@ PluginProcessor::~PluginProcessor() {
 
 void PluginProcessor::customToXml(XmlElement* xml) {
     ScriptProcessor::customToXml(xml);
-    xml->setAttribute("controls", 1);
+    xml->setAttribute("controls", 2);
 }
 
 void PluginProcessor::customFromXml(XmlElement* xml) {
     ScriptProcessor::customFromXml(xml);
-    if (!xml->hasAttribute("controls")) applyDefaults();
+    int version = xml->getIntAttribute("controls", 0);
+    if (version == 0) applyDefaults();
+    if (version < 2) clockFromScore();
+}
+
+void PluginProcessor::clockFromScore() {
+    auto& p = param(alda::AldaEngine::CLOCK);
+    p.setValueNotifyingHost(script().spec(alda::AldaEngine::CLOCK).unmap(float(alda::AldaEngine::CLOCK_SCORE)));
 }
 
 void PluginProcessor::send(const MidiBuffer& buf) {

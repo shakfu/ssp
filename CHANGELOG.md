@@ -2,11 +2,13 @@
 
 Changes to the build, tools and presets. Each plugin keeps its own changelog in `plugins/<name>/CHANGELOG.md`.
 
-## [Unreleased]
+## [0.4.0]
+
+Four modules are new since 0.3.0: `dexd`, `sapf`, `alda` and `fsyn`, so the release ships 17.
 
 ### Plugins
 
-- `alda`, new: an Alda score plays in a loop as gates and 1 V/octave pitch CV on four mono voices, and as MIDI on every part through an ALSA port of its own, which `dexd` and other modules choose as MIDI IN. It follows the score's tempo, a clock on In 2, or MIDI clock. Its controls are Transpose, Tempo, Velocity, Swing and a mute per voice. It embeds psnd's C implementation of Alda, fetched by `scripts/fetch_alda.sh` (`make deps`). GPL-3.0. See [plugins/alda/CHANGELOG.md](plugins/alda/CHANGELOG.md) and [docs/dev/dsl-alda.md](docs/dev/dsl-alda.md).
+- `alda`, new: an Alda score plays in a loop as gates and 1 V/octave pitch CV on four mono voices, and as MIDI on every part through an ALSA port of its own, which `dexd` and other modules choose as MIDI IN. It follows the score's tempo, a clock on In 2, or MIDI clock. Its controls are Transpose, Tempo, Velocity, Swing, a mute per voice, and Clock: free, analog, MIDI, or the score's `# @clock` line. It embeds psnd's C implementation of Alda, fetched by `scripts/fetch_alda.sh` (`make deps`). GPL-3.0. See [plugins/alda/CHANGELOG.md](plugins/alda/CHANGELOG.md) and [docs/dev/dsl-alda.md](docs/dev/dsl-alda.md).
 
 - `fsyn`, new: FluidSynth 2.6.1 plays SF2 soundfonts from MIDI in stereo, a General MIDI synth for `alda`'s port. It ships FluidR3_GM (148 MB, MIT): of the three GM fonts tried on the SSP it sounds best at the same DSP cost, 4-5% playing `alda` scores. A font loads into a second synth on the worker thread and swaps in: `fluid_synth_sfload` holds the synth's lock for the whole read, 2.4 s for the 148 MB FluidR3_GM on the SSP, which would stall MIDI fed from the audio thread. SF2 only; SF3 needs libsndfile with Ogg/Vorbis. `scripts/build_fluidsynth.sh` builds FluidSynth (`make deps`), and `make install-fsyn` copies the font to the card. See [plugins/fsyn/README.md](plugins/fsyn/README.md).
 
@@ -16,7 +18,7 @@ Changes to the build, tools and presets. Each plugin keeps its own changelog in 
   - Ctrl-R stops, empties and forgets the program file, where the engine runs an empty program as silence (`ScriptEngine::canReset`): `alda` only. Csound rejects an empty program and keeps the last.
   - The status line lists the module's own keys (`CodeKeys::hint`) and can show the engine's state in place of `running` (`ScriptEngine::runState`). It is shorter (`keys usb` is now `usb`): the view clips text at about x=1530, and the longest key list ran past it.
 
-- `ScriptProcessor` takes a plugin's own jack names, and an engine can declare its own controls (`ScriptEngine::declare`). Other plugins keep `In N`, `Out N` and their `@pN` comments. For `alda`.
+- `ScriptProcessor` takes a plugin's own jack names, and an engine can declare its own controls (`ScriptEngine::declare`), including ones that pick from named values (`ParamSpec::choices`), one per encoder click. Other plugins keep `In N`, `Out N` and their `@pN` comments. For `alda`.
 
 - `dexed` (`dexd`), new: a 6-operator FM synth played from MIDI, on the Dexed engine through Synth_Dexed, with DX7 cartridges from the card. GPL-3.0. See [plugins/dexed/CHANGELOG.md](plugins/dexed/CHANGELOG.md) and [docs/dev/dexed.md](docs/dev/dexed.md).
 
@@ -29,6 +31,8 @@ Changes to the build, tools and presets. Each plugin keeps its own changelog in 
 - `EngineEditor` passes a short Left or Right press to the module through `step(dir)`; long presses still move between page groups. `dexd` uses it for PG- and PG+.
 
 ### Build and tools
+
+- `scripts/build_fluidsynth.sh ssp` links GCC 8's `libstdc++fs.a`, as does `fsyn`. Without it FluidSynth's `std::filesystem` check fails to link in the cross build, its file tests become stubs, and every soundfont load logs `fluid_file_test is unavailable`, which `fsyn` showed as the load's error.
 
 - `BaseProcessor::sendMidiMessagesNow` takes the device lock and returns false without a device; it dereferenced `midiOutDevice_` unchecked, so a send after a disconnect, or during the async check's reconnection, crashed. `releaseResources` takes the lock too. No plugin called it before `alda`.
 

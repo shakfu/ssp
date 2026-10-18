@@ -1,6 +1,6 @@
 # scsy changes for sapf-sc
 
-[sapf-sc](https://github.com/shakfu/sapf-sc) compiles sapf programs to SynthDefs. Two of its features could not run on the SSP: polyphony (`ola`, one synth per sound) and buffers (sample playback with `sf>` and `playbuf`, and wave tables for `osc`). A SynthDef can neither start synths nor load buffers, so scsy gained two features: it plays scores, and its sidecar names buffers. User docs: [README](../../plugins/scsynth/README.md#scores); changelog: Unreleased.
+[sapf-sc](https://github.com/shakfu/sapf-sc) compiles sapf programs to SynthDefs. Two of its features could not run on the SSP: polyphony (`ola`, one synth per sound) and buffers (sample playback with `sf>` and `playbuf`, and wave tables for `osc`). A SynthDef can neither start synths nor load buffers, so scsy gained two features: it plays scores, and its sidecar names buffers. User docs: [README](../../plugins/scsynth/README.md#scores); changelog: 0.2.0.
 
 ## Scores
 

@@ -49,6 +49,7 @@ struct Rig {
             op[c] = out[c].data();
         }
         for (int i = 0; i < AldaEngine::PARAMS; i++) e.setParam(i, std::max(e.spec(i).def, 0.0f));
+        e.setParam(AldaEngine::CLOCK, e.spec(AldaEngine::CLOCK).unmap(AldaEngine::CLOCK_SCORE));  // as the plugin does
         e.prepare(SR, BLOCK);
         if (!code.empty()) load(code);
     }
@@ -399,6 +400,58 @@ static void testMute() {
     CHECK(std::count_if(m.begin(), m.end(), [](const std::string& s) { return s.compare(0, 4, "91 4") == 0; }) == 2);  // violin, channel 2
 }
 
+// p9 Clock overrides the score's `# @clock` line; 3, the default, keeps it
+static void testClockControl() {
+    auto pulses = [](Rig& r, int count, int every) {
+        for (int p = 0; p < count; p++) {
+            long at = r.frame;
+            for (int i = 0; i < BLOCK; i++) r.in[1][i] = 1.0f;
+            r.runTo(at + BLOCK);
+            for (int i = 0; i < BLOCK; i++) r.in[1][i] = 0.0f;
+            r.runTo(at + every);
+        }
+    };
+    {  // analog, for a score without the line: d at the fourth pulse, as with `# @clock`
+        Rig r("piano: c4 d e f");
+        setControl(r, AldaEngine::CLOCK, 1.0f);
+        pulses(r, 7, 3072);
+        CHECK(r.rises[0].size() == 2);
+        if (r.rises[0].size() == 2) CHECK(r.rises[0][1] >= 3 * 3072 && r.rises[0][1] < 3 * 3072 + 2 * BLOCK);
+    }
+    {  // free, for a score with the line: pulses ignored, d at the score's tempo
+        Rig r("# @clock\npiano: c4 d e f");
+        setControl(r, AldaEngine::CLOCK, 0.0f);
+        pulses(r, 4, 3072);  // 16ths at 234 bpm, which would bring d at 9216
+        r.runTo(QUARTER + BLOCK);
+        CHECK(r.rises[0].size() == 2);
+        if (r.rises[0].size() == 2) CHECK(nearFrame(r.rises[0][1], QUARTER));
+    }
+    {  // MIDI: 24 ticks a quarter, though the score's line says 4 pulses on In 2
+        Rig r("# @clock\npiano: c4 d e f");
+        setControl(r, AldaEngine::CLOCK, 2.0f);
+        double t = 0.0;
+        for (int p = 0; p < 30; p++) {
+            r.e.midiClock(t);
+            t += 0.5 / 24;
+            r.runTo(r.frame + 1000);
+        }
+        CHECK(r.rises[0].size() == 2);
+    }
+    {  // free to analog while playing: it goes on from the 16th it is in, not back to the start
+        Rig r("piano: c4 d e f");
+        r.runTo(QUARTER / 2);
+        setControl(r, AldaEngine::CLOCK, 1.0f);
+        pulses(r, 1, 6000);  // a 16th on from the middle of c
+        CHECK(r.rises[0].size() == 1);
+        pulses(r, 1, 6000);  // d; had it gone back to the start, d would take four pulses
+        CHECK(r.rises[0].size() == 2);
+    }
+    AldaEngine e;
+    auto sp = e.spec(AldaEngine::CLOCK);
+    CHECK(sp.def < 0.0f);  // no default: loading a score keeps the patch's
+    CHECK((sp.choices == std::vector<std::string>{ "free", "analog", "midi", "score" }));
+}
+
 static void testControlsDeclared() {
     AldaEngine e;
     CHECK(e.spec(AldaEngine::TRANSPOSE).label == "Transpose" && e.spec(AldaEngine::MUTE + 3).label == "Mute 4");
@@ -483,7 +536,8 @@ int main(int argc, char** argv) {
         testTempoVelocity();
         testSwing();
         testMute();
-        testControlsDeclared();
+        testClockControl();
+    testControlsDeclared();
     }
     if (failures) {
         std::fprintf(stderr, "%d failures\n", failures);

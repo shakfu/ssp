@@ -75,7 +75,6 @@ bool clockLine(const std::string& text, AldaEngine::Score& s, std::string& error
         if (!(words >> w)) continue;
         if (w == "midi") {
             s.clock = AldaEngine::MIDI;
-            s.ppqn = 24;
             continue;
         }
         char* end = nullptr;
@@ -109,6 +108,9 @@ AldaEngine::Specs AldaEngine::controls() {
     set(SWING, "Swing", "%", 50.0f, 75.0f, 50.0f);
     static const char* mutes[VOICES] = { "Mute 1", "Mute 2", "Mute 3", "Mute 4" };
     for (int k = 0; k < VOICES; k++) set(MUTE + k, mutes[k], "", 0.0f, 1.0f, 0.0f);
+    set(CLOCK, "Clock", "", 0.0f, 3.0f, float(CLOCK_SCORE));
+    s[CLOCK].choices = { "free", "analog", "midi", "score" };
+    s[CLOCK].def = -1.0f;  // the patch's, so loading a score keeps it; PluginProcessor sets CLOCK_SCORE
     return s;
 }
 
@@ -337,9 +339,8 @@ double AldaEngine::swung(double pos) const {
 }
 
 void AldaEngine::pulse(double interval) {
-    const double tpp = double(TICKS_PER_QUARTER) / score_->ppqn;
-    if (interval > 0.0) rate_ = tpp / interval;
-    double target = lastGrid_ + tpp;
+    if (interval > 0.0) rate_ = tpp() / interval;
+    double target = lastGrid_ + tpp();
     if (target >= score_->length) {  // the loop ends within this pulse: play its last events first
         const auto& ev = score_->events;
         while (cursor_ < ev.size()) apply(ev[cursor_++]);
@@ -361,12 +362,19 @@ void AldaEngine::process(const float* const* in, float* const* out, int n) {
         pos_ = lastGrid_ = 0.0;
     }
     const double perSample = double(TICKS_PER_QUARTER) / 60.0 / double(sampleRate());
-    const Clock clock = score_ ? score_->clock : FREE;
     transpose_ = int(std::lround(value(TRANSPOSE)));
     tempo_ = value(TEMPO);
     velocity_ = value(VELOCITY);
     swing_ = (value(SWING) - 50.0) / 50.0;
     for (int k = 0; k < VOICES; k++) mute_[k] = value(MUTE + k) >= 0.5f;
+    const long mode = std::lround(value(CLOCK));
+    const Clock clock = !score_ ? FREE : mode == CLOCK_SCORE ? score_->clock : Clock(std::clamp(mode, 0L, 2L));
+    if (clock != clocked_) {  // a clock takes over from the pulse at or before here, at the tempo until two pulses
+        clocked_ = clock;
+        if (clock != FREE) lastGrid_ = std::floor(pos_ / tpp()) * tpp();  // pulses stay on the score's grid
+        rate_ = 0.0;
+        halted_ = false;
+    }
     if (clock == MIDI) {
         switch (transport_.exchange(NONE, std::memory_order_acq_rel)) {
         case START:
@@ -418,7 +426,7 @@ void AldaEngine::process(const float* const* in, float* const* out, int n) {
             if (clock == FREE) {
                 pos_ += bpm_ * tempo_ * perSample;
             } else {
-                double limit = lastGrid_ + double(TICKS_PER_QUARTER) / score_->ppqn;
+                double limit = lastGrid_ + tpp();
                 pos_ = std::min(pos_ + (rate_ > 0.0 ? rate_ : bpm_ * perSample), std::nextafter(limit, 0.0));
             }
             if (pos_ >= score_->length) {

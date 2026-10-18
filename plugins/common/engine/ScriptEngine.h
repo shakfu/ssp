@@ -6,6 +6,7 @@
 #include <functional>
 #include <mutex>
 #include <string>
+#include <vector>
 
 #include "engine/Engine.h"
 
@@ -77,6 +78,7 @@ public:
         std::string label, unit;  // label empty: undeclared
         float min = 0.0f, max = 1.0f;
         bool log = false;
+        std::vector<std::string> choices;  // names of the whole values min, min + 1, ...; empty for a number
         float def = -1.0f;  // the program's default, 0..1; negative: none
         int cv = -1;        // the input, 0..CHANNELS-1, that modulates it; negative: none
         float map(float normalised) const;

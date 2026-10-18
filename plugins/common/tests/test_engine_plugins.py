@@ -443,8 +443,9 @@ def alda_preset(path, values, custom):
 
 
 @pytest.mark.parametrize("custom, values, want", [
-    ("", {}, {1: 0.5, 2: 0.5, 3: 0.5, 4: 0.0}),               # saved before the controls: neutral instead
-    ('controls="1"', {3: 0.25}, {1: 0.0, 2: 0.0, 3: 0.25}),  # saved with them: kept as saved
+    ("", {}, {1: 0.5, 2: 0.5, 3: 0.5, 4: 0.0, 9: 1.0}),        # saved before the controls: neutral instead
+    ('controls="1"', {3: 0.25}, {1: 0.0, 2: 0.0, 3: 0.25, 9: 1.0}),  # before Clock: Clock at score
+    ('controls="2"', {3: 0.25, 9: 0.0}, {3: 0.25, 9: 0.0}),     # with Clock: kept as saved
 ])
 def test_alda_old_patch_controls(plugins, tmp_path, custom, values, want):
     preset = tmp_path / "alda.state"
@@ -452,7 +453,7 @@ def test_alda_old_patch_controls(plugins, tmp_path, custom, values, want):
     _, state = run(plugins, "alda", "prepare", 48000, 128, "load", preset, "state")
     for i, v in want.items():
         assert f'<PARAM id="p{i}" value="{v}"/>' in state, state
-    assert 'controls="1"' in state
+    assert 'controls="2"' in state
 
 
 def test_alda_status_line_fits(plugins, tmp_path, monkeypatch):

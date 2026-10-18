@@ -4,7 +4,7 @@ dexed follows [semantic versioning](https://semver.org). Until 1.0.0, a minor ve
 
 The version is set in `CMakeLists.txt` (`project(DEXED VERSION ...)`) and shown at the top right of the screen.
 
-## [Unreleased]
+## [0.1.0] - 2026-10-18
 
 - First version: Synth_Dexed `e3f524c`, played from MIDI, with DX7 cartridges from the card and 5 pages of performance controls. PG- and PG+ (Left and Right) step through the voices. See [README.md](README.md).
 

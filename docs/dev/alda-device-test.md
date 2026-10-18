@@ -54,6 +54,8 @@ Each step lists what to do, then what should happen. Code goes in the Code view;
 | 30f | Page 2: Mute 1 on | voice 1's gate silent, its MIDI part silent; the other voices play |
 | 31 | `# @clock` / `piano: c4 d e f`; a clock (16ths) into In 2 | one note every 4 pulses; the status bpm follows the clock's; stop the clock: the score halts; change its rate: the notes follow |
 | 32 | `# @clock 24` with a 24 ppqn clock on In 2 | as step 31, at 24 pulses a note |
+| 32b | No `# @clock` line; page 3 Clock to `analog`, a clock on In 2 | as step 31; Clock to `free`: the score's tempo, the clock ignored; back to `score`: free, as the score has no line |
+| 32c | Clock `analog` while a score plays free | no jump back: it goes on from the 16th it is in, at the clock's rate |
 | 33 | `# @clock midi`; a DAW or sequencer sending MIDI clock to `alda`'s MIDI IN (general panel) | Start plays from the beginning in time; Stop halts and releases notes; Continue resumes where it stopped |
 | 27 | With `dexd` playing `alda`'s score, Ctrl-. | silence at once; status `stopped`; no note hangs |
 | 28 | Load `four-voices.alda` while stopped | it starts at once, not at a loop's end |
@@ -67,4 +69,4 @@ Optional, with the monitor's timestamps: note the spread of note-on times in `pi
 
 ## Results
 
-Not run yet.
+2026-10-18, user: step 31 passes. Without `# @clock`, a clock on In 2 is ignored with no sign of it; the user expected it to drive the tempo.

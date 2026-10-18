@@ -4,7 +4,7 @@ scsynth follows [semantic versioning](https://semver.org). Until 1.0.0, a minor 
 
 The version is set in `CMakeLists.txt` (`project(SCSYNTH VERSION ...)`) and shown at the top right of the screen.
 
-## [Unreleased]
+## [0.2.0] - 2026-10-18
 
 Plays scores: NRT command files such as [sapf-sc](https://github.com/shakfu/sapf-sc)'s `>nrt` writes, so polyphony made of one synth per note can run on the SSP. Load picks the main synth's controls and sidecar as for a `.scsyndef`; the other synths start on schedule, and the score loops. scsynth starts them on the block holding their time, from bundles a worker thread sends 0.5 s ahead of the World's clock. See [README.md](README.md#scores).
 

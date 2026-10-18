@@ -31,7 +31,7 @@ The score's own tempo sets the speed, `(tempo! 120)` by default, unless it follo
 
 ## Controls
 
-The control pages hold `alda`'s own controls; `@pN` comments in a score are ignored. Each starts neutral, and loading a score returns them there.
+The control pages hold `alda`'s own controls; `@pN` comments in a score are ignored. Each starts neutral, and loading a score with Load returns them there, except Clock, which the patch keeps.
 
 | Page | Control | Range | Does |
 |-|-|-|-|
@@ -40,16 +40,26 @@ The control pages hold `alda`'s own controls; `@pN` comments in a score are igno
 | 1 | Velocity | x0 to x2 | scales MIDI velocities; at 0 no MIDI notes are sent, though the gates play |
 | 1 | Swing | 50% to 75% | delays every second 16th: 50% is straight, 66% triplet feel, 75% the most |
 | 2 | Mute 1-4 | off below the middle, on above | closes voice k's gate and drops its part's MIDI notes; the CV still follows |
+| 3 | Clock | free, analog, midi, score | what drives the time; see Clock. `score`, the default, follows the score's `# @clock` line |
 
 ## Clock
 
-A comment makes the score follow a clock instead of its tempo:
+The Clock control picks what drives the time:
+
+| Clock | Time from |
+|-|-|
+| free | the score's tempo; clocks are ignored |
+| analog | rising edges on In 2 (`Clock`), 4 per quarter note (16ths), or N with `# @clock N` |
+| midi | MIDI clock from `alda`'s MIDI IN (general panel), 24 per quarter note; Start returns to the beginning, Stop halts and releases notes, Continue resumes |
+| score | the score's comment line, below; without one, free |
 
 | Comment | Clock |
 |-|-|
-| `# @clock` | rising edges on In 2, 4 per quarter note (16ths) |
-| `# @clock N` | rising edges on In 2, N per quarter note (1-96; 24 for DIN sync) |
-| `# @clock midi` | MIDI clock from `alda`'s MIDI IN (general panel), 24 per quarter note; Start returns to the beginning, Stop halts and releases notes, Continue resumes |
+| `# @clock` | analog, 16ths |
+| `# @clock N` | analog, N per quarter note (1-96; 24 for DIN sync) |
+| `# @clock midi` | midi |
+
+A patch keeps the Clock setting; one saved before Clock existed opens at `score`. Switching while the score plays goes on from the 16th (or pulse) it is in.
 
 Each pulse moves the score to the next pulse's position; between pulses it runs at the rate of the last interval, but never past the next pulse. The score therefore stays locked to the clock and halts when it stops. The score starts at its beginning and plays it at once; the first pulse moves it on by one pulse. In 1 still resets. The score's `(tempo ...)` changes are ignored once two pulses have arrived.
 

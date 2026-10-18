@@ -22,9 +22,11 @@ public:
 
 protected:
     // A patch saved before alda had controls stores p1-p16 at 0: Velocity x0, Tempo x0.25. Such a patch,
-    // without the `controls` attribute, gets the neutral settings instead.
+    // without the `controls` attribute, gets the neutral settings instead. One saved before Clock
+    // (`controls` 1) would read p9 as free; it gets Clock's default, score.
     void customToXml(XmlElement* xml) override;
     void customFromXml(XmlElement* xml) override;
+    void clockFromScore();  // Clock to `score`, the default
 
     // MIDI input thread: clock and transport from the general panel's MIDI in, for `# @clock midi`
     void onMidiClock(double ts) override { alda().midiClock(ts); }

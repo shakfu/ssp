@@ -72,7 +72,7 @@ public:
     bool midiOut(Midi& m) { return midi_.try_dequeue(m); }
     unsigned midiDropped() const { return midiDropped_.load(std::memory_order_relaxed); }
 
-    // MIDI input thread: a clock tick at `seconds`, and the transport. For `# @clock midi` scores only.
+    // MIDI input thread: a clock tick at `seconds`, and the transport. Used while the clock is MIDI.
     void midiClock(double seconds);
     void midiStart() { transport_.store(START, std::memory_order_release); }
     void midiStop() { transport_.store(STOP, std::memory_order_release); }
@@ -81,7 +81,7 @@ public:
     static constexpr int CLOCK_INPUT = 1;  // input 2
     struct Score {
         Clock clock = FREE;
-        int ppqn = 4;               // the clock's pulses per quarter note
+        int ppqn = 4;               // In 2's pulses per quarter note; MIDI clock has 24
         std::vector<Event> events;  // by tick; offs before ons at one tick
         int32_t length = BAR;       // ticks
         int bpm = 120;              // at tick 0
@@ -92,7 +92,9 @@ public:
 
     bool canReset() const override { return true; }
 
-    enum Control { TRANSPOSE, TEMPO, VELOCITY, SWING, MUTE };  // MUTE + k: voice k's mute
+    // MUTE + k: voice k's mute. CLOCK: 0 free, 1 In 2, 2 MIDI, 3 the score's `# @clock` line.
+    enum Control { TRANSPOSE, TEMPO, VELOCITY, SWING, MUTE, CLOCK = MUTE + VOICES };
+    static constexpr int CLOCK_SCORE = 3;
     static Specs controls();
 
 protected:
@@ -113,6 +115,7 @@ private:
     void apply(const Event& e);
     void send(uint8_t status, uint8_t d1, uint8_t d2, uint8_t size = 3);  // audio thread
     void pulse(double interval);  // audio thread: a clock pulse, `interval` samples after the last; 0 unknown
+    double tpp() const { return double(TICKS_PER_QUARTER) / (clocked_ == MIDI ? 24 : score_->ppqn); }  // per pulse
     double swung(double pos) const;  // audio thread: the score position the clock position `pos` plays
 
     // The worker hands scores to the audio thread through pending_, and the audio thread hands the one it
@@ -143,6 +146,7 @@ private:
     bool clockHigh_ = false;
     double sinceEdge_ = 0.0;  // samples since input 2's last rising edge; 0 before the first
     bool halted_ = false;     // MIDI Stop
+    Clock clocked_ = FREE;    // the clock the last block followed
 
     // MIDI clock: written by the MIDI input thread
     enum Transport : uint8_t { NONE, START, STOP, CONTINUE };
