@@ -336,6 +336,43 @@
     },
     "skipped": 0
   },
+  "ezep": {
+    "inputs": [
+      "Clock",
+      "Tap",
+      "Mode",
+      "Mult",
+      "Bank",
+      "Play",
+      "Unused 7",
+      "Unused 8",
+      "Amen CV",
+      "Break CV",
+      "Sample CV"
+    ],
+    "outputs": [
+      "Out L",
+      "Out R",
+      "Trig",
+      "Clock Out"
+    ],
+    "params": {
+      "amen": "amen",
+      "bank": "bank",
+      "break": "break",
+      "filter": "filter",
+      "gating": "gating",
+      "grimoire": "grimoire",
+      "mode": "mode",
+      "mult": "mult",
+      "play": "play",
+      "random": "random",
+      "sample": "sample",
+      "tap": "tap",
+      "volume": "volume"
+    },
+    "skipped": 0
+  },
   "fstr": {
     "inputs": [
       "In 1",

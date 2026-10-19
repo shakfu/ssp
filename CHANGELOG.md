@@ -2,6 +2,14 @@
 
 Changes to the build, tools and presets. Each plugin keeps its own changelog in `plugins/<name>/CHANGELOG.md`.
 
+## [Unreleased]
+
+### Plugins
+
+- `ezep`, new: the EZEPTOCORE firmware of [_core](https://github.com/schollz/_core) v8.1.0, built unchanged through _core's desktop engine. It plays sample-manager card folders, with the panel's knobs, buttons, Clock and three CVs. `scripts/fetch_core.sh` fetches _core and generates the engine per target (`make deps`). `make install-ezep` copies _core's default banks to the card. On the SSP the engine is compiled Thumb-2: clang 18 and 20 miscompile it in ARM mode. GPL-3.0-only. See [plugins/ezeptocore/CHANGELOG.md](plugins/ezeptocore/CHANGELOG.md) and [docs/dev/ezeptocore.md](docs/dev/ezeptocore.md).
+
+- `ScriptEngine` (`csnd`, `chuk`, `fstr`): a preset saved while a program compiled named the previous program. `idle()` dequeued the load, but `path()` and `code()` read the program from the running slot, which changed only after the compile. Restoring that preset ran the old program. `test_chuck` failed about one run in three: its second `set` saved during the first compile and reloaded the built-in. The program now becomes current when it is dequeued.
+
 ## [0.4.0]
 
 Four modules are new since 0.3.0: `dexd`, `sapf`, `alda` and `fsyn`, so the release ships 17.

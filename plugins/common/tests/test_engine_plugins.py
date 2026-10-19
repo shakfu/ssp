@@ -5,6 +5,7 @@ parameters and custom state through save and restore, and the SSP entry points. 
 builds the plugins and their JUCE copies into build/plugins-host (a few minutes; ccache helps).
 """
 
+import importlib.util
 import json
 import os
 import re
@@ -37,6 +38,7 @@ def plugins():
         subprocess.run([ROOT / "scripts" / "build_deps.sh", "host"], check=True, capture_output=True)
     subprocess.run([ROOT / "scripts" / "fetch_teletype.sh"], check=True, capture_output=True)
     subprocess.run([ROOT / "scripts" / "fetch_alda.sh"], check=True, capture_output=True)
+    subprocess.run([ROOT / "scripts" / "fetch_core.sh", "host"], check=True, capture_output=True)
     if not (DEPS / "lib" / "libfluidsynth.a").exists():
         subprocess.run([ROOT / "scripts" / "build_fluidsynth.sh", "host"], check=True, capture_output=True)
     subprocess.run(["cmake", "-S", ROOT, "-B", BUILD, "-DCMAKE_BUILD_TYPE=Release"], check=True, capture_output=True)
@@ -51,7 +53,7 @@ def plugins():
 # source folder -> product name; Synthor lists only names of up to four characters
 PRODUCTS = {"radio": "rdio", "csound": "csnd", "chuck": "chuk", "edrums": "edrm", "pstretch": "strc", "bard": "bard",
             "glitch": "gltc", "chorus": "chrs", "faust": "fstr", "scsynth": "scsy", "teletype": "ttyp",
-            "dexed": "dexd", "alda": "alda", "fsyn": "fsyn"}
+            "dexed": "dexd", "alda": "alda", "fsyn": "fsyn", "ezeptocore": "ezep"}
 # examples/: built and tested on the host, never shipped, so not in the manifest
 EXAMPLES = {"svca": "svca", "tremolo": "trem"}
 
@@ -600,6 +602,31 @@ def test_fsyn(plugins, tmp_path):
                    "set", "soundfont", tmp_path / "missing.sf2", "wait", 1.0, "run", 0.1, 128,
                    "render", tmp_path / "f.bgra", "state")
     assert f'soundfont="{font}"' in state
+
+
+def test_ezeptocore(plugins, tmp_path):
+    r = subprocess.run([plugins, so("ezeptocore"), "channels"], capture_output=True, text=True, timeout=60)
+    assert r.stdout.split("\n")[:16] == ["io 11 4", "input Clock", "input Tap", "input Mode", "input Mult",
+                                          "input Bank", "input Play", "input Unused 7", "input Unused 8",
+                                          "input Amen CV", "input Break CV", "input Sample CV", "output Out L",
+                                          "output Out R", "output Trig", "output Clock Out"]
+    core = next((ROOT / "build" / "deps" / "src").glob("core-*"))
+    spec = importlib.util.spec_from_file_location("core_fixtures", core / "test" / "rack" / "fixtures.py")
+    fixtures = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(fixtures)
+    card = tmp_path / "card"
+    for bank in (1, 2):
+        fixtures.sample(card, bank, 0, seconds=2)
+    # Load picks a file in a bank: the card plays, and the preset keeps the card and bank 2
+    levels, state = run(plugins, "ezeptocore", "prepare", 48000, 128, "set", "card", card / "bank2" / "0.0.wav",
+                        "set", "playing_bank", 1, "wait", 1.0, "run", 1.0, 128, "level", 0, "level", 1, "level", 3,
+                        "render", tmp_path / "e.bgra", "state")
+    assert levels[0][0] > 0.01 and levels[1][0] > 0.01
+    assert f'card="{card}"' in state and 'playing_bank="1"' in state
+    # a trigger at Play stops it, once the start is done (the firmware ignores it while a restart is pending)
+    levels, _ = run(plugins, "ezeptocore", "prepare", 48000, 128, "set", "card", card, "wait", 1.0, "run", 2.0, 128,
+                    "in", 5, 1, "run", 0.01, 128, "in", 5, 0, "run", 1.0, 128, "level", 0)
+    assert levels[0][0] < 1e-4
 
 
 def manifest_entry(host, plugin):

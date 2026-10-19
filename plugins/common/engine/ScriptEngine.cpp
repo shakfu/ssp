@@ -137,6 +137,7 @@ void ScriptEngine::prepare(float sampleRate, int maxBlock) {
     {
         std::lock_guard<std::mutex> lock(lock_);
         src = hasPending_ ? pending_ : current_;
+        current_ = src;
         hasPending_ = false;
     }
     running_ = false;  // the running program, if any, is at the old rate
@@ -163,6 +164,9 @@ void ScriptEngine::idle() {
         std::lock_guard<std::mutex> lock(lock_);
         load = hasPending_;
         src = pending_;
+        // path() and code() name the program while it compiles, so a preset saved meanwhile keeps it;
+        // a failed choice stays named too
+        if (load) current_ = src;
         hasPending_ = false;
         jobs.swap(jobs_);
     }
@@ -241,9 +245,7 @@ void ScriptEngine::run(const Source& src) {
     running_ = running_ || ok || fellBack;
     if (ok) setSpecs(declared(path.empty() && !src.hasCode ? std::string(builtin()) : text));
     else if (fellBack) setSpecs(declared(builtin()));
-    // keep a failed choice, so a preset saved now still names it
     std::lock_guard<std::mutex> lock(lock_);
-    current_ = src;
     error_ = ok ? std::string() : fellBack ? err + " (built-in running)" : err;
 }
 
