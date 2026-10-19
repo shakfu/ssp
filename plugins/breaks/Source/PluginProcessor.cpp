@@ -23,8 +23,34 @@ PluginProcessor::PluginProcessor()
       tap_(*vts().getParameter("tap")),
       play_(*vts().getParameter("play")) {
     for (int k = 0; k < Panel::K_MAX; k++) knobs_[k] = vts().getParameter(KNOB_IDS[k]);
+    brks().onIdle = [this] { syncTempo(); };
     init();
     if (File(DEFAULT_CARD).isDirectory()) loadCard(DEFAULT_CARD);
+}
+
+// The members syncTempo uses go before EngineProcessor stops the worker.
+PluginProcessor::~PluginProcessor() {
+    withIdleStopped([this] { brks().onIdle = nullptr; });
+}
+
+// Tempo follows the tempo playing (Tap, In 1, the card's), except for 1 s after it is turned or restored. A
+// background write, as BaseProcessor's MIDI automation makes.
+void PluginProcessor::syncTempo() {
+    float v = value(tempo_);
+    if (v != tempoSeen_) {
+        if (v != tempoSet_) tempoHold_ = 1000 / IDLE_MS;
+        tempoSeen_ = v;
+    }
+    if (tempoHold_ > 0) {
+        tempoHold_--;
+        return;
+    }
+    auto s = brks().status();
+    if (!s.loaded || std::lround(v) == long(s.tempo)) return;
+    tempoSet_ = tempoSeen_ = float(s.tempo);
+    tempo_.beginChangeGesture();
+    tempo_.setValueNotifyingHost(tempo_.convertTo0to1(tempoSet_));
+    tempo_.endChangeGesture();
 }
 
 AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLayout() {
@@ -76,6 +102,7 @@ void PluginProcessor::loadCard(const String& path) {
 void PluginProcessor::customToXml(XmlElement* xml) {
     auto s = brks().saved();
     xml->setAttribute("card", String(brks().folder()));
+    if (!brks().status().loaded) return;  // no card playing: the card's own tempo and bank on the next load
     xml->setAttribute("tempo", int(s.tempo));
     xml->setAttribute("playing_bank", int(s.bank));
     xml->setAttribute("trigger_mode", int(s.triggerMode));
@@ -83,7 +110,7 @@ void PluginProcessor::customToXml(XmlElement* xml) {
 
 void PluginProcessor::customFromXml(XmlElement* xml) {
     brks::Saved d, s;
-    s.tempo = uint16_t(jlimit(30, 300, xml->getIntAttribute("tempo", d.tempo)));
+    s.tempo = xml->hasAttribute("tempo") ? uint16_t(jlimit(30, 300, xml->getIntAttribute("tempo"))) : 0;
     s.bank = uint8_t(jlimit(0, 15, xml->getIntAttribute("playing_bank", d.bank)));
     s.triggerMode = uint8_t(jlimit(0, 3, xml->getIntAttribute("trigger_mode", d.triggerMode)));
     String card = xml->getStringAttribute("card");

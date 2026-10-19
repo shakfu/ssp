@@ -618,8 +618,10 @@ def test_breaks(plugins, tmp_path):
     for bank in (1, 2):
         fixtures.sample(card, bank, 0, seconds=2)
     # Load picks a file in a bank: the card plays, and the preset keeps the card and bank 2
+    # (the playing state is in the preset once a card has loaded)
     levels, state = run(plugins, "breaks", "prepare", 48000, 128, "set", "card", card / "bank2" / "0.0.wav",
-                        "set", "playing_bank", 1, "wait", 1.0, "run", 1.0, 128, "level", 0, "level", 1, "level", 3,
+                        "wait", 1.0, "run", 0.1, 128, "set", "playing_bank", 1, "wait", 1.0, "run", 1.0, 128,
+                        "level", 0, "level", 1, "level", 3,
                         "render", tmp_path / "e.bgra", "state")
     assert levels[0][0] > 0.01 and levels[1][0] > 0.01
     assert f'card="{card}"' in state and 'playing_bank="1"' in state
@@ -627,6 +629,26 @@ def test_breaks(plugins, tmp_path):
     levels, _ = run(plugins, "breaks", "prepare", 48000, 128, "set", "card", card, "wait", 1.0, "run", 2.0, 128,
                     "in", 5, 1, "run", 0.01, 128, "in", 5, 0, "run", 1.0, 128, "level", 0)
     assert levels[0][0] < 1e-4
+    # Tempo follows the card's tempo on the idle worker, with no editor; once turned, it sets the tempo
+    for info in card.glob("bank*/*.info"):
+        b = bytearray(info.read_bytes())
+        b[4:8] = (int.from_bytes(b[4:8], "little") & ~0x1FF | 170).to_bytes(4, "little")
+        info.write_bytes(bytes(b))
+    tempo = lambda state: float(re.search(r'<PARAM id="tempo" value="([^"]+)"', state).group(1))
+    _, state = run(plugins, "breaks", "prepare", 48000, 128, "set", "card", card, "wait", 1.0, "run", 0.5, 128,
+                   "wait", 1.5, "state")
+    assert tempo(state) == 170
+    # encoder 1 on the clock page (Down twice): 16 detents of 5 BPM down; the firmware follows, and the
+    # sync leaves it after its 1 s hold
+    press = lambda n: ("button", n, 1, "button", n, 0)
+    _, state = run(plugins, "breaks", "prepare", 48000, 128, "set", "card", card, "wait", 1.0, "run", 0.5, 128,
+                   "render", tmp_path / "e.bgra", *press(11), *press(11), *("encoder", 0, -1) * 16, "run", 0.5, 128,
+                   "wait", 1.5, "run", 0.1, 128, "wait", 0.2, "state")
+    assert tempo(state) == 90 and 'tempo="90"' in state
+    # Right (PG+) steps to bank 2 at the loop's end
+    _, state = run(plugins, "breaks", "prepare", 48000, 128, "set", "card", card, "wait", 1.0, "run", 0.5, 128,
+                   "render", tmp_path / "e.bgra", *press(9), "run", 2.5, 128, "wait", 1.0, "run", 2.5, 128, "state")
+    assert 'playing_bank="1"' in state
 
 
 def manifest_entry(host, plugin):

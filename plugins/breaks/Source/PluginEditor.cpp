@@ -7,24 +7,6 @@ void PluginEditor::loaded(const String& file, const String& dir) {
     processor_.loadCard(file.isNotEmpty() ? file : dir);
 }
 
-// Tempo follows the tempo playing (Tap, In 1, the card's), except for 1 s after it is turned.
-void PluginEditor::onSSPTimer() {
-    EngineEditor::onSSPTimer();
-    auto& p = processor_.tempo();
-    float v = p.convertFrom0to1(p.getValue());
-    uint32_t now = Time::getMillisecondCounter();
-    if (v != tempoSeen_) {
-        if (v != tempoSet_) tempoTurned_ = now;
-        tempoSeen_ = v;
-    }
-    auto s = processor_.brks().status();
-    if (!s.loaded || now - tempoTurned_ < 1000 || std::lround(v) == long(s.tempo)) return;
-    tempoSet_ = tempoSeen_ = float(s.tempo);
-    p.beginChangeGesture();
-    p.setValueNotifyingHost(p.convertTo0to1(tempoSet_));
-    p.endChangeGesture();
-}
-
 void PluginEditor::step(int dir) {
     processor_.brks().stepBank(dir);
 }

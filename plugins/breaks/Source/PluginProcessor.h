@@ -16,6 +16,7 @@ public:
                                                     "1/2 bars" };
 
     PluginProcessor();
+    ~PluginProcessor() override;
 
     const String getName() const override { return JucePlugin_Name; }
     AudioProcessorEditor* createEditor() override;
@@ -27,7 +28,6 @@ public:
     std::vector<RangedAudioParameter*> buttons();
 
     brks::BreaksEngine& brks() { return static_cast<brks::BreaksEngine&>(engine()); }
-    RangedAudioParameter& tempo() { return tempo_; }
 
 protected:
     void control(const float* const* in, int n) override;
@@ -36,6 +36,7 @@ protected:
 
 private:
     static AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+    void syncTempo();  // idle worker
 
     RangedAudioParameter* knobs_[brks::Panel::K_MAX];
     RangedAudioParameter& volume_;
@@ -46,6 +47,9 @@ private:
     RangedAudioParameter& mode_;
     RangedAudioParameter& tap_;
     RangedAudioParameter& play_;
+    // idle worker: Tempo's value at the last tick, the last one written by syncTempo, ticks left to hold
+    float tempoSeen_ = 0, tempoSet_ = 0;
+    int tempoHold_ = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)
 };

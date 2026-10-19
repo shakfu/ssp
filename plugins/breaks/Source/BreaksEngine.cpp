@@ -86,7 +86,7 @@ void BreaksEngine::takeBank() {
     if (restore) {
         CoreState s;
         core_engine_get_state(core_, &s);
-        s.tempo = std::clamp<uint16_t>(r.tempo, 30, 300);
+        if (r.tempo) s.tempo = std::clamp<uint16_t>(r.tempo, 30, 300);
         s.bank = bank->index;  // load() asked for r.bank; a missing bank gives the first
         s.trigger_mode = std::min<uint8_t>(r.triggerMode, 3);
         // A new engine reads as stopped until a card plays; set_state would keep that, and the first

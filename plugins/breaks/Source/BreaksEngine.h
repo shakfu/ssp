@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <functional>
 #include <mutex>
 #include <string>
 
@@ -36,7 +37,7 @@ struct Status {
 
 // The settings a preset keeps besides the parameters.
 struct Saved {
-    uint16_t tempo = 120;
+    uint16_t tempo = 120;  // 0: the card's
     uint8_t bank = 0, triggerMode = 0;
 };
 
@@ -55,6 +56,12 @@ public:
 
     void prepare(float sampleRate, int maxBlock) override;
     void process(const float* const* in, float* const* out, int n) override;
+    void idle() override {
+        if (onIdle) onIdle();
+    }
+
+    // Engine::idle's worker, every 10 ms: the processor's work there. Set before prepare(), cleared with idle stopped.
+    std::function<void()> onIdle;
 
     // audio thread: set before each process()
     Panel panel;

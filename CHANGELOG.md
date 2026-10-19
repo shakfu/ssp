@@ -2,19 +2,15 @@
 
 Changes to the build, tools and presets. Each plugin keeps its own changelog in `plugins/<name>/CHANGELOG.md`.
 
-## [Unreleased]
-
-### Plugins
-
-- `brks`, new: the breakbeat slicer firmware of [_core](https://github.com/schollz/_core) v8.1.0, built unchanged through _core's desktop engine. It plays sample-manager card folders, with the panel's knobs, buttons, Clock and three CVs. `scripts/fetch_core.sh` fetches _core and generates the engine per target (`make deps`). `make install-brks` copies _core's default banks to the card. On the SSP the engine is compiled Thumb-2: clang 18 and 20 miscompile it in ARM mode. GPL-3.0-only. See [plugins/breaks/CHANGELOG.md](plugins/breaks/CHANGELOG.md) and [docs/dev/breaks.md](docs/dev/breaks.md).
-
-- `ScriptEngine` (`csnd`, `chuk`, `fstr`): a preset saved while a program compiled named the previous program. `idle()` dequeued the load, but `path()` and `code()` read the program from the running slot, which changed only after the compile. Restoring that preset ran the old program. `test_chuck` failed about one run in three: its second `set` saved during the first compile and reloaded the built-in. The program now becomes current when it is dequeued.
-
 ## [0.4.0]
 
-Four modules are new since 0.3.0: `dexd`, `sapf`, `alda` and `fsyn`, so the release ships 17.
+Five modules are new since 0.3.0: `dexd`, `sapf`, `alda`, `fsyn` and `brks`, so the release ships 18.
 
 ### Plugins
+
+- `brks`, new: the breakbeat slicer firmware of [_core](https://github.com/schollz/_core) v8.1.0, built unchanged through _core's desktop engine. It plays sample-manager card folders, with the panel's knobs, Tap, Mode, Play, Tempo, Clock Out, a clock input and three CVs; Left and Right (PG-/PG+) change bank. `scripts/fetch_core.sh` fetches _core and generates the engine per target (`make deps`). `make install-brks` copies _core's default banks to the card. On the SSP the engine is compiled Thumb-2: clang 18 and 20 miscompile it in ARM mode. GPL-3.0-only. See [plugins/breaks/CHANGELOG.md](plugins/breaks/CHANGELOG.md) and [docs/dev/breaks.md](docs/dev/breaks.md).
+
+- `ScriptEngine` (`csnd`, `chuk`, `fstr`): a preset saved while a program compiled named the previous program. `idle()` dequeued the load, but `path()` and `code()` read the program from the running slot, which changed only after the compile. Restoring that preset ran the old program. `test_chuck` failed about one run in three: its second `set` saved during the first compile and reloaded the built-in. The program now becomes current when it is dequeued.
 
 - `alda`, new: an Alda score plays in a loop as gates and 1 V/octave pitch CV on four mono voices, and as MIDI on every part through an ALSA port of its own, which `dexd` and other modules choose as MIDI IN. It follows the score's tempo, a clock on In 2, or MIDI clock. Its controls are Transpose, Tempo, Velocity, Swing, a mute per voice, and Clock: free, analog, MIDI, or the score's `# @clock` line. It embeds psnd's C implementation of Alda, fetched by `scripts/fetch_alda.sh` (`make deps`). GPL-3.0. See [plugins/alda/CHANGELOG.md](plugins/alda/CHANGELOG.md) and [docs/dev/dsl-alda.md](docs/dev/dsl-alda.md).
 

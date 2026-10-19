@@ -62,6 +62,6 @@ See [docs/BUILDING.md](docs/BUILDING.md).
 
 - [monome teletype](https://github.com/monome/teletype), run on the mock hardware of Dewb's [monome-rack](https://github.com/Dewb/monome-rack): the firmware of `ttyp`, fetched by `scripts/fetch_teletype.sh`.
 
-- Zack Scholl's [_core](https://github.com/schollz/_core) : the firmware of `brks` and its desktop engine, fetched by `scripts/fetch_core.sh`.
+- Zack Scholl's [_core](https://github.com/schollz/_core): the firmware of `brks` and its desktop engine, fetched by `scripts/fetch_core.sh`.
 
 Licence: AGPL-3.0, see [LICENSE](LICENSE). softcut, `plugins/glitch`, `plugins/teletype`, `plugins/dexed` and `plugins/breaks` are GPL-3.0.
