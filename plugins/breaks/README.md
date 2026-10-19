@@ -1,6 +1,6 @@
 # brks
 
-`brks` runs the breakbeat slicer firmware of Zack Schollz's fantastic `_core` firmware on the SSP. It plays sliced breaks, sequences their slices, and applies 16 effects at random. The firmware is [schollz/_core](https://github.com/schollz/_core) v8.1.0 (`e702abc`). It is built unchanged through `_core`'s desktop engine, the one its VCV Rack module uses. GPL-3.0; see [NOTICE.md](NOTICE.md).
+`brks` runs Zack Scholl's fantastic `_core` breakbeat slicer firmware on the SSP. It plays sliced breaks, sequences their slices, and applies 16 effects at random. The firmware is [schollz/_core](https://github.com/schollz/_core) v8.1.0 (`e702abc`). It is built unchanged through `_core`'s desktop engine, the one its VCV Rack module uses. GPL-3.0; see [NOTICE.md](NOTICE.md).
 
 Version 0.1.0 covers audio, CV and the panel's controls. It does not cover the LED ring, MIDI, the Grimoire editor or the Mode-hold functions; see [TODO.md](TODO.md).
 
@@ -10,6 +10,11 @@ Version 0.1.0 covers audio, CV and the panel's controls. It does not cover the L
 2. Copy sample banks to `BOOT/brks/default`: `make install-brks`.
 
 `make install-brks` downloads `_core`'s default sample banks: 96 samples in 6 banks, 127 MB. These are the banks that `_core`'s sample manager installs as its default samples. The ZIP is checked against the SHA-256 that `_core` pins. The script copies the bank folders and `settings` (77 MB) and leaves out the editor project.
+
+Without this repository, from the release zip:
+
+1. Download [`1-ezeptocore-default-banks.zip`](https://github.com/schollz/_core/releases/download/default-samples/1-ezeptocore-default-banks.zip) from `_core`'s `default-samples` release.
+2. Unzip it, and copy `bank1` to `bank6` and `settings/` to `BOOT/brks/default` on the SD card.
 
 A new `brks` loads `BOOT/brks/default`.
 
