@@ -43,8 +43,11 @@ Playing `alda` scores in Synthor, FluidR3_GM ran at 4-5% DSP on average, 9-10% a
 | synth | Gain | Reverb | Chorus | Voices |
 
 - **Gain**: FluidSynth's master gain, 0-2. 0 also ends the notes playing.
+
 - **Reverb**: reverb level, 0-1. CC91 sets each channel's send.
+
 - **Chorus**: chorus level, 0-1. CC93 sets each channel's send.
+
 - **Voices**: polyphony, 1-256, 64 by default. A note past it takes a voice from one playing.
 
 ## Jacks

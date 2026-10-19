@@ -11,8 +11,11 @@ Copy `chrs.so` to the `plugins` folder on the SD card (`make install MOD=chrs`).
 One page: delay, depth, mix, rate, each 0..1. Faust sorts controls by label.
 
 - **delay**: base delay, 5 to 20 ms.
+
 - **depth**: the LFO adds 0 to 5 ms at 1.
+
 - **mix**: 0 dry, 1 wet.
+
 - **rate**: LFO rate, 0.05 to 5 Hz. The right LFO runs 3% faster.
 
 ## Inputs and outputs

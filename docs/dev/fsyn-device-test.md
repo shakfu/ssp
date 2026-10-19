@@ -7,7 +7,9 @@
 ## Setup
 
 - Install, with Synthor stopped (`kill -9 $(pidof SYNTHOR)`, then power-cycle after): `make deploy-mod MOD=fsyn`.
+
 - Soundfonts in `/media/BOOT/fsyn`: `TimGM6mb.sf2`, `GeneralUser-GS.sf2` and `FluidR3_GM.sf2` (copied 2026-10-18).
+
 - `alda`, with the examples in `BOOT/alda`.
 
 | # | Do | Expect |

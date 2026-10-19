@@ -5,7 +5,9 @@
 `ttyp.so` contains, as an embedded library, the teletype firmware built from:
 
 - [monome teletype](https://github.com/monome/teletype) at `e390bac` and its [libavr32](https://github.com/monome/libavr32) at `b37dc3f`, by monome and contributors;
+
 - the mock hardware layer of [monome-rack](https://github.com/Dewb/monome-rack) at `1f5a9ca`, by Michael Dewberry and contributors;
+
 - `firmware/ttyp_hid.c`, `firmware/gitversion.c` and the headers in `firmware/include` from this repository.
 
 `firmware/include` replaces the Atmel ASF headers monome-rack's own build uses (`usb_protocol_hid.h`, the USB host headers, and libavr32's `conf_board.h`). Their licence allows redistribution only with Atmel microcontroller products, which the GPL does not permit. The replacements hold the same values: USB HID codes from the USB specification, and teletype's pin names. No ASF file is compiled into `ttyp`.

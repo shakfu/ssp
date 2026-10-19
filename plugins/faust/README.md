@@ -13,10 +13,15 @@ From source: `make deps` builds libfaust once; then `make install MOD=fstr` and 
 Load (button 5) picks a `.dsp` file. A program that fails to compile shows its error, and the previous program keeps running. With no program, a built-in drone plays.
 
 - **Channels**: In 1..8 and Out 1..8, for audio and CV; see [Inputs and outputs](#inputs-and-outputs).
+
 - **Controls**: the program's first 16 sliders, number entries, buttons and checkboxes become p1..p16, in Faust's order: by label, or by `[0]`, `[1]`... prefixes. Each takes the control's label, range and `[unit:...]`; `[scale:log]` maps it logarithmically.
+
 - **Defaults**: a program chosen with Load sets its controls to the program's defaults. A preset restores its own values.
+
 - **Imports**: `import("stdfaust.lib")` and the other libraries resolve in the program's folder, then in `BOOT/faust/libraries`.
+
 - **CV**: `[cv:N]` in a control's label makes input N move it; see [CV in](#cv-in).
+
 - **MIDI**: a program with `declare options "[nvoices:N]";` plays N voices from MIDI notes; see [MIDI](#midi).
 
 ## Keyboard
@@ -54,7 +59,7 @@ A program gets CV in two ways: on a control, or by reading the input itself.
 
 A control with CV follows input N (1..8): add `[cv:N]` to its label.
 
-```
+```text
 cutoff = hslider("cutoff [scale:log][unit:Hz][cv:3]", 1000, 40, 16000, 1);
 ```
 
@@ -64,8 +69,11 @@ cutoff = hslider("cutoff [scale:log][unit:Hz][cv:3]", 1000, 40, 16000, 1);
 | linear | a tenth of the range | -10% of the range | +10% | +50% |
 
 - The encoder sets the value the CV moves from. The result stays within the control's range.
+
 - The CV is read once per audio block: 128 frames, 2.7 ms at 48 kHz. That is fine for envelopes, LFOs and sequencers, not for audio-rate modulation.
+
 - An orange mark on the control's bar shows where the CV has moved it, and the value shown is the moved one. A preset stores the encoder position, not the moved value.
+
 - The input still reaches the program as audio.
 
 #### In the program
@@ -104,9 +112,13 @@ gate = button("gate");                       // 1 while the note is held
 ```
 
 - Each note takes a free voice, or the oldest. This is Faust's own polyphony (`mydsp_poly`).
+
 - The voices' outputs add, unscaled: scale a voice so N of them do not clip.
+
 - `freq`, `gain` and `gate` stay off the encoders, as do `key`, `vel` and `velocity`. Every other control drives all the voices, with its CV.
+
 - A program without `nvoices` ignores notes.
+
 - Once a note has arrived, the status panel counts them: `MIDI notes: 12`.
 
 ## Examples
@@ -155,7 +167,7 @@ Press soft key 5 (Load). The browser opens at `/media/BOOT/faust`. Turn encoder 
 
 ### 4. Read the screen
 
-```
+```text
 fstr : Faust host, through the libfaust LLVM JIT      1/1 controls     DSP n.n% pk n.n%
    cutoff       resonance                             filter.dsp
   1000 Hz         1.000
@@ -169,7 +181,9 @@ Each `hslider` became one control. There are no comments to write: the label, ra
 | `hslider("resonance", 1, 0.5, 20, 0.01)` | 2 | `resonance` | 0.5 to 20 | 1 |
 
 - **Order**: Faust sorts controls by label, so `cutoff` comes before `resonance`. To choose the order, prefix labels with `[0]`, `[1]`...: `hslider("[0] cutoff ...")`.
+
 - **Metadata**: `[unit:Hz]` puts the unit on screen; `[scale:log]` makes the encoder logarithmic. Both are stripped from the label.
+
 - **Defaults**: a Load sets each control to its slider's default. A preset restores its own positions instead.
 
 The right panel shows the page (`1/1 controls`), the DSP load, the file name, and a compile error in orange if there is one. If the libraries are missing, for example, it shows `ERROR : unable to open file stdfaust.lib (built-in running)`.
@@ -179,7 +193,9 @@ The right panel shows the page (`1/1 controls`), the DSP load, the file name, an
 Turn encoder 1 to sweep the cutoff and encoder 2 for resonance. `si.smoo` smooths each change, so even a fast turn does not click.
 
 - Turning moves a control 5% of its range a detent. `cutoff` is logarithmic, so each detent is the same interval: 40 to 16000 Hz is about 8.6 octaves, so a detent is about 0.4 octave.
+
 - Holding the encoder while turning moves it 0.5% a detent.
+
 - Pressing and releasing without turning returns a control to the bottom of its range, not to the slider's default.
 
 ### 6. Add CV
@@ -203,4 +219,3 @@ process(l, r, cv) = (l : fi.resonlp(fc(cv), q, 1)), (r : fi.resonlp(fc(cv), q, 1
 ### 7. Save it
 
 Save a Synthor preset as usual. It stores the file's path and the encoder positions; loading the preset compiles `filter.dsp` again and restores the positions.
-

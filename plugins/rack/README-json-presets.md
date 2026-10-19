@@ -12,9 +12,11 @@ Both formats sit in the same directory and the same file list. rack chooses by c
 
 A JSON preset is applied a track at a time, in this order: modules, `state`, parameters, then `wires` and `matrix`. Anything rack cannot apply is reported and skipped, and the rest of the preset still loads. Reports go to `/dev/kmsg`, so `dmesg` on the SSP shows them:
 
-    json preset : track 1 : slot 2 has no input "Cowbell"
-    json preset : track 1 slot 3 : no parameter named "Postion"
-    json preset : track 2 slot 1 : cannot load module "clsd"
+```text
+json preset : track 1 : slot 2 has no input "Cowbell"
+json preset : track 1 slot 3 : no parameter named "Postion"
+json preset : track 2 slot 1 : cannot load module "clsd"
+```
 
 ## Saving
 

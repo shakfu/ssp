@@ -46,16 +46,27 @@ The controls change the voice as it plays; the cartridge is not modified. Offset
 | play | Bend Range | Portamento | Mono | Engine |
 
 - **Voice**: 1-32 in the cartridge. PG- and PG+ (Left and Right) step it, wrapping from 32 to 1.
+
 - **Level**: output gain, 0-2.
+
 - **Transpose**: semitones, -24 to +24. A held note releases at the pitch it started.
+
 - **Voices**: polyphony, 1-16. A note past it takes the voice held longest.
+
 - **Cutoff**, **Resonance**: Dexed's resonant low-pass filter.
+
 - **Algorithm**: `voice` keeps the voice's; 1-32 replaces it.
+
 - **Feedback**: offset, -7 to +7.
+
 - **Op 1-6**: output level offset, -99 to +99.
+
 - **LFO Rate**, **LFO Depth**: offsets to the voice's LFO speed and pitch modulation depth.
+
 - **Bend Range**: semitones, 0-12.
+
 - **Portamento**: time, 0 (off) to 99.
+
 - **Engine**: `modern`, `mark I` (default) or `OPL`, Dexed's three resolutions.
 
 The status panel shows the cartridge, the voice's number and name, notes playing, and DSP load.

@@ -22,7 +22,9 @@ Investigation, 2026-10-16: tree-sitter grammars for the keyboard modules, their 
 Rejected:
 
 - [tymbalodeon/tree-sitter-chuck](https://github.com/tymbalodeon/tree-sitter-chuck): ABI 14, an 835-byte `highlights.scm`.
+
 - [caelia/tree-sitter-chuck](https://github.com/caelia/tree-sitter-chuck): no generated `parser.c`.
+
 - [PasqualeMainolfi/tree-sitter-csound](https://github.com/PasqualeMainolfi/tree-sitter-csound): a full Csound grammar, but it has no license, so it cannot be vendored. Its `parser.c` is 6.6 MB and it needs an external scanner.
 
 The repository is AGPL-3, which can include MIT code. The grammars' generated `parser.c` are committed upstream, so the build needs no tree-sitter CLI. Only a new grammar, such as sapf's, needs the CLI, and only to generate its `parser.c`.
@@ -45,7 +47,9 @@ A plugin `.so` is about 14 MB, so a module grows by 1-3%.
 [`syntax-highlighting/bench.c`](syntax-highlighting/bench.c) measures three things, each averaged over 50 runs:
 
 - a full parse;
+
 - a reparse after inserting one character at the middle of the file;
+
 - a highlight query over the whole tree.
 
 The input is each plugin's `examples/` concatenated. Host results (x86-64):
@@ -81,10 +85,15 @@ The editor's timer runs every 66 ms, and a held key repeats every 50 ms. Opening
 ## Integration
 
 1. **Predicates.** The C library parses `#any-of?`, `#eq?` and `#match?` but does not apply them. `Highlighter` applies `#any-of?`, which ChucK's query needs, and disables patterns with any other.
+
 2. **Precedence.** Queries disagree on which pattern wins a node. DBraun's ChucK query ends with a catch-all `(identifier) @variable` "must be last": the first pattern wins, as in tree-sitter's own highlighter. khiner's Faust query is nvim-treesitter's: it starts with `(identifier) @variable`, and later patterns override it. `CodeKeys::lastWins` picks the order per grammar.
+
 3. **Reparse.** Done: `TextBuffer` records each edit (`editsSince`), and `Highlighter` applies them to the last tree before reparsing. After `setText`, or more than 256 edits, it parses afresh.
+
 4. **Query range.** Done: the code view queries a screen's rows (11) above and below the cursor's line, which holds every line on screen whatever the wrapping. `ts_query_cursor_set_point_range` includes nodes that start above the range, such as a block comment.
+
 5. **Drawing.** `drawCode` draws one `drawText` per screen row. Colour needs one per token run, about 10x the calls per frame on JUCE's software renderer. This cost is not measured.
+
 6. **One runtime per plugin.** Each `.so` links its own copy. Synthor loads plugins with local symbols (as `keys_test.cpp` models), so the copies do not clash.
 
 ## Lexer instead of tree-sitter
@@ -92,13 +101,17 @@ The editor's timer runs every 66 ms, and a held key repeats every 50 ms. Opening
 Highlighting alone needs only tokens. A lexer per language, about 100 lines each, avoids:
 
 - 500 KB of code;
+
 - predicate handling;
+
 - following tree-sitter ABI versions.
 
 psnd's Csound grammar already does only that. Tree-sitter pays off only if the tree is used:
 
 - **Ctrl-E blocks from the tree.** A Csound `instr` with blank lines inside it would no longer split. This needs a structural Csound grammar, which psnd's is not.
+
 - **Error marks while typing.**
+
 - **Bracket matching.**
 
 ## Recommendation
@@ -106,8 +119,11 @@ psnd's Csound grammar already does only that. Tree-sitter pays off only if the t
 Use tree-sitter, with these grammars:
 
 - DBraun's for `chuk`;
+
 - khiner's for `fstr`;
+
 - psnd's for `csnd`;
+
 - a new token grammar for `sapf`.
 
 Start with full reparses. Decide on incremental parsing after the SSP timings.
@@ -115,4 +131,5 @@ Start with full reparses. Decide on incremental parsing after the SSP timings.
 Open questions:
 
 - Is structure-aware Ctrl-E wanted? If so, a structural Csound grammar is needed: write one, or ask for a license on PasqualeMainolfi's.
+
 - Should colours follow psnd's theme or a fixed palette on the black background?

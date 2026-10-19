@@ -4,7 +4,7 @@ This guide builds `svca`, a stereo VCA, on the engine layer. The finished plugin
 
 ## Quick start
 
-```
+```text
 scripts/new_plugin.py my_amp mamp --description "mono amp"
 ```
 
@@ -61,7 +61,9 @@ private:
 ```
 
 - `prepare(sampleRate, maxBlock)` runs on the message thread before audio starts, and again when the rate changes. Allocate here.
+
 - `process(in, out, n)` runs on the audio thread. `in` and `out` hold one buffer per jack, in bus order; `n` is at most `maxBlock`. Do not block, lock or allocate.
+
 - `idle()`, not used here, runs on a worker thread every 10 ms. File reads and other slow work go there.
 
 An SSP signal of 1.0 is 5 V. A V/oct input reads 0.2 per volt.
@@ -149,6 +151,7 @@ AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
 `useCompactUI()` is true inside rack, which shows the compact editor. The `EngineEditor` arguments after the pages are:
 
 - the parameters for soft keys 1 to 8, or none;
+
 - the folder the Load browser opens at.
 
 Soft key 5 is always Load. `svca` loads nothing and ignores it. A plugin that loads files subclasses `EngineEditor` and overrides `loaded()`; see `plugins/radio/Source/PluginEditor.h`.
@@ -226,8 +229,11 @@ target_sources(SVCA
 The rest of the file, compile definitions and the JUCE link, is the same in every plugin; copy it from [`examples/svca/CMakeLists.txt`](../examples/svca/CMakeLists.txt).
 
 - `PRODUCT_NAME` is the four-character name; `PLUGIN_CODE` is the same in capitals.
+
 - `DESCRIPTION` appears on the editor's title line and in the release's plugin table.
+
 - `SSP_VERSION_FROM_PROJECT=1` shows the `project()` version on screen.
+
 - Add `${STREAM_SRC}` to read audio files, `${FAUST_SRC}` for a Faust kernel, `${SCRIPT_SRC}` for a script host. `plugins/common/engine/CMakeLists.txt` lists them.
 
 Add the folder to `plugins/CMakeLists.txt`:
@@ -238,7 +244,7 @@ add_subdirectory(svca)
 
 ## 6. Build and install
 
-```
+```text
 make                    # cross build for the SSP
 make install MOD=svca   # copy svca.so to the mounted card's BOOT/plugins
 ```
@@ -280,7 +286,7 @@ def test_svca(plugins):
 
 `test_local_manifest_matches_the_plugins` then fails, because rack's preset checker does not know the plugin yet. Rewrite the manifest:
 
-```
+```text
 UPDATE_MANIFEST=1 uv run --with pytest pytest plugins/common/tests -k manifest
 ```
 

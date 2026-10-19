@@ -13,6 +13,7 @@ A score is an NRT command file, as sapf-sc's `>nrt` writes: the main def, every 
 | `ScsynthEngine.h/.cpp` | `compile` recognizes a score; its main def takes the controls and sidecar as a `.scsyndef` would. |
 
 - **Clock:** the driver already runs scsynth's scheduler per block, on OSC time that advances with the samples (`mOSCbuftime`). The feeder reads it through `oscNow_`, which `process` writes after each callback. A stalled host therefore stalls the score.
+
 - **Voice order:** voices go into group 901, placed before the main synth, so the main synth can read the buses they write.
 
 ## Bug: replies dropped during loads

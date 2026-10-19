@@ -9,8 +9,11 @@ This replaces a design built on sapf-sc, which compiled sapf to scsynth graphs (
 ## Requirements
 
 - Standalone: a USB keyboard on the SSP. A laptop over ssh also works.
+
 - Audio and CV in.
+
 - A multi-line editor: sapf one-liners get long.
+
 - `sapf-prelude.txt` loaded at start.
 
 ## Components
@@ -28,17 +31,25 @@ The evaluation model, keys, prelude, screen and file layout carry over from [sap
 In the fork's CHANGELOG, Unreleased. Those the plugin needs:
 
 - `Array::setSize` and `addSize` take `int64_t`: every list operation crashed on 32-bit ARM.
+
 - `gInterrupt` stops an evaluation; `render` ignores it, so the sound keeps playing.
+
 - `adc` and `adcn`, from sapf-max, read the host's input through a FIFO; `MaxMSPSetInputLead` covers a render thread running ahead.
+
 - `SapfEngineConfig::openFiles = false`: `>sfo`, `sgram` and the help words otherwise run `system("open ...")`, which would fork Synthor.
+
 - `SapfEngineConfig::blockSize`, set to 128 (Step 2 results).
+
 - `SAPF_ENGINE_ONLY`; libsndfile from the host as `SndFile::sndfile`, so the plugin links `build/deps`' static PIC copy.
+
 - `setseed` reaches the threads a thread starts (Seeding).
 
 Bugs the step 1 harness found, all on Linux, all fixed:
 
 - `sgram` read past two buffers in the Accelerate emulation; it aborted on every call.
+
 - `sinoscfb` started from uninitialized memory: different on ARM from the first sample, NaN after 1.35 s in one example.
+
 - The FFTW inverse real FFT read an uninitialized Nyquist bin.
 
 ## Audio input
@@ -62,10 +73,15 @@ SSP inputs 1-8 become `0 adc` to `7 adc`; CV in is 1.0 per 5 V, as in the other 
 `plugins/sapf/tests/run_on_ssp.sh` builds `harness.cpp` for the PC and the SSP (clang both), evaluates the 360 blocks of `sapf-examples.txt` twice on the PC and once on the SSP, renders each `play` for 2 s at 48 kHz in 128-frame blocks, and runs `compare_render.py`. `test_sapf_engine.py` covers the harness on the host.
 
 - Match: with voice seeds taken from a counter instead of the clock (a diagnostic copy of the fork; the fork now seeds this way itself, see Seeding), both PC runs are identical, and the SSP matches the PC in 204 of 205 renders: 53 equal, 151 within 3.1e-7. The other is `crackle`, a chaotic map: one float32 step at frame 108 grows to 0.2. The 7 `.wav` files differ between PC runs too (not investigated; perhaps libsndfile's PEAK timestamp).
+
 - No block skipped or crashed on the SSP once the bugs above were fixed.
+
 - Render load (CPU time per second of audio) on the SSP: median 0.06, 90th percentile 0.19, 95th 0.25, worst 1.02 (`rain`, 16 voices with reverb). The SSP is about 12 times slower than the PC.
+
 - Spikes: the slowest 128-frame block of each render, as a fraction of its 2.67 ms, has median 0.44, 90th percentile 1.34, worst 7.3. 30 of the 34 renders over 1 average under 0.3: the cost comes in bursts.
+
 - Evaluation time: sound examples evaluate in milliseconds. Three number puzzles (Kaprekar, hailstone, Collatz) take 190-320 s on the SSP.
+
 - Memory: 25 MB peak after the prelude, 119 MB after all examples.
 
 ## Step 2 results
@@ -80,8 +96,11 @@ SSP inputs 1-8 become `0 adc` to `7 adc`; CV in is 1.0 per 5 V, as in the other 
 | renders late with a FIFO of 1, 2, 4, 8 blocks | 37, 5, 2, 1 | 3, 2, 1, 1 |
 
 - The one render late at every depth is `rain` (block 27), over real time on average at both sizes.
+
 - At 512, `dancing shadows` (block 155) has a single 19 ms callback and needs 8 blocks; at 128 its worst is 6.8 ms and 4 blocks hold it.
+
 - 128-frame blocks cost more CPU: 24% at the median, 47% at p95. Each pull has a fixed cost.
+
 - 128 across all examples changes only renders with noise UGens: they draw from the thread's generator as they pull, so the block size reorders their random values (45 of 205 renders, host). 256 is not measured.
 
 Decision: sapf block 128, FIFO 4 blocks (10.7 ms output latency). 512 would need 8 blocks (21.3 ms) for the same examples.
@@ -107,7 +126,9 @@ Inputs and outputs 1-2, right of the output pane: Synthor's own view shows all e
 Each step ends with a check that must pass before the next.
 
 1. **Fork on the SSP.** Done; see Step 1 results.
+
 2. **Render thread.** Done; see Step 2 results. `render` runs on a thread of its own and fills a FIFO that the host's callback reads: a slow render then silences sapf only, not every module in the patch.
+
 3. **Plugin.** Built. The sapf-sc parts of `plugins/sapf` are gone: World, `SapfServer`, the UGen folder, their tests and install steps. `Session` runs the interpreter, the watchdog and the render thread; the callback gives `adc` its input and reads the FIFO. Host check: `test_session.py` (sound through the render thread, `adc`, stop, interrupt, watchdog, a second instance, teardown with `ola` playing) passes, also under ThreadSanitizer, and on the SSP itself. Device check: [sapf-device-test.md](sapf-device-test.md).
 
 ## Licence

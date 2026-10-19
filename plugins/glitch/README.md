@@ -18,9 +18,13 @@ Copy `gltc.so` to the `plugins` folder on the SD card (`make install MOD=gltc`).
 | mix | A/B | Route | | |
 
 - **Algo**: the algorithm. P1 and P2 mean different things in each; the screen names them.
+
 - **Pitch**: +/-2 octaves, for the pitched algorithms.
+
 - **Tone**: a one-pole low-pass, 0 dark, 1 open.
+
 - **Route**: `stereo` centres both decks; `split` puts A left, B right; `random` pans each deck at random.
+
 - Buttons 1 and 2 refill deck A's and B's glitch buffer, for the three buffer algorithms.
 
 | Algo | P1 | P2 |

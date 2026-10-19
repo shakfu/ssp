@@ -45,14 +45,16 @@ The preset stores the code last run, and the text when it holds an edit not yet 
 | files | relative paths (GEN01, `diskin`, `#include`) resolve next to the `.csd` |
 
 - The SSP sets `sr`; the orchestra's own `sr` is ignored.
+
 - `ksmps` is the orchestra's. Output is one k-cycle late.
+
 - MIDI comes from the device chosen in the general panel (RS + LS). Notes arrive on channel 1. Csound starts `instr n` for MIDI channel `n` unless told otherwise, so an orchestra that ignores MIDI needs `massign 0, 0`. Once a note has arrived, the status panel counts them: `MIDI notes: 12`.
 
 ## Labels and ranges
 
 A comment line names a control and gives its range; the screen then shows the name, the value in that range and the unit, and the program receives the value in that range:
 
-```
+```text
 ; @p1 cutoff 20 20000 Hz log
 ; @p2 mix
 ```
@@ -77,7 +79,7 @@ A program gets CV in two ways: on a control, or by reading the input itself.
 
 A control with CV follows input N (1..8): add `cv N` at the end of its `@pN` line.
 
-```
+```text
 ; @p1 cutoff 20 20000 Hz log cv 3
 ```
 
@@ -87,15 +89,18 @@ A control with CV follows input N (1..8): add `cv N` at the end of its `@pN` lin
 | linear | a tenth of the range | -10% of the range | +10% | +50% |
 
 - The encoder sets the value the CV moves from. The result stays within the control's range.
+
 - The CV is read once per audio block: 128 frames, 2.7 ms at 48 kHz. That is fine for envelopes, LFOs and sequencers, not for audio-rate modulation.
+
 - An orange mark on the control's bar shows where the CV has moved it, and the value shown is the moved one. A preset stores the encoder position, not the moved value.
+
 - The input still reaches the program as audio.
 
 #### In the orchestra
 
 Read the input yourself, for audio-rate modulation or a scaling of your own. There is no mark on screen. `examples/filter.csd` reads In 3 at k-rate and multiplies the cutoff by `2 ^` its volts:
 
-```
+```text
 kcv = k(inch(3)) / 0.2        ; SSP CV is 0.2 per volt
 ```
 
@@ -109,7 +114,7 @@ kcv = k(inch(3)) / 0.2        ; SSP CV is 0.2 per volt
 
 Write a value or a slow signal to an output, at 0.2 per volt. With `0dbfs = 1` and `nchnls` at least 4:
 
-```
+```text
 aLfo oscili 0.5, 2                ; +-2.5 V at 2 Hz
 outch 3, aLfo, 4, a(0.2 * kOct)   ; Out 3: the LFO; Out 4: 1 V/oct, kOct octaves
 ```
@@ -178,7 +183,7 @@ Press soft key 5 (Load). The browser opens at `/media/BOOT/csound`. Turn encoder
 
 ### 4. Read the screen
 
-```
+```text
 csnd : Csound 7 host                                  1/1 controls     DSP n.n% pk n.n%
    cutoff       resonance       drive          mix    filter.csd
   40.0 Hz         0.000         1.00          0.000
@@ -200,7 +205,9 @@ The right panel shows the page (`1/1 controls`), the DSP load, the file name, an
 Every control starts at the bottom of its range, so `mix` is 0 and you hear the dry input. Turn encoder 4 up to hear the filter, then encoder 1 to sweep the cutoff.
 
 - Turning moves a control 5% of its range a detent. `cutoff` is logarithmic, so each detent is the same interval: 40 to 20000 Hz is about 9 octaves, so a detent is about half an octave.
+
 - Holding the encoder while turning moves it 0.5% a detent.
+
 - Pressing and releasing without turning returns it to the bottom of its range.
 
 ### 6. Add CV
@@ -210,4 +217,3 @@ The orchestra multiplies the cutoff by `2 ^ (In 3 / 0.2)`: each volt on In 3 rai
 ### 7. Save it
 
 Save a Synthor preset as usual. It stores the file's path and the encoder positions; loading the preset compiles `filter.csd` again and restores the positions.
-

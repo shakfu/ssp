@@ -5,7 +5,9 @@
 `brks.so` contains the firmware from [schollz/_core](https://github.com/schollz/_core) at `e702abc` (v8.1.0), Copyright Zack Scholl, GPL-3.0-only. It is built from:
 
 - `lib/` and `main.c`: the firmware, through `lib/core_engine/prepare.py`, `_core`'s generator of its desktop engine;
+
 - `rack/src/Storage.cpp`: `_core`'s reader of sample-manager card folders, from its VCV Rack module;
+
 - `lib/pcg_basic.c`: the PCG random number generator, Copyright 2014 Melissa O'Neill, Apache License 2.0, in [LICENSE-pcg-Apache-2.0.txt](LICENSE-pcg-Apache-2.0.txt).
 
 [`scripts/fetch_core.sh`](../../scripts/fetch_core.sh) fetches these unchanged. It appends [`Source/ssp_api.inc`](Source/ssp_api.inc) to the generator's firmware source before the generator's second stage. That file follows the firmware's Tap-held branches, so it is a derived work, also GPL-3.0-only.

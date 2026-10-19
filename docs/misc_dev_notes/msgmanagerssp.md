@@ -2,12 +2,9 @@
 
 these are noticed when running debug versions of vsts on SSP we get various assertions
 
-
 it should be noted, that these assertions seem harmless when run not run in debug
 
-
-
-```
+```text
 
 (gdb) bt
 #0  0xb67e5e9c in kill () from /lib/libc.so.6
@@ -51,7 +48,6 @@ it should be noted, that these assertions seem harmless when run not run in debu
 also... JUCE Assertion failure in juce_Component.cpp:1917 JUCE Assertion failure in juce_AsyncUpdater.cpp:66
 
 theere are cause bu AudioProcessorValueTreeState, and ParameterAttachment attempting to use MessageManager. the assertion is basically a check that MessageManager exists.
-
 
 the way this usually works is any instance of a plugin will create ONE instance of the message manager with its own thread. (e.g. 5 copies of DATA would all use same instance, but 1 DATA + 1 CLDS creates two)
 

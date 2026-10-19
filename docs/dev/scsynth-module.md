@@ -36,12 +36,19 @@ Paths are relative to nanosynth's `thirdparty/supercollider/server/scsynth/`.
 Code: `plugins/scsynth/Source/ScWorld.{h,cpp}`, tests in `plugins/scsynth/tests`, build in `scripts/scsynth/CMakeLists.txt` and `scripts/build_deps.sh`. Not yet a module.
 
 - **Build.** `scripts/scsynth/CMakeLists.txt` compiles libscsynth from SC 3.14.1's source tarball without SC's CMake. No audio driver is compiled; `ScWorld.cpp` defines `SC_NewAudioDriver` and the timing functions. `SC_AUDIO_API` gets an unused value, so SC needs no driver patch. nanosynth's tree and its reentrant-World patch are not used: Worlds that open no port do not need it.
+
 - **UGens load from a directory, not `STATIC_PLUGINS`.** `STATIC_PLUGINS` omits Chaos, ML, PV_ThirdParty and UnpackFFT UGens, and cannot add sc3-plugins. SC's 25 core plugin groups and sc3-plugins 3.14.1 (171 `.so`) build for the host and the SSP. A plugin `.so` imports only libc, libm and libstdc++: the UGen API is a function table.
+
 - **sc3-plugins** needs FFTW (PitchDetection, NCAnalysisUGens), now built by `build_deps.sh`, and a patch that removes its `-stdlib=libc++` under clang.
+
 - **A def with a missing UGen still replies `/done`** to `/d_recv`; scsynth only prints the error. `ScWorld::load` renames each def uniquely, treats `/s_new` "SynthDef not found" as the failure, and takes the reason from the print hook.
+
 - **Two Worlds in one process work** (two loading at once, one closing while the other runs, one reopening), under ThreadSanitizer with libscsynth instrumented. ThreadSanitizer found four data races in SC 3.14.1, fixed in `scripts/patches/supercollider-3.14.1-threads.patch`. One of them, `MsgFifo`'s relaxed reads, is an ordering bug that ARMv7 can expose.
+
 - **Block size.** Host blocks that are multiples of 64 run without latency; other sizes go through a 64-frame FIFO.
+
 - **Python wrappers for sc3-plugins** are generated in nanosynth (`nanosynth.ugens.sc3`, 458 of 483 classes; see its CHANGELOG). `plugins/scsynth/tests/defs/defs.py` uses its `DFM1`.
+
 - **`sc_SetDenormalFlags` sets flush-to-zero on ARM VFP** (`SC_World.cpp:158`), so the module needs no FTZ code of its own.
 
 - **Device threads** (seen on the SSP, 2026-10-10). The kernel boots with `isolcpus=1,2,3`. Synthor's three `dsp` threads (`SCHED_RR` 30) and its `ALSA` thread (`SCHED_RR` 40) run on cores 1-3; its main thread and all other processes run on core 0. A thread inherits its creator's cores and policy, so `World_New` must run on the message thread: its NRT thread then runs on core 0 at normal priority. Two instances can run `process()` at once on different `dsp` threads.
@@ -55,9 +62,13 @@ Open from the spike: CPU per synth, measured in the module through Synthor's DSP
 SuperCollider and sc3-plugins share one version, `SC_REF` in `scripts/build_deps.sh`. Plugins must be built against the same SuperCollider headers as libscsynth: scsynth refuses a plugin whose `api_version` differs.
 
 1. Set `SC_REF` and run `scripts/build_deps.sh host`. If a patch in `scripts/patches/` no longer applies, `apply_patch` stops. Check whether upstream fixed the issue the patch names; drop the patch if so, else update it.
+
 2. Check that `scripts/scsynth/CMakeLists.txt` still names every scsynth and core plugin source: compare it with `server/scsynth/CMakeLists.txt` and `server/plugins/CMakeLists.txt` in the new tree.
+
 3. Run `make test`. `plugins/scsynth/tests` builds a ThreadSanitizer copy of libscsynth from the new source.
+
 4. Run `scripts/build_deps.sh ssp`, then test on the device.
+
 5. Update nanosynth to the same version, and regenerate its sc3-plugins wrappers: see nanosynth's `docs/dev/sc3-plugins-wrappers.md`. Recompile `plugins/scsynth/tests/defs` with it.
 
 ## Approaches
@@ -193,7 +204,7 @@ Option 2 keeps the shared code unchanged. Option 1 is the more natural model for
 
 Either way the `@pN` syntax is the one `csnd` and `chuk` use:
 
-```
+```text
 // @p1 cutoff 20 20000 Hz log
 // @p2 res
 // def filt.scsyndef
@@ -205,7 +216,7 @@ The `def` line is option 2 only.
 
 `p1`..`p16` map to named SynthDef controls through control buses. On load the worker sends:
 
-```
+```text
 /s_new filt 1000 0 0
 /n_map 1000 cutoff 0 res 1 ...
 ```
@@ -350,7 +361,7 @@ Rules for the SSP:
 
 ### Compiling
 
-```
+```text
 nanosynth compile filt.py -o build/scsy
 # Wrote build/scsy/filt.scsyndef
 ```
@@ -408,9 +419,13 @@ Copy the `.scsyndef` and its metadata file to the card, for example `/media/BOOT
 Made 2026-10-10:
 
 - Program file: the `.scsyndef` itself, chosen with Load. A sidecar `.txt` with `@pN` lines is optional; without one, `p1`..`p16` take the def's controls in order. See [plugins/scsynth/README.md](../../plugins/scsynth/README.md).
+
 - No reload when the file changes, and no control that picks a def from the folder, in v1.
+
 - Module name: `scsy` / `SCSY`.
+
 - sc3-plugins wrappers live in nanosynth (`nanosynth.ugens.sc3`).
+
 - MIDI, as proposed above: a `gate` control makes a def a voice, 16 held notes, and `p1`..`p16` drive every voice. Notes go from the MIDI thread through `World_SendPacket`, which may allocate there, not through pre-built messages on the audio thread. At most 32 voice synths exist, so a def that never frees itself cannot pile up.
 
 ## Open decisions

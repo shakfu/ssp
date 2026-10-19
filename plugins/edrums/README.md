@@ -25,16 +25,27 @@ Patch a clock into Clock, for example from `clkd`. Each rising edge above 2 V is
 | mix | Route | | | |
 
 - **Hits**, **Steps**: hits spread over 1 to 16 steps. Hits above Steps fill every step.
+
 - **Rotate**: shifts the pattern later by this many steps.
+
 - **Rate**: `/8` to `/2` steps once every 2 to 8 clock pulses; `x2` to `x8` steps 2 to 8 times per pulse, evenly over the time between the last two pulses. The first pulse after start has no period yet, so it steps once. A pulse that comes early drops the steps still due.
+
 - **Model**: `kick`, `snare`, `clap`, `hat` or `tom`. Pitch and Decay act within the model.
+
 - **Drive**, **Sweep**, **Tone**, **Bright**: saturation, pitch drop, body/noise balance and noise filter cutoff. 0.5 is the model as voiced.
+
 - **Chance**: the probability that a hit sounds.
+
 - **Swing**: 50% is straight. Above it, every second step of the track comes late, up to 75%, where it falls halfway to the next step. It acts on the track's own steps, so it works at any Rate; steps count from the last reset. A track swings once it has measured two clock pulses.
+
 - **Mute**: silences a track and its trigger. It keeps stepping, so it comes back in time.
+
 - **Voice**: off, a track sends only its trigger, for a voice in another module.
+
 - **Route**: `stereo` sums all tracks to both sides; `split` puts tracks 1 and 2 left, 3 and 4 right; `random` pans each hit at random.
+
 - Buttons 1 to 4 fire tracks 1 to 4 at once, clock or not.
+
 - Up and Down step through the pages. A long Up or Down jumps to the first page of the previous or next track; a long Right (Prog +) to the global pages from chance on, and a long Left (Prog -) back to where you were.
 
 The default kit: track 1 kick on every beat, track 2 tom silent, track 3 snare on 2 and 4, track 4 hat on the off-beats, all over 16 steps.

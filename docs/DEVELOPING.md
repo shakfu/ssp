@@ -26,7 +26,9 @@ A program on the card is the fastest to try: no build, and Load swaps it in. A m
 [dev/engines.md](dev/engines.md#layout) lists every file in the engine layer. Its three core types:
 
 - `Engine` (`Engine.h`): `prepare`, `process` and `idle`. No JUCE, so an engine tests with a plain compiler.
+
 - `EngineProcessor`: copies the inputs, splits blocks larger than prepared, calls `control()` and then `Engine::process` on the audio thread, runs `Engine::idle` on a worker thread every 10 ms, and measures DSP load.
+
 - `EngineEditor` and `EngineMiniEditor`: the full-screen editor and rack's compact one. Both draw `ParamPage`s: four controls a page, one per encoder.
 
 `FaustProcessor` builds the parameters, jacks and pages from a compiled Faust kernel. `ScriptProcessor` hosts a program loaded from the card, with controls `p1`..`p16`; `csnd`, `chuk` and `fstr` use it.
@@ -55,7 +57,9 @@ Synthor lists a plugin only if its uid spells its name. So `PRODUCT_NAME` has at
 ## Threads
 
 - Audio: `control()` then `Engine::process`. Never block or allocate.
+
 - Worker: `Engine::idle`, every 10 ms. File reads and compiles go here.
+
 - Message: `prepare`, state save and restore, the editor.
 
 [dev/engines.md](dev/engines.md#threads) shows how the file-streaming plugins hand data between them.

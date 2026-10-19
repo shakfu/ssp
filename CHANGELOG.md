@@ -18,8 +18,11 @@ Five modules are new since 0.3.0: `dexd`, `sapf`, `alda`, `fsyn` and `brks`, so 
 
 - Code view, in every keyboard module:
   - Ctrl-Shift-S saves the text under a name typed in a prompt, beside the current file. That file becomes the program's, so Ctrl-S writes there next. An existing file is overwritten only on a second Enter.
+
   - Ctrl-L empties the view; pressed again on the empty view, it brings the text back, as there is no undo.
+
   - Ctrl-R stops, empties and forgets the program file, where the engine runs an empty program as silence (`ScriptEngine::canReset`): `alda` only. Csound rejects an empty program and keeps the last.
+
   - The status line lists the module's own keys (`CodeKeys::hint`) and can show the engine's state in place of `running` (`ScriptEngine::runState`). It is shorter (`keys usb` is now `usb`): the view clips text at about x=1530, and the longest key list ran past it.
 
 - `ScriptProcessor` takes a plugin's own jack names, and an engine can declare its own controls (`ScriptEngine::declare`), including ones that pick from named values (`ParamSpec::choices`), one per encoder click. Other plugins keep `In N`, `Out N` and their `@pN` comments. For `alda`.

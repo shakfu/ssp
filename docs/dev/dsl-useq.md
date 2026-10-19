@@ -9,10 +9,15 @@ Source: uSEQ `main` (b628d0e, 2026-05-06), `uSEQ/src/signal_engine/`. Not `dspen
 ## Requirements
 
 - Standalone: USB keyboard on the SSP, through `ScriptProcessor`'s code view.
+
 - Ctrl-Enter runs the buffer; Ctrl-E runs the form at the cursor beside it.
+
 - A compile error never stops the outputs (spec `MAIN.md` 2.1).
+
 - Gate edges accurate to a control tick (Control rate).
+
 - Internal clock; external clock and reset from inputs.
+
 - SSP preset I/O template: trigger outs before CV outs, appended, never reordered.
 
 ## Components
@@ -31,6 +36,7 @@ Source: uSEQ `main` (b628d0e, 2026-05-06), `uSEQ/src/signal_engine/`. Not `dspen
 uSEQ's firmware is single-threaded: `Firmware::tick()` runs `eval_cold`, then `execute_all_outputs`, `commit_state`, `commit_outputs` (`firmware/firmware.cpp:84`). The plugin splits that loop:
 
 - Worker (`ScriptEngine::idle`): `compile()` and `runPart()` call `sig::eval_cold` on the one `SignalEngine`, holding `engineLock_`.
+
 - Audio thread: `process()` takes `engineLock_` with `try_lock`. On success it runs the ticks for the block. On failure it holds the last output values for the block.
 
 A `try_lock` over a mutex was chosen over double-buffering the `NodePool`. With double-buffering, the audio thread advances state slots, `prev` buffers and `rate-as` clocks in its copy while the worker compiles against stale ones; uSEQ's state-identity rules (`state-identity.md`) would then need a merge step in the plugin. With the mutex, uSEQ handles continuity itself. The cost is a held block when a compile overlaps one. Spec `MAIN.md` 3.2 gives recompilation "well under one millisecond"; a 128-frame block is 2.67 ms. Step 2 measures it on the SSP. If held blocks are audible, double-buffer then.
@@ -42,10 +48,15 @@ A `try_lock` over a mutex was chosen over double-buffering the `NodePool`. With 
 `UseqEngine : ScriptEngine`, as `ChuckEngine` and the Csound engine are.
 
 - `compile(text)`: `(useq-clear)`, then `eval_cold(text)`. `eval_cold` handles several top-level forms as an implicit `do` (`cold_eval.cpp:994`). Diagnostics (`EvalResult::diagnostics`, with source spans) become `error`, with a line number.
+
 - `runPart(part)`: `eval_cold(part)` without the clear. Redefining an output or a cell is uSEQ's live-edit model (`live-edit.md`), so parts need no removal: `dropPart` and `dropAll` run `(useq-clear)`.
+
 - `builtin()`: a short program using each output family, shipped as the default.
+
 - Comment: `;`. The `; @p1 name min max` lines of `ScriptEngine` work unchanged.
+
 - Controls: `p1`..`p16` become cells of those names, defined at `prepare()`. Each block the audio thread writes `value(i)` into the cell snapshot after `cells.snapshot_values()`, so the controls need no lock. The symbol IDs are resolved once on the worker.
+
 - `status()`: tempo, `bar-num`, and each assigned output's health (`idle`/`running`/`fallback`/`error`, `failure-model.md`).
 
 ### Control rate
@@ -57,8 +68,11 @@ uSEQ ticks at ~1 kHz (`MAIN.md` 3.5). The plugin runs one tick every `TICK` fram
 uSEQ's `t` is seconds since transport start (`time.md` 1.1). No plugin in this repo reads a host playhead, so the plugin keeps its own:
 
 - `t` advances by `TICK / sampleRate` per tick while running; `dt` is that step.
+
 - Run/stop: a button, and `(set-bpm ...)` and the other timing forms from code.
+
 - Reset input: a rising edge sets `t = 0`.
+
 - Clock input: rising edges feed `tempoEstimator`, which sets the `bpm` cell. Off unless a `; @clock N` line names the input.
 
 ## I/O
@@ -81,7 +95,9 @@ Fork patch: `input_index_for_name()` knows `in1`, `in2`, `ain1`, `ain2` only (`i
 Phase 2, after the gate and CV plugin passes its device test. No fork patch: four voices use the outputs without jacks.
 
 - Voice `k` (1-4) is `d(k+4)` gate, `a(k+4)` note number, `s(k+4)` velocity 0..1. MIDI channel `k`.
+
 - A rising edge on the gate sends note-on with `round(a)`, clamped to 0..127. A falling edge sends note-off for the note that was sent.
+
 - A note change while the gate is high sends nothing. Legato needs a second rule; omitted until wanted.
 
 This follows the `dspengine` branch's `(mdo note fn)` rule, a rising value sends note-on (`uSEQ.cpp:1115-1150` there). That rule sends no note-off and only drum notes.
@@ -93,6 +109,7 @@ Delivery: the audio thread pushes `(frame, bytes)` into a `readerwriterqueue`. A
 uSEQ has no tree-sitter grammar; its editor is in `interfaces/useqedit`. ModuLisp's syntax is Clojure-like: `()` lists, `[]` vectors, keywords. Candidates:
 
 - An existing Clojure grammar, e.g. [sogaiu/tree-sitter-clojure](https://github.com/sogaiu/tree-sitter-clojure), with a `highlights.scm` written here. Its licence is unchecked.
+
 - A minimal grammar of our own: atoms, lists, vectors, comments, strings.
 
 Either way, `highlights.scm` lists the builtins and output names from `symbols.def` (194 lines), as `@function.builtin` and `@variable.builtin`. `ssp_highlights(MLSP <grammar>)` builds it, as for `chuk`.
@@ -103,13 +120,21 @@ Host first, then SSP, as for `sapf`.
 
 - `plugins/mlsp/tests/engine_test.cpp`, built natively, with `test_mlsp_engine.py` as its pytest wrapper under `make test`:
   - `(d1 (sqr beat))` at 120 bpm: a rising edge every 24000 frames, within one tick.
+
   - A syntax error keeps the previous program's outputs; `error()` names the line.
+
   - Ctrl-E on `(d2 ...)` leaves `d1` running.
+
   - `p1` reaches a cell: `(a1 p1)` follows `setParam`.
+
   - Reset input sets `bar-num` to 0; a clock input at 140 bpm sets `bpm` within 2 bpm.
+
   - `try_lock` failure holds outputs for exactly one block.
+
   - MIDI voices: note-on and note-off pairs, timestamps within one tick.
+
 - uSEQ's own suite (`test/signal_engine/`) on the host, and cross-built for the SSP's 32-bit ARM. Run once per fork pin.
+
 - ThreadSanitizer on the engine test.
 
 ## Risks
@@ -129,16 +154,23 @@ Host first, then SSP, as for `sapf`.
 Each step ends with a check that must pass before the next. Steps 1-2 fetch uSEQ into `build/` and commit none of its code.
 
 1. **Engine on the host.** `scripts/fetch_useq.sh`, a CMake harness linking `signal_engine/` and the fork patch for 8 inputs. Check: uSEQ's suite passes; the harness renders `(d1 (sqr beat))` with correct edges.
+
 2. **Engine on the SSP.** Cross-build the harness with `xcSSP.cmake`. Check: uSEQ's suite passes on ARM; ticks per second and `eval_cold` time for the examples measured, and `TICK` chosen.
+
 3. **Plugin.** `plugins/mlsp`: `UseqEngine`, `CodeKeys` (port, `MLSP_KEYBOARD`, `.useq`, `;`), I/O, clock, reset. Check: the host tests above, then a device test document.
+
 4. **MIDI out.** Voices, queue, MIDI thread. Check: note pairs on a MIDI monitor; jitter measured.
+
 5. **Highlighting.** Grammar and `highlights.scm`. Check: `highlight_test.cpp` covers ModuLisp.
 
 ## Open questions
 
 1. Name: `mlsp` (the language) over `useq` (Emute's product). `useq` may read as an official port. Either fits the 4-character rule.
+
 2. Fork or patch set: fork `shakfu/uSEQ` as for sapf, or keep patches in this repo and apply them at fetch.
+
 3. Gate polarity and CV range against your uSEQ module: does `a` 0..1 span 0-5 V there?
+
 4. Does `dspengine` merge onto the signal engine? If so, re-pin after the merge, not before.
 
 ## Licence

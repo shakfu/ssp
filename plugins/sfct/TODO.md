@@ -20,8 +20,7 @@ Built and tested natively where possible, but not yet run on the device:
 
 - [ ] Feedback, including saturation near amount 1 with high pre level.
 
-- [ ] Clear (hold RS, labelled CLR): a loop in a track, everything in the Global view. RS was
-  previously never drawn, so check the label shows. Freeing of swapped-out buffers after loads.
+- [ ] Clear (hold RS, labelled CLR): a loop in a track, everything in the Global view. RS was previously never drawn, so check the label shows. Freeing of swapped-out buffers after loads.
 
 - [ ] Load, record, save and preset restore, in both modes.
 

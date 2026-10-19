@@ -22,9 +22,13 @@ The first four parts, in the order the score declares them, are mono voices:
 Synthor labels the jacks by name: `Gate k` and `CV k` are voice k's pair; the inputs are `Reset` (In 1), `Clock` (In 2) and `In 3`-`In 8`, unused.
 
 - Gate: 5 V while a note sounds. Alda shortens each note to 90% of its length by default (`(quant 90)`), so repeated notes retrigger.
+
 - Pitch: 1 V/octave, C4 (MIDI 60) at 0 V, within the SSP's +-5 V. It holds after the gate closes.
+
 - Chords: the last note started sets the pitch; releasing it returns to a note still held.
+
 - Parts after the fourth do not sound.
+
 - In 1: a rising edge restarts the loop. A gate open at the restart closes for 1 ms, so the next note retriggers.
 
 The score's own tempo sets the speed, `(tempo! 120)` by default, unless it follows a clock.
@@ -92,7 +96,7 @@ A new score, loaded or run from the keyboard, starts when the running loop ends,
 
 ## Keyboard
 
-A USB keyboard, or port 7775 on 127.0.0.1 over ssh (`ssh -L 7775:127.0.0.1:7775 root@192.168.1.6`), edits the score as text, as in `chuk` (see [its README](../chuck/README.md#keyboard)). 
+A USB keyboard, or port 7775 on 127.0.0.1 over ssh (`ssh -L 7775:127.0.0.1:7775 root@192.168.1.6`), edits the score as text, as in `chuk` (see [its README](../chuck/README.md#keyboard)).
 
 | Key | Does |
 |-|-|
@@ -109,6 +113,7 @@ The Code view's status line lists these keys, and shows the bar and tempo, or `s
 ## Not yet
 
 - Ctrl-E: a block played once beside the loop.
+
 - Tempo from a control.
 
 ## Licence

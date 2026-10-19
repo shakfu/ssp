@@ -74,6 +74,7 @@ An earlier version of this section kept the matrix in Python only, to leave the 
 The order is computed in `process` every block, not stored. It uses fixed arrays: 100 cells, plus a 1000-step transitive closure only when a cycle must be broken. That costs less than the wire scan `process` already does for each module. Nothing is cached, so the order cannot go stale or race with a routing change.
 
 Effects:
+
 - Slot position no longer changes the sound, except for which wire of a cycle is delayed.
 
 - A preset with a backward wire not on a cycle loses that wire's 128-sample delay. It sounds different in rack than in upstream trax.
@@ -85,6 +86,7 @@ Tests: `tests/graph_order_test.cpp`, run by `make test`. It checks fixed cases a
 **Remove:** the editing UI, 1353 lines (1224 without `ModuleView`). **Keep:** the mixer (levels, mute), the performance page, and preset loading in `OptionEditor`.
 
 Pros:
+
 - About 30% less source to maintain, and none of the code removed is engine code.
 
 - Data flows one way: script, then JSON file, then device. A device save never rewrites the file.
@@ -92,6 +94,7 @@ Pros:
 - The freed UI can be used for playing: a preset list, next and previous preset, a setlist.
 
 Cons:
+
 - No patching on the device. Every change needs the desktop and a card copy, or `scp`, which is much slower to iterate with.
 
 - Patches are harder to debug without `MatrixView`. A read-only routing view would cost back part of the savings.
@@ -103,6 +106,7 @@ Cons:
 ## 5. Option B: keep the editor
 
 Pros:
+
 - Small changes. Sections 2 and 3 add code and remove nothing.
 
 - Patching and debugging on the device still work.
@@ -110,6 +114,7 @@ Pros:
 - `state` blobs are captured where they come from: save on the device, edit the rest on the desktop.
 
 Cons:
+
 - The 1353 lines of editing UI remain, written by someone else and now maintained by you.
 
 - There are two ways to author a preset. A preset edited on the device diverges from the Python script that generated it.
@@ -145,7 +150,7 @@ rack's views, inherited from trax, are all drawn at the compact 640x480, even wh
 
 The sizes below are for the compact layout; a to-scale drawing was used to choose them. The first device test showed the full screen 60% empty, which prompted the full layout.
 
-```
+```text
   to  o d 3 4 5 6 7 8 O | [1] omod >   [2] drum
 from  m r . . . . . . U |          A A S S A A S S H H H H
       o u               |          B B B B S S S S 1 1 2 2
@@ -208,6 +213,7 @@ The intended end state is the player. The goal is many presets authored offline,
 5. **Author on the desktop for a few weeks.** If on-device patching goes unused, delete the editing UI (option A); git keeps it recoverable.
 
 Two results would change this:
+
 - Preset switches take seconds. A player then needs modules preloaded or swapped without a gap, a larger engine project.
 
 - Module state that is not a parameter can only be captured on the device, and presets depend on it. Then keep the editor (option B) and add a performance mode inside it.

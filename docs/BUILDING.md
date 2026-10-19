@@ -4,7 +4,7 @@ The plugins are cross-compiled for the SSP's ARM CPU. The build is tested on Ubu
 
 ## Setup
 
-```
+```text
 git submodule update --init --recursive
 sudo apt install cmake clang lld pkg-config curl zip flex bison libasound2-dev \
     libx11-dev libxext-dev libxrandr-dev libxinerama-dev libxcursor-dev \
@@ -17,7 +17,7 @@ The X11, freetype and fontconfig headers are for `juceaide`, a tool JUCE builds 
 
 ## Build
 
-```
+```text
 make
 ```
 
@@ -61,10 +61,12 @@ Plugins land in `build.cmake.ssp/plugins/*/*_artefacts/Release/VST3/*.vst3/Conte
 `make deploy` and `deploy-mod` copy over ssh. The SSP has no Ethernet port; a USB-Ethernet adapter works in either USB port.
 
 - The SSP comes up at `192.168.1.6/24`, static, when the adapter appears as `eth0` (`/etc/network/interfaces`, `/etc/udev/rules.d/90-usb-ethernet.rules` on rootfs). It runs no DHCP client or server.
+
 - Give the host a static address on the same subnet, e.g. `192.168.1.200/24` with no gateway.
+
 - Log in as `root` with a key. If the root password is unknown, add the key from the mounted card:
 
-  ```
+  ```text
   sudo mkdir -p /media/$USER/rootfs/root/.ssh
   sudo sh -c "cat $HOME/.ssh/id_rsa.pub >> /media/$USER/rootfs/root/.ssh/authorized_keys"
   sudo chmod 700 /media/$USER/rootfs/root/.ssh

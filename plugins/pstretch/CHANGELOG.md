@@ -15,4 +15,5 @@ First release, as the module `strc`. Two PaulStretch decks, each stretching its 
 Two changes to the sk-engines voice:
 
 - A grain reads `window * pitch` input samples. sk-engines bounded the live read head and the file read-ahead by one window. Pitched up, a grain then read past the newest input into audio about 5 seconds old.
+
 - Capture now records into a second ring while it loops the first. sk-engines stopped recording on capture, so Grab and the gate only restarted the old loop.

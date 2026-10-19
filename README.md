@@ -30,7 +30,7 @@ Most of the modules are ports of engines from [sk-engines](https://github.com/sh
 
 ## Build
 
-```
+```text
 git submodule update --init --recursive
 make deps     # build Csound, ChucK, libfaust and libscsynth; fetch the teletype sources
 make          # cross build for the SSP

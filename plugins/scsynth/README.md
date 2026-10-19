@@ -7,6 +7,7 @@ Design and measurements: [docs/dev/scsynth-module.md](../../docs/dev/scsynth-mod
 ## Install
 
 1. Copy `scsy.so` to the `plugins` folder on the SD card. scsynth is linked in.
+
 2. Copy the UGen plugins to `/media/BOOT/scsy/ugens`. `make install-scsy` does this, with the examples, to a card mounted on the host. A release has them under `BOOT/scsy`.
 
 Without `ugens`, the module shows `no UGen directory /media/BOOT/scsy/ugens` and stays silent. The environment variable `SCSY_UGENS` names another folder, for tests and desktop builds. An `scsy` added when no other is open loads every plugin in `ugens`: about 0.4 s from the card. The last `scsy` to close unloads them.
@@ -27,7 +28,9 @@ The preset stores the file's path, not its contents.
 | UGens | any in `/media/BOOT/scsy/ugens`; a missing one fails the load with `UGen 'X' not installed` |
 
 - The SSP sets the sample rate. scsynth runs in 64-frame blocks; the SSP's 128-frame block adds no latency.
+
 - Only the file's first SynthDef runs. A score runs several; see Scores.
+
 - Buffers come from the sidecar; see Buffers. No StkInst (it reads rawwave files from a path).
 
 ## Controls
@@ -36,7 +39,7 @@ Without a sidecar, `p1`..`p16` drive the def's first sixteen named controls in t
 
 A sidecar beside the def, `filter.txt` for `filter.scsyndef`, chooses the controls and scales them. It uses `csnd`'s lines; the label is the control's name:
 
-```
+```text
 // @p1 cutoff 20 20000 Hz log
 // @p2 res
 // @p3 mix
@@ -50,17 +53,23 @@ A new def starts with its defaults on every control; Load then sets the knobs to
 
 The sidecar names buffers, and `scsy` fills them before the synth starts. The def reads them by number, as `PlayBuf.ar(buffer_id=0, ...)`:
 
-```
+```text
 // @buf 0 samples/loop.wav
 // @buf 1 alloc 10 2
 ```
 
 - `@buf N path`: a sound file libsndfile reads, such as WAV, AIFF or FLAC. A relative path is relative to the def's folder.
+
 - `@buf N alloc SECONDS [CHANNELS]`: an empty buffer, for recording. CHANNELS defaults to 1.
+
 - N is 0..63. A file that cannot be opened fails the load, and the running def keeps playing.
+
 - A reload skips a line that has not changed, file and modification time included, so a recording in an `alloc` buffer survives it. A number the new def no longer names is freed once it runs.
+
 - At most 256 MB of buffers, as 32-bit samples: about 23 minutes of mono at 48 kHz. Over that, the load fails before anything is read.
+
 - scsynth does not resample: play a file recorded at another rate with `BufRateScale`.
+
 - A rate change reopens scsynth, which reloads the def and its buffers; `alloc` buffers lose their recordings.
 
 ## Scores
@@ -68,10 +77,15 @@ The sidecar names buffers, and `scsy` fills them before the synth starts. The de
 A score is an NRT command file (scsynth's non-real-time format): timed bundles of OSC commands. [sapf-sc](https://github.com/shakfu/sapf-sc)'s `>nrt` writes one for a program whose `ola` starts a synth per sound. Load a score as a def; its sidecar has the same name, `texture.txt` for `texture.osc`.
 
 - The first `/s_new` starts the main synth. Its def takes `p1`..`p16`, the sidecar and MIDI as a `.scsyndef` would.
+
 - Every later `/s_new` starts a synth at its bundle's time, in a group before the main synth, so the main synth can read the buses they write. scsynth starts each on the 64-frame block that holds its time.
+
 - `/d_recv` and buffer commands (`/b_...`) run when the score loads, wherever they are in the file. A relative path in `/b_allocRead` is relative to the score's folder. The sidecar's `@buf` lines work as for a def.
+
 - The score loops at the time of its last bundle.
+
 - `/d_free`, `/c_set` and `/g_freeAll` are ignored; any other command fails the load.
+
 - At most 900 SynthDefs besides the main one.
 
 ## Inputs and outputs
@@ -90,7 +104,7 @@ A program gets CV in two ways: on a control, or by reading the input itself.
 
 A control with CV follows input N (1..8): add `cv N` at the end of its sidecar line.
 
-```
+```text
 // @p1 cutoff 20 20000 Hz log cv 3
 ```
 
@@ -100,8 +114,11 @@ A control with CV follows input N (1..8): add `cv N` at the end of its sidecar l
 | linear | a tenth of the range | -10% of the range | +10% | +50% |
 
 - The encoder sets the value the CV moves from. The result stays within the control's range.
+
 - The CV is applied at audio rate. The module fills an audio bus with the encoder's value moved by the CV, sample by sample, and maps the control to it. A control the def declares audio-rate follows every sample; a control-rate one reads every 64th (1.3 ms at 48 kHz). In nanosynth, `@synthdef("ar")` makes the first control audio-rate, as `fm` does for pitch.
+
 - An orange mark on the control's bar shows where the CV has moved it, and the value shown is the moved one. The audio and the mark come from the same calculation. A preset stores the encoder position, not the moved value.
+
 - The input still reaches the def as audio.
 
 #### In the SynthDef
@@ -132,9 +149,13 @@ Notes come from the MIDI input chosen in the general panel (RS + LS), and take e
 A def with a `gate` control is a voice:
 
 - A note on starts a synth with `freq` (Hz, from the note number), `velocity` (0..1) and `gate` 1. A note off sets `gate` 0.
+
 - The def must free itself when its envelope ends: `EnvGen` with `done_action=DoneAction.FREE_SYNTH`.
+
 - 16 notes sound at once; another releases the oldest held note. At most 32 voice synths exist, held or releasing; another frees the oldest, so a def that never frees itself cannot pile up.
+
 - `p1`..`p16`, with their CV, drive every voice. Notes set `freq`, `velocity` and `gate`, so those stay off the encoders; a sidecar line naming one fails the load.
+
 - Loading another def frees the voices.
 
 ```python
@@ -162,7 +183,7 @@ def filter(cutoff=1000.0, res=0.3, mix=1.0):
     Out.ar(bus=0, source=dry * (1.0 - mix) + wet * mix)
 ```
 
-```
+```text
 nanosynth compile examples.py -o .
 ```
 

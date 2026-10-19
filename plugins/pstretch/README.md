@@ -13,7 +13,9 @@ Copy `strc.so` to the `plugins` folder on the SD card (`make install MOD=strc`).
 Each deck has its own source.
 
 - **live**: the deck's input. The read head stays within the last 5.5 seconds; at large stretches it trails the input.
+
 - **capture**: switching to capture freezes the last 5.5 seconds (less if the deck has heard less) and loops the read head through them. The input goes on being recorded, so Grab or the Gate input captures again from what came in since.
+
 - **file**: a clip from the clip folder, read only as fast as the read head needs it. Clips loop, so any length plays indefinitely. `.wav` (16, 24 or 32-bit PCM, or 32-bit float, any channel count) plays at its own rate; `.raw` (16-bit mono) at the engine rate.
 
 ## Controls
@@ -27,17 +29,29 @@ Each deck has its own source.
 | mix | A/B | Route | Window | |
 
 - **Stretch**: 1x to 64x, exponential.
+
 - **Diffuse**: 0 resynthesizes each window cleanly; 1 randomizes every phase, the full PaulStretch wash.
+
 - **Pitch**: +/-1 octave. With the Pitch input, the total is limited to +/-2 octaves.
+
 - **Tone**: a one-pole low-pass on the output, 0 dark, 1 open.
+
 - **Mix**: dry/wet.
+
 - **Clip**: selects a clip in the folder, in name order. A change opens the clip once it has rested 60 ms.
+
 - **Position**: where the clip opens, 0 to 1 of its length. A move reopens the clip there once it rests.
+
 - **Mod Rate**: 0.03 to 7.7 Hz. **Mod Depth**: 0 turns the modulation off; the LFO output keeps running.
+
 - **Mod Shape**: `sine`, `triangle`, or `follow`, the envelope of the deck's input.
+
 - **Mod Target**: `diffuse`, `stretch` or `tone`.
+
 - **Route**: `stereo` centres both decks; `split` puts A left, B right; `random` pans each deck at random.
+
 - **Window**: 4096, 8192, 16384 or 32768 samples. Larger windows smear more and resolve frequency more finely; they also respond later. A change rebuilds both decks, which restarts their sources.
+
 - Buttons 1 and 3 toggle Freeze on deck A and B: the read head holds still and the window keeps being re-randomized. Buttons 2 and 4 are Grab: a new capture, in capture.
 
 The screen shows each deck's source, stretch and freeze state, and the clip it plays.

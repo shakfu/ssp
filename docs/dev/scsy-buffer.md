@@ -18,14 +18,16 @@ A def can still sample with `LocalBuf`, which the synth allocates itself. [sapf-
 
 The sidecar names buffers. `scsy` allocates them before it starts the synth, and the def reads them by number.
 
-```
+```text
 // @buf 0 samples/loop.wav
 // @buf 1 alloc 10 2
 // @p1 rate -2 2
 ```
 
 - `@buf N path` reads a sound file into buffer N with `/b_allocRead`. A relative path is relative to the def's folder.
+
 - `@buf N alloc SECONDS [CHANNELS]` allocates an empty buffer for recording with `/b_alloc`. The frame count is SECONDS times the current rate. CHANNELS defaults to 1.
+
 - N is 0..63. The def uses the same number, for example `PlayBuf.ar(buffer_id=0, ...)`.
 
 Explicit numbers over buffers named by a control: the def needs no extra control, and a def written for sclang, with `PlayBuf.ar(1, 0)`, works unchanged. A compiler such as sapf-sc can assign the numbers itself.
@@ -37,6 +39,7 @@ Explicit numbers over buffers named by a control: the def needs no extra control
 `ScWorld::loadDef` already sends `/d_recv`, waits for `/done`, then starts the synth and waits for `/synced`. Buffers go before `/s_new`:
 
 1. For each `@buf` line, send `/b_allocRead` or `/b_alloc` and wait for `/done` with that command as its first argument. A `/fail` fails the load, with scsynth's reason, such as `File '...' could not be opened`. The running synth keeps playing.
+
 2. `/d_recv`, then `/s_new`, as now.
 
 The file is read on scsynth's NRT thread. That thread runs on core 0 at normal priority (see [Device threads](scsynth-module.md#spike-results)), so loading never touches an audio core. Loading still blocks the `scsy` worker thread for the length of the read. Card read speed is not measured.
@@ -46,15 +49,21 @@ The file is read on scsynth's NRT thread. That thread runs on core 0 at normal p
 `ScWorld` keeps a table of the buffers it holds: number, path or alloc size, file modification time.
 
 - **Reload with an unchanged line:** skip it. Live-coding a def does not re-read its samples, and a recording in an `alloc` buffer survives.
+
 - **Reload with a changed line, or a new number:** reallocate. scsynth swaps the data on the RT thread and frees the old data on the NRT thread, so a running synth never reads freed memory (*unverified*; SC's normal `/b_allocRead` behaviour).
+
 - **Number no longer named:** `/b_free` once the new synth runs.
+
 - **Rate change:** `prepare` reopens the World, which loses every buffer. `ScriptEngine::prepare` then reloads the program, which reallocates them. `alloc` buffers lose their recordings.
 
 ### Limits
 
 - **Memory.** `/b_allocRead` uses ordinary `malloc`, not the real-time pool. A 10-minute stereo file at 48 kHz takes 230 MB as 32-bit float. `scsy` should refuse a load whose buffers would exceed a fixed total, say 256 MB per instance, before sending anything. The SSP's free memory is not measured.
+
 - **Sample rate.** scsynth does not resample. A def plays a 44.1 kHz file at the right speed only with `BufRateScale`.
+
 - **No sharing.** Each instance runs its own World, so two instances that name one file hold two copies. A process-wide cache that each World refers to would remove that. It is out of scope.
+
 - **No saving.** Writing an `alloc` buffer to the card (`/b_write`) is out of scope.
 
 ## Separate change: the real-time pool
@@ -76,4 +85,5 @@ In `plugins/scsynth/tests/scsynth_test.cpp`, with defs from `tests/defs/defs.py`
 ## Open
 
 - Does `/b_allocRead` work in the SSP build? libscsynth is compiled with the sndfile headers and without `NO_LIBSNDFILE`, and `scsy` links `libsndfile.a`, so it should (*unverified*).
+
 - The memory cap, after measuring free memory on the SSP with Synthor running.

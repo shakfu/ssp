@@ -48,9 +48,13 @@ The preset stores the code last run, and the text when it holds an edit not yet 
 | files | `me.dir()` is the program's folder |
 
 - A new program replaces every shred, and every connection into `dac` and `blackhole`.
+
 - Globals keep their values across programs.
+
 - A `public class` stays defined until the plugin is reloaded, so reloading a program that defines one fails.
+
 - `<<< >>>` and `chout` print nowhere.
+
 - No `KBHit` or `Hid`: their threads would outlive the module, so they are compiled out.
 
 ## MIDI
@@ -71,7 +75,7 @@ Wait on `midiEvent`, then read every note from the last count read up to `midiCo
 
 A comment line names a control and gives its range; the screen then shows the name, the value in that range and the unit, and the program receives the value in that range:
 
-```
+```text
 // @p1 cutoff 20 20000 Hz log
 // @p2 mix
 ```
@@ -96,7 +100,7 @@ A program gets CV in two ways: on a control, or by reading the input itself.
 
 A control with CV follows input N (1..8): add `cv N` at the end of its `@pN` line.
 
-```
+```text
 // @p1 cutoff 20 20000 Hz log cv 3
 ```
 
@@ -106,15 +110,18 @@ A control with CV follows input N (1..8): add `cv N` at the end of its `@pN` lin
 | linear | a tenth of the range | -10% of the range | +10% | +50% |
 
 - The encoder sets the value the CV moves from. The result stays within the control's range.
+
 - The CV reaches the program every 10 ms, when the globals `p1`..`p16` update. That is fine for envelopes, slow LFOs and sequencers, not for audio-rate modulation.
+
 - An orange mark on the control's bar shows where the CV has moved it, and the value shown is the moved one. A preset stores the encoder position, not the moved value.
+
 - The input still reaches the program as audio.
 
 #### In the program
 
 Read the input yourself, for a scaling of your own. There is no mark on screen. `examples/filter.ck` keeps In 3 running into `blackhole` and reads its last sample:
 
-```
+```text
 adc.chan(2) => Gain cv => blackhole;
 p1 * Math.pow(2, cv.last() / 0.2) => float f;   // SSP CV is 0.2 per volt
 ```
@@ -129,7 +136,7 @@ p1 * Math.pow(2, cv.last() / 0.2) => float f;   // SSP CV is 0.2 per volt
 
 Write a value or a slow signal to an output, at 0.2 per volt. `Step` holds a value:
 
-```
+```text
 SinOsc lfo => dac.chan(2);  2 => lfo.freq;  0.5 => lfo.gain;   // Out 3: +-2.5 V at 2 Hz
 Step pitch => dac.chan(3);  0.2 * octaves => pitch.next;      // Out 4: 1 V/oct
 ```
@@ -188,7 +195,7 @@ Press soft key 5 (Load). The browser opens at `/media/BOOT/chuck`. Turn encoder 
 
 ### 4. Read the screen
 
-```
+```text
 chuk : ChucK host                                     1/1 controls     DSP n.n% pk n.n%
    cutoff          Q                                  filter.ck
   40.0 Hz        1.00
@@ -210,7 +217,9 @@ The right panel shows the page (`1/1 controls`), the DSP load, the file name, an
 Both controls start at the bottom of their ranges: the cutoff at 40 Hz, which passes little, and Q at 1. Turn encoder 1 to open the filter, then encoder 2 for resonance.
 
 - Turning moves a control 5% of its range a detent. `cutoff` is logarithmic, so each detent is the same interval: 40 to 20000 Hz is about 9 octaves, so a detent is about half an octave.
+
 - Holding the encoder while turning moves it 0.5% a detent.
+
 - Pressing and releasing without turning returns it to the bottom of its range.
 
 ### 6. Add CV
@@ -220,4 +229,3 @@ Both controls start at the bottom of their ranges: the cutoff at 40 Hz, which pa
 ### 7. Save it
 
 Save a Synthor preset as usual. It stores the file's path and the encoder positions; loading the preset compiles `filter.ck` again and restores the positions.
-

@@ -3,8 +3,11 @@
 ## Done on the SSP
 
 - `tests/run_on_ssp.sh` passes (2026-10-12): the engine and firmware, without Synthor.
+
 - In Synthor (user, 2026-10-13): listed after a restart; a USB keyboard through a USB 2.0 hub types into it; TR 1 and TR 2 patched to Trig 1 and Trig 2 run scripts 1 and 2, by `TR.P` and from the metro.
+
 - Disk in Synthor (user, 2026-10-13): wrote 32 scenes, read `examples/tt00.txt` into slot 0; loaded with Esc and clocked, TR 1, TR 2 and CV 1 changed as the scene says.
+
 - All three example scenes in Synthor (user, 2026-10-13): Disk read 3; slot 2 (`tt02`, random gates) runs from loading with nothing patched.
 
 ## CV test
@@ -15,44 +18,70 @@ Checks CV out, In, both ranges, and the SSP's output ceiling. Done so far (user,
 
 1. **Out to In.** Type `CV 1 V 3` then `CV 2 IN`.
    - Pass: the status panel shows CV 1 about 3.00 V and CV 2 about 3.00 V. `IN` alone prints about 4915.
+
    - Voltmeter: 3.00 V at CV 1.
+
 2. **Zero.** `CV 1 0` then `CV 2 IN`. Pass: CV 2 about 0.00 V, `IN` about 0.
+
 3. **Ceiling.** `CV 1 V 7` then `CV 2 IN`.
    - Pass: CV 1 shows 7.00 V (teletype's value); CV 2 about 5.0 V; `IN` about 8191.
+
    - Voltmeter: 5.0 V. Record whether it is 5.0 or 5.2 V. If 5.2 V, the output limit in `PluginProcessor::processBlock` (1.0) could be 1.04.
+
 4. **Shifted range.** CV 1's range and In's range to `-5-5V`. `CV 1 V 7` then `CV 2 IN`.
    - Pass: CV 2 about 7.00 V.
+
    - Voltmeter: 2.0 V at CV 1 (7 - 5).
+
 5. **Shifted ends.** Still shifted: `CV 1 0` gives -5 V at the jack and CV 2 about 0 V. `CV 1 V 10` gives +5 V and CV 2 about 10 V.
+
 6. **Mismatched ranges.** CV 1 at `-5-5V`, In at `0-5V`. `CV 1 V 3`.
    - Pass: -2 V at the jack; In clips negative input to 0, so CV 2 about 0 V.
+
 7. **Moving signal.** Ranges back to `0-5V`. M script: `CV 1 V RAND 4` and `CV 2 IN`; then `M 250`, `M.ACT 1`.
    - Pass: CV 2 follows CV 1 within one tick. Stop with `M.ACT 0`.
+
 8. **Slew.** `CV.SLEW 1 1000` then `CV 1 V 4`.
    - Pass: CV 1 rises to 4 V over about 1 s, in steps of at most one audio block.
+
 9. **PARAM.** M script: `CV 3 PARAM`; then `M 50`, `M.ACT 1`, and turn encoder 1. (Typed in live mode, `CV 3 PARAM` would read PARAM once.)
    - Pass: CV 3 in the status panel goes from 0 V at Param 0 to 10 V at 1; the jack clips at 5 V.
 
 ## Verify on the SSP
 
 - [ ] Held keys repeat; unplug and replug the keyboard.
+
 - [ ] Two instances: the keyboard follows the one on screen (`onSSPTimer` sets the target; does Synthor call it for hidden editors?).
+
 - [ ] No keys reach the Linux console or SysRq (`EVIOCGRAB`).
+
 - [ ] Preset save and reload in Synthor and in rack; the compact editor in rack.
+
 - [ ] Front button (button 1) and the range page (button 2).
+
 - [ ] Disk: how long the UI pauses while it writes the 32 files.
+
 - [ ] DSP load in Synthor's display; the firmware thread's CPU in `top`.
+
 - [ ] Unload: Synthor unloading `ttyp.so` with the key thread stopped.
+
 - [ ] A keyboard on the DWC2 port without a hub, after swapping the Ethernet dongle to the other port.
 
 ## Planned
 
 - [ ] **Param input.** A 10th input, `Param`, feeding teletype's PARAM, its second analog input after IN. Scripts then read two CVs, `IN` and `PARAM`: as many as the firmware's two ADC channels allow.
   - Index: after In (input 10), so inputs 1-9 and saved patches keep their order.
+
   - Patched, it replaces the encoder: PARAM follows the voltage. Unpatched, encoder 1 sets PARAM as now. Alternative: the encoder as an offset added to the CV, as a knob beside a CV jack often works. Override is simpler and matches teletype, where PARAM is only a knob.
+
   - Range: its own `param_range` (`0-5V` / `-5-5V`), as `in_range` is for In, on the main page's encoder 3.
+
   - Panel: `Param` with its value on the inputs line, dimmed while unpatched, as In is.
+
   - Code: `I_PARAM` in `PluginProcessor.h`; `processBlock` reads the block's last sample when `isInputEnabled(I_PARAM)`, else the encoder, into `Teletype::setParam`.
+
   - Tests: the host test enables input 10, holds it at 0.5 (2.5 V), types `cv 1 param`, and expects CV 1 at 0.5; with it unpatched, the encoder's value. Regenerate `tools/py2rack/modules-local.json` (`UPDATE_MANIFEST=1 make test`).
+
   - Docs: README's inputs table, controls and constraints ("PARAM is an encoder, not a jack" goes).
+
 - [ ] Falling-edge scripts (`$.POL`): the mock raises an interrupt on rising edges only.

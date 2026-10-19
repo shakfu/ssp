@@ -3,6 +3,7 @@
 A [Faust](https://faust.grame.fr) program reaches the SSP in two ways:
 
 - **A. Compiled into a module of its own**, like `chrs`. [cyfaust](https://github.com/shakfu/cyfaust) compiles the `.dsp` to C++ on your computer, and the build links it into a plugin.
+
 - **B. Loaded by `fstr`** from the SD card. libfaust compiles it on the SSP, through LLVM, when you press Load.
 
 Both tutorials use the same program, a stereo tremolo. [DEVELOPING.md](DEVELOPING.md#choosing-a-route) compares the routes; [dev/faust.md](dev/faust.md) records how they were built and measured.
@@ -22,8 +23,11 @@ process = par(i, 2, *(gain));
 ```
 
 - `process` has two inputs and two outputs: `par(i, 2, ...)` places two copies side by side.
+
 - Each `hslider` becomes one encoder. `vslider`, `nentry`, `button` and `checkbox` do too.
+
 - Faust sorts controls by label. The `[0]` and `[1]` prefixes keep `rate` first; Faust removes them from the label.
+
 - `si.smoo` smooths `depth`, so a fast turn does not click.
 
 ## The two routes
@@ -45,7 +49,7 @@ This builds `trem`. The finished plugin is in [`examples/tremolo`](../examples/t
 
 To skip steps A1 to A5:
 
-```
+```text
 scripts/new_plugin.py wobble wobl --faust
 ```
 
@@ -59,7 +63,7 @@ Save the program as `plugins/tremolo/Source/tremolo.dsp`.
 
 ### A2. Compile the kernel
 
-```
+```text
 scripts/faust_kernel.sh plugins/tremolo/Source/tremolo.dsp plugins/tremolo/Source/TremoloKernel.h tremolo
 ```
 
@@ -116,7 +120,7 @@ add_subdirectory(tremolo)
 
 ### A6. Build and install
 
-```
+```text
 make                    # cross build for the SSP
 make install MOD=trem   # copy trem.so to the mounted card's BOOT/plugins
 ```
@@ -129,7 +133,7 @@ Restart the SSP and add `trem` in Synthor. Its jacks:
 | rate, depth | one CV per control, named by its label |
 | Out L, Out R | `process` outputs 1 and 2 |
 
-```
+```text
 trem : stereo tremolo, compiled from Faust          1/1 trem        DSP n.n% pk n.n%
      rate          depth
      4.00          0.50
@@ -155,7 +159,7 @@ def test_tremolo(plugins):
 
 Rewrite rack's module manifest, which the manifest test checks:
 
-```
+```text
 UPDATE_MANIFEST=1 uv run --with pytest pytest plugins/common/tests -k manifest
 ```
 
@@ -169,7 +173,7 @@ The same `tremolo.dsp`, without a build.
 
 On your computer, before copying it to the card:
 
-```
+```text
 PYTHONUTF8=1 uv run --no-project --with cyfaust==0.2.0 python -m cyfaust info tremolo.dsp
 ```
 
@@ -177,7 +181,7 @@ It prints the inputs, outputs and controls, or Faust's error. On the SSP the sam
 
 ### B2. Copy it to the card
 
-```
+```text
 make install-faust                                  # once: the Faust libraries, in BOOT/faust/libraries
 cp tremolo.dsp /media/$USER/BOOT/faust/
 ```
@@ -193,7 +197,7 @@ Add `fstr` in Synthor. Press soft key 5 (Load), select `tremolo.dsp` with encode
 | `process` inputs 1, 2 | In 1, In 2 |
 | `process` outputs 1, 2 | Out 1, Out 2 |
 
-```
+```text
 fstr : Faust host, through the libfaust LLVM JIT    1/1 controls    DSP n.n% pk n.n%
      rate          depth                            tremolo.dsp
    4.00 Hz         0.500

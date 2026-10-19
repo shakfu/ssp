@@ -7,6 +7,7 @@ Version 0.1.0 covers audio, CV and the panel's controls. It does not cover the L
 ## Install
 
 1. Copy `brks.so` to the `plugins` folder on the SD card: `make install MOD=brks`.
+
 2. Copy sample banks to `BOOT/brks/default`: `make install-brks`.
 
 `make install-brks` downloads `_core`'s default sample banks: 96 samples in 6 banks, 127 MB. These are the banks that `_core`'s sample manager installs as its default samples. The ZIP is checked against the SHA-256 that `_core` pins. The script copies the bank folders and `settings` (77 MB) and leaves out the editor project.
@@ -14,6 +15,7 @@ Version 0.1.0 covers audio, CV and the panel's controls. It does not cover the L
 Without this repository, from the release zip:
 
 1. Download [`1-ezeptocore-default-banks.zip`](https://github.com/schollz/_core/releases/download/default-samples/1-ezeptocore-default-banks.zip) from `_core`'s `default-samples` release.
+
 2. Unzip it, and copy `bank1` to `bank6` and `settings/` to `BOOT/brks/default` on the SD card.
 
 A new `brks` loads `BOOT/brks/default`.
@@ -22,7 +24,7 @@ A new `brks` loads `BOOT/brks/default`.
 
 `brks` reads card folders as `_core`'s sample manager writes them:
 
-```
+```text
 my-card/
   bank1/0.0.wav, 0.0.wav.info, 1.0.wav, ...
   ...
@@ -33,16 +35,22 @@ my-card/
 To make your own:
 
 1. Prepare the samples in the [_core sample manager](https://shop.infinitedigits.co/guides/sample-manager/) (macOS, Windows, Linux) or the [web tool](https://ezeptocore.com/). They slice, set the tempo and find the transients.
+
 2. Copy the project folder to `BOOT/brks/<name>` on the card. The hidden `.core-manager` folder is not needed.
+
 3. Press Load (button 5) and choose any of:
    - the folder;
+
    - a bank folder in it;
+
    - a file in a bank folder;
+
    - `BOOT/brks` itself, which loads the first card in it by name.
 
 Accepted samples:
 
 - PCM16, mono or stereo, at 44.1 or 88.2 kHz;
+
 - 16 banks of 16 slots, up to 255 slices each.
 
 An entry that fails to load is skipped. The status panel shows the first reason. A folder that holds no card leaves the current card playing.
@@ -62,20 +70,27 @@ The preset stores the card's path, the bank, the tempo and the trigger mode, bes
 The **play** page holds the effects and the sequencer, each as a pair:
 
 - **Break**: how often the effects Grimoire allows play. It rises with the cube of the knob. Below about a quarter, no effect plays.
+
 - **Grimoire**: one of 7 effect banks, from the card's `settings/grimoire`. It selects which effects Break plays, so it does nothing with Break below a quarter. The status panel lists the bank's effects, and the ones playing.
+
 - **Amen**: the slice sequencer. Fully left plays straight through. Positions between play sequences of 1 to 32 slices. Fully right plays random slices and changes them every two bars.
+
 - **Random**: the jump probability. Left of centre, jumps continue from where they land. Right of centre, they return to the beat. With Amen CV patched, Amen and Random set the start and end of the slice range the CV covers.
 
 The **sound** page holds Sample and the functions the hardware reaches with Tap held:
 
 - **Sample**: the sample in the bank.
+
 - **Volume**: up to the middle, the volume. Past it, saturation, then fuzz. A new instance keeps the firmware's start-up volume (234 of 244, with saturation) until Volume moves.
+
 - **Filter**: low-pass left of centre, high-pass right of it, none in the middle.
+
 - **Gating**: slice gating, off in the bottom eighth.
 
 The **clock** page:
 
 - **Tempo**: 30-300 BPM, as Tap sets it. Until it is turned, the card's tempo plays. It follows the tempo playing: from Tap, from In 1, and from the card. A clock at In 1 sets the tempo instead; Tempo then shows it. To clock at another rate, divide or multiply the clock before In 1.
+
 - **Clock Out**: Clock Out's rate, from 8 pulses a beat to one every 2 bars, as the hardware's Mult button sets it. The default, 2 a beat, is the rate In 1 expects.
 
 | Button | Press |
@@ -110,8 +125,11 @@ The hardware's Mult and Bank buttons are Clock Out and Left/Right. The firmware'
 Inputs 1-8 are triggers and the CVs start at input 9, the layout the repository's presets use. Notes:
 
 - Trigger inputs: a gate is high above 1 V and low below 0.25 V. A press is held for at least 5 ms, since the firmware reads its buttons once a millisecond.
+
 - In 4 and 5 act on the rising edge, however long the gate. Clock Out keeps its value after In 4 changes the rate; the status panel shows the rate playing.
+
 - CV inputs take -5 to +5 V. Each has the polarity the card's `settings` give it, bipolar by default. A patched CV replaces its knob, as on the hardware.
+
 - Out L and Out R are at +/-5 V full scale. Trig and Clock Out are 0 or 5 V.
 
 ## Sound and timing

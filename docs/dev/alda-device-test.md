@@ -5,9 +5,13 @@ Step 3 of [dsl-alda.md](dsl-alda.md). Step 2 passed on 2026-10-17 (`plugins/alda
 ## Setup
 
 - Install, with Synthor stopped (`kill -9 $(pidof SYNTHOR)`, then power-cycle after): `make deploy-mod MOD=alda`.
+
 - Examples: `ssh root@192.168.1.6 mkdir -p /media/BOOT/alda && scp -O plugins/alda/examples/*.alda root@192.168.1.6:/media/BOOT/alda/`.
+
 - Keyboard: USB through a hub, or port 7775 over ssh (`ssh -L 7775:127.0.0.1:7775 root@192.168.1.6`).
+
 - At hand: a multimeter or scope; an oscillator with a 1 V/oct input; an envelope; a trigger source.
+
 - For step 20: `dexd`. For steps 20c-26: a USB MIDI interface on the SSP, cabled to a synth, or to a computer running a MIDI monitor (`aseqdump -p <port>` on Linux).
 
 Each step lists what to do, then what should happen. Code goes in the Code view; Ctrl-Enter runs it. Voltages are at the jacks.

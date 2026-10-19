@@ -24,7 +24,7 @@ The keyboard goes to the `ttyp` instance whose screen was shown last. `ttyp` tak
 
 `ttyp` also listens on 127.0.0.1, port 7770. Forward the port from your computer, then type with [`tools/ttyp_type.py`](../../tools/ttyp_type.py):
 
-```
+```text
 ssh -L 7770:127.0.0.1:7770 root@192.168.1.6
 tools/ttyp_type.py lines.txt        # or: echo "TR.P 1" | tools/ttyp_type.py
 ```
@@ -79,6 +79,7 @@ The compact view in rack shows the screen and has the main page's encoders only.
 The SSP's outputs and inputs span about +/-5 V. Teletype's span 0-10 V. Each CV output and In has a range:
 
 - `0-5V`: volts as teletype writes them, clipped above 5 V. `V` and `N` stay correct up to 5 V, five octaves of 1 V/oct.
+
 - `-5-5V`: teletype's 0-10 V shifted down by 5 V. The full range, at the wrong absolute voltage: `V 5` gives 0 V. On In, the shift is added back.
 
 ## Saving programs
@@ -86,8 +87,11 @@ The SSP's outputs and inputs span about +/-5 V. Teletype's span 0-10 V. Each CV 
 A teletype program is a **scene**: eight scripts, M and I, patterns, and a description. Teletype keeps 32 scenes.
 
 - **Save a scene:** Alt+Esc, choose a slot, Enter.
+
 - **Load a scene:** Esc, choose a slot, Enter. This replaces the scripts, patterns and description, then runs the scene's I script.
+
 - **`SCENE n`** loads a scene from a script without running I. Variables, CV and TR outputs and the metro carry over, so a running scene can hand over to another mid-performance. Add `$ 10` to run the new I too. Put `SCENE n` last in its script: lines after it come from the new scene. `SCENE.P n` keeps the patterns; `SCENE.G n` keeps the grid state.
+
 - **Synthor presets** save all 32 scenes and the scene being edited, so a preset is a complete teletype. A preset made by another `ttyp` version whose teletype stores scenes differently is refused, and the module keeps its current scenes.
 
 ### Scene files
@@ -95,6 +99,7 @@ A teletype program is a **scene**: eight scripts, M and I, patterns, and a descr
 **Disk** (button 3) does what plugging a USB stick into teletype does, with `/media/BOOT/teletype` as the stick:
 
 1. Every scene is written to `tt00s.txt` to `tt31s.txt`, replacing those files.
+
 2. Each `tt00.txt` to `tt31.txt` that exists is read into its slot, replacing that scene.
 
 The status panel shows the counts and any error. The scene being edited is unchanged: load a slot with Esc to use what was read. A file's name without the `s` is never written, so files you write are never overwritten.
@@ -103,7 +108,7 @@ This is how to write programs ahead of time, or use scenes others have shared: p
 
 The format is teletype's own:
 
-```
+```text
 CLOCK DIVIDER
 TRIG 1: CLOCK IN
 
@@ -116,8 +121,11 @@ TR.TIME 1 20
 ```
 
 - The lines before the first `#` are the description, at most 32 lines of 31 characters. A longer line runs into the next.
+
 - `#1` to `#8`, `#M` and `#I` hold the scripts, at most 6 lines each. `#P` holds the patterns and `#G` the grid, in the format teletype writes; see any `ttNNs.txt`.
+
 - A section left out stays empty. Case does not matter.
+
 - A file over 64 KB is refused.
 
 ## Constraints on the SSP
@@ -125,28 +133,45 @@ TR.TIME 1 20
 Compared with the hardware:
 
 - **Voltage.** CV outputs reach 5 V, not 10 V; see Range. TR outputs give 5 V, not 10 V. In reads about +/-5 V.
+
 - **Timing.**
   - The firmware runs on a 1 ms tick, as on the hardware.
+
   - Outputs change once per audio block, 2.7 ms at 128 samples and 48 kHz. A pulse shorter than a block can be missed: keep `TR.TIME` above about 5 ms.
+
   - A trigger reaches its script within one tick plus one block.
+
   - A long script delays teletype, as on the hardware. It never stalls Synthor's audio: the firmware has its own thread.
+
 - **Falling edges.** Scripts run on rising edges only. `$.POL` settings that run a script on a falling edge do nothing; monome-rack's mock raises no interrupt on a falling edge.
+
 - **Not connected:** i2c devices (Ansible, Just Friends, TELEX, ER-301, W/, crow, Disting, i2c2midi), grid and arc, and USB MIDI. Their ops parse and run, but nothing answers them. Disk replaces the USB stick.
+
 - **PARAM** is an encoder, not a jack. It cannot be modulated by CV.
+
 - **Keyboard.**
   - Keys are read as a US layout.
+
   - A key released within 47 ms is missed, as on the hardware: the firmware polls the keyboard at that interval.
+
   - One keyboard for all instances; it follows the screen shown last.
+
   - Some shortcuts need function keys. On a compact keyboard, use its Fn layer.
+
 - **Network typing** with `tools/ttyp_type.py` sends taps: no held keys, and no modifier but Shift. The port takes one client at a time.
+
 - **Instances.** Each instance runs its own copy of the firmware, about 1 MB with its scene memory, and its own 1 ms thread.
 
 ## Troubleshooting
 
 - **Not in the module list:** restart the SSP; Synthor scans plugins at startup.
+
 - **Keyboard does nothing:** check the status panel says `keyboard: connected`. If not, plug the keyboard in through a USB 2.0 hub. `dmesg` on the SSP shows whether it enumerated.
+
 - **Typing goes to the wrong instance:** show the instance you want to type into; the keyboard follows the screen.
+
 - **A trigger runs nothing:** check its number lights in the status panel while the signal is high. If it does not, check the patch goes to that Trig input and rises above 2.2 V. If it does, check the input is not muted (Ctrl+F1 to F8 toggles mutes).
+
 - **In reads nothing:** In is the 9th input, after Trig 1-8. The status panel shows its value.
 
 ## Licence

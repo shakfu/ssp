@@ -9,21 +9,27 @@ Copy `rack.so` to the `plugins` folder on the SD card, and presets to `rack_pres
 ## Using it
 
 - **Mixer:** soft keys 1 to 4 open tracks 1 to 4. Hold Up for the options page: `Load Pr` and `Save Pr`. A preset name ending in `.json` saves as JSON.
+
 - **Track page:** hold soft key `Mod n` to load a module into slot n; a short press opens the module's own editor. Down opens the routing view.
+
 - **From scratch:** load `empty.json`, load modules, wire them in the routing view, then save under a new name.
 
 ## Routing model
 
 A track's routing is a gain matrix. Rows are source jacks, columns are destination jacks. Each destination input receives:
 
-```
+```text
 input[j] = sum over sources i of (gain[i][j] * source[i]) + dc[j]
 ```
 
 - **A connection is a nonzero gain.** Gain 0 means no connection.
+
 - **The preset records the signal, not the editing state.** A wire set to gain 0 and a wire never made both save as 0, and both reload as no wire. rack does not store muted connections.
+
 - **`dc` is a constant added to an input,** one value per destination jack. It needs at least one wire into that jack.
+
 - **Gain may be negative** in a preset, which inverts the source. Gain is not normalised and has no upper limit. 1 passes the source unchanged.
+
 - **Gain applies to every wire,** including wires from the track input (`in`) and to the track output (`out`). The track level on the mixer page applies after `out`.
 
 Internally the engine keeps a list of wires, each with its own gain and offset. That is an implementation detail. A save collapses it to the matrix above: repeated wires between the same jacks sum into one cell, and the offsets into a jack sum into its `dc`.
@@ -33,8 +39,11 @@ Internally the engine keeps a list of wires, each with its own gain and offset. 
 On the track page, short Down opens the routing view; Up returns.
 
 - **Grid:** one cell per module pair. Rows are sources (`from`), columns destinations (`to`), headed by module name. Empty slots have no jacks and are left out, so load modules before wiring them. A cell shows how many wires connect the pair. Green wires run in order; orange wires read the previous block (a feedback loop); red wires connect a module to itself and carry nothing.
+
 - **Jack matrix,** beside the grid: the selected module pair's jacks. Rows are the source's outputs, columns the destination's inputs. A filled cell is a wire; its brightness is its gain, also printed in the cell when it fits. The yellow frame is the jack cursor.
+
 - **Wire list:** on the SSP's full 1600 px screen, a third column lists every wire on the track, as `omod Main -> drum HH1 Trig  x1.00`. The selected pair's wires are white, the cursor's wire yellow.
+
 - **Badges:** a grey number names the encoder that moves each cursor. The status line under the jack matrix shows the cursor's jacks and its gain and offset, as `Main -> HH1 Trig`, `x1.00 +0.00`.
 
 | Control | `Level` off | `Level` on |
