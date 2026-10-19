@@ -13,7 +13,7 @@ ROOT = release.ROOT
 def test_finds_every_plugin_with_its_version():
     plugins = {p.product: p for p in release.find_plugins(ROOT)}
     assert set(plugins) == {"bard", "chrs", "chuk", "csnd", "edrm", "fstr", "gltc", "strc", "rack", "rdio", "sfct",
-                            "scsy", "ttyp", "dexd", "sapf", "alda", "fsyn", "ezep"}
+                            "scsy", "ttyp", "dexd", "sapf", "alda", "fsyn", "brks"}
     assert all(p.version and p.description for p in plugins.values())
 
 

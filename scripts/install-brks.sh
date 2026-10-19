@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# copy _core's EZEPTOCORE default banks (96 samples in 6 banks, from the release its sample manager downloads)
-# to the SSP's SD card, mounted locally, as BOOT/ezep/default, which a new ezep loads. Only the card files
+# copy _core's default sample banks (96 samples in 6 banks, from the release its sample manager downloads)
+# to the SSP's SD card, mounted locally, as BOOT/brks/default, which a new brks loads. Only the card files
 # are copied: bank1-bank6, settings/ and the collection's README. The editor project (.core-manager) is not.
 #
 # The ZIP (127 MB) is cached in build/deps/src and checked against the SHA-256 _core's sample manager pins
@@ -8,11 +8,11 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PLUGINS="${SSP_PLUGINS:-/media/$USER/BOOT/plugins}"
-DEST="$(dirname "$PLUGINS")/ezep/default"
+DEST="$(dirname "$PLUGINS")/brks/default"
 URL=https://github.com/schollz/_core/releases/download/default-samples/1-ezeptocore-default-banks.zip
 SHA=1f45e8cb7049dd4dc27e1e6f2df247ab254a71f03e604f6549b577de5fb8fc30
 ZIP="$ROOT/build/deps/src/1-ezeptocore-default-banks.zip"
-MARK=.ezep-default  # marks a folder this script wrote, so it may replace it
+MARK=.brks-default  # marks a folder this script wrote, so it may replace it
 
 sha256() { if command -v sha256sum >/dev/null; then sha256sum "$1"; else shasum -a 256 "$1"; fi | cut -d' ' -f1; }
 

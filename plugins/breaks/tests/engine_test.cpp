@@ -1,7 +1,7 @@
-// Native test of ezep::EzepEngine; built and run by test_ezeptocore.py and run_on_ssp.sh.
+// Native test of brks::BreaksEngine; built and run by test_breaks.py and run_on_ssp.sh.
 //
 //   engine_test golden        the generated firmware's output against the x86 build's
-//   engine_test CARD          the tests, with CARD a card folder of two banks (test_ezeptocore.py makes one)
+//   engine_test CARD          the tests, with CARD a card folder of three banks (test_breaks.py makes one)
 //   engine_test bench CARD    render cost per 48 kHz block, playing CARD's first bank
 
 #include <algorithm>
@@ -13,8 +13,8 @@
 #include <thread>
 #include <vector>
 
-#include "EzepEngine.h"
-extern "C" uint64_t ezep_golden(void);  // golden.c
+#include "BreaksEngine.h"
+extern "C" uint64_t brks_golden(void);  // golden.c
 
 static int failures = 0;
 #define CHECK(cond)                                                                \
@@ -25,8 +25,8 @@ static int failures = 0;
         }                                                                          \
     } while (0)
 
-using namespace ezep;
-using E = EzepEngine;
+using namespace brks;
+using E = BreaksEngine;
 
 static constexpr float SR = 48000.0f;
 static std::string card;
@@ -76,6 +76,13 @@ struct Rig {
         std::fill(in[size_t(i)].begin(), in[size_t(i)].end(), 0.0f);
         run(after);
     }
+    // a gate held `seconds` on input `i`, then `after` seconds
+    void gate(int i, float seconds, float after = 0.3f) {
+        std::fill(in[size_t(i)].begin(), in[size_t(i)].end(), 1.0f);
+        run(seconds);
+        std::fill(in[size_t(i)].begin(), in[size_t(i)].end(), 0.0f);
+        run(after);
+    }
     bool waitLoaded(float seconds = 10.0f) {
         for (int i = 0; i < int(seconds * 100); i++) {
             run(0.01f);
@@ -91,7 +98,7 @@ struct Rig {
 static constexpr uint64_t GOLDEN = 0x6ac7a5920f5cc629ULL;
 
 static void testGolden() {
-    uint64_t h = ezep_golden();
+    uint64_t h = brks_golden();
     std::printf("golden %016llx\n", (unsigned long long)h);
     CHECK(h == GOLDEN);
 }
@@ -102,7 +109,7 @@ static void testSilentWithoutCard() {
     CHECK(r.run(0.5f, 0.1f, &finite) == 0.0f);
     CHECK(finite);
     CHECK(!r.e.status().loaded);
-    r.e.load("/nonexistent/ezep");
+    r.e.load("/nonexistent/brks");
     CHECK(r.e.message().find("no card folder") == 0);
     CHECK(r.e.folder().empty());
 }
@@ -140,6 +147,58 @@ static void testBankTrigger() {
     r.trigger(E::I_BANK, 3.0f);  // 2.7 ms: the press is stretched; the bank changes at the 2 s loop's end
     CHECK(r.e.status().bank == 1);
     CHECK(r.run(1.0f, 0.3f) > 0.02f);  // the new bank plays
+    // the firmware's Bank tap counts only if released within 200 ms; the gate's edge is the step
+    r.gate(E::I_BANK, 0.5f, 3.0f);
+    CHECK(r.e.status().bank == 2);
+}
+
+// Left and Right: steps add up before the loop's end, wrap, and a step back cancels
+static void testStepBank() {
+    Rig r;
+    r.e.load(card);
+    CHECK(r.waitLoaded());
+    r.run(0.5f);
+    r.e.stepBank(1);
+    r.run(0.1f);
+    r.e.stepBank(1);
+    r.run(3.0f);
+    CHECK(r.e.status().bank == 2);
+    r.e.stepBank(1);  // past the last: the first
+    r.run(3.0f);
+    CHECK(r.e.status().bank == 0);
+    r.e.stepBank(-1);  // before the first: the last
+    r.run(3.0f);
+    CHECK(r.e.status().bank == 2);
+    r.e.stepBank(-1);
+    r.run(0.1f);
+    r.e.stepBank(1);
+    r.run(3.0f);
+    CHECK(r.e.status().bank == 2);
+    CHECK(r.run(1.0f, 0.3f) > 0.02f);
+}
+
+// Clock sets Clock Out's division; in 4 is Mult's tap, one step faster however long its gate
+static void testClock() {
+    Rig r;
+    r.e.load(card);
+    CHECK(r.waitLoaded());
+    r.e.panel.division = 0;
+    r.run(0.5f);
+    r.clockEdges = 0;
+    r.run(2.0f);
+    int fast = r.clockEdges;
+    r.e.panel.division = 3;
+    r.run(0.5f);
+    r.clockEdges = 0;
+    r.run(2.0f);
+    int beat = r.clockEdges;
+    CHECK(r.e.status().division == 3);
+    CHECK(beat > 0 && fast >= 6 * beat);  // 8 per beat against 1
+    r.gate(E::I_MULT, 1.5f);  // a hold would divide after 1 s
+    CHECK(r.e.status().division == 2);
+    r.e.panel.division = 5;
+    r.run(0.1f);
+    CHECK(r.e.status().division == 5);
 }
 
 static void testPlayToggles() {
@@ -175,16 +234,41 @@ static void testVolumeWithoutTapTempo() {
     CHECK(r.e.status().tempo == tempo);
 }
 
+// 2 PPQN at 150 BPM on In 1 for `seconds`: a 5 ms pulse every 0.2 s
+static void clock150(Rig& r, float seconds) {
+    int period = int(0.2f * SR), width = int(0.005f * SR), t = 0;
+    for (int b = 0; b < int(seconds * SR) / r.block; b++) {
+        for (int i = 0; i < r.block; i++, t++) r.in[E::I_CLOCK][size_t(i)] = (t % period) < width ? 1.0f : 0.0f;
+        r.run(float(r.block) / SR);
+    }
+}
+
 static void testExternalClock() {
     Rig r;
     r.e.load(card);
     CHECK(r.waitLoaded());
-    // 2 PPQN at 150 BPM: a 5 ms pulse every 0.2 s
-    int period = int(0.2f * SR), width = int(0.005f * SR), t = 0;
-    for (int b = 0; b < int(4.0f * SR) / r.block; b++) {
-        for (int i = 0; i < r.block; i++, t++) r.in[E::I_CLOCK][size_t(i)] = (t % period) < width ? 1.0f : 0.0f;
-        r.run(float(r.block) / SR);
-    }
+    clock150(r, 4.0f);
+    unsigned tempo = r.e.status().tempo;
+    CHECK(tempo >= 147 && tempo <= 153);
+}
+
+// Tempo sets the tempo when it changes, as Tap does; with a clock at In 1, the clock's stays
+static void testTempo() {
+    Rig r;
+    r.e.load(card);
+    CHECK(r.waitLoaded());
+    r.run(0.5f);
+    CHECK(r.e.status().tempo == 170);  // the card's: Tempo's default (120) is not applied
+    r.e.panel.tempo = 90;
+    r.run(0.1f);
+    CHECK(r.e.status().tempo == 90);
+    int edges = r.clockEdges;
+    r.run(4.0f);
+    edges = r.clockEdges - edges;
+    CHECK(edges >= 11 && edges <= 13);  // 2 pulses a beat at 90 BPM: 12 in 4 s
+    clock150(r, 4.0f);
+    r.e.panel.tempo = 60;
+    clock150(r, 1.0f);
     unsigned tempo = r.e.status().tempo;
     CHECK(tempo >= 147 && tempo <= 153);
 }
@@ -194,14 +278,13 @@ static void testRestore() {
     Saved s;
     s.tempo = 150;
     s.bank = 1;
-    s.division = 4;
     s.triggerMode = 2;
     r.e.restore(s);
     r.e.load(card, s.bank);
     CHECK(r.waitLoaded());
     r.run(0.1f);
     Saved got = r.e.saved();
-    CHECK(got.tempo == 150 && got.bank == 1 && got.division == 4 && got.triggerMode == 2);
+    CHECK(got.tempo == 150 && got.bank == 1 && got.triggerMode == 2);
     // restored playing: the first Play stops
     r.run(1.0f);
     r.trigger(E::I_PLAY, 0.5f);
@@ -268,9 +351,12 @@ int main(int argc, char** argv) {
         testResolve();
         testPlays();
         testBankTrigger();
+        testStepBank();
+        testClock();
         testPlayToggles();
         testVolumeWithoutTapTempo();
         testExternalClock();
+        testTempo();
         testRestore();
         testBlockSizesAndRates();
     }

@@ -50,7 +50,7 @@ USER_DATA = {
 LICENSES = {"gltc": "GPL-3.0", "sfct": "GPL-3.0, for softcut", "scsy": "GPL-3.0, for SuperCollider",
             "ttyp": "GPL-3.0, for monome teletype", "dexd": "GPL-3.0, for Dexed", "sapf": "GPL-3.0, for sapf",
             "alda": "GPL-3.0, for psnd's Alda",
-            "ezep": "GPL-3.0-only, for _core's EZEPTOCORE firmware",
+            "brks": "GPL-3.0-only, for Zack Scholl's _core firmware",
             "fsyn": "AGPL-3.0, with FluidSynth (LGPL-2.1-or-later), and its `FluidR3_GM.sf2` is MIT"}
 
 SK_ENGINES = "https://github.com/shakfu/sk-engines"

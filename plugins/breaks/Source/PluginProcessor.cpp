@@ -3,7 +3,7 @@
 #include "PluginEditor.h"
 #include "ssp/EditorHost.h"
 
-using ezep::Panel;
+using brks::Panel;
 
 static float value(const RangedAudioParameter& p) {
     return p.convertFrom0to1(p.getValue());
@@ -11,16 +11,18 @@ static float value(const RangedAudioParameter& p) {
 
 // in Panel's K_ and B_ order
 static const char* const KNOB_IDS[Panel::K_MAX] = { "break", "grimoire", "amen", "random", "sample" };
-static const char* const BUTTON_IDS[Panel::B_MAX] = { "mode", "mult", "bank", "tap" };
 
 PluginProcessor::PluginProcessor()
-    : EngineProcessor(getBusesProperties(), createParameterLayout(), std::make_unique<ezep::EzepEngine>()),
+    : EngineProcessor(getBusesProperties(), createParameterLayout(), std::make_unique<brks::BreaksEngine>()),
       volume_(*vts().getParameter("volume")),
       filter_(*vts().getParameter("filter")),
       gating_(*vts().getParameter("gating")),
+      tempo_(*vts().getParameter("tempo")),
+      clockOut_(*vts().getParameter("clock_out")),
+      mode_(*vts().getParameter("mode")),
+      tap_(*vts().getParameter("tap")),
       play_(*vts().getParameter("play")) {
     for (int k = 0; k < Panel::K_MAX; k++) knobs_[k] = vts().getParameter(KNOB_IDS[k]);
-    for (int b = 0; b < Panel::B_MAX; b++) buttons_[b] = vts().getParameter(BUTTON_IDS[b]);
     init();
     if (File(DEFAULT_CARD).isDirectory()) loadCard(DEFAULT_CARD);
 }
@@ -34,10 +36,11 @@ AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLa
     params.add(std::make_unique<ssp::BaseFloatParameter>("volume", "Volume", 0.0f, 1.0f, d.volume));
     params.add(std::make_unique<ssp::BaseFloatParameter>("filter", "Filter", 0.0f, 1.0f, d.filter));
     params.add(std::make_unique<ssp::BaseFloatParameter>("gating", "Gating", 0.0f, 1.0f, d.gating));
-    const char* buttons[Panel::B_MAX] = { "Mode", "Mult", "Bank", "Tap" };
-    for (int b = 0; b < Panel::B_MAX; b++)
-        params.add(std::make_unique<ssp::BaseFloatParameter>(BUTTON_IDS[b], buttons[b], 0.0f, 1.0f, 0.0f, 1.0f));
-    params.add(std::make_unique<ssp::BaseFloatParameter>("play", "Play", 0.0f, 1.0f, 0.0f, 1.0f));
+    params.add(std::make_unique<ssp::BaseFloatParameter>("tempo", "Tempo", 30.0f, 300.0f, d.tempo, 1.0f));
+    params.add(
+        std::make_unique<ssp::BaseChoiceParameter>("clock_out", "Clock Out", StringArray(CLOCK_NAMES, 7), d.division));
+    for (auto [id, name] : { std::pair{ "mode", "Mode" }, { "tap", "Tap" }, { "play", "Play" } })
+        params.add(std::make_unique<ssp::BaseFloatParameter>(id, name, 0.0f, 1.0f, 0.0f, 1.0f));
     return params;
 }
 
@@ -53,55 +56,56 @@ PluginProcessor::BusesProperties PluginProcessor::getBusesProperties() {
 
 // audio thread, before each Engine::process: parameters and patched CV to the engine
 void PluginProcessor::control(const float* const*, int) {
-    auto& p = ezep().panel;
+    auto& p = brks().panel;
     for (int k = 0; k < Panel::K_MAX; k++) p.knobs[k] = value(*knobs_[k]);
     p.volume = value(volume_);
     p.filter = value(filter_);
     p.gating = value(gating_);
-    for (int b = 0; b < Panel::B_MAX; b++) p.buttons[b] = value(*buttons_[b]) > 0.5f;
+    p.division = uint8_t(std::lround(value(clockOut_)));
+    p.tempo = uint16_t(std::lround(value(tempo_)));
+    p.buttons[Panel::B_MODE] = value(mode_) > 0.5f;
+    p.buttons[Panel::B_TAP] = value(tap_) > 0.5f;
     p.play = value(play_) > 0.5f;
-    for (int c = 0; c < 3; c++) ezep().cvPatched[c] = isInputEnabled(unsigned(ezep::EzepEngine::I_AMEN + c));
+    for (int c = 0; c < 3; c++) brks().cvPatched[c] = isInputEnabled(unsigned(brks::BreaksEngine::I_AMEN + c));
 }
 
 void PluginProcessor::loadCard(const String& path) {
-    ezep().load(path.toStdString());
+    brks().load(path.toStdString());
 }
 
 void PluginProcessor::customToXml(XmlElement* xml) {
-    auto s = ezep().saved();
-    xml->setAttribute("card", String(ezep().folder()));
+    auto s = brks().saved();
+    xml->setAttribute("card", String(brks().folder()));
     xml->setAttribute("tempo", int(s.tempo));
     xml->setAttribute("playing_bank", int(s.bank));
-    xml->setAttribute("division", int(s.division));
     xml->setAttribute("trigger_mode", int(s.triggerMode));
 }
 
 void PluginProcessor::customFromXml(XmlElement* xml) {
-    ezep::Saved d, s;
+    brks::Saved d, s;
     s.tempo = uint16_t(jlimit(30, 300, xml->getIntAttribute("tempo", d.tempo)));
     s.bank = uint8_t(jlimit(0, 15, xml->getIntAttribute("playing_bank", d.bank)));
-    s.division = uint8_t(jlimit(0, 6, xml->getIntAttribute("division", d.division)));
     s.triggerMode = uint8_t(jlimit(0, 3, xml->getIntAttribute("trigger_mode", d.triggerMode)));
     String card = xml->getStringAttribute("card");
     if (card.isEmpty()) return;
-    ezep().restore(s);
-    ezep().load(card.toStdString(), s.bank);
+    brks().restore(s);
+    brks().load(card.toStdString(), s.bank);
 }
 
 std::vector<ssp::engine::ParamPage> PluginProcessor::pages() {
     using C = ssp::engine::ParamPage::Control;
     auto k = [this](int i) { return C{ knobs_[i], 0.05f, 0.01f }; };
     return { { "play", Colours::gold,
-               { k(Panel::K_BREAK), k(Panel::K_AMEN), k(Panel::K_SAMPLE), k(Panel::K_RANDOM) } },
-             { "tap", Colours::orange,
-               { k(Panel::K_GRIMOIRE), C{ &volume_, 0.05f, 0.01f }, C{ &filter_, 0.05f, 0.01f },
-                 C{ &gating_, 0.05f, 0.01f } } } };
+               { k(Panel::K_BREAK), k(Panel::K_GRIMOIRE), k(Panel::K_AMEN), k(Panel::K_RANDOM) } },
+             { "sound", Colours::orange,
+               { k(Panel::K_SAMPLE), C{ &volume_, 0.05f, 0.01f }, C{ &filter_, 0.05f, 0.01f },
+                 C{ &gating_, 0.05f, 0.01f } } },
+             { "clock", Colours::cyan, { C{ &tempo_, 5.0f, 1.0f }, C{ &clockOut_, 1.0f, 1.0f } } } };
 }
 
-// soft keys 1-4 and 6; 5 is Load
+// soft keys 1-3; 5 is Load. Left and Right step the bank (PluginEditor).
 std::vector<RangedAudioParameter*> PluginProcessor::buttons() {
-    return { buttons_[Panel::B_TAP], buttons_[Panel::B_MODE], buttons_[Panel::B_MULT], buttons_[Panel::B_BANK],
-             nullptr, &play_, nullptr, nullptr };
+    return { &tap_, &mode_, &play_, nullptr, nullptr, nullptr, nullptr, nullptr };
 }
 
 AudioProcessorEditor* PluginProcessor::createEditor() {

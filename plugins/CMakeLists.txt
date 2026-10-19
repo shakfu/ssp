@@ -56,7 +56,7 @@ else ()
     message(STATUS "skipping alda: run `make deps`")
 endif ()
 
-# ezeptocore: _core at the commit scripts/fetch_core.sh pins, with its engine generated for this target
+# breaks: _core at the commit scripts/fetch_core.sh pins, with its engine generated for this target
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/fetch_core.sh" CORE_REF_LINE REGEX "^CORE_REF=")
 string(REGEX REPLACE "^CORE_REF=([0-9a-f]+).*" "\\1" CORE_REF "${CORE_REF_LINE}")
 set(CORE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../build/deps/src/core-${CORE_REF}")
@@ -66,9 +66,9 @@ else ()
     set(CORE_TARGET host)
 endif ()
 if (EXISTS "${CORE_DIR}/gen/${CORE_TARGET}/engine.c")
-    add_subdirectory(ezeptocore)
+    add_subdirectory(breaks)
 else ()
-    message(STATUS "skipping ezeptocore: run `make deps`")
+    message(STATUS "skipping breaks: run `make deps`")
 endif ()
 
 # fsyn: FluidSynth, which `make deps` builds (scripts/build_fluidsynth.sh)

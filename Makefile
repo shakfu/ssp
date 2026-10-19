@@ -17,7 +17,7 @@ BUILDROOT_DEP := $(BUILDROOT_DIR)
 endif
 
 .DEFAULT_GOAL := ssp
-.PHONY: ssp configure buildroot deps faust-kernels scsy-builtin release release-pdf release-notes publish clean-releases deploy deploy-mod install install-faust install-scsy install-sapf install-fsyn install-ezep install-presets midisend test clean help
+.PHONY: ssp configure buildroot deps faust-kernels scsy-builtin release release-pdf release-notes publish clean-releases deploy deploy-mod install install-faust install-scsy install-sapf install-fsyn install-brks install-presets midisend test clean help
 
 help:
 	@echo "make [ssp]              download buildroot if needed, configure, build all plugins"
@@ -38,7 +38,7 @@ help:
 	@echo "make install-scsy       copy the UGen plugins and scsy examples to the card"
 	@echo "make install-sapf       copy sapf's prelude and examples to the card"
 	@echo "make install-fsyn       copy fsyn's soundfont, FluidR3_GM.sf2, to the card"
-	@echo "make install-ezep       download _core's EZEPTOCORE sample banks, copy them to the card as ezep's default"
+	@echo "make install-brks       download _core's default sample banks, copy them to the card as brks's default"
 	@echo "make midisend           build tools/midisend, copy it to SSP_HOST's /tmp and start it: a MIDI input for tests"
 	@echo "make install-presets     check, then copy presets/ (or PRESETS=dir) to the card (SSP_PRESETS)"
 	@echo "make test               run the py2rack and plugin tests"
@@ -127,8 +127,8 @@ install-sapf:
 install-fsyn:
 	scripts/install-fsyn.sh
 
-install-ezep:
-	scripts/install-ezep.sh
+install-brks:
+	scripts/install-brks.sh
 
 # a MIDI input on the SSP that plays MIDI messages written to /tmp/midisend over ssh; /tmp is RAM, so a
 # reboot removes it

@@ -53,7 +53,7 @@ def plugins():
 # source folder -> product name; Synthor lists only names of up to four characters
 PRODUCTS = {"radio": "rdio", "csound": "csnd", "chuck": "chuk", "edrums": "edrm", "pstretch": "strc", "bard": "bard",
             "glitch": "gltc", "chorus": "chrs", "faust": "fstr", "scsynth": "scsy", "teletype": "ttyp",
-            "dexed": "dexd", "alda": "alda", "fsyn": "fsyn", "ezeptocore": "ezep"}
+            "dexed": "dexd", "alda": "alda", "fsyn": "fsyn", "breaks": "brks"}
 # examples/: built and tested on the host, never shipped, so not in the manifest
 EXAMPLES = {"svca": "svca", "tremolo": "trem"}
 
@@ -604,8 +604,8 @@ def test_fsyn(plugins, tmp_path):
     assert f'soundfont="{font}"' in state
 
 
-def test_ezeptocore(plugins, tmp_path):
-    r = subprocess.run([plugins, so("ezeptocore"), "channels"], capture_output=True, text=True, timeout=60)
+def test_breaks(plugins, tmp_path):
+    r = subprocess.run([plugins, so("breaks"), "channels"], capture_output=True, text=True, timeout=60)
     assert r.stdout.split("\n")[:16] == ["io 11 4", "input Clock", "input Tap", "input Mode", "input Mult",
                                           "input Bank", "input Play", "input Unused 7", "input Unused 8",
                                           "input Amen CV", "input Break CV", "input Sample CV", "output Out L",
@@ -618,13 +618,13 @@ def test_ezeptocore(plugins, tmp_path):
     for bank in (1, 2):
         fixtures.sample(card, bank, 0, seconds=2)
     # Load picks a file in a bank: the card plays, and the preset keeps the card and bank 2
-    levels, state = run(plugins, "ezeptocore", "prepare", 48000, 128, "set", "card", card / "bank2" / "0.0.wav",
+    levels, state = run(plugins, "breaks", "prepare", 48000, 128, "set", "card", card / "bank2" / "0.0.wav",
                         "set", "playing_bank", 1, "wait", 1.0, "run", 1.0, 128, "level", 0, "level", 1, "level", 3,
                         "render", tmp_path / "e.bgra", "state")
     assert levels[0][0] > 0.01 and levels[1][0] > 0.01
     assert f'card="{card}"' in state and 'playing_bank="1"' in state
     # a trigger at Play stops it, once the start is done (the firmware ignores it while a restart is pending)
-    levels, _ = run(plugins, "ezeptocore", "prepare", 48000, 128, "set", "card", card, "wait", 1.0, "run", 2.0, 128,
+    levels, _ = run(plugins, "breaks", "prepare", 48000, 128, "set", "card", card, "wait", 1.0, "run", 2.0, 128,
                     "in", 5, 1, "run", 0.01, 128, "in", 5, 0, "run", 1.0, 128, "level", 0)
     assert levels[0][0] < 1e-4
 

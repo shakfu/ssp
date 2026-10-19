@@ -1,6 +1,6 @@
 #pragma once
 
-#include "EzepEngine.h"
+#include "BreaksEngine.h"
 #include "engine/EngineEditor.h"
 #include "engine/EngineProcessor.h"
 
@@ -9,8 +9,11 @@ using namespace juce;
 // SSPApi.h requires the class name PluginProcessor
 class PluginProcessor : public ssp::engine::EngineProcessor {
 public:
-    static constexpr const char* CARD_DIR = "/media/BOOT/ezep";               // where Load opens
-    static constexpr const char* DEFAULT_CARD = "/media/BOOT/ezep/default";  // a new instance's
+    static constexpr const char* CARD_DIR = "/media/BOOT/brks";               // where Load opens
+    static constexpr const char* DEFAULT_CARD = "/media/BOOT/brks/default";  // a new instance's
+    // Clock Out's choices, in the firmware's division order
+    static constexpr const char* CLOCK_NAMES[7] = { "8/beat", "4/beat", "2/beat", "1/beat", "1/2 beats", "1/bar",
+                                                    "1/2 bars" };
 
     PluginProcessor();
 
@@ -23,7 +26,8 @@ public:
     std::vector<ssp::engine::ParamPage> pages();
     std::vector<RangedAudioParameter*> buttons();
 
-    ezep::EzepEngine& ezep() { return static_cast<ezep::EzepEngine&>(engine()); }
+    brks::BreaksEngine& brks() { return static_cast<brks::BreaksEngine&>(engine()); }
+    RangedAudioParameter& tempo() { return tempo_; }
 
 protected:
     void control(const float* const* in, int n) override;
@@ -33,11 +37,14 @@ protected:
 private:
     static AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
-    RangedAudioParameter* knobs_[ezep::Panel::K_MAX];
+    RangedAudioParameter* knobs_[brks::Panel::K_MAX];
     RangedAudioParameter& volume_;
     RangedAudioParameter& filter_;
     RangedAudioParameter& gating_;
-    RangedAudioParameter* buttons_[ezep::Panel::B_MAX];
+    RangedAudioParameter& tempo_;
+    RangedAudioParameter& clockOut_;
+    RangedAudioParameter& mode_;
+    RangedAudioParameter& tap_;
     RangedAudioParameter& play_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)

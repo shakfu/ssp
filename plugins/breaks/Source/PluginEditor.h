@@ -13,7 +13,11 @@ protected:
     void drawStatus(Graphics& g, Rectangle<int> area) override;
     void loaded(const String& file, const String& dir) override;
     String browseFrom() override;
+    void step(int dir) override;  // Left and Right: the previous and next bank
+    void onSSPTimer() override;
 
 private:
     PluginProcessor& processor_;
+    float tempoSeen_ = 0, tempoSet_ = 0;  // Tempo's value at the last tick, and the last one written here
+    uint32_t tempoTurned_ = 0;           // ms
 };

@@ -2,7 +2,7 @@
 // fixture is.
 #include "engine_fixture.h"
 
-uint64_t ezep_golden(void) {
+uint64_t brks_golden(void) {
     CoreEngine *e = create(901);
     uint64_t h = 1469598103934665603ULL;
     for (unsigned f = 0; f < 3000u * CORE_BLOCK; f++) {

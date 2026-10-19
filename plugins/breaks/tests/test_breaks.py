@@ -32,9 +32,15 @@ def card(core, tmp_path_factory):
     fixtures = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(fixtures)
     root = tmp_path_factory.mktemp("cards") / "card"
-    for bank in (1, 2):
+    for bank in (1, 2, 3):
         for slot in range(3):
             fixtures.sample(root, bank, slot, seconds=2)
+    # 170 BPM, not the writer's 120: Tempo's default of 120 must not replace the card's tempo
+    for info in root.glob("bank*/*.info"):
+        b = bytearray(info.read_bytes())
+        flags = int.from_bytes(b[4:8], "little")
+        b[4:8] = (flags & ~0x1FF | 170).to_bytes(4, "little")
+        info.write_bytes(bytes(b))
     return root
 
 
@@ -49,7 +55,7 @@ def build(core, out, name, *flags):
     exe = out / name
     subprocess.run(["clang++", "-std=c++17", "-Wall", "-pthread", *flags, f"-I{SRC}", f"-I{ROOT / 'plugins' / 'common'}",
                     f"-I{core / 'rack' / 'src'}", f"-I{core / 'lib' / 'core_engine'}", HERE / "engine_test.cpp",
-                    SRC / "EzepEngine.cpp", core / "rack" / "src" / "Storage.cpp", *objs, "-lm", "-o", exe],
+                    SRC / "BreaksEngine.cpp", core / "rack" / "src" / "Storage.cpp", *objs, "-lm", "-o", exe],
                    check=True)
     return exe
 
