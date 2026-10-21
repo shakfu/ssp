@@ -163,6 +163,12 @@ static void testFormats() {
     ResumeTable u;
     u.parse(buf.data());
     CHECK(u.count == 3 && u.get("0/my book.wav", f) && f == 1234);
+
+    // a key past kKeyMax - 1 characters is stored truncated, and still found: one entry, not one per save
+    std::string longKey = "2/" + std::string(300, 'y') + ".wav";
+    u.set(longKey.c_str(), 5);
+    u.set(longKey.c_str(), 6);
+    CHECK(u.count == 4 && u.get(longKey.c_str(), f) && f == 6);
 }
 
 // root/0/a.wav (30 s, 440 Hz) with a sidecar, root/0/b.wav (20 s, no sidecar), root/1/c.wav (5 s, 220 Hz)

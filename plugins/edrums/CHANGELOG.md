@@ -4,6 +4,10 @@ edrums follows [semantic versioning](https://semver.org). Until 1.0.0, a minor v
 
 The version is set in `CMakeLists.txt` (`project(EDRUMS VERSION ...)`) and shown at the top right of the screen.
 
+## [Unreleased]
+
+- The step rows start 60 px closer to the track names. With 16 steps they ended at x=1574, under Synthor's menu letters at the right edge; they now end at x=1514.
+
 ## [0.2.0] - 2026-10-08
 
 Each track has a trigger output, a Voice switch to send only the trigger, and a Swing of 50% to 75% on its own steps. Rate replaces Div: `/8` to `/2` divides the clock as Div did, and `x2` to `x8` multiplies it over the measured clock period. A 0.1.0 preset restores every track at `x1`.

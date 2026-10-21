@@ -48,7 +48,7 @@ bool Track::requestClearTrack() {
         for (int midx = 0; midx < M_MAX; midx++) {
             if (midx == M_IN || midx == M_OUT) continue;
             auto& m = modules_[midx];
-            while (!m.lock_.test_and_set()) {};
+            while (m.lock_.test_and_set()) {}
             clearModuleConnections(midx);
             modules_[midx].free();
             m.lock_.clear();
@@ -114,6 +114,7 @@ bool Track::requestMatrixGain(const Matrix::Jack& src, const Matrix::Jack& dest,
 
 
 void Track::connectLocked(const Matrix::Jack& src, const Matrix::Jack& dest, float gain, float offset) {
+    if (src.modIdx_ >= M_MAX || dest.modIdx_ >= M_MAX) return;  // Synthor patches and binary presets are not validated
     int srcCount = 0;
     int destCount = 0;
     for (auto& w : matrix_.connections_) {
@@ -135,6 +136,7 @@ void Track::connectLocked(const Matrix::Jack& src, const Matrix::Jack& dest, flo
 
 
 void Track::disconnectLocked(const Matrix::Jack& src, const Matrix::Jack& dest) {
+    if (src.modIdx_ >= M_MAX || dest.modIdx_ >= M_MAX) return;
     int srcCount = 0;
     int destCount = 0;
     for (auto& w : matrix_.connections_) {
@@ -239,6 +241,8 @@ void Track::process(juce::AudioSampleBuffer& ioBuffer) {
             ioBuffer.applyGain(0.0f);
         }
         lock_.clear();
+    } else {
+        ioBuffer.applyGain(0.0f);  // ioBuffer still holds the track input; do not pass it through
     }
 }
 
@@ -284,8 +288,8 @@ void Track::getStateInformation(juce::XmlElement& outStream) {
             xmlModule->setAttribute("pluginName", "");
             xmlModule->setAttribute("dataSz", (int)0);
         } else {
-            void* data;
-            size_t dataSz;
+            void* data = nullptr;
+            size_t dataSz = 0;
             plugin->getState(&data, &dataSz);
             xmlModule->setAttribute("pluginName", m.pluginName_.c_str());
             xmlModule->setAttribute("dataSz", (int)dataSz);
@@ -298,6 +302,7 @@ void Track::getStateInformation(juce::XmlElement& outStream) {
                     xmlModule->addChildElement(xmlPlugData.release());
                 }
             }
+            delete[] (char*)data;
         }
 
         xmlModules->addChildElement(xmlModule.release());

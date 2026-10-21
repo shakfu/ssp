@@ -27,7 +27,7 @@ Changing Voice (or a program change to another voice), Voices, Engine or Mono cu
 
 ## Cartridges
 
-Load (button 5) picks a `.syx` file: a 32-voice bulk dump of 4104 bytes, alone or inside a longer sysex file, or its 4096 bytes of data. A dump whose checksum fails still loads, as in Dexed; the status panel says so. Each value is clamped to its DX7 range.
+Load (button 5) picks a `.syx` file: a 32-voice bulk dump of 4104 bytes, alone or inside a longer sysex file, or its 4096 bytes of data. A dump whose checksum fails still loads, as in Dexed; the status panel says so. A file over 64 KB is refused. Each value is clamped to its DX7 range.
 
 With no cartridge, every voice is Dexed's init voice: a sine. None ship with `dexd`. The DX7 factory banks are `Original Yamaha/DX7 ROM1` to `ROM4` in [Yamaha-DX7-patch-library](https://github.com/visualizersdotnl/Yamaha-DX7-patch-library); copy the `.syx` files to `BOOT/dexed`.
 

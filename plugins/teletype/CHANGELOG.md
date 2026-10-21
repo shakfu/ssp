@@ -2,6 +2,10 @@
 
 ttyp follows [semantic versioning](https://semver.org). The version is set in `CMakeLists.txt` (`project(TELETYPE VERSION ...)`).
 
+## [Unreleased]
+
+- An empty audio block read the sample before the input buffer.
+
 ## [0.1.0] - 2026-10-13
 
 First release: monome teletype 5 (`e390bac`) on the SSP, typed into from a USB keyboard through a USB 2.0 hub, or over ssh from a computer. Eight trigger inputs, In, four TR and four CV outputs, PARAM on an encoder, and a range per CV output and for In for the SSP's +/-5 V. The status panel shows the inputs, patched or not, and the outputs. Presets save all 32 scenes. GPL-3.0; see [NOTICE.md](NOTICE.md). Start with [README-getting-started.md](README-getting-started.md).

@@ -11,13 +11,13 @@
 | `EngineEditor.*` | parameter pages, scrolled 6 rows at a time; page groups (a deck or track, then the globals) that a long Up, Down, Left or Right jumps between; status panel; file browser behind Load; up to 7 buttons (5 is Load); a compact view for rack | all |
 | `Dsp.h` | `softLimit` (DaisySP's) and a biquad section with infrasonic's coefficients | radio, edrums, pstretch, bard, glitch |
 | `Station.*`, `Stream.h` | WAV and `.raw` probing, folder scans in name order, a looping mono reader; a ring the worker fills and the audio thread drains | radio, pstretch, bard |
-| `ReloadGate.h` | lock-free handoff of an instance between the worker and audio threads | csound, chuck, faust, pstretch |
-| `ScriptEngine.*` | program loading, built-in fallback, controls `p1`..`p16` with the program's `@pN` labels and ranges (or the compiler's, through `declared()`), error text | csound, chuck, faust |
-| `ScriptProcessor.*` | eight in, eight out, `p1`..`p16`, the program path in the preset; editors that show only declared controls, rebuilt in `onSSPTimer` after a load | csound, chuck, faust |
+| `ReloadGate.h` | lock-free handoff of an instance between the worker and audio threads | csound, chuck, faust, pstretch, dexed, fsyn |
+| `ScriptEngine.*` | program loading, built-in fallback, controls `p1`..`p16` with the program's `@pN` labels and ranges (or the compiler's, through `declared()`), error text | csound, chuck, faust, scsynth, alda |
+| `ScriptProcessor.*` | eight in, eight out, `p1`..`p16`, the program path in the preset; editors that show only declared controls, rebuilt in `onSSPTimer` after a load | csound, chuck, faust, scsynth, alda |
 
-`FaustArch.h`, `FaustEngine.h` and `FaustProcessor.*` host a compiled Faust kernel, used by `chorus`. `faust` is a `ScriptEngine` over libfaust's interpreter. See [faust.md](faust.md).
+`FaustArch.h`, `FaustEngine.h` and `FaustProcessor.*` host a compiled Faust kernel, used by `chorus`. `faust` is a `ScriptEngine` over libfaust's LLVM JIT. See [faust.md](faust.md).
 
-A plugin is an `Engine` subclass plus a `PluginProcessor` that derives from `EngineProcessor` or `ScriptProcessor`. `SSPApi.h` requires that class name.
+A plugin is an `Engine` subclass plus a `PluginProcessor` that derives from `EngineProcessor`, `ScriptProcessor` or `FaustProcessor`. `SSPApi.h` requires that class name.
 
 ## Naming
 
@@ -37,7 +37,7 @@ Synthor scans every `.so` in `plugins/` but lists only some. Every listed plugin
 
 ## Libraries
 
-`scripts/build_deps.sh ssp|host` builds libsndfile, Csound and the ChucK core as static PIC archives into `build/deps/<target>`. libsndfile is built because the buildroot's `libsndfile.a` is not PIC. `plugins/CMakeLists.txt` adds csound and chuck only when their archive exists.
+`scripts/build_deps.sh ssp|host` builds libsndfile, Csound, the ChucK core, libfaust and libscsynth as static PIC archives into `build/deps/<target>`, and SC's UGens as `.so` files. libsndfile is built because the buildroot's `libsndfile.a` is not PIC. `plugins/CMakeLists.txt` adds csound, chuck, faust and scsynth only when their archive exists.
 
 ## Changes from sk-engines
 

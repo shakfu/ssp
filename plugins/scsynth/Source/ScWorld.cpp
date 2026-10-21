@@ -111,9 +111,11 @@ protected:
 std::mutex gLogLock;
 std::string gLog;
 constexpr size_t LOG_MAX = 8192;
+constexpr size_t LOG_LINE = 512;
 
+// also called on the audio thread (Poll): gLog's capacity is reserved, so appending does not allocate
 int logPrint(const char* fmt, va_list args) {
-    char line[512];
+    char line[LOG_LINE];
     int n = std::vsnprintf(line, sizeof line, fmt, args);
     std::lock_guard<std::mutex> lock(gLogLock);
     gLog += line;
@@ -232,7 +234,10 @@ bool ScWorld::open(float sampleRate, const std::string& pluginDir, std::string& 
         return false;
     }
     static std::once_flag printSet;
-    std::call_once(printSet, [] { SetPrintFunc(logPrint); });
+    std::call_once(printSet, [] {
+        gLog.reserve(LOG_MAX + LOG_LINE);
+        SetPrintFunc(logPrint);
+    });
 
     WorldOptions o;
     o.mPreferredSampleRate = uint32(sampleRate + 0.5f);

@@ -58,7 +58,7 @@ void BaseProcessor::releaseResources() {
     std::lock_guard<std::mutex> lock(midiDeviceChangeLock);
     if (midiInDevice_) {
         midiInDevice_->stop();
-        midiOutDevice_ = nullptr;
+        midiInDevice_ = nullptr;
     }
     if (midiOutDevice_) {
         midiOutDevice_->stopBackgroundThread();
@@ -108,15 +108,18 @@ void BaseProcessor::midiFromXml(juce::XmlElement* xml) {
     midiChannel_ = xml->getIntAttribute(MIDI_TAG_CHANNEL, 0);
     noteInput_ = xml->getBoolAttribute(MIDI_TAG_NOTE_INPUT, false);
 
+    std::lock_guard<std::recursive_mutex> lock(midiAutomationLock_);
     midiAutomation_.clear();
     auto amXml = xml->getChildByName("Automation");
     if (amXml) {
+        int nparams = getParameters().size();
         for (int idx = 0; idx < amXml->getNumChildElements(); idx++) {
             auto pxml = amXml->getChildElement(idx);
             if (pxml) {
                 MidiAutomation am;
                 am.recall(pxml);
-                if (am.valid()) { midiAutomation_[am.paramIdx_] = am; }
+                // the editors look the parameter up by index
+                if (am.valid() && am.paramIdx_ < nparams) { midiAutomation_[am.paramIdx_] = am; }
             }
         }
     }
@@ -129,6 +132,7 @@ void BaseProcessor::midiToXml(juce::XmlElement* xml) {
     xml->setAttribute(MIDI_TAG_NOTE_INPUT, noteInput_);
 
     auto amXml = xml->createNewChildElement("Automation");
+    std::lock_guard<std::recursive_mutex> lock(midiAutomationLock_);
     for (auto& ap : midiAutomation_) {
         auto& a = ap.second;
         if (a.paramIdx_ != -1) {
@@ -452,6 +456,7 @@ void BaseProcessor::handleMidi(const juce::MidiMessage& msg) {
 
     if (msg.isController() || msg.isNoteOnOrOff()) {
         if (midiChannel_ == 0 || msg.getChannel() == midiChannel_) {
+            std::lock_guard<std::recursive_mutex> lock(midiAutomationLock_);
             if (midiLearn_) {
                 if (lastLearn_.paramIdx_ >= 0) {
                     if (msg.isController()) {
@@ -539,41 +544,35 @@ void BaseProcessor::audioProcessorParameterChanged(AudioProcessor* processor, in
     assert(processor == this);
     if (midiLearn_) {
         lastLearn_.paramIdx_ = parameterIndex;
-    } else {
-        if (midiOutDevice_ != nullptr) {
-            if (midiAutomation_.find(parameterIndex) != midiAutomation_.end()) {
-                auto& a = midiAutomation_[parameterIndex];
-                int valout = ((v - a.offset_) / a.scale_) * 127;
-                valout = std::min(127, std::max(0, valout));
-                switch (a.midi_.type_) {
-                    case MidiAutomation::Midi::T_CC: {
-                        auto msg =
-                            juce::MidiMessage::controllerEvent(a.midi_.channel_, a.midi_.num_, juce::uint8(valout));
-                        midiOutDevice_->sendMessageNow(msg);
-                        break;
-                    }
-                    case MidiAutomation::Midi::T_NOTE: {
-                        if (valout > 0) {
-                            auto msg = juce::MidiMessage::noteOn(a.midi_.channel_, a.midi_.num_, juce::uint8(valout));
-                            midiOutDevice_->sendMessageNow(msg);
-                        } else {
-                            auto msg = juce::MidiMessage::noteOff(a.midi_.channel_, a.midi_.num_);
-                            midiOutDevice_->sendMessageNow(msg);
-                        }
-                        break;
-                    }
-                    case MidiAutomation::Midi::T_PRESSURE: {
-                        auto msg = juce::MidiMessage::channelPressureChange(a.midi_.channel_, juce::uint8(valout));
-                        midiOutDevice_->sendMessageNow(msg);
-                        break;
-                    }
-                    default: {
-                        break;
-                    }
-                }
-            }
+        return;
+    }
+
+    juce::MidiMessage msg;
+    {
+        std::lock_guard<std::recursive_mutex> lock(midiAutomationLock_);
+        auto ai = midiAutomation_.find(parameterIndex);
+        if (ai == midiAutomation_.end()) return;
+        auto& a = ai->second;
+        int valout = ((v - a.offset_) / a.scale_) * 127;
+        valout = std::min(127, std::max(0, valout));
+        switch (a.midi_.type_) {
+            case MidiAutomation::Midi::T_CC:
+                msg = juce::MidiMessage::controllerEvent(a.midi_.channel_, a.midi_.num_, juce::uint8(valout));
+                break;
+            case MidiAutomation::Midi::T_NOTE:
+                msg = valout > 0 ? juce::MidiMessage::noteOn(a.midi_.channel_, a.midi_.num_, juce::uint8(valout))
+                                 : juce::MidiMessage::noteOff(a.midi_.channel_, a.midi_.num_);
+                break;
+            case MidiAutomation::Midi::T_PRESSURE:
+                msg = juce::MidiMessage::channelPressureChange(a.midi_.channel_, juce::uint8(valout));
+                break;
+            default: return;
         }
     }
+
+    // try: a device change holds the lock while it stops the MIDI input thread, which may be the caller
+    std::unique_lock<std::mutex> lock(midiDeviceChangeLock, std::try_to_lock);
+    if (lock.owns_lock() && midiOutDevice_) midiOutDevice_->sendMessageNow(msg);
 }
 
 }  // namespace ssp

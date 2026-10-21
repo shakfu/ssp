@@ -177,7 +177,7 @@ bool ScsynthEngine::bufferSpecs(const std::string& sidecar, const std::string& d
             return false;
         }
         if (what == "alloc") {
-            if (!(words >> b.seconds) || b.seconds <= 0.0) {
+            if (!(words >> b.seconds) || !(b.seconds > 0.0)) {  // also rejects nan
                 error = "@buf " + std::to_string(b.number) + " alloc: needs a length in seconds";
                 return false;
             }
@@ -186,7 +186,9 @@ bool ScsynthEngine::bufferSpecs(const std::string& sidecar, const std::string& d
                 error = "@buf " + std::to_string(b.number) + " alloc: needs 1 or more channels";
                 return false;
             }
-            bytes += (long long)(b.seconds * rate) * b.channels * 4;
+            // in double: a huge length overflows the cast to long long
+            double want = b.seconds * rate * b.channels * 4;
+            bytes += want > double(MAX_BUFFER_BYTES) ? MAX_BUFFER_BYTES + 1 : (long long)want;
         } else {
             std::string rest;
             std::getline(words, rest);

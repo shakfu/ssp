@@ -40,6 +40,10 @@ A block is the lines around the cursor up to blank lines; a blank line inside br
 
 The code is saved with the patch. One `sapf` runs per patch; a second shows a message and stays silent.
 
+## Inputs and outputs
+
+Eight inputs, `In 1`..`In 8`, and eight outputs, `Out 1`..`Out 8`.
+
 ## Sound
 
 A thread of its own renders sapf 10.7 ms ahead of the SSP's audio. Code that renders slower than real time makes sapf's sound break up, and the status line shows `late` and the milliseconds of sound missed since the start; the rest of the patch plays on. `dsp` on the status line is the render thread's share of real time. Right of the output, meters show inputs 1-2 and outputs 1-2: each one's peak, averaged over about 0.3 s, from -70 to +6 dB. CV shows too, with 0 dB at 5 V; below -40 dB (50 mV) a meter reads nothing, so an unplugged input stays dark. Synthor's own view shows all eight. Input through `adc` arrives about 27 ms late: the FIFO, the same again so the render thread can run ahead, and two blocks.
@@ -51,3 +55,7 @@ A thread of its own renders sapf 10.7 ms ahead of the SSP's audio. Code that ren
 - No MIDI. The encoders do not set controls yet.
 
 - An evaluation stops at Ctrl-. between interpreter steps; a single long built-in operation, such as sorting a huge list, finishes first.
+
+## Licence
+
+GPL-3.0, as sapf; see [LICENSE](LICENSE). The repo is AGPL-3.0.

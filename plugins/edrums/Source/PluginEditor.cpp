@@ -60,7 +60,9 @@ PluginEditor::PluginEditor(PluginProcessor& p) : EngineEditor(p, edrumsPages(p),
 }
 
 void PluginEditor::drawStatus(Graphics& g, Rectangle<int> area) {
-    static constexpr int rowH = 70, cell = 24, gap = 4, labelW = 220;
+    // labelW fits the longest label, "1 snare /8 m" (12 chars, ~144 px); 16 steps then end at x=1514,
+    // clear of Synthor's menu letters over the last ~46 px
+    static constexpr int rowH = 70, cell = 24, gap = 4, labelW = 160;
     static constexpr int FLASH_FRAMES = 3;
     for (int d = 0; d < PluginProcessor::DRUMS; d++) {
         auto info = processor_.edrums().info(d);

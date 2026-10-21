@@ -2,7 +2,7 @@
 
 `sfct` is a Percussa SSP looper plugin based on monome's [softcut](https://github.com/monome/softcut-lib) record/playback engine of the monome norns: each voice is a read/write head that loops over a buffer at any rate, forward or reverse, and crossfades whenever it jumps.
 
-sfct has eight mono voices, grouped into four stereo tracks. It records the two audio inputs, plays back loaded WAV files, and saves its buffers back to WAV.
+sfct has eight mono voices, grouped into four stereo tracks. `norns` mode uses the first three. It records the two audio inputs, plays back loaded WAV files, and saves its buffers back to WAV.
 
 ## Install
 
@@ -18,7 +18,7 @@ Copy `sfct.so` to the `plugins` folder on the SSP's SD card. The version shows a
 
 - **Mode** (Global view) decides which buffers the tracks use:
 
-  - `norns` (default): all tracks share two buffers, L and R. Four tracks are four stereo playheads over one recording.
+  - `norns` (default): tracks 1 to 3 share two buffers, L and R: three stereo playheads over one recording, six voices as on norns. Track 4 keeps its settings but is silent, and its Phase output stays low.
 
   - `4 loop`: each track has its own L and R buffers. Four tracks are four independent loops.
 
@@ -32,7 +32,7 @@ Tracks 1 and 2 start on, tracks 3 and 4 off. With the defaults, track 1 records 
 
 **Play a sample.** Press Load (button 5), choose a WAV file with the encoders and arrows, and press Load again. A stereo file fills the track's L and R buffers; a mono file fills the current voice's buffer. The voices loop the whole file.
 
-**Make a stereo effect.** On a track, turn link (button 7) off. Hold EN+ to switch to the R voice, and change its rate or loop end.
+**Make a stereo effect.** On a track, turn link (button 7) off. Hold EN+ to move to the R voice, and change its rate or loop end.
 
 **Keep the result.** Press Save (button 8), keep or edit the name, and press Save again.
 
@@ -40,10 +40,10 @@ Tracks 1 and 2 start on, tracks 3 and 4 off. With the defaults, track 1 records 
 
 | Control | Action |
 |-|-|
-| TRK- / TRK+ | previous / next track; after track 4, the Global view |
+| TRK- / TRK+ | previous / next track; after the last track (3 in `norns` mode, 4 in `4 loop`), the Global view |
 | TRK- / TRK+, held | TRK- returns to track 1; TRK+ jumps to the Global view |
 | EN- / EN+ | previous / next page. Within a track, the L voice's eight pages come first, then the R voice's |
-| EN- / EN+, held | switch to the other side of the track, at the same page |
+| EN- / EN+, held | previous / next voice (1 L, 1 R, 2 L, ...), at the same page; nothing at the first or last voice |
 | Encoder | turn to change the value |
 | Encoder, held while turning | fine steps |
 | Encoder, pressed and released | reset to the default |
@@ -133,7 +133,7 @@ RS is labelled CLR. Hold it, then release it to clear; a short press does nothin
 
 ## Global view
 
-Press TRK+ after track 4.
+Press TRK+ after the last track.
 
 | Page | Name | Contents |
 |-|-|-|
@@ -190,11 +190,11 @@ CV acts on both voices of a track. It is read every 2.7 ms.
 
 ## Files
 
-**Load** opens a browser at the folder of the buffer's current file, otherwise at `/media/BOOT/samples`. sfct reads WAV and AIFF at any sample rate and converts them to 48 kHz. Files longer than 43.7 s are cut at that length.
+**Load** opens a browser at the folder of the buffer's current file, otherwise at `/media/BOOT/samples`. sfct reads WAV and AIFF at any sample rate and converts them to 48 kHz. Of a file with more than two channels, it reads the first two. Files longer than 43.7 s are cut at that length.
 
 - A stereo file fills the current track's L and R buffers.
 
-- A mono file fills the current voice's buffer only.
+- A mono file fills both buffers of a linked track, and only the current voice's buffer of an unlinked one. To load a different mono file on each side, unlink the track first.
 
 After a load, every voice that plays the loaded buffers loops the whole file, with rec off. In `norns` mode that is every voice; in `4 loop` mode, the current track.
 
@@ -214,7 +214,7 @@ The waveform shows the current track's L and R buffers, from 0 s to the furthest
 
 - **Curves at the loop edges**: the crossfades. The solid curve is the playback level, from the bottom of the lane (silent) to near the top (full). While the current voice records, a dashed curve shows the level it records at and a grey curve the level of old material it keeps.
 
-The header shows `DSP`: the CPU time sfct takes per audio block, as an average and a peak. With all eight voices on in `norns` mode it averages about 10%, with peaks near 20%. A voice that is off uses none.
+The header shows `DSP`: the CPU time sfct takes per audio block, as an average and a peak. With all eight voices on it averaged about 10%, with peaks near 20%, measured in `norns` mode before it dropped to six voices. A voice that is off uses none.
 
 ## Limits
 
@@ -232,7 +232,7 @@ The header shows `DSP`: the CPU time sfct takes per audio block, as an average a
 
 ## Differences from norns softcut
 
-- sfct has eight voices; norns has six.
+- `4 loop` mode has eight voices; norns has six, as `norns` mode does.
 
 - Recording keeps the input's polarity. norns softcut inverts it, which cancels against the dry signal when both are mixed.
 

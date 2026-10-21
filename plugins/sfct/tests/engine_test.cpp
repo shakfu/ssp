@@ -1,5 +1,5 @@
 // Native test of sfct::Engine; built and run by test_engine.py.
-// Prints the host realtime factor for 4 recording voices as its last line.
+// Prints the host realtime factor for all voices recording as its last line.
 
 #include <chrono>
 #include <cmath>
@@ -374,6 +374,39 @@ static void testModes() {
     CHECK(r.e.buffer(0)[2400] > 0.58f);
 }
 
+// norns mode has three tracks: the fourth records and plays nothing until 4 loop mode
+static void testNornsThreeTracks() {
+    Rig r;
+    CHECK(tracksFor(SHARED) == 3 && tracksFor(PER_TRACK) == 4);
+    auto& v = r.p[6];
+    v.play = v.rec = true;
+    v.inputGain = 1.0f;
+    v.preLevel = 0.0f;
+    v.loopEnd = 0.1f;
+    v.fadeTime = 0.005f;
+    auto m = r.run(0.2f, 0.5f, 0.0f);
+    CHECK(m[0] == 0.0 && m[2 + 6] == 0.0);
+    CHECK(absSum(r.e.buffer(0)) == 0.0);
+
+    r.e.requestMode(PER_TRACK);
+    m = r.run(0.4f, 0.5f, 0.0f);
+    CHECK(r.e.buffer(6)[2400] > 0.58f);
+    CHECK(m[2 + 6] > 0.1);
+}
+
+// a mono file fills both sides of a linked track; unlinked, only the voice's own buffer
+static void testFileChannels() {
+    int c[BUFFERS];
+    fileChannels(PER_TRACK, 3, 1, true, c);
+    CHECK(c[2] == 0 && c[3] == 0 && c[0] == -1 && c[4] == -1);
+    fileChannels(PER_TRACK, 3, 1, false, c);
+    CHECK(c[2] == -1 && c[3] == 0);
+    fileChannels(PER_TRACK, 3, 2, false, c);
+    CHECK(c[2] == 0 && c[3] == 1);
+    fileChannels(SHARED, 4, 1, true, c);  // norns: tracks share buffers 0 and 1
+    CHECK(c[0] == 0 && c[1] == 0 && c[4] == -1);
+}
+
 // a snapshot requested straight after a mode switch copies the newly allocated buffer:
 // process() swaps before it copies
 static void testSnapshotOfPendingBuffer() {
@@ -674,6 +707,7 @@ static double realtimeFactor() {
         v.rate = i % 2 ? -0.5f : 1.0f;
         v.postLp = 0.5f;
     }
+    r.e.requestMode(PER_TRACK);  // norns mode runs six voices
     float seconds = 10.0f;
     auto t0 = std::chrono::steady_clock::now();
     r.run(seconds, 0.1f, 0.1f);
@@ -695,6 +729,8 @@ int main() {
     testPeakScan();
     testSnapshot();
     testModes();
+    testNornsThreeTracks();
+    testFileChannels();
     testLoadAllocates();
     testSnapshotOfPendingBuffer();
     testFeedback();

@@ -29,7 +29,7 @@ A USB keyboard, or port 7773 on 127.0.0.1 over ssh (`ssh -L 7773:127.0.0.1:7773 
 | Esc | returns to the pages |
 | arrows, Home, End, PageUp, PageDown | move; with Ctrl, Home and End go to the start and end |
 
-The code is coloured by syntax. Encoder 1 moves the cursor by rows, encoder 2 by columns. A held key repeats. Tab inserts spaces to the next multiple of 4. The layout is US. Relative paths in the code resolve next to the program's file. Controls keep their positions when the code runs; Load sets a program's defaults.
+The code is coloured by syntax. Encoder 1 moves the cursor by rows, encoder 2 by columns. A held key repeats. Tab inserts spaces to the next multiple of 4. The layout is US. Relative paths in the code resolve next to the program's file. Controls keep their positions when the code runs and when Load opens a program.
 
 Ctrl-E sends a block inside `<CsScore>` as score events, such as `i 2 0 4`. Elsewhere it compiles the block as orchestra code: `schedule 2, 0, 4` plays, `instr 2 ... endin` replaces instrument 2, and `gkx = 0.5` sets a global. A replaced instrument applies to notes that start after it; a held note keeps the old definition until it ends. A block ends at a blank line, so keep an instrument free of blank lines to send it whole. A held note on the same instrument number ties to the running one; use a fractional number, such as `i 2.1`, for a second voice. Errors in an event show only when it plays, not on Ctrl-E.
 
@@ -130,6 +130,10 @@ outch 3, aLfo, 4, a(0.2 * kOct)   ; Out 3: the LFO; Out 4: 1 V/oct, kOct octaves
 | `quadosc.csd` | sine, triangle, saw and pulse on outputs 1-4; input 1 is pitch CV (1 V/oct), input 2 width CV, both declared with `cv` | pitch, width |
 | `lfo.csd` | four LFOs at one rate as CV on outputs 1-4: sine, triangle, saw, square, +-depth V; input 1 is rate CV (an octave per volt), input 2 depth CV | rate, depth |
 | `fm-midi.csd` | polyphonic FM synth, played over MIDI; silent until notes arrive from the input chosen in the general panel | ratio, index, attack, release |
+| `xanadu.csd` | Joseph T. Kung's *Xanadu* (1988), plucked strings through delays, 1 min; from Csound's `examples/` (LGPL-2.1) | none |
+| `trapped.csd` | Richard Boulanger's *Trapped in Convert* (1979, revised 1986), about 4 min 50 s; from Csound's `examples/` (LGPL-2.1) | none |
+
+`xanadu.csd` and `trapped.csd` are the Csound 7.0.0 files with `massign 0, 0` added: they play their score once and ignore MIDI. In `xanadu.csd` a MIDI note started instrument 1 at octave 0, its vibrato took `cpsoct` below 0, and Csound returned a garbage frequency that crashed `pluck`; see [docs/dev/issues/261021-csound-cpsoct.md](../../docs/dev/issues/261021-csound-cpsoct.md).
 
 ## Walkthrough: `filter.csd`
 
@@ -189,7 +193,7 @@ csnd : Csound 7 host                                  1/1 controls     DSP n.n% 
   40.0 Hz         0.000         1.00          0.000
 ```
 
-Each `@p` line became one control, in order, four to a row:
+Each `@p` line became one control, in order, four to a page:
 
 | Declaration | Encoder | Screen | Range | The orchestra reads |
 |-|-|-|-|-|
@@ -198,7 +202,7 @@ Each `@p` line became one control, in order, four to a row:
 | `; @p3 drive 1 9` | 3 | `drive` | 1 to 9 | `chnget "p3"` |
 | `; @p4 mix` | 4 | `mix` | 0 to 1 | `chnget "p4"` |
 
-The right panel shows the page (`1/1 controls`), the DSP load, the file name, and a compile error in orange if there is one. Four controls fit one row; a program that declares five to eight gets a second row, and Up and Down move between rows.
+The right panel shows the page (`1/1 controls`), the DSP load, the file name, and a compile error in orange if there is one. Four controls fit one page; a program that declares five to eight gets a second page, and Up and Down move between pages.
 
 ### 5. Play it
 

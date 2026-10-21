@@ -21,7 +21,7 @@ DEPS = ROOT / "build" / "deps" / "host"
 @pytest.fixture(scope="module")
 def deps():
     if not (DEPS / "lib" / "libcsound.a").exists():
-        subprocess.run([ROOT / "scripts" / "build_csound.sh", "host"], check=True, capture_output=True)
+        subprocess.run([ROOT / "scripts" / "build_deps.sh", "host"], check=True, capture_output=True)
     return DEPS
 
 

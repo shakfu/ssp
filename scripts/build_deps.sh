@@ -18,7 +18,7 @@ prefix="$root/build/deps/$target"
 jobs="${JOBS:-$(nproc 2>/dev/null || sysctl -n hw.ncpu)}"
 
 SNDFILE_REF="${SNDFILE_REF:-1.2.2}"
-CSOUND_REF="${CSOUND_REF:-7.0.0-beta.17}"
+CSOUND_REF="${CSOUND_REF:-7.0.0}"
 CHUCK_REF="${CHUCK_REF:-chuck-1.5.5.8}"
 FAUST_REF="${FAUST_REF:-2.85.9}"  # the version scripts/faust_kernel.sh compiles with
 SC_REF="${SC_REF:-3.14.1}"  # SuperCollider and sc3-plugins: one version, so the plugin API matches
@@ -88,14 +88,15 @@ cmake -S "$src/libsndfile-$SNDFILE_REF" -B "$prefix/build/libsndfile" "${toolcha
 cmake --build "$prefix/build/libsndfile" -j"$jobs"
 cmake --install "$prefix/build/libsndfile"
 
-# float samples, matching the plugin; no plugins, utilities or optional libraries
-cmake -S "$src/csound-$CSOUND_REF" -B "$prefix/build/csound" "${toolchain[@]}" "${common[@]}" \
+# float samples, matching the plugin; no plugins, utilities or optional libraries. The build directory
+# is per version: CMake refuses a cache made from another source tree.
+cmake -S "$src/csound-$CSOUND_REF" -B "$prefix/build/csound-$CSOUND_REF" "${toolchain[@]}" "${common[@]}" \
     -DUSE_DOUBLE=OFF -DBUILD_STATIC_LIBRARY=ON -DBUILD_UTILITIES=OFF -DBUILD_TESTS=OFF -DBUILD_PLUGINS=OFF \
     -DBUILD_PERFTHREAD_CLASS=OFF -DUSE_GETTEXT=OFF -DUSE_CURL=OFF -DUSE_LIBSAMPLERATE=OFF -DUSE_GIT_COMMIT=OFF \
-    -DUSE_ASA=OFF -DUSE_AVX2=OFF -DUSE_DEFAULT_OPCODEDIR=OFF -DUSE_MP3=OFF -DUSE_VCPKG=OFF -DINSTALL_PYTHON_INTERFACE=OFF \
-    -DSndFile_INCLUDE_DIR="$prefix/include" -DSndFile_LIBRARY="$prefix/lib/libsndfile.a"
-cmake --build "$prefix/build/csound" -j"$jobs"
-cmake --install "$prefix/build/csound"
+    -DUSE_ASA=OFF -DUSE_AVX2=OFF -DUSE_WASMTIME=OFF -DUSE_DEFAULT_OPCODEDIR=OFF -DUSE_MP3=OFF -DUSE_VCPKG=OFF \
+    -DINSTALL_PYTHON_INTERFACE=OFF -DSndFile_INCLUDE_DIR="$prefix/include" -DSndFile_LIBRARY="$prefix/lib/libsndfile.a"
+cmake --build "$prefix/build/csound-$CSOUND_REF" -j"$jobs"
+cmake --install "$prefix/build/csound-$CSOUND_REF"
 
 # ChucK's own makefile builds the core objects in place, so each target gets a copy of the sources.
 # CHUCK_DEFS must match plugins/chuck/CMakeLists.txt: they change ChucK's class layouts. KBHit and

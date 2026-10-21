@@ -2,13 +2,33 @@
 
 Changes to the build, tools and presets. Each plugin keeps its own changelog in `plugins/<name>/CHANGELOG.md`.
 
+## [Unreleased]
+
+### Plugins
+
+- `BaseProcessor` guards its MIDI automation map with a lock. The MIDI input thread iterated it while a preset load cleared it, or an editor erased an entry: a use-after-free. Its MIDI echo of a learned parameter now takes the device lock, as `sendMidiMessagesNow` does since 0.4.0; it tries rather than waits, since a device change holding the lock stops the MIDI input thread that may be the caller.
+
+- A preset's MIDI automation naming a parameter index the module lacks is dropped on load. The MIDI system page drew it through a null parameter and crashed.
+
+- The MIDI system page's output list compared outputs by the identifiers of the input list.
+
+- `rack`, `sfct`, `alda`, `csnd`, `scsy`, `bard`, `ttyp`, `fstr` and `edrm` fixes: see their CHANGELOGs.
+
+### Build and tools
+
+- `make deploy` syncs the card after copying. A copy by hand without `sync`, then a power-cycle, left a half-written `edrm.so` on the card, which Synthor loaded; `make deploy` had the same gap. `make deploy-mod` already synced.
+
+- `sfct` joins the plugins `plugins/common/tests` drives through the SSP API, and `tools/py2rack/modules-local.json`.
+
 ## [0.4.0]
 
 Five modules are new since 0.3.0: `dexd`, `sapf`, `alda`, `fsyn` and `brks`, so the release ships 18.
 
 ### Plugins
 
-- `brks`, new: the breakbeat slicer firmware of [_core](https://github.com/schollz/_core) v8.1.0, built unchanged through _core's desktop engine. It plays sample-manager card folders, with the panel's knobs, Tap, Mode, Play, Tempo, Clock Out, a clock input and three CVs; Left and Right (PG-/PG+) change bank. `scripts/fetch_core.sh` fetches _core and generates the engine per target (`make deps`). `make install-brks` copies _core's default banks to the card. On the SSP the engine is compiled Thumb-2: clang 18 and 20 miscompile it in ARM mode. GPL-3.0-only. See [plugins/breaks/CHANGELOG.md](plugins/breaks/CHANGELOG.md) and [docs/dev/breaks.md](docs/dev/breaks.md).
+- `brks`, new: the breakbeat slicer firmware of [_core](https://github.com/schollz/_core) v8.1.0, built through `_core`'s desktop engine with one hook added to its firmware for the bank step. It plays sample-manager card folders, with the panel's knobs, Tap, Mode, Play, Tempo, Clock Out, a clock input and three CVs; Left and Right (PG-/PG+) change bank. `scripts/fetch_core.sh` fetches `_core` and generates the engine per target (`make deps`). `make install-brks` copies `_core`'s default banks to the card. On the SSP the engine is compiled Thumb-2: clang 18 and 20 miscompile it in ARM mode. GPL-3.0-only. See [plugins/breaks/CHANGELOG.md](plugins/breaks/CHANGELOG.md) and [docs/dev/breaks.md](docs/dev/breaks.md).
+
+- `sapf`, new: sapf, through the fork [shakfu/sapf](https://github.com/shakfu/sapf), for live coding from a USB keyboard or over ssh. A thread of its own renders 4 blocks (10.7 ms) ahead of the host's callback, so a late render silences sapf and not the patch. Eight inputs and eight outputs. `scripts/fetch_sapf.sh` fetches the fork (`make deps`), and `make install-sapf` copies its prelude and examples to the card. GPL-3.0. See [plugins/sapf/CHANGELOG.md](plugins/sapf/CHANGELOG.md).
 
 - `ScriptEngine` (`csnd`, `chuk`, `fstr`): a preset saved while a program compiled named the previous program. `idle()` dequeued the load, but `path()` and `code()` read the program from the running slot, which changed only after the compile. Restoring that preset ran the old program. `test_chuck` failed about one run in three: its second `set` saved during the first compile and reloaded the built-in. The program now becomes current when it is dequeued.
 
@@ -16,7 +36,7 @@ Five modules are new since 0.3.0: `dexd`, `sapf`, `alda`, `fsyn` and `brks`, so 
 
 - `fsyn`, new: FluidSynth 2.6.1 plays SF2 soundfonts from MIDI in stereo, a General MIDI synth for `alda`'s port. It ships FluidR3_GM (148 MB, MIT): of the three GM fonts tried on the SSP it sounds best at the same DSP cost, 4-5% playing `alda` scores. A font loads into a second synth on the worker thread and swaps in: `fluid_synth_sfload` holds the synth's lock for the whole read, 2.4 s for the 148 MB FluidR3_GM on the SSP, which would stall MIDI fed from the audio thread. SF2 only; SF3 needs libsndfile with Ogg/Vorbis. `scripts/build_fluidsynth.sh` builds FluidSynth (`make deps`), and `make install-fsyn` copies the font to the card. See [plugins/fsyn/README.md](plugins/fsyn/README.md).
 
-- Code view, in every keyboard module:
+- Code view, in `csnd`, `chuk`, `fstr` and `alda`:
   - Ctrl-Shift-S saves the text under a name typed in a prompt, beside the current file. That file becomes the program's, so Ctrl-S writes there next. An existing file is overwritten only on a second Enter.
 
   - Ctrl-L empties the view; pressed again on the empty view, it brings the text back, as there is no undo.
@@ -33,7 +53,7 @@ Five modules are new since 0.3.0: `dexd`, `sapf`, `alda`, `fsyn` and `brks`, so 
 
 - `fstr`, `csnd` and `chuk` edit their program from a keyboard, as `sapf` does. `ScriptProcessor` provides it for plugins that pass it a key port; `scsy` passes none, since its programs are binary SynthDefs. `TextBuffer` and `KeyQueue` move from `plugins/sapf` to `plugins/common/keys`, along with sapf's code drawing (`drawCode`). `TextBuffer::block` takes the language's comment marker: with sapf's `;`, a ChucK line such as `0 => int i; while (i < 4) {` ended its bracket count at the `;`. `ScriptEngine` runs Ctrl-E blocks through engine overrides; `chuk` and `csnd` implement them.
 
-- The code view can colour code from a tree-sitter grammar: `CodeKeys` takes the grammar and its `highlights.scm`, and `Highlighter` applies the query. `chuk`, `csnd`, `fstr` and `sapf` use it; `ssp_highlights()` adds a grammar to a plugin. The runtime (v0.27.0) and the ChucK, Faust and Csound grammars are vendored in `external/`; sapf's is new, a token grammar after sapf's own lexer. The Csound grammar, from psnd, gained two fixes: section tags other than `<CsoundSynthesizer>`, and one-character tokens and spaces that its catch-all token took in. See [docs/dev/syntax-highlighting.md](docs/dev/syntax-highlighting.md).
+- The code view can colour code from a tree-sitter grammar: `CodeKeys` takes the grammar and its `highlights.scm`, and `Highlighter` applies the query. `chuk`, `csnd`, `fstr`, `sapf` and `alda` use it; `ssp_highlights()` adds a grammar to a plugin. The runtime (v0.27.0) and the ChucK, Faust, Csound and Alda grammars are vendored in `external/`; sapf's is new, a token grammar after sapf's own lexer. The Csound grammar, from psnd, gained two fixes: section tags other than `<CsoundSynthesizer>`, and one-character tokens and spaces that its catch-all token took in. See [docs/dev/syntax-highlighting.md](docs/dev/syntax-highlighting.md).
 
 - `EngineEditor` passes a short Left or Right press to the module through `step(dir)`; long presses still move between page groups. `dexd` uses it for PG- and PG+.
 

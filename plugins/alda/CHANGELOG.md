@@ -2,6 +2,10 @@
 
 alda follows [semantic versioning](https://semver.org). The version is set in `CMakeLists.txt` (`project(ALDA VERSION ...)`).
 
+## [Unreleased]
+
+- Two `alda` modules compiling at once could corrupt each other's score: the alda core sorts notes through a file-scope pointer. Builds now take turns.
+
 ## [0.1.0] - 2026-10-18
 
 First version. An Alda score, loaded from the card or typed on a USB keyboard, plays in a loop. GPL-3.0, as psnd.

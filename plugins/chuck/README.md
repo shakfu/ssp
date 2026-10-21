@@ -32,7 +32,7 @@ A USB keyboard, or port 7774 on 127.0.0.1 over ssh (`ssh -L 7774:127.0.0.1:7774 
 | Esc | returns to the pages |
 | arrows, Home, End, PageUp, PageDown | move; with Ctrl, Home and End go to the start and end |
 
-The code is coloured by syntax: types, keywords, numbers, strings, comments. Encoder 1 moves the cursor by rows, encoder 2 by columns. A held key repeats. Tab inserts spaces to the next multiple of 4. The layout is US. Relative paths in the code resolve next to the program's file. Controls keep their positions when the code runs; Load sets a program's defaults.
+The code is coloured by syntax: types, keywords, numbers, strings, comments. Encoder 1 moves the cursor by rows, encoder 2 by columns. A held key repeats. Tab inserts spaces to the next multiple of 4. The layout is US. Relative paths in the code resolve next to the program's file. Controls keep their positions when the code runs and when Load opens a program.
 
 The Code view lists the Ctrl-E shreds still running above the status line; a shred that ends leaves the list. Ctrl-Enter replaces the program and ends every shred. Up to 16 run at once.
 

@@ -1,5 +1,5 @@
-// The "matrix" field of JSON presets: parsing, saving, a load-save-load through Track, and the
-// wire edits the routing grid makes.
+// The "matrix" field of JSON presets: parsing, saving, a load-save-load through Track, the
+// wire edits the routing grid makes, and XML wires with module indices out of range.
 // Built by CMakeLists.txt and run from a directory holding plugins/pass2.so and plugins/pass6.so.
 // argv[1], if given, is a directory of presets whose every track matrix must parse.
 
@@ -260,6 +260,23 @@ static void trackSavesOnlyAudibleWires() {
 }
 
 // every track's matrix in each preset of `dir` parses, as the SSP's loader parses it
+static void xmlWiresOutOfRangeAreDropped() {
+    // Synthor patches and binary presets carry raw module indices; an out-of-range one indexed past the module array
+    auto xml = juce::parseXML(juce::String("<Track><Matrix>")
+                              + "<Wire srcMod=\"12\" srcCh=\"0\" destMod=\"" + juce::String(Track::M_OUT) + "\" destCh=\"0\"/>"
+                              + "<Wire srcMod=\"" + juce::String(Track::M_IN) + "\" srcCh=\"0\" destMod=\"-1\" destCh=\"0\"/>"
+                              + "<Wire srcMod=\"" + juce::String(Track::M_IN) + "\" srcCh=\"0\" destMod=\""
+                              + juce::String(Track::M_OUT) + "\" destCh=\"0\"/>"
+                              + "</Matrix></Track>");
+    CHECK(xml != nullptr);
+    if (xml == nullptr) return;
+    Track track;
+    track.prepare(48000, 128);
+    track.setStateInformation(*xml);
+    std::vector<Conn> one = { { Track::M_IN, 0, Track::M_OUT, 0, 1.0f, 0.0f } };
+    CHECK(connections(track) == one);
+}
+
 static void shippedPresetsParse(const char* dir) {
     int seen = 0;
     for (auto& file : juce::File(dir).findChildFiles(juce::File::findFiles, false, "*.json")) {
@@ -291,6 +308,7 @@ int main(int argc, char** argv) {
     trackLevelsAreClamped();
     trackLimitsModuleInputs();
     trackSavesOnlyAudibleWires();
+    xmlWiresOutOfRangeAreDropped();
     if (failures) std::fprintf(stderr, "%d failures\n", failures);
     return failures ? 1 : 0;
 }

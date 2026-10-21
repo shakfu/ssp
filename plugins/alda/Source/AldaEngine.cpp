@@ -6,6 +6,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <memory>
+#include <mutex>
 #include <sstream>
 
 #include "alda/context.h"
@@ -131,6 +132,9 @@ bool AldaEngine::build(const std::string& text, const std::string& path, Score& 
         return false;
     }
     std::string name = path.empty() ? "live.alda" : path;
+    // the alda core sorts through a file-scope pointer (finalize.c), and every instance builds on its own thread
+    static std::mutex coreLock;
+    std::lock_guard<std::mutex> lock(coreLock);
     char* err = nullptr;
     AldaNode* ast = alda_parse(text.c_str(), name.c_str(), &err);
     if (err) {

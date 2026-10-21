@@ -1,5 +1,5 @@
-// Host test of BaseProcessor::handleMidi's dispatch to midiMessageInput and midiNoteInput;
-// built and run by ../test_base_midi.py.
+// Host test of BaseProcessor::handleMidi's dispatch to midiMessageInput and midiNoteInput, and of
+// MIDI automation restored from a preset; built and run by ../test_base_midi.py.
 
 #include <cstdio>
 #include <cstring>
@@ -18,8 +18,15 @@ static int failures = 0;
 
 using juce::MidiMessage;
 
+static juce::AudioProcessorValueTreeState::ParameterLayout oneParameter() {
+    juce::AudioProcessorValueTreeState::ParameterLayout layout;
+    layout.add(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID("a", 1), "a", 0.0f, 1.0f, 0.0f));
+    return layout;
+}
+
 struct Probe : ssp::BaseProcessor {
-    Probe() : BaseProcessor(BusesProperties(), {}) {}
+    Probe() : BaseProcessor(BusesProperties(), oneParameter()) {}
+    using BaseProcessor::midiFromXml;
 
     const juce::String getName() const override { return "probe"; }
     juce::AudioProcessorEditor* createEditor() override { return nullptr; }
@@ -85,6 +92,17 @@ int main() {
     CHECK(p.messages.empty());
     CHECK(p.notes.empty());
     CHECK(passed(p, MidiMessage::noteOn(2, 60, juce::uint8(100))));
+
+    // automation from a preset: an index past the parameters is dropped; CC 7 drives parameter 0,
+    // re-entering the automation lock through audioProcessorParameterChanged
+    auto xml = juce::parseXML(R"(<MIDI><Automation>
+        <P_0 paramId="0" midi.channel="2" midi.num="7" midi.type="0"/>
+        <P_5 paramId="5" midi.channel="2" midi.num="8" midi.type="0"/>
+        </Automation></MIDI>)");
+    p.midiFromXml(xml.get());
+    CHECK(p.midiAutomation().size() == 1 && p.midiAutomation().count(0) == 1);
+    p.send(MidiMessage::controllerEvent(2, 7, 127));
+    CHECK(p.getParameters()[0]->getValue() == 1.0f);
 
     if (failures) std::fprintf(stderr, "%d failures\n", failures);
     return failures ? 1 : 0;

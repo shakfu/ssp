@@ -75,7 +75,7 @@ void PluginProcessor::prepareToPlay(double newSampleRate, int estimatedSamplesPe
 void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midi) {
     auto* tt = teletype();
     const int n = buffer.getNumSamples();
-    if (!tt || buffer.getNumChannels() < I_MAX) {
+    if (!tt || n == 0 || buffer.getNumChannels() < I_MAX) {
         buffer.clear();
         return;
     }

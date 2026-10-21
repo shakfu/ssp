@@ -173,6 +173,7 @@ public:
     // The mode the parameter selects; the engine follows within a block.
     sfct::Mode mode();
     unsigned bufferOf(unsigned voice) { return sfct::bufferFor(mode(), voice); }
+    unsigned tracks() { return sfct::tracksFor(mode()); }
 
     // Loads a WAV/AIFF: mono into the voice's buffer, stereo into its track's L and R buffers,
     // resampled to the engine rate and truncated to the buffer length. fitLoops sets the voices

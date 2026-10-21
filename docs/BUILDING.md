@@ -5,7 +5,7 @@ The plugins are cross-compiled for the SSP's ARM CPU. The build is tested on Ubu
 ## Setup
 
 ```text
-git submodule update --init --recursive
+git submodule update --init   # not --recursive: ssp-sdk nests a JUCE clone the build does not use
 sudo apt install cmake clang lld pkg-config curl zip flex bison libasound2-dev \
     libx11-dev libxext-dev libxrandr-dev libxinerama-dev libxcursor-dev \
     libxrender-dev libxcomposite-dev libfreetype-dev libfontconfig1-dev llvm-dev
@@ -23,7 +23,7 @@ make
 
 On first run, `make` downloads the SSP buildroot (608 MB) into `./buildroot`. Set `SSP_BUILDROOT` to use an existing one. It then configures with the `ssp toolchain` preset (`xcSSP.cmake`) and builds into `build.cmake.ssp`.
 
-The csound, chuck and faust plugins link Csound, ChucK and libfaust, which `make deps` downloads and cross-builds into `build/deps/ssp` (about three minutes). Without them, `make` builds the other plugins and skips these three. `make deps` also fetches the teletype sources that `ttyp` builds its firmware from (`scripts/fetch_teletype.sh`, into `build/deps/src/teletype`, checked against SHA-256); it builds ragel 6.10 there if ragel is not installed. It fetches _core for `brks` (`scripts/fetch_core.sh ssp`, into `build/deps/src/core-<commit>`, checked against SHA-256) and generates its engine for the SSP; that needs clang and `uv`, which runs the generator with numpy. Run `make configure` after `make deps`.
+The csound, chuck and faust plugins link Csound, ChucK and libfaust, which `make deps` downloads and cross-builds into `build/deps/ssp` (about three minutes). Without them, `make` builds the other plugins and skips these three, and `scsy`, `ttyp`, `sapf`, `alda`, `brks` and `fsyn`, whose libraries and sources `make deps` also provides. `make deps` also fetches the teletype sources that `ttyp` builds its firmware from (`scripts/fetch_teletype.sh`, into `build/deps/src/teletype`, checked against SHA-256); it builds ragel 6.10 there if ragel is not installed. It fetches _core for `brks` (`scripts/fetch_core.sh ssp`, into `build/deps/src/core-<commit>`, checked against SHA-256) and generates its engine for the SSP; that needs clang and `uv`, which runs the generator with numpy. Run `make configure` after `make deps`.
 
 Plugins land in `build.cmake.ssp/plugins/*/*_artefacts/Release/VST3/*.vst3/Contents/armv7l-linux/*.so`.
 
@@ -32,20 +32,25 @@ Plugins land in `build.cmake.ssp/plugins/*/*_artefacts/Release/VST3/*.vst3/Conte
 | `make` | build all plugins |
 | `make configure` | re-run CMake configure |
 | `make buildroot` | download the buildroot only |
-| `make deps` | build libsndfile, Csound, ChucK, libfaust, libscsynth and the SC UGens for the SSP (`scripts/build_deps.sh ssp`), fetch the teletype sources (`scripts/fetch_teletype.sh`), fetch _core and generate `brks`'s engine (`scripts/fetch_core.sh ssp`), and build FluidSynth and fetch its soundfonts (`scripts/build_fluidsynth.sh ssp`) |
+| `make deps` | build libsndfile, Csound, ChucK, libfaust, libscsynth and the SC UGens for the SSP (`scripts/build_deps.sh ssp`), fetch the teletype sources (`scripts/fetch_teletype.sh`), fetch sapf and alda (`scripts/fetch_sapf.sh`, `scripts/fetch_alda.sh`), fetch _core and generate `brks`'s engine (`scripts/fetch_core.sh ssp`), and build FluidSynth and fetch its soundfonts (`scripts/build_fluidsynth.sh ssp`) |
 | `make install [MOD=sfct]` | copy all plugins, or one, to the mounted SD card |
 | `make install-faust` | copy the Faust libraries and `fstr` examples to the card's `BOOT/faust` |
+| `make install-scsy` | copy the UGen plugins and `scsy` examples to the card |
+| `make install-sapf` | copy sapf's prelude and examples to the card's `BOOT/sapf` |
 | `make install-fsyn` | copy `FluidR3_GM.sf2` to the card's `BOOT/fsyn` |
 | `make install-brks` | download _core's default sample banks (127 MB, checked against SHA-256) and copy them to the card's `BOOT/brks/default` |
 | `make install-presets [PRESETS=dir]` | check JSON presets with `py2rack`, then copy `presets/` or `dir` to the card |
 | `make deploy` | copy all plugins to the SSP over `scp` |
 | `make deploy-mod MOD=sfct` | copy one plugin over `scp` |
+| `make midisend` | build `tools/midisend`, copy it to `SSP_HOST`'s `/tmp` and start it: a MIDI input for tests |
+| `make faust-kernels` | regenerate the committed Faust kernel headers (needs `uv`) |
+| `make scsy-builtin` | regenerate `scsy`'s committed built-in SynthDef header (needs `uv`) |
 | `make release` | package `releases/shakfu-ssp-plugins-<VERSION>/`, laid out as the SD card's BOOT partition, and its zip, then runs `release-notes`; the version is in `VERSION` |
 | `make release-pdf` | as `make release`, with the docs rendered to PDF by `quarto render --to pdf`; needs quarto and a LaTeX engine (`quarto install tinytex`) |
 | `make publish` | create the GitHub release for tag `<VERSION>` with `gh`, attaching the zip and using the notes as its body. It refuses unless the tree is clean, the tag is `HEAD` and pushed, the zip is newer than `HEAD`, and no release exists; it never commits, tags or pushes |
 | `make clean-releases` | delete `releases/`, with every version's package, zip and notes; `make release` replaces only its own version's |
 | `make release-notes` | write `CHANGELOG.md`'s `## [<VERSION>]` section to `releases/shakfu-ssp-plugins-<VERSION>-notes.md`, for the release body |
-| `make test` | run the tests |
+| `make test` | run the tools, scripts and plugin tests |
 | `make clean` | remove `build.cmake.ssp` |
 
 | variable | default |
@@ -86,7 +91,8 @@ Plugins land in `build.cmake.ssp/plugins/*/*_artefacts/Release/VST3/*.vst3/Conte
 | `plugins/sfct/tests` | the sfct engine, built natively |
 | `plugins/rack/tests` | rack's execution order; `Track` under ThreadSanitizer; JSON `matrix` load and save |
 | `plugins/radio/tests`, `plugins/csound/tests`, `plugins/chuck/tests` | each engine, built natively, and under ThreadSanitizer |
-| `plugins/common/tests` | every engine plugin and the `examples/` plugins, built for the host and driven through the SSP API |
+| `plugins/common/tests` | every engine plugin, `sfct` and the `examples/` plugins, built for the host and driven through the SSP API; the shared keys, text and MIDI code |
+| `plugins/*/tests` | each other plugin's engine, built natively |
 
 The `Track` tests build part of JUCE for the host into `build/rack-host`. The first run takes about a minute; later runs are incremental.
 

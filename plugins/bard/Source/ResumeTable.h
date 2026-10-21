@@ -133,8 +133,9 @@ private:
         for (; src[i] && i < kKeyMax - 1; i++) dst[i] = src[i];
         dst[i] = '\0';
     }
+    // as stored: a longer key matches its first kKeyMax - 1 characters
     static bool _key_eq(const char* a, const char* b) {
-        for (int i = 0; i < kKeyMax; i++) {
+        for (int i = 0; i < kKeyMax - 1; i++) {
             if (a[i] != b[i]) return false;
             if (a[i] == '\0') return true;
         }

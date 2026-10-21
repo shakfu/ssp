@@ -87,7 +87,7 @@ Copy `bard.so` to the `plugins` folder on the SD card (`make install MOD=bard`).
 
 A book opens playing, at its resumed position. The screen shows each deck's shelf, book, position, length and mark.
 
-- Up and Down step through the pages. A long Up or Down jumps to the first page of the other deck; a long Right (Prog +) to the global pages, and a long Left (Prog -) back.
+- Up and Down step through the pages. A long Down jumps to the first page of the next group, in the order deck A, deck B, the global pages, and round; a long Up to the previous group. A long Right (Prog +) goes to the global pages, and a long Left (Prog -) back.
 
 ## I/O
 

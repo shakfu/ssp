@@ -178,10 +178,14 @@ protected:
     virtual void onMidiClock(double ts) { ; }
 
     std::map<int, MidiAutomation> midiAutomation_;
+    // the MIDI input thread reads midiAutomation_ while presets and editors change it; recursive,
+    // as automating a parameter re-enters through audioProcessorParameterChanged
+    std::recursive_mutex midiAutomationLock_;
 
 
 public:
     std::map<int, MidiAutomation>& midiAutomation() { return midiAutomation_; }
+    std::recursive_mutex& midiAutomationLock() { return midiAutomationLock_; }
 
 private:
     void connectMidiInDevice(const std::string& id);

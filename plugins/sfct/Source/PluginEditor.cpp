@@ -249,8 +249,8 @@ bool PluginEditor::holdAction(unsigned btn) {
             if (!main) return false;
             setView(V_GLOBAL);
             return true;
-        case SSP_Up:
-        case SSP_Down: return switchSide();
+        case SSP_Up: return stepVoice(-1);
+        case SSP_Down: return stepVoice(1);
         case SSP_Shift_R:
             if (!main) return false;
             if (voiceMode()) processor_.clearLoop(voice_);
@@ -264,18 +264,20 @@ bool PluginEditor::holdAction(unsigned btn) {
     }
 }
 
-// Holding EN-/EN+ switches to the other side of the track, at the same page.
-bool PluginEditor::switchSide() {
+// Holding EN-/EN+ moves to the previous/next mono voice (1L, 1R, 2L, ...), at the same page; none past the ends.
+bool PluginEditor::stepVoice(int dir) {
     if (!voiceMode()) return false;
-    unsigned other = sfct::partnerOf(voice_);
-    voiceViews_[other]->goToPage(voiceViews_[voice_]->page());
-    showVoice(other);
+    int next = int(voice_) + dir;
+    if (next < 0 || next >= int(2 * processor_.tracks())) return true;
+    unsigned v = unsigned(next);
+    voiceViews_[v]->goToPage(voiceViews_[voice_]->page());
+    showVoice(v);
     return true;
 }
 
 // EN-/EN+ page through a stereo pair as one sequence: the left voice's pages, then the right's
 void PluginEditor::eventUp(bool longPress) {
-    if (longPress && (consumeHeld(SSP_Up) || switchSide())) return;
+    if (longPress && (consumeHeld(SSP_Up) || stepVoice(-1))) return;
     if (voiceMode() && voice_ % 2 == 1 && voiceViews_[voice_]->page() == 0) {
         voiceViews_[voice_ - 1]->goToPage(voiceViews_[voice_ - 1]->pages() - 1);
         showVoice(voice_ - 1);
@@ -285,7 +287,7 @@ void PluginEditor::eventUp(bool longPress) {
 }
 
 void PluginEditor::eventDown(bool longPress) {
-    if (longPress && (consumeHeld(SSP_Down) || switchSide())) return;
+    if (longPress && (consumeHeld(SSP_Down) || stepVoice(1))) return;
     auto& vv = voiceViews_[voice_];
     if (voiceMode() && voice_ % 2 == 0 && vv->page() + 1 == vv->pages()) {
         voiceViews_[voice_ + 1]->goToPage(0);
@@ -332,7 +334,7 @@ void PluginEditor::eventLeft(bool longPress) {
     }
     if (longPress) {
         if (!consumeHeld(SSP_Left)) holdAction(SSP_Left);
-    } else if (globalMode()) showVoice((TRACKS - 1) * 2);
+    } else if (globalMode()) showVoice((processor_.tracks() - 1) * 2);
     else if (voice_ >= 2) showVoice((voice_ / 2 - 1) * 2);
 }
 
@@ -345,7 +347,7 @@ void PluginEditor::eventRight(bool longPress) {
         if (!consumeHeld(SSP_Right)) holdAction(SSP_Right);
     } else if (globalMode()) {
         return;
-    } else if (voice_ / 2 + 1 < TRACKS) {
+    } else if (voice_ / 2 + 1 < processor_.tracks()) {
         showVoice((voice_ / 2 + 1) * 2);
     } else {
         setView(V_GLOBAL);
@@ -411,7 +413,7 @@ void PluginEditor::drawView(Graphics& g) {
         // loop regions as played (after CV), the current voice's brighter
         for (unsigned v = 0; v < VOICES; v++) {
             auto& vp = processor_.getVoice(v);
-            if (processor_.bufferOf(v) != b || vp.on.getValue() < 0.5f) continue;
+            if (v / 2 >= processor_.tracks() || processor_.bufferOf(v) != b || vp.on.getValue() < 0.5f) continue;
             float s = processor_.playedStart(v), e = processor_.playedEnd(v);
             float x0 = xOf(std::min(std::min(s, e), len)), x1 = xOf(std::min(std::max(s, e), len));
             bool cur = v == voice_;
@@ -430,7 +432,7 @@ void PluginEditor::drawView(Graphics& g) {
         // both subheads, each as bright as its gain: in a crossfade one fades out as the other fades in
         for (unsigned v = 0; v < VOICES; v++) {
             auto& vp = processor_.getVoice(v);
-            if (processor_.bufferOf(v) != b || vp.on.getValue() < 0.5f) continue;
+            if (v / 2 >= processor_.tracks() || processor_.bufferOf(v) != b || vp.on.getValue() < 0.5f) continue;
             if (vp.play.getValue() < 0.5f && vp.rec.getValue() < 0.5f) continue;
             float w = processor_.isRecording(v) ? 3.0f : 1.5f;
             for (int i = 0; i < 2; i++) {

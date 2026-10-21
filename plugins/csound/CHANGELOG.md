@@ -4,6 +4,16 @@ csound follows [semantic versioning](https://semver.org). Until 1.0.0, a minor v
 
 The version is set in `CMakeLists.txt` (`project(CSOUND VERSION ...)`) and shown at the top right of the screen.
 
+## [Unreleased]
+
+- Two examples from Csound's own: Kung's `xanadu.csd` and Boulanger's `trapped.csd`. Each has `massign 0, 0` added, so it ignores MIDI: in `xanadu.csd` a MIDI note started instrument 1 at octave 0, the vibrato took `cpsoct` below 0, which returns garbage in Csound, and `pluck` read outside its buffer and crashed. See [docs/dev/issues/261021-csound-cpsoct.md](../../docs/dev/issues/261021-csound-cpsoct.md).
+
+- Csound 7.0.0, the release, replaces 7.0.0-beta.17. `scripts/build_deps.sh` turns off 7.0.0's new `USE_WASMTIME` option with the other optional libraries, and builds each version in its own directory, as CMake refuses a cache made from another source tree. Run `make deps` to rebuild.
+
+- The tests' fallback build called `scripts/build_csound.sh`, which does not exist; it calls `scripts/build_deps.sh`.
+
+- The first block after each compile created the `p1`..`p16` control channels on the audio thread, which allocates; they are created at compile time.
+
 ## [0.2.0] - 2026-10-18
 
 A USB keyboard, or TCP port 7773, edits the program in a Code view. Ctrl-Enter compiles the edited text in place of the program without writing its file; Ctrl-S writes it. The preset stores the code run, so a patch keeps a live edit even when the file is unsaved or changed later. See [README.md](README.md#keyboard).

@@ -53,7 +53,7 @@ def plugins():
 # source folder -> product name; Synthor lists only names of up to four characters
 PRODUCTS = {"radio": "rdio", "csound": "csnd", "chuck": "chuk", "edrums": "edrm", "pstretch": "strc", "bard": "bard",
             "glitch": "gltc", "chorus": "chrs", "faust": "fstr", "scsynth": "scsy", "teletype": "ttyp",
-            "dexed": "dexd", "alda": "alda", "fsyn": "fsyn", "breaks": "brks"}
+            "dexed": "dexd", "alda": "alda", "fsyn": "fsyn", "breaks": "brks", "sfct": "sfct"}
 # examples/: built and tested on the host, never shipped, so not in the manifest
 EXAMPLES = {"svca": "svca", "tremolo": "trem"}
 
@@ -162,11 +162,22 @@ def test_alda_midi_port(plugins):
     assert host.returncode == 0, host.stderr[-4000:]
 
 
-def wav(path, frames, sample):
-    """16-bit mono 48 kHz, every sample `sample` (-1..1)"""
-    data = struct.pack("<h", int(sample * 32767)) * frames
-    path.write_bytes(b"RIFF" + struct.pack("<I", 36 + len(data)) + b"WAVEfmt "
-                     + struct.pack("<IHHIIHH", 16, 1, 1, 48000, 96000, 2, 16) + b"data" + struct.pack("<I", len(data)) + data)
+def wav(path, frames, sample, channels=1):
+    """16-bit 48 kHz, every sample `sample` (-1..1)"""
+    data = struct.pack("<h", int(sample * 32767)) * frames * channels
+    fmt = struct.pack("<IHHIIHH", 16, 1, channels, 48000, 96000 * channels, 2 * channels, 16)
+    path.write_bytes(b"RIFF" + struct.pack("<I", 36 + len(data)) + b"WAVEfmt " + fmt + b"data"
+                     + struct.pack("<I", len(data)) + data)
+
+
+def test_sfct_buffer_channel(plugins, tmp_path):
+    # sfct reads the first two channels of a file; a preset naming channel 2 of a quad file crashed
+    quad = tmp_path / "quad.wav"
+    wav(quad, 4800, 0.25, channels=4)
+    for channel in (1, 2):
+        _, state = run(plugins, "sfct", "prepare", 48000, 128, "set", "BUFFER_CHANNEL_0", channel,
+                       "set", "BUFFER_FILE_0", quad, "run", 0.05, 128, "state")
+        assert f'BUFFER_FILE_0="{quad}"' in state  # a failed load keeps the preset's reference
 
 
 def test_edrums(plugins):

@@ -124,7 +124,7 @@ void SystemEditor::populateMidiDevices() {
     midiOutStr_.push_back("NONE");
     for (int i = 0; i < out.size(); i++) {
         auto name = out[i].name.toStdString();
-        auto id = in[i].identifier.toStdString();
+        auto id = out[i].identifier.toStdString();
         // ssp::log(("Midi Output : " + mame);
         if (!isInternalMidi(name)) {
             outDevices_.push_back(out[i]);
@@ -223,6 +223,7 @@ void SystemEditor::noteInput(bool b) {
 void SystemEditor::deleteAutomation(bool b) {
     if (!b) {
         if (selIdx_ >= 0) {
+            std::lock_guard<std::recursive_mutex> amLock(baseProcessor_->midiAutomationLock());
             auto& am = baseProcessor_->midiAutomation();
             if (am.empty() || selIdx_ >= am.size()) return;
 
@@ -247,6 +248,7 @@ void SystemEditor::onEncoder(unsigned enc, float v) {
     if (mode() == M_PARAM) {
         switch (enc) {
             case 0: {
+                std::lock_guard<std::recursive_mutex> amLock(baseProcessor_->midiAutomationLock());
                 auto amsize = baseProcessor_->midiAutomation().size();
                 if (amsize == 0) return;
 
@@ -264,6 +266,7 @@ void SystemEditor::onEncoder(unsigned enc, float v) {
                 break;
             }
             case 1: {
+                std::lock_guard<std::recursive_mutex> amLock(baseProcessor_->midiAutomationLock());
                 auto& am = baseProcessor_->midiAutomation();
                 if (selIdx_ < am.size()) {
                     auto ai = am.begin();
@@ -280,6 +283,7 @@ void SystemEditor::onEncoder(unsigned enc, float v) {
                 break;
             }
             case 2: {
+                std::lock_guard<std::recursive_mutex> amLock(baseProcessor_->midiAutomationLock());
                 auto& am = baseProcessor_->midiAutomation();
                 if (selIdx_ < am.size()) {
                     auto ai = am.begin();

@@ -18,7 +18,7 @@ Copy `ttyp.so` to the `plugins` folder on the SSP's SD card and restart the SSP.
 
 Plug the keyboard into a **USB 2.0 hub** on the SSP's free USB port. A keyboard plugged straight into that port does not enumerate: the port's controller (EHCI) handles only high-speed devices, and keyboards are low or full speed. A USB 2.0 hub converts between them. A USB 1.1 hub does not.
 
-The keyboard goes to the `ttyp` instance whose screen was shown last. `ttyp` takes the keyboard for itself, so the Linux console does not see it.
+The keyboard goes to the keyboard module whose screen was shown last: a `ttyp` instance, `sapf`, or the Code view of `fstr`, `csnd`, `chuk` or `alda`. With none on screen, whichever holds it keeps it. The module takes the keyboard for itself, so the Linux console does not see it.
 
 ### Network
 
@@ -154,11 +154,11 @@ Compared with the hardware:
 
   - A key released within 47 ms is missed, as on the hardware: the firmware polls the keyboard at that interval.
 
-  - One keyboard for all instances; it follows the screen shown last.
+  - One keyboard for all instances and keyboard modules; it follows the screen shown last.
 
   - Some shortcuts need function keys. On a compact keyboard, use its Fn layer.
 
-- **Network typing** with `tools/ttyp_type.py` sends taps: no held keys, and no modifier but Shift. The port takes one client at a time.
+- **Network typing** with `tools/ttyp_type.py` sends taps: no held keys, and no modifier but Shift. The port takes one client at a time: a new connection replaces the old.
 
 - **Instances.** Each instance runs its own copy of the firmware, about 1 MB with its scene memory, and its own 1 ms thread.
 

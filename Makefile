@@ -40,8 +40,8 @@ help:
 	@echo "make install-fsyn       copy fsyn's soundfont, FluidR3_GM.sf2, to the card"
 	@echo "make install-brks       download _core's default sample banks, copy them to the card as brks's default"
 	@echo "make midisend           build tools/midisend, copy it to SSP_HOST's /tmp and start it: a MIDI input for tests"
-	@echo "make install-presets     check, then copy presets/ (or PRESETS=dir) to the card (SSP_PRESETS)"
-	@echo "make test               run the py2rack and plugin tests"
+	@echo "make install-presets    check, then copy presets/ (or PRESETS=dir) to the card (SSP_PRESETS)"
+	@echo "make test               run the tools, scripts and plugin tests"
 	@echo "make clean              remove $(BUILD_DIR)"
 	@echo "variables: SSP_BUILDROOT, SSP_HOST (root@192.168.1.6), SSP_PLUGINS (/media/$$USER/BOOT/plugins), SSP_PRESETS (/media/$$USER/BOOT/rack_presets), JOBS ($(JOBS))"
 
@@ -59,7 +59,7 @@ $(BUILDROOT_DIR):
 $(BUILD_DIR)/Makefile: | $(BUILDROOT_DEP)
 	cmake --preset "$(PRESET)"
 
-# the csound and chuck plugins are configured only once their libraries exist
+# the plugins on these libraries and sources are configured only once they exist
 deps: | $(BUILDROOT_DEP)
 	scripts/build_deps.sh ssp
 	scripts/fetch_teletype.sh

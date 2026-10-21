@@ -234,7 +234,7 @@ The rest of the file, compile definitions and the JUCE link, is the same in ever
 
 - `SSP_VERSION_FROM_PROJECT=1` shows the `project()` version on screen.
 
-- Add `${STREAM_SRC}` to read audio files, `${FAUST_SRC}` for a Faust kernel, `${SCRIPT_SRC}` for a script host. `plugins/common/engine/CMakeLists.txt` lists them.
+- Add `${STREAM_SRC}` to read audio files, `${FAUST_SRC}` for a Faust kernel, `${SCRIPT_SRC}` for a script host. `plugins/common/engine/CMakeLists.txt` lists them. `plugins/common/keys/CMakeLists.txt` lists `${KEYS_SRC}`, `${TEXT_SRC}` and `${HIGHLIGHT_SRC}`, for a code editor typed from a keyboard.
 
 Add the folder to `plugins/CMakeLists.txt`:
 
@@ -294,4 +294,4 @@ This writes `tools/py2rack/modules-local.json`, the jack and parameter names py2
 
 ## 8. Document it
 
-Add `plugins/<dir>/README.md` and `CHANGELOG.md`, and a row to the table in the root `README.md`. `make release` copies each plugin's README and CHANGELOG into the package and lists the plugin from its `CMakeLists.txt`.
+Add `plugins/<dir>/README.md` and `CHANGELOG.md`, and a row to the table in the root `README.md`. In `scripts/release.py`, add the module to `ORIGINS`, to `LICENSES` if it is not AGPL-3.0, and to `DATA` or `USER_DATA` if it reads files on the card. `make release` copies each plugin's README and CHANGELOG into the package and lists the plugin from its `CMakeLists.txt`.

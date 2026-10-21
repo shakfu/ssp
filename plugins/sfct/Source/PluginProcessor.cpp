@@ -250,13 +250,13 @@ int PluginProcessor::loadChannels(const String& path, const int (&channelFor)[sf
     if (!f.existsAsFile()) return -1;
     std::unique_ptr<AudioFormatReader> reader(formatManager_.createReaderFor(f));
     if (reader == nullptr || reader->lengthInSamples <= 0 || reader->sampleRate <= 0) return -1;
+    unsigned nch = std::min(2u, reader->numChannels);  // only the first two channels are read
     for (int ch : channelFor)
-        if (ch >= int(reader->numChannels)) return -1;
+        if (ch >= int(nch)) return -1;
 
     double ratio = reader->sampleRate / sampleRate_;  // input frames per output frame
     int outFrames = int(std::min<double>(sfct::BUFFER_FRAMES, double(reader->lengthInSamples) / ratio));
     int inFrames = int(std::min<double>(double(reader->lengthInSamples), std::ceil(outFrames * ratio)));
-    unsigned nch = std::min(2u, reader->numChannels);
     AudioBuffer<float> in(int(nch), inFrames);
     if (!reader->read(&in, 0, inFrames, 0, true, nch > 1)) return -1;
 
@@ -293,14 +293,7 @@ bool PluginProcessor::loadFile(const String& path, unsigned voice, bool fitLoops
     std::unique_ptr<AudioFormatReader> reader(formatManager_.createReaderFor(File(path)));
     if (reader == nullptr) return false;
     int channelFor[sfct::BUFFERS];
-    std::fill(std::begin(channelFor), std::end(channelFor), -1);
-    unsigned left = voice & ~1u;
-    if (reader->numChannels >= 2) {
-        channelFor[bufferOf(left)] = 0;
-        channelFor[bufferOf(left + 1)] = 1;
-    } else {
-        channelFor[bufferOf(voice)] = 0;
-    }
+    sfct::fileChannels(mode(), voice, reader->numChannels, getVoice(voice).link.getValue() > 0.5f, channelFor);
     reader.reset();
 
     int frames = loadChannels(path, channelFor);
@@ -642,23 +635,23 @@ void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMe
     for (unsigned v = 0; v < VOICES; v++) vout[v] = buffer.getWritePointer(O_VOICE_1 + v);
     engine_.process(in, mix, vout, n);
 
+    auto m = engine_.mode();
     for (unsigned t = 0; t < PAIRS; t++) {
         unsigned v = t * 2;
         double q = engine_.voice(v).getQuantPhase();
-        bool pulse = p[v].on && (p[v].play || p[v].rec) && p[v].phaseQuant > 0.0f && q != lastPhase_[t];
+        bool pulse = t < sfct::tracksFor(m) && p[v].on && (p[v].play || p[v].rec) && p[v].phaseQuant > 0.0f && q != lastPhase_[t];
         lastPhase_[t] = q;
         float* out = buffer.getWritePointer(O_PHASE_1 + int(t));
         std::fill(out, out + n, pulse ? 1.0f : 0.0f);
     }
 
     // the displayed track's buffers, over the furthest loop end among enabled voices that use them
-    auto m = engine_.mode();
     unsigned left = displayTrack_.load(std::memory_order_relaxed) * 2;
     unsigned lanes[sfct::LANES] = { sfct::bufferFor(m, left), sfct::bufferFor(m, left + 1) };
     float view = 0.5f;  // seconds; a floor keeps a short loop readable
     for (unsigned v = 0; v < VOICES; v++) {
         unsigned b = sfct::bufferFor(m, v);
-        if (p[v].on && (b == lanes[0] || b == lanes[1]))
+        if (p[v].on && v / 2 < sfct::tracksFor(m) && (b == lanes[0] || b == lanes[1]))
             view = std::max(view, std::max(p[v].loopStart, p[v].loopEnd));
     }
     engine_.scanPeaks(unsigned(view * sampleRate_), lanes);

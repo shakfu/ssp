@@ -2,8 +2,8 @@
 
 // Multi-voice softcut host, free of JUCE so it can be tested on the build machine.
 // Eight mono voices form four tracks of L/R pairs (voices 2k, 2k+1). Voice v records input
-// channel v % 2. In SHARED mode (norns) every voice uses buffer v % 2; in PER_TRACK mode each
-// voice has its own buffer v, so each track is an independent stereo loop.
+// channel v % 2. In SHARED mode (norns) the first three tracks play and every voice uses buffer
+// v % 2; in PER_TRACK mode each voice has its own buffer v, so each track is an independent stereo loop.
 
 #include <algorithm>
 #include <atomic>
@@ -37,6 +37,11 @@ enum Mode : int { SHARED = 0, PER_TRACK = 1 };
 
 // What a voice records: its own side's input (L voices In L, R voices In R), one input, or their mean.
 enum InputSrc : int { IN_OWN = 0, IN_L = 1, IN_R = 2, IN_MIX = 3 };
+
+// SHARED has norns' six voices; the fourth track keeps its settings but is silent.
+inline unsigned tracksFor(Mode m) {
+    return m == SHARED ? TRACKS - 1 : TRACKS;
+}
 
 inline unsigned bufferFor(Mode m, unsigned v) {
     return m == SHARED ? v % SHARED_BUFFERS : v;
@@ -89,6 +94,19 @@ struct VoiceParams {
 // Voices 2k and 2k+1 form a stereo pair, L and R.
 inline unsigned partnerOf(unsigned v) {
     return v ^ 1u;
+}
+
+// Which file channel each buffer takes when a file loads on voice v, or -1 to keep it. A stereo file
+// fills the track's L and R; a mono file fills both on a linked track, else only the voice's own buffer.
+inline void fileChannels(Mode m, unsigned v, unsigned fileChans, bool linked, int (&out)[BUFFERS]) {
+    std::fill(std::begin(out), std::end(out), -1);
+    unsigned left = v & ~1u;
+    if (fileChans >= 2 || linked) {
+        out[bufferFor(m, left)] = 0;
+        out[bufferFor(m, left + 1)] = fileChans >= 2 ? 1 : 0;
+    } else {
+        out[bufferFor(m, v)] = 0;
+    }
 }
 
 // The follower of a linked pair: the leader's settings with pan mirrored.
@@ -376,10 +394,11 @@ public:
             // halved, so two full-scale inputs do not clip
             for (unsigned i = 0; i < len; i++) chunkMix_[i] = 0.5f * (chunkIn_[0][i] + chunkIn_[1][i]);
             for (unsigned i = 0; i < len; i++) mix[0][off + i] = mix[1][off + i] = 0.0f;
+            unsigned active = 2 * tracksFor(mode());
             for (unsigned vi = 0; vi < VOICES; vi++) {
                 const auto& p = params_[vi];
                 float* vo = voiceOut[vi] ? voiceOut[vi] + off : nullptr;
-                if (!p.on) {
+                if (!p.on || vi >= active) {
                     if (vo) std::fill(vo, vo + len, 0.0f);
                     std::fill(curOut_[vi], curOut_[vi] + CHUNK, 0.0f);
                     continue;

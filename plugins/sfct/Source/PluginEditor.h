@@ -54,7 +54,7 @@ private:
     // the voice's buffer, or its track's two for a linked pair
     unsigned saveMask() const;
     void showVoice(unsigned v);
-    bool switchSide();
+    bool stepVoice(int dir);
     // the long-press action of each button; true if it acted
     bool holdAction(unsigned btn);
     // true if the hold already acted, so the release does not act again

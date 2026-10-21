@@ -20,7 +20,7 @@ A program on the card is the fastest to try: no build, and Load swaps it in. A m
 |-|-|-|
 | `ssp-sdk/` | Percussa's `SSPApi.h`: the C entry points Synthor calls | every plugin |
 | `plugins/common/` | TheTechnobear's framework: `BaseProcessor` (JUCE `AudioProcessor` plus SSP glue), views, editors, controls, the file browser; `SSPApi.h` exports a `PluginProcessor` | every plugin |
-| `plugins/common/engine/` | the engine layer: `Engine`, `EngineProcessor`, `EngineEditor`, and the Faust and script hosts on top | all but `sfct` and `rack` |
+| `plugins/common/engine/` | the engine layer: `Engine`, `EngineProcessor`, `EngineEditor`, and the Faust and script hosts on top | all but `sfct`, `rack`, `sapf` and `ttyp` |
 | `examples/` | `svca` and `tremolo`, the guides' worked examples; built and tested on the host, never shipped | the guides |
 
 [dev/engines.md](dev/engines.md#layout) lists every file in the engine layer. Its three core types:
@@ -31,20 +31,22 @@ A program on the card is the fastest to try: no build, and Load swaps it in. A m
 
 - `EngineEditor` and `EngineMiniEditor`: the full-screen editor and rack's compact one. Both draw `ParamPage`s: four controls a page, one per encoder.
 
-`FaustProcessor` builds the parameters, jacks and pages from a compiled Faust kernel. `ScriptProcessor` hosts a program loaded from the card, with controls `p1`..`p16`; `csnd`, `chuk` and `fstr` use it.
+`FaustProcessor` builds the parameters, jacks and pages from a compiled Faust kernel. `ScriptProcessor` hosts a program loaded from the card, with controls `p1`..`p16`; `csnd`, `chuk`, `fstr`, `scsy` and `alda` use it.
 
 ## Tools
 
 | Tool | What |
 |-|-|
-| `make deps` (`scripts/build_deps.sh ssp\|host`) | builds libsndfile, Csound, the ChucK core, libfaust and libscsynth as static archives, and SC's and sc3-plugins' UGens as `.so` files, into `build/deps/<target>` |
+| `make deps` (`scripts/build_deps.sh ssp\|host`) | builds libsndfile, Csound, the ChucK core, libfaust and libscsynth as static archives, and SC's and sc3-plugins' UGens as `.so` files, into `build/deps/<target>`; then `build_fluidsynth.sh`, and the `fetch_*.sh` scripts for teletype, sapf, alda and _core |
 | `make faust-kernels` (`scripts/faust_kernel.sh`) | compiles a `.dsp` to a kernel header with [cyfaust](https://github.com/shakfu/cyfaust), fetched by `uv`. Kernel headers are committed, so a build does not need it |
+| `make scsy-builtin` (`scripts/scsy_builtin.py`) | regenerates `scsy`'s built-in SynthDef header with nanosynth, fetched by `uv`. The header is committed |
 | `scripts/new_plugin.py DIR NAME [--faust]` | copies `examples/svca`, or `examples/tremolo`, to `plugins/DIR` as module NAME, renamed and registered in the build |
 | `make` | cross build for the SSP into `build.cmake.ssp` |
 | `make test` | every pytest suite: the tools, the scripts, and `plugins/*/tests` |
 | `plugins/common/tests/plugin_host.cpp` | loads a plugin `.so` through the SSP API on the host: sets state, feeds inputs, runs blocks, prints levels and state, renders the editor to a 1600x480 BGRA file. The plugin tests drive it |
 | `make install [MOD=name]` (`scripts/install.sh`) | copies built plugins, or the one named, to the mounted card's `BOOT/plugins` |
-| `make install-faust`, `make install-scsy`, `make install-presets` | the Faust libraries and `fstr` examples; the UGen plugins and `scsy` examples; rack presets |
+| `make deploy`, `make deploy-mod MOD=name` | copy all plugins, or one, to `SSP_HOST` over `scp`; `deploy-mod` refuses while Synthor runs |
+| `make install-faust`, `make install-scsy`, `make install-sapf`, `make install-fsyn`, `make install-brks`, `make install-presets` | the Faust libraries and `fstr` examples; the UGen plugins and `scsy` examples; sapf's prelude and examples; `fsyn`'s soundfont; `brks`'s default banks; rack presets |
 | `make midisend` (`tools/midisend`) | a MIDI input for tests, without a keyboard: builds it, copies it to `SSP_HOST`'s `/tmp` and starts it. Choose `midisend` as a module's MIDI input in its general panel (RS + LS), then play it over ssh: `ssh root@192.168.1.6 'echo "on 60 100" > /tmp/midisend'`, and `off 60`. A reboot removes it |
 | `plugins/scsynth/tests/run_on_ssp.sh` | cross-compiles the `scsy` tests and runs them on the SSP over ssh |
 | `tools/py2rack` | writes, checks and decodes rack presets off the device. See its [README](../tools/py2rack/README.md) |

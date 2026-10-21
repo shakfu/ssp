@@ -2,6 +2,16 @@
 
 rack is a fork of TheTechnobear's trax 1.0.1 and numbers its own versions, independent of trax's, and follows [semantic versioning](https://semver.org) from 0.2.0, its first release. The version is set in `CMakeLists.txt` (`project(RACK VERSION ...)`) and shown on the SSP. Design notes: [docs/dev/rack-design.md](../../docs/dev/rack-design.md).
 
+## [Unreleased]
+
+- A wire in a Synthor patch or binary preset naming a module slot out of range indexed past the module array and crashed Synthor; it is dropped. JSON presets were already checked.
+
+- Saving a Synthor patch or binary preset leaked each module's state buffer.
+
+- A block the track skipped, because an edit held its lock, passed the raw track input to the output at track gain: a click on every wire, gain or module edit.
+
+- Clearing a track spun on the module lock inverted, so it could proceed while the audio thread held it.
+
 ## [0.2.0] - 2026-10-09
 
 Renamed from trax: the plugin is `rack.so` (plugin code `RACK`, manufacturer `SF00`), and presets live in `/media/BOOT/rack_presets`. The binary preset format is unchanged, so binary presets load in either.

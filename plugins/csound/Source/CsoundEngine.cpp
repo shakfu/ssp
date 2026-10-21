@@ -178,6 +178,11 @@ bool CsoundEngine::compile(const std::string& text, const std::string& path, std
     i->scale = float(csoundGet0dBFS(i->cs));
     i->pos = i->ksmps;  // perform before the first frame
     std::fill(std::begin(i->applied), std::end(i->applied), std::nanf(""));  // never equal: all sent
+    // created here: csoundSetControlChannel would allocate a missing channel on the audio thread
+    for (int p = 0; p < PARAMS; p++) {
+        MYFLT* ch = nullptr;
+        csoundGetChannelPtr(i->cs, reinterpret_cast<void**>(&ch), paramName(p), CSOUND_CONTROL_CHANNEL | CSOUND_INPUT_CHANNEL);
+    }
 
     Instance* old = gate_.take();
     gate_.publish(i);

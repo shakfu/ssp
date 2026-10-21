@@ -80,6 +80,7 @@ void SystemMiniEditor::drawView(Graphics& g) {
     y += fh;
 
     auto& plist = baseProcessor_->getParameters();
+    std::lock_guard<std::recursive_mutex> amLock(baseProcessor_->midiAutomationLock());
     auto& am = baseProcessor_->midiAutomation();
 
     if (am.empty()) return;

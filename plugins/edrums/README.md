@@ -38,7 +38,7 @@ Patch a clock into Clock, for example from `clkd`. Each rising edge above 2 V is
 
 - **Swing**: 50% is straight. Above it, every second step of the track comes late, up to 75%, where it falls halfway to the next step. It acts on the track's own steps, so it works at any Rate; steps count from the last reset. A track swings once it has measured two clock pulses.
 
-- **Mute**: silences a track and its trigger. It keeps stepping, so it comes back in time.
+- **Mute**: silences a track and its trigger. It keeps stepping, so it comes back in time. Buttons 1 to 4 still fire a muted track's trigger, without sound.
 
 - **Voice**: off, a track sends only its trigger, for a voice in another module.
 
@@ -46,7 +46,7 @@ Patch a clock into Clock, for example from `clkd`. Each rising edge above 2 V is
 
 - Buttons 1 to 4 fire tracks 1 to 4 at once, clock or not.
 
-- Up and Down step through the pages. A long Up or Down jumps to the first page of the previous or next track; a long Right (Prog +) to the global pages from chance on, and a long Left (Prog -) back to where you were.
+- Up and Down step through the pages. A long Down jumps to the first page of the next track, and after the last track to the global pages, then round; a long Up goes the other way; a long Right (Prog +) to the global pages from chance on, and a long Left (Prog -) back to where you were.
 
 The default kit: track 1 kick on every beat, track 2 tom silent, track 3 snare on 2 and 4, track 4 hat on the off-beats, all over 16 steps.
 

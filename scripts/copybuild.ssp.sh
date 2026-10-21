@@ -6,3 +6,5 @@ BUILD_DIR="${BUILD_DIR:-$ROOT/build.cmake.ssp}"
 SSP_HOST="${SSP_HOST:-root@192.168.1.6}"
 
 scp -O "$BUILD_DIR"/plugins/*/*/Release/VST3/*.vst3/Contents/*/*.so "$SSP_HOST":/media/BOOT/plugins
+# FAT holds writes in RAM: a power-cycle before they reach the card leaves a half-written .so
+ssh "$SSP_HOST" sync

@@ -51,7 +51,7 @@ Stations stream from the card, so their length is unlimited.
 
 - Buttons 1 and 2 reset deck A and deck B: playback jumps to Start.
 
-- Up and Down step through the pages. A long Up or Down jumps to the first page of the other deck; a long Right (Prog +) to the global pages, and a long Left (Prog -) back.
+- Up and Down step through the pages. A long Down jumps to the first page of the next group, in the order deck A, deck B, the global pages, and round; a long Up to the previous group. A long Right (Prog +) goes to the global pages, and a long Left (Prog -) back.
 
 ## I/O
 

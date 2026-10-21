@@ -24,6 +24,8 @@ Built and tested natively where possible, but not yet run on the device:
 
 - [ ] Load, record, save and preset restore, in both modes.
 
+- [x] `4 loop` mode works on the SSP (user, 2026-10-21).
+
 - [ ] Record once (hold rec).
 
 - [x] Track input routing (Global page 2): a mono source on In L recorded to both sides with `L`.
@@ -34,7 +36,9 @@ Built and tested natively where possible, but not yet run on the device:
 
 - [ ] Filter and fade pages.
 
-- [x] Holds act at the threshold: TRK- to track 1, TRK+ to the Global view, EN to switch sides.
+- [ ] `norns` mode: three tracks, TRK+ from track 3 to the Global view, track 4 silent. Held EN-/EN+ step one voice (1 L, 1 R, 2 L, ...) at the same page.
+
+- [ ] A mono file on a linked track fills L and R; unlinked, only the voice's buffer.
 
 - [ ] Judge by ear: `Pos` at 1 s/V; synced loop length in buffer time, so rate 0.5 doubles it in beats.
 
@@ -48,6 +52,8 @@ Built and tested natively where possible, but not yet run on the device:
 
 - [ ] Tests above the engine: linking, preset-restore guard, CV reading, WAV IO, mode restore. Needs a native JUCE test build.
 
+- [ ] Copy one buffer to another, e.g. L to R, including recordings: a mono take or file on both sides without reloading. Needs a gesture (every button is assigned) and a copy on the audio thread in slices, as Clear does. The copy is not in presets until saved.
+
 - [ ] 1.0.0 once the device checks pass.
 
 ## Optional
@@ -59,10 +65,6 @@ Built and tested natively where possible, but not yet run on the device:
 - [ ] Band-limited resampling on load (Lagrange aliases when downsampling).
 
 ## Housekeeping
-
-- [ ] Commit everything after `f5e8d10`: softcut controls, tempo sync, phase outputs, input routing, clear all, versioning, metadata, docs. Includes shared-code changes in `plugins/common/` (title and version macros).
-
-- [ ] Rebuild `releases/ssp/plugins/sfct.so` before committing binaries; keep the other rebuilt `.so` files out of source commits.
 
 - [ ] Upstream `external/softcut-lib/patches/sfct-perf.patch` to softcut-py.
 

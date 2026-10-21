@@ -4,6 +4,10 @@ faust follows [semantic versioning](https://semver.org). Until 1.0.0, a minor ve
 
 The version is set in `CMakeLists.txt` (`project(FAUST VERSION ...)`) and shown at the top right of the screen.
 
+## [Unreleased]
+
+- The Code view's status line listed Ctrl-E, which `fstr` does not support.
+
 ## [0.3.0] - 2026-10-18
 
 A USB keyboard, or TCP port 7772, edits the program in a Code view. Ctrl-Enter compiles the edited text in place of the program without writing its file; Ctrl-S writes it. The preset stores the code run, so a patch keeps a live edit even when the file is unsaved or changed later. See [README.md](README.md#keyboard).

@@ -10,7 +10,7 @@
 
 - `lib/pcg_basic.c`: the PCG random number generator, Copyright 2014 Melissa O'Neill, Apache License 2.0, in [LICENSE-pcg-Apache-2.0.txt](LICENSE-pcg-Apache-2.0.txt).
 
-[`scripts/fetch_core.sh`](../../scripts/fetch_core.sh) fetches these unchanged. It appends [`Source/ssp_api.inc`](Source/ssp_api.inc) to the generator's firmware source before the generator's second stage. That file follows the firmware's Tap-held branches, so it is a derived work, also GPL-3.0-only.
+[`scripts/fetch_core.sh`](../../scripts/fetch_core.sh) fetches these unchanged. It modifies the generator's firmware source, `firmware.c`, before the generator's second stage: it appends [`Source/ssp_api.inc`](Source/ssp_api.inc), and adds a declaration and a call of `ssp_input_handling` to `input_handling`. That file follows the firmware's Tap-held branches, so it is a derived work, also GPL-3.0-only.
 
 GPLv3 and AGPL-3.0 section 13 each allow a work under one to be combined with a work under the other. The files in `Source/` are distributed under GPL-3.0-only too. The framework in `plugins/common`, which `brks.so` links, keeps its AGPL-3.0.
 
