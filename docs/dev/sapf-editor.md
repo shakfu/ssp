@@ -10,7 +10,7 @@ Status: done 2026-10-22, the full conversion. Device test pending. How each item
 6. Meters: on the pages, below the status panel.
 7. File types: the browser lists every file; no change needed.
 8. Old patches: `PluginProcessor::customFromXml` maps CODE and FILE to text, program and an empty code.
-9. p1-p16: kept in the plugin state, hidden from the pages (`ScriptProcessor::pages()` is virtual). sapf reads inputs with `adc` instead.
+9. p1-p16: in the plugin state; `ScriptProcessor::pages()` is virtual, and sapf's page shows p1 and p2 as Mouse X and Y, the position sapf's mouse words read (fork `SapfSetMouse`). sapf reads inputs with `adc`.
 
 Converting sapf to ScriptEngine is a medium-sized job, not a quick one. The engine API fits sapf; the shared editor would need features it lacks, and some keys would change. I'm still researching fsyn and will report when that finishes.
 

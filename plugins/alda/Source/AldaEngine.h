@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "engine/Clock.h"
 #include "engine/ScriptEngine.h"
 #include "readerwriterqueue.h"
 
@@ -73,11 +74,11 @@ public:
     unsigned midiDropped() const { return midiDropped_.load(std::memory_order_relaxed); }
 
     // MIDI input thread: a clock tick at `seconds`, and the transport. Used while the clock is MIDI.
-    void midiClock(double seconds);
-    void midiStart() { transport_.store(START, std::memory_order_release); }
-    void midiStop() { transport_.store(STOP, std::memory_order_release); }
-    void midiContinue() { transport_.store(CONTINUE, std::memory_order_release); }
-    enum Clock : uint8_t { FREE, INPUT, MIDI };
+    void midiClock(double seconds) { clock_.midiClock(seconds); }
+    void midiStart() { clock_.midiStart(); }
+    void midiStop() { clock_.midiStop(); }
+    void midiContinue() { clock_.midiContinue(); }
+    enum Clock : uint8_t { FREE, INPUT, MIDI };  // as ssp::engine::Clock::Source
     static constexpr int CLOCK_INPUT = 1;  // input 2
     struct Score {
         Clock clock = FREE;
@@ -114,9 +115,7 @@ private:
     void release();  // audio thread: note-off for every MIDI note sounding; every voice's gate closed
     void apply(const Event& e);
     void send(uint8_t status, uint8_t d1, uint8_t d2, uint8_t size = 3);  // audio thread
-    void pulse(double interval);  // audio thread: a clock pulse, `interval` samples after the last; 0 unknown
-    double tpp() const { return double(TICKS_PER_QUARTER) / (clocked_ == MIDI ? 24 : score_->ppqn); }  // per pulse
-    double swung(double pos) const;  // audio thread: the score position the clock position `pos` plays
+    void wrapPulse();  // audio thread: after a pulse that crossed the loop's end, its last events, then the loop
 
     // The worker hands scores to the audio thread through pending_, and the audio thread hands the one it
     // replaced back through retired_, so neither side frees on the audio thread. A swap waits while
@@ -127,34 +126,16 @@ private:
 
     // audio thread
     Score* score_ = nullptr;
-    double pos_ = 0.0;  // ticks into the loop
-    double bpm_ = 120.0;
+    ssp::engine::Clock clock_;  // its position: ticks into the loop
     size_t cursor_ = 0;
     Voice voices_[VOICES];
-    bool resetHigh_ = false;
     uint32_t sounding_[16][4] = {};  // MIDI notes on, a bit per note and channel
     int8_t sent_[16][128];           // the note sent for each score note sounding, transposed; -1 none
 
     // the controls, read once a block
     int transpose_ = 0;
-    double tempo_ = 1.0, velocity_ = 1.0, swing_ = 0.0;  // swing_: 0 straight .. 0.5 (75%)
+    double velocity_ = 1.0;
     bool mute_[VOICES] = {};
-
-    // clocked scores, audio thread
-    double lastGrid_ = 0.0;  // the last pulse's position, ticks; the score stays below lastGrid_ + one pulse
-    double rate_ = 0.0;      // ticks per sample between pulses; 0 until two pulses are measured
-    bool clockHigh_ = false;
-    double sinceEdge_ = 0.0;  // samples since input 2's last rising edge; 0 before the first
-    bool halted_ = false;     // MIDI Stop
-    Clock clocked_ = FREE;    // the clock the last block followed
-
-    // MIDI clock: written by the MIDI input thread
-    enum Transport : uint8_t { NONE, START, STOP, CONTINUE };
-    std::atomic<uint8_t> transport_{ NONE };
-    std::atomic<uint32_t> midiPulses_{ 0 };
-    std::atomic<double> midiInterval_{ 0.0 };  // seconds between the last two ticks; 0 after a gap
-    double lastMidiTick_ = -1.0;               // MIDI input thread
-    uint32_t pulsesSeen_ = 0;                  // audio thread
 
     moodycamel::ReaderWriterQueue<Midi> midi_{ MIDI_QUEUE };
     std::atomic<unsigned> midiDropped_{ 0 };
@@ -166,5 +147,10 @@ private:
     mutable std::mutex partsLock_;
     std::string parts_;  // the running score's, else the pending one's
 };
+
+static_assert(AldaEngine::TICKS_PER_QUARTER == ssp::engine::Clock::TICKS_PER_QUARTER, "one tick for score and clock");
+static_assert(int(AldaEngine::FREE) == ssp::engine::Clock::FREE && int(AldaEngine::INPUT) == ssp::engine::Clock::INPUT &&
+                      int(AldaEngine::MIDI) == ssp::engine::Clock::MIDI,
+              "the score's clock is the Clock's source");
 
 }  // namespace alda

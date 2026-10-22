@@ -68,6 +68,7 @@ ORIGINS = {
     "rack": "[TheTechnobear's trax](https://github.com/TheTechnobear/SSP)",
     "sfct": "[monome softcut](https://github.com/monome/softcut-lib)",
     "fstr": "new",
+    "gseq": "new",
     "dexd": "[Synth_Dexed](https://codeberg.org/dcoredump/Synth_Dexed), the [Dexed](https://github.com/asb2m10/dexed) engine",
     "ttyp": "[monome teletype](https://github.com/monome/teletype), on [monome-rack](https://github.com/Dewb/monome-rack)'s mock hardware",
     "sapf": "[sapf](https://github.com/lfnoise/sapf), through the fork [shakfu/sapf](https://github.com/shakfu/sapf)",

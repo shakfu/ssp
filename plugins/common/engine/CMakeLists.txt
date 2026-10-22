@@ -4,6 +4,11 @@ set(ENGINE_SRC
         ${CMAKE_CURRENT_LIST_DIR}/EngineEditor.cpp
 )
 
+# sequencers (alda) add this too: ssp::engine::Clock, tempo or clock input or MIDI clock
+set(CLOCK_SRC
+        ${CMAKE_CURRENT_LIST_DIR}/Clock.cpp
+)
+
 # plugins that stream files (radio, pstretch, bard) add this too
 set(STREAM_SRC
         ${CMAKE_CURRENT_LIST_DIR}/Station.cpp

@@ -34,6 +34,16 @@ PluginProcessor::PluginProcessor()
                       filesDir(),
                       { SAPF_KEY_PORT, SAPF_KEYBOARD_ENV, ".sapf", ";", tree_sitter_sapf, SAPF_HIGHLIGHTS, false,
                         "C-Enter run  C-E block  C-. stop  C-L clear  C-S save  C-O open  Esc", "word" }) {
+    applyDefaults();  // the mouse in the middle; a preset restored later replaces it
+}
+
+std::vector<ssp::engine::ParamPage> PluginProcessor::pages() {
+    using sapf::SapfEngine;
+    ssp::engine::ParamPage page;
+    page.name = "mouse";
+    page.c[0] = { &param(SapfEngine::MOUSE_X), 0.05f, 0.005f };
+    page.c[1] = { &param(SapfEngine::MOUSE_Y), 0.05f, 0.005f };
+    return { page };
 }
 
 String PluginProcessor::filesDir() {

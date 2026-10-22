@@ -4,7 +4,7 @@
 #include "ssp/BaseView.h"
 #include "ssp/controls/VuMeter.h"
 
-// The script editor's pages and Code view. sapf has no controls, so the pages show its output, left,
+// The script editor's pages and Code view. The page holds Mouse X and Y; its output shows below them,
 // and level meters for inputs and outputs 1-2 below the status panel.
 class PluginEditor : public ssp::engine::ScriptEditor {
 public:

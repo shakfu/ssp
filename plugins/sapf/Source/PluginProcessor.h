@@ -17,8 +17,8 @@ public:
     const String getName() const override { return JucePlugin_Name; }
     void processBlock(AudioSampleBuffer&, MidiBuffer&) override;
     AudioProcessorEditor* createEditor() override;
-    // none: sapf code reads its inputs with adc, not p1..p16
-    std::vector<ssp::engine::ParamPage> pages() override { return {}; }
+    // Mouse X and Y, on encoders 1 and 2; sapf code reads the inputs with adc
+    std::vector<ssp::engine::ParamPage> pages() override;
 
     const sapf::SapfEngine& sapf() { return static_cast<const sapf::SapfEngine&>(script()); }
     // SAPF_FILES, else /media/BOOT/sapf: the code, the prelude, the examples, and what >sf and >sfo write

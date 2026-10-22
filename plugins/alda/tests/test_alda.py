@@ -49,7 +49,8 @@ def build_engine(alda, out, name, *flags):
     subprocess.run([cxx, "-std=c++17", "-Wall", "-pthread", *flags, f"-I{SRC}", f"-I{ROOT / 'plugins' / 'common'}",
                     f"-I{ROOT / 'external' / 'readerwriterqueue'}",
                     *inc, HERE / "alda_test.cpp", SRC / "AldaEngine.cpp",
-                    ROOT / "plugins" / "common" / "engine" / "ScriptEngine.cpp", *objs, "-lm", "-o", exe], check=True)
+                    ROOT / "plugins" / "common" / "engine" / "ScriptEngine.cpp",
+                    ROOT / "plugins" / "common" / "engine" / "Clock.cpp", *objs, "-lm", "-o", exe], check=True)
     return exe
 
 

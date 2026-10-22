@@ -4,7 +4,8 @@
 
 namespace {
 
-constexpr int MARGIN = 10, LOG_LINE = 24, LOG_BOTTOM = 366;
+// the log: below the page's bars (y 68-136), above the buttons
+constexpr int MARGIN = 10, LOG_LINE = 24, LOG_TOP = 146, LOG_BOTTOM = 366;
 // the meters: two groups of 2 bars below the status panel, each after its label
 // 32: MonoVuMeter's bar is METER_W / 2 - 10 px wide, 6 px here
 constexpr int METER_W = 32, METER_LABEL_W = 44,
@@ -56,7 +57,7 @@ void PluginEditor::drawView(Graphics& g) {
     ScriptEditor::drawView(g);
     if (view_ != V_MAIN) return;
     std::vector<ssp::engine::ScriptEngine::OutputLine> out;
-    processor_.sapf().output(out, size_t((LOG_BOTTOM - MARGIN) / LOG_LINE));
+    processor_.sapf().output(out, size_t((LOG_BOTTOM - LOG_TOP) / LOG_LINE));
     g.setFont(mono(18));
     for (size_t i = 0; i < out.size(); i++) {
         g.setColour(out[i].error ? juce::Colours::red : dim);

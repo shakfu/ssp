@@ -8,9 +8,9 @@ Copy `sapf.so` to the `plugins` folder on the SSP's SD card, run `make install-s
 
 ## Use
 
-The module opens on its pages: sapf's output on the left, its state and the render thread's load on the right, and meters below them. Load (button 5) opens a browser; choose a `.sapf` or `.txt` file and press Load again to run it. With no file, a built-in sends inputs 1-2 to outputs 1-2.
+The module opens on its pages: the mouse page and sapf's output on the left, its state and the render thread's load on the right, and meters below them. Load (button 5) opens a browser; choose a `.sapf` or `.txt` file and press Load again to run it. With no file, a built-in sends inputs 1-2 to outputs 1-2.
 
-sapf has no controls: code reads the inputs with `adc` (see [Evaluating](#evaluating)). The encoders do nothing on the pages.
+The SSP has no mouse, so encoders 1 and 2 are sapf's: Mouse X and Mouse Y (p1 and p2), each 0 to 1, start in the middle. `mousex`, `mousey`, `xmousex`, `xmousey` and their `1` forms read them, as sapf's examples do. Otherwise code reads the inputs with `adc` (see [Evaluating](#evaluating)).
 
 ## Keyboard
 
@@ -67,7 +67,7 @@ A thread of its own renders sapf 10.7 ms ahead of the SSP's audio. Code that ren
 
 ## Limits
 
-- No MIDI. No controls: p1-p16 exist, but sapf code cannot read them.
+- No MIDI. p3-p16 exist, but sapf code cannot read them.
 
 - An evaluation stops at Ctrl-. between interpreter steps; a single long built-in operation, such as sorting a huge list, finishes first.
 

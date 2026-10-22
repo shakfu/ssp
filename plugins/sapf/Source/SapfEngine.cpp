@@ -1,5 +1,7 @@
 #include "SapfEngine.h"
 
+#include "sapf/Engine.hpp"
+
 namespace sapf {
 
 namespace {
@@ -14,6 +16,20 @@ std::string stateText(const Session& s) {
 }
 
 }  // namespace
+
+SapfEngine::Specs SapfEngine::controls() {
+    Specs s;
+    for (auto [i, label] : { std::pair{ MOUSE_X, "Mouse X" }, std::pair{ MOUSE_Y, "Mouse Y" } }) {
+        s[size_t(i)].label = label;
+        s[size_t(i)].def = 0.5f;
+    }
+    return s;
+}
+
+void SapfEngine::process(const float* const* in, float* const* out, int n) {
+    SapfSetMouse(param(MOUSE_X), param(MOUSE_Y));
+    session_.process(in, out, n);
+}
 
 void SapfEngine::prepare(float sampleRate, int maxBlock) {
     session_.prepare(sampleRate);  // the first starts the interpreter, which the program waits for

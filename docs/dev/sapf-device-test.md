@@ -29,5 +29,6 @@ Each step lists what to type, then what should happen. Ctrl-E evaluates the bloc
 | 21 | `440 0 sinosc .1 * 1 T "t" >sfo`, Ctrl-E | output `wrote file '.../BOOT/sapf/t.wav'`; nothing else happens: `openFiles` is off |
 | 22 | With another module sounding, play `;;;; rain` from `sapf-examples.txt` (16 voices with reverb, over real time on the SSP) | `late` grows and sapf's sound breaks up; the other module plays on without a gap |
 | 23 | In rack, sapf's compact view | the state and the last output lines |
+| 24 | `400 [1/1 5/4 7/5 7/4] 2m ldv * 0 saw brands pan2 +/ 200 12k xmousex lpf play` (`;;;; mouse control of filter` in the examples), Ctrl-E; Esc; turn encoder 1 | the filter opens and closes with Mouse X, smoothed over about 0.1 s |
 
 Note the `render` figure (the render thread's share of real time) during steps 7 and 22, and whether `late` appears in steps 4-18: it would mean the 4-block FIFO is too shallow with Synthor's other threads running. Step 20's full load also runs the number puzzles, which take minutes on the SSP: Ctrl-. stops them.

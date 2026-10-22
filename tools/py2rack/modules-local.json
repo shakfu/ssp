@@ -465,6 +465,33 @@
     },
     "skipped": 0
   },
+  "gseq": {
+    "inputs": [
+      "Reset",
+      "Clock"
+    ],
+    "outputs": [
+      "Gate 1",
+      "Gate 2",
+      "Gate 3",
+      "Gate 4",
+      "CV 1",
+      "CV 2",
+      "CV 3",
+      "CV 4",
+      "Vel 1",
+      "Vel 2",
+      "Vel 3",
+      "Vel 4"
+    ],
+    "params": {
+      "clock": "clock",
+      "ppqn": "ppqn",
+      "swing": "swing",
+      "tempo": "tempo"
+    },
+    "skipped": 0
+  },
   "rdio": {
     "inputs": [
       "A Station",

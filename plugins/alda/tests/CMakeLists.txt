@@ -19,7 +19,8 @@ target_include_directories(alda_core
 target_compile_options(alda_core PRIVATE -std=gnu11)
 
 add_executable(alda_test alda_test.cpp ${SRC}/AldaEngine.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../common/engine/ScriptEngine.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../common/engine/ScriptEngine.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../common/engine/Clock.cpp)
 target_include_directories(alda_test PRIVATE ${SRC} ${CMAKE_CURRENT_SOURCE_DIR}/../../common
         ${CMAKE_CURRENT_SOURCE_DIR}/../../../external/readerwriterqueue)
 target_link_libraries(alda_test PRIVATE alda_core pthread m)

@@ -54,7 +54,8 @@ def plugins():
 # source folder -> product name; Synthor lists only names of up to four characters
 PRODUCTS = {"radio": "rdio", "csound": "csnd", "chuck": "chuk", "edrums": "edrm", "pstretch": "strc", "bard": "bard",
             "glitch": "gltc", "chorus": "chrs", "faust": "fstr", "scsynth": "scsy", "teletype": "ttyp",
-            "dexed": "dexd", "alda": "alda", "fsyn": "fsyn", "breaks": "brks", "sfct": "sfct", "sapf": "sapf"}
+            "dexed": "dexd", "alda": "alda", "fsyn": "fsyn", "breaks": "brks", "sfct": "sfct", "sapf": "sapf",
+            "gseq": "gseq"}
 # examples/: built and tested on the host, never shipped, so not in the manifest
 EXAMPLES = {"svca": "svca", "tremolo": "trem"}
 
@@ -567,6 +568,18 @@ def test_sapf_code_view(plugins, tmp_path, sapf_env):
     assert levels[0][1] == pytest.approx(-0.2, abs=1e-6)
 
 
+def test_sapf_mouse(plugins, tmp_path, sapf_env):
+    """p1 and p2, Mouse X and Y, are the position sapf's mouse words read."""
+    xml = ('<?xml version="1.0" encoding="UTF-8"?> <VST><state><PARAM id="p1" value="0.25"/>'
+           '<PARAM id="p2" value="0.75"/></state><MIDI MIDI_IN="" MIDI_OUT="" MIDI_CH="0" MIDI_NOTE_IN="0">'
+           '<Automation/></MIDI><CUSTOM program="" code="[0 2 mousex 0 2 mousey] play&#10;"/></VST>').encode() + b"\0"
+    preset = tmp_path / "mouse.state"
+    preset.write_bytes(struct.pack("<II", 0x21324356, len(xml)) + xml)
+    levels, _ = run(plugins, "sapf", "prepare", 48000, 128, "load", preset, "wait", 2, "run", 0.3, 128,
+                    "level", 0, "level", 1)
+    assert levels[0][1] == pytest.approx(0.5, abs=1e-4) and levels[1][1] == pytest.approx(1.5, abs=1e-4)
+
+
 def test_sapf_old_patch(plugins, tmp_path, sapf_env):
     """0.1.0's CODE and FILE: the text comes back unrun, saved to the old file."""
     xml = ('<?xml version="1.0" encoding="UTF-8"?> <VST><state/><MIDI MIDI_IN="" MIDI_OUT="" MIDI_CH="0" '
@@ -577,6 +590,54 @@ def test_sapf_old_patch(plugins, tmp_path, sapf_env):
                         "run", 0.3, 128, "level", 0, "state")
     assert levels[0][1] == 0.0
     assert f'program="{tmp_path / "old.sapf"}"' in state and 'code=""' in state and 'text="0 adc play"' in state
+
+
+def gseq_row(length=16, division=3, channel=0, voice=0, vel_cv=False, mute=False, steps=()):
+    """A `rowN` attribute: the row's word, then 32 steps' (GseqEngine::Row and Step). steps: {index: (note,
+    velocity, duration index)}, the rest off."""
+    words = [(length - 1) | division << 5 | channel << 8 | voice << 13 | vel_cv << 16 | mute << 17]
+    for s in range(32):
+        note, vel, dur = dict(steps).get(s, (60, 100, 3))
+        words.append((s in dict(steps)) | note << 1 | vel << 8 | dur << 15)
+    return " ".join(f"{w:x}" for w in words)
+
+
+def gseq_preset(path, rows):
+    custom = " ".join(f'row{r}="{w}"' for r, w in rows.items())
+    xml = ('<?xml version="1.0" encoding="UTF-8"?> <VST><state/><MIDI MIDI_IN="" MIDI_OUT="" MIDI_CH="0" '
+           f'MIDI_NOTE_IN="0"><Automation/></MIDI><CUSTOM pattern="1" {custom}/></VST>').encode() + b"\0"
+    path.write_bytes(struct.pack("<II", 0x21324356, len(xml)) + xml)
+    return path
+
+
+def test_gseq(plugins, tmp_path):
+    """A preset's pattern on the CV jacks: gate, pitch and velocity; a row whose voice another row took."""
+    row1 = gseq_row(length=4, voice=1, vel_cv=True, steps={0: (72, 127, 7), 2: (48, 64, 7)})
+    preset = gseq_preset(tmp_path / "g.state", {1: row1, 2: gseq_row(voice=1, steps={0: (60, 100, 7)})})
+    frame = tmp_path / "g.bgra"
+    # 120 bpm 16ths: a step is 0.125 s; step 1 sounds at 0.05 s, step 2 (off) at 0.2 s
+    levels, state = run(plugins, "gseq", "prepare", 48000, 128, "load", preset, "run", 0.05, 128,
+                        "level", 0, "level", 4, "level", 8, "level", 1, "render", frame, "state")
+    assert levels[0][1] == 1.0
+    assert levels[4][1] == pytest.approx(0.2, abs=1e-6)  # C5: 1 V
+    assert levels[8][1] == pytest.approx(1.0, abs=1e-6)  # velocity 127: 5 V
+    assert levels[1][1] == 0.0  # row 2 asked for voice 1 too: refused, so silent on CV
+    assert f'row1="{row1}"' in state and 'row2="6f ' in state  # row 2 kept, without a voice
+    assert amber_in(frame, 150, 36, 1526, 370) > 0  # the grid's lit cells
+    levels, _ = run(plugins, "gseq", "prepare", 48000, 128, "load", preset, "run", 0.2, 128, "level", 0)
+    assert levels[0][1] == 0.0
+
+
+def test_gseq_default_rows(plugins, tmp_path):
+    """Rows 1-4 play MIDI and CV voices 1-4 with velocity CV, rows 5-8 MIDI only; a preset that names some
+    rows leaves the others as they were."""
+    preset = gseq_preset(tmp_path / "g.state", {2: gseq_row(channel=2, steps={0: (72, 127, 7)})})
+    levels, state = run(plugins, "gseq", "prepare", 48000, 128, "load", preset, "run", 0.05, 128,
+                        "level", 1, "state")
+    assert levels[1][1] == 0.0  # row 2 dropped its voice: MIDI only
+    assert 'row1="1216f ' in state and 'row4="1846f ' in state  # channel k, voice k, velocity CV
+    assert 'row3="1636f ' in state  # unnamed rows keep their defaults, voices included
+    assert 'row5="56f ' in state and 'row8="86f ' in state  # MIDI only
 
 
 def test_teletype(plugins, tmp_path, monkeypatch):

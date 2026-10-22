@@ -38,6 +38,7 @@ target_sources(ALDA
         ${COMMON_SRC}
         ${ENGINE_SRC}
         ${SCRIPT_SRC}
+        ${CLOCK_SRC}
         )
 ssp_highlights(ALDA alda)  # the code view's colours
 
