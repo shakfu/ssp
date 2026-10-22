@@ -13,7 +13,6 @@
 #include <thread>
 #include <vector>
 
-#include "FilePicker.h"
 #include "keys/KeyQueue.h"
 #include "Session.h"
 #include "keys/TextBuffer.h"
@@ -144,22 +143,6 @@ void testKeyQueue() {
     std::printf("key queue: done\n");
 }
 
-void testFilePicker() {
-    sapf::FilePicker p;
-    p.show({ "a.sapf", "live.sapf", "sapf-examples.txt" }, "live.sapf");
-    CHECK(p.shown() && p.selected() == 1);  // the current file
-    CHECK(p.key(0x51) == sapf::FilePicker::NONE && p.selected() == 2);  // Down
-    p.key(0x51);
-    CHECK(p.selected() == 2);  // clamped
-    p.key(0x4A);               // Home
-    CHECK(p.selected() == 0);
-    CHECK(p.key(0x28) == sapf::FilePicker::OPEN);    // Enter
-    CHECK(p.key(0x29) == sapf::FilePicker::CANCEL);  // Esc
-    p.show({}, "live.sapf");
-    CHECK(p.selected() == 0 && p.key(0x28) == sapf::FilePicker::CANCEL);  // nothing to open
-    std::printf("file picker: done\n");
-}
-
 bool waitFor(std::function<bool()> cond, double seconds) {
     auto end = std::chrono::steady_clock::now() + std::chrono::duration<double>(seconds);
     while (std::chrono::steady_clock::now() < end) {
@@ -182,7 +165,10 @@ bool idle(const sapf::Session& s) {
 void testSession(const char* prelude, const char* outdir) {
     sapf::Session s({ prelude, outdir });
     s.prepare(48000.f);
+    CHECK(s.restart("7 = early"));  // waits for the prelude
     CHECK(waitFor([&] { return idle(s); }, 30));
+    CHECK(s.evaluate("early 1 +"));
+    CHECK(waitFor([&] { return outputText(s).find("stack: 8") != std::string::npos && idle(s); }, 5));
 
     // the words for the editor's colours: built-ins (sinosc, +) and the prelude's (prall), sorted
     const auto& w = s.words();
@@ -190,22 +176,24 @@ void testSession(const char* prelude, const char* outdir) {
     CHECK(std::is_sorted(w.begin(), w.end()) && has("sinosc") && has("play") && has("+") && has("prall"));
     CHECK(!has("analog_bubbles") && w.size() > 500);
 
-    // the audio callback, in real time; input 1 holds .25
+    // the audio callback, in real time; input 1 holds .25, input 2 -.5
     std::atomic<bool> running{ true };
-    std::atomic<float> peak{ 0.f }, mean{ 0.f };
+    std::atomic<float> peak{ 0.f }, mean{ 0.f }, mean2{ 0.f };
     std::thread audio([&] {
         constexpr int N = 128, C = sapf::Session::CHANNELS;
         static float in[C][N] = {}, out[C][N];
         std::fill(in[0], in[0] + N, 0.25f);
+        std::fill(in[1], in[1] + N, -0.5f);
         const float* ins[C];
         float* outs[C];
         for (int c = 0; c < C; c++) ins[c] = in[c], outs[c] = out[c];
         auto next = std::chrono::steady_clock::now();
         while (running) {
             s.process(ins, outs, N);
-            float p = 0.f, m = 0.f;
+            float p = 0.f, m = 0.f, m2 = 0.f;
             for (float x : out[0]) p = std::max(p, std::fabs(x)), m += x / N;
-            peak = p, mean = m;
+            for (float x : out[1]) m2 += x / N;
+            peak = p, mean = m, mean2 = m2;
             next += std::chrono::microseconds(int64_t(1e6 * N / 48000));
             std::this_thread::sleep_until(next);
         }
@@ -253,11 +241,32 @@ void testSession(const char* prelude, const char* outdir) {
 
     CHECK(waitFor([&] { return idle(s); }, 5));
 
+    // restart: what plays stops, then the code runs; the plugin's built-in sends inputs 1-2 to outputs 1-2
+    CHECK(s.evaluate("440 0 sinosc .5 * play"));
+    CHECK(waitFor([&] { return peak > 0.4f; }, 5));
+    CHECK(waitFor([&] { return idle(s); }, 5));
+    CHECK(s.restart("[0 adc 1 adc] play"));
+    CHECK(waitFor([&] { return std::fabs(peak - 0.25f) < 1e-6f && std::fabs(mean2 + 0.5f) < 1e-6f; }, 5));
+    // a restart interrupts a running evaluation
+    CHECK(waitFor([&] { return idle(s); }, 5));
+    CHECK(s.evaluate("ord 1e12 N +/"));
+    CHECK(waitFor([&] { return outputText(s).find("> ord 1e12") != std::string::npos; }, 5));
+    CHECK(s.restart("40 2 +\n"));  // as Ctrl-Enter sends it: one line, echoed without " ..."
+    CHECK(waitFor([&] { return outputText(s).find("stack: 42") != std::string::npos && idle(s); }, 5));
+    CHECK(outputText(s).find("> 40 2 +\n") != std::string::npos);
+    // blank code only stops
+    CHECK(s.evaluate("0 adc play"));
+    CHECK(waitFor([&] { return peak > 0.2f; }, 5));
+    CHECK(waitFor([&] { return idle(s); }, 5));
+    CHECK(s.restart(" \n"));
+    CHECK(waitFor([&] { return peak == 0.f && idle(s); }, 3));
+
     // a second Session in the process stays silent
     {
         sapf::Session second({ prelude, outdir });
         second.prepare(48000.f);
-        CHECK(second.state() == sapf::Session::State::SECOND && !second.evaluate("1") && second.words().empty());
+        CHECK(second.state() == sapf::Session::State::SECOND && !second.evaluate("1") && !second.restart("1") &&
+              second.words().empty());
     }
 
     // teardown with ola voices playing
@@ -274,7 +283,6 @@ int main(int argc, char** argv) {
     if (argc != 3) return 2;
     testTextBuffer();
     testKeyQueue();
-    testFilePicker();
     testSession(argv[1], argv[2]);  // the Session's destructor runs here
     std::printf("%s\n", failures ? "FAILED" : "all passed");
     return failures ? 1 : 0;

@@ -38,6 +38,7 @@ def plugins():
         subprocess.run([ROOT / "scripts" / "build_deps.sh", "host"], check=True, capture_output=True)
     subprocess.run([ROOT / "scripts" / "fetch_teletype.sh"], check=True, capture_output=True)
     subprocess.run([ROOT / "scripts" / "fetch_alda.sh"], check=True, capture_output=True)
+    subprocess.run([ROOT / "scripts" / "fetch_sapf.sh"], check=True, capture_output=True)
     subprocess.run([ROOT / "scripts" / "fetch_core.sh", "host"], check=True, capture_output=True)
     if not (DEPS / "lib" / "libfluidsynth.a").exists():
         subprocess.run([ROOT / "scripts" / "build_fluidsynth.sh", "host"], check=True, capture_output=True)
@@ -53,7 +54,7 @@ def plugins():
 # source folder -> product name; Synthor lists only names of up to four characters
 PRODUCTS = {"radio": "rdio", "csound": "csnd", "chuck": "chuk", "edrums": "edrm", "pstretch": "strc", "bard": "bard",
             "glitch": "gltc", "chorus": "chrs", "faust": "fstr", "scsynth": "scsy", "teletype": "ttyp",
-            "dexed": "dexd", "alda": "alda", "fsyn": "fsyn", "breaks": "brks", "sfct": "sfct"}
+            "dexed": "dexd", "alda": "alda", "fsyn": "fsyn", "breaks": "brks", "sfct": "sfct", "sapf": "sapf"}
 # examples/: built and tested on the host, never shipped, so not in the manifest
 EXAMPLES = {"svca": "svca", "tremolo": "trem"}
 
@@ -514,6 +515,68 @@ def test_script_code_parts(plugins, tmp_path, monkeypatch):
                           "wait", 0.5, "render", tmp_path / "f.bgra", *measure, *measure, *measure)
     assert levels[2] == [pytest.approx(0.25, abs=1e-6), 0.0, 0.0]
     assert levels[3] == [pytest.approx(0.5, abs=1e-6), pytest.approx(0.5, abs=1e-6), 0.0]
+
+
+@pytest.fixture
+def sapf_env(tmp_path, monkeypatch):
+    """sapf's files in tmp_path, the fork's prelude, and this machine's keyboard left alone."""
+    monkeypatch.setenv("SAPF_KEYBOARD", "0")
+    monkeypatch.setenv("SAPF_FILES", str(tmp_path))
+    sapf = subprocess.run([ROOT / "scripts" / "fetch_sapf.sh"], check=True, capture_output=True, text=True)
+    monkeypatch.setenv("SAPF_PRELUDE", str(Path(sapf.stdout.strip()) / "sapf-prelude.txt"))
+
+
+SAPF_INPUTS = ["in", 0, 0.3, "in", 1, -0.2]
+
+
+def test_sapf_pages(plugins, tmp_path, sapf_env):
+    """sapf opens on its pages, running the built-in: inputs 1-2 to outputs 1-2, output log at the left."""
+    frame = tmp_path / "pages.bgra"
+    levels, state = run(plugins, "sapf", *SAPF_INPUTS, "prepare", 48000, 128, "wait", 2, "run", 0.5, 128,
+                        "level", 0, "level", 1, "render", frame, "state")
+    assert levels[0][1] == pytest.approx(0.3, abs=1e-6) and levels[1][1] == pytest.approx(-0.2, abs=1e-6)
+    assert 'program=""' in state and "code=" not in state
+    assert colour_in(frame, (150, 150, 150), 0, 200, 900, 370) > 0  # the output log
+    assert amber_in(frame, 0, 298, 900, 324) == 0  # not the code view's status line
+
+
+def test_sapf_code_view(plugins, tmp_path, sapf_env):
+    """Ctrl-Enter stops the built-in and runs the text; Ctrl-E plays a block beside it; Ctrl-. stops all."""
+    swap, block = "[1 adc 0 adc] play", "0 adc play"
+    frame = tmp_path / "code.bgra"
+    # each batch lands between renders, about 3.3 s apart; Ctrl-E on the blank line after a block runs it
+    batches = [(0, key_records("l", CTRL) + key_records(swap) + key_records("\n", CTRL)),
+               (4.5, key_records("\n\n" + block + "\n") + key_records("e", CTRL)),
+               (7.8, key_records(".", CTRL))]
+    measure = ["wait", 2, "render", frame, "wait", 1, "run", 0.3, 128, "level", 0, "level", 1]
+    levels, state = run_typed(plugins, "sapf", 7771, batches, *SAPF_INPUTS, "prepare", 48000, 128, "wait", 0.5,
+                              "render", frame, *measure, *measure, *measure, "state")
+    assert levels[0] == [pytest.approx(-0.2, abs=1e-6), pytest.approx(0.1, abs=1e-6), 0.0]
+    assert levels[1] == [pytest.approx(0.3, abs=1e-6), pytest.approx(0.3, abs=1e-6), 0.0]
+    assert f'code="{swap}' in state and f'program="{tmp_path / "live.sapf"}"' in state
+    assert amber_in(frame, 0, 298, 1600, 324) > 0  # the code view's status line
+    assert colour_in(frame, (150, 150, 150), 0, 232, 1600, 298) > 0  # the output pane above it
+    assert colour_in(frame, (86, 182, 194), 0, 0, 1600, 228) > 0  # built-in words, cyan (CodeText.cpp)
+
+    # a preset runs its code once the prelude loads
+    preset = tmp_path / "sapf.state"
+    xml = state.encode() + b"\0"
+    preset.write_bytes(struct.pack("<II", 0x21324356, len(xml)) + xml)
+    levels, _ = run(plugins, "sapf", *SAPF_INPUTS, "prepare", 48000, 128, "load", preset, "wait", 2,
+                    "run", 0.3, 128, "level", 0)
+    assert levels[0][1] == pytest.approx(-0.2, abs=1e-6)
+
+
+def test_sapf_old_patch(plugins, tmp_path, sapf_env):
+    """0.1.0's CODE and FILE: the text comes back unrun, saved to the old file."""
+    xml = ('<?xml version="1.0" encoding="UTF-8"?> <VST><state/><MIDI MIDI_IN="" MIDI_OUT="" MIDI_CH="0" '
+           'MIDI_NOTE_IN="0"><Automation/></MIDI><CUSTOM CODE="0 adc play" FILE="old.sapf"/></VST>').encode() + b"\0"
+    preset = tmp_path / "old.state"
+    preset.write_bytes(struct.pack("<II", 0x21324356, len(xml)) + xml)
+    levels, state = run(plugins, "sapf", *SAPF_INPUTS, "prepare", 48000, 128, "load", preset, "wait", 2,
+                        "run", 0.3, 128, "level", 0, "state")
+    assert levels[0][1] == 0.0
+    assert f'program="{tmp_path / "old.sapf"}"' in state and 'code=""' in state and 'text="0 adc play"' in state
 
 
 def test_teletype(plugins, tmp_path, monkeypatch):

@@ -162,7 +162,7 @@ bool Session::evaluate(const std::string& code) {
     std::lock_guard<std::mutex> lock(jobLock_);
     const State s = state_.load();
     if (s != State::IDLE) {
-        if (s == State::RUNNING) post("busy: Ctrl-. or Esc stops the running evaluation\n");
+        if (s == State::RUNNING) post("busy: Ctrl-. stops the running evaluation\n");
         else if (s == State::LOADING) post("the prelude is loading\n");
         else post((error_ + "\n").c_str());
         return false;
@@ -182,6 +182,18 @@ void Session::stop() {
     if (state_ == State::RUNNING) gInterrupt = true;
     if (state_ == State::IDLE) state_ = State::RUNNING;  // until the stop is done
     jobReady_.notify_all();
+}
+
+bool Session::restart(const std::string& code) {
+    std::lock_guard<std::mutex> lock(jobLock_);
+    if (!owner_) return false;
+    stopJob_ = true;
+    job_ = code;
+    hasJob_ = code.find_first_not_of(" \t\n") != std::string::npos;
+    if (state_ == State::RUNNING) gInterrupt = true;
+    if (state_ == State::IDLE) state_ = State::RUNNING;
+    jobReady_.notify_all();
+    return true;
 }
 
 std::string Session::error() const {
@@ -222,7 +234,10 @@ void Session::run() {
     engine.loadPrelude(th);
     words_ = definedWords(th);
     backend_.store(&backend, std::memory_order_release);
-    state_ = State::IDLE;
+    {
+        std::lock_guard<std::mutex> lock(jobLock_);
+        state_ = hasJob_ || stopJob_ ? State::RUNNING : State::IDLE;  // a restart waits for the prelude
+    }
 
     for (;;) {
         std::string code;
@@ -245,11 +260,12 @@ void Session::run() {
             evaluateNow(th, "stop");
             post("stopped\n");
             std::lock_guard<std::mutex> lock(jobLock_);
-            state_ = State::IDLE;
+            state_ = hasJob_ ? State::RUNNING : State::IDLE;  // restart's code runs next
             continue;
         }
-        size_t nl = code.find('\n');
-        post(("> " + code.substr(0, nl) + (nl == std::string::npos ? "" : " ...") + "\n").c_str());
+        const size_t nl = code.find('\n');
+        const bool more = nl != std::string::npos && code.find_first_not_of(" \t\n", nl) != std::string::npos;
+        post(("> " + code.substr(0, nl) + (more ? " ..." : "") + "\n").c_str());
         evaluateNow(th, code);
         std::lock_guard<std::mutex> lock(jobLock_);
         state_ = State::IDLE;

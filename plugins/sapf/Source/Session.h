@@ -55,6 +55,9 @@ public:
     bool evaluate(const std::string& code);
     // Any thread: interrupts a running evaluation, then stops every sound.
     void stop();
+    // Any thread: stop(), then runs `code`; while the prelude loads, both wait for it. False for a second
+    // Session.
+    bool restart(const std::string& code);
     // Any thread: a line of the plugin's own in the output, such as a save's result.
     void note(const std::string& line) { post((line + "\n").c_str()); }
 

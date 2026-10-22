@@ -1,10 +1,28 @@
 # convert sapf editor to common editor
 
+Status: done 2026-10-22, the full conversion. Device test pending. How each item below was settled:
+
+1. Output pane: `ScriptEngine::output()`; the Code view shows 3 rows when an engine returns true. The pages show 14 more, since sapf has no controls.
+2. Errors: left as described; they show in red in the output pane.
+3. Ctrl-Enter: the shared meaning, for consistency. A full run stops every sound first (`Session::restart`).
+4. Esc: returns to the pages; Ctrl-. stops.
+5. Word colours: `ScriptEngine::words()` and `CodeKeys::wordType`.
+6. Meters: on the pages, below the status panel.
+7. File types: the browser lists every file; no change needed.
+8. Old patches: `PluginProcessor::customFromXml` maps CODE and FILE to text, program and an empty code.
+9. p1-p16: kept in the plugin state, hidden from the pages (`ScriptProcessor::pages()` is virtual). sapf reads inputs with `adc` instead.
+
 Converting sapf to ScriptEngine is a medium-sized job, not a quick one. The engine API fits sapf; the shared editor would need features it lacks, and some keys would change. I'm still researching fsyn and will report when that finishes.
 
 What fits. A SapfEngine subclass of ScriptEngine would just wrap sapf::Session, at about 100 lines:
 
-┌─────────────────────┬─────────────────────────────────────────────────────────────────────┐ │    ScriptEngine │                            sapf::Session                            │ ├─────────────────────┼─────────────────────────────────────────────────────────────────────┤ │ process(in, out, n) │ process(in, out, n), the same signature (Session.h:43) │ ├─────────────────────┼─────────────────────────────────────────────────────────────────────┤ │ compile(text) │ stop(), then evaluate(text) │ ├─────────────────────┼─────────────────────────────────────────────────────────────────────┤ │ runPart (Ctrl-E)    │ evaluate(block) │ ├─────────────────────┼─────────────────────────────────────────────────────────────────────┤ │ dropAll (Ctrl-.)    │ stop(). evaluate returns at once, so the worker thread is never │ │ │ blocked and Ctrl-. gets through (ScriptEngine.cpp:197). │ ├─────────────────────┼─────────────────────────────────────────────────────────────────────┤ │ canReset, status, │ state(), renderLoad(), lateFrames() │ │ runState            │ │ └─────────────────────┴─────────────────────────────────────────────────────────────────────┘
+| ScriptEngine | sapf::Session |
+|-|-|
+| process(in, out, n) | process(in, out, n), the same signature (Session.h:43) |
+| compile(text) | stop(), then evaluate(text) |
+| runPart (Ctrl-E) | evaluate(block) |
+| dropAll (Ctrl-.) | stop(). evaluate returns at once, so the worker thread is never blocked and Ctrl-. gets through (ScriptEngine.cpp:197). |
+| canReset, status, runState | state(), renderLoad(), lateFrames() |
 
 What doesn't fit.
 

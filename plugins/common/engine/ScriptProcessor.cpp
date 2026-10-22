@@ -264,16 +264,27 @@ public:
 
     void drawView(juce::Graphics& g) override {
         constexpr int W = 1600, MARGIN = 10, LINE = 26, ERROR_Y = H - 2 * LINE, STATUS_Y = ERROR_Y - LINE;
+        constexpr int OUTPUT_ROWS = 3, OUTPUT_LINE = 22;
         const juce::Colour amber(255, 214, 140), dim(150, 150, 150);
         g.setColour(juce::Colours::black);
         g.fillRect(0, 0, W, H);
         auto& script = processor_.script();
         const juce::String parts = script.parts();
-        const int codeBottom = parts.isEmpty() ? STATUS_Y : STATUS_Y - LINE;  // parts take a row
+        std::vector<ScriptEngine::OutputLine> out;
+        const bool hasOutput = script.output(out, OUTPUT_ROWS);
+        // the output's rows, then the parts' row, between the code and the status line
+        const int outputY = parts.isEmpty() ? STATUS_Y : STATUS_Y - LINE;
+        const int codeBottom = hasOutput ? outputY - OUTPUT_ROWS * OUTPUT_LINE - 4 : outputY;
         const bool flashing = juce::Time::getMillisecondCounter() < flashUntil_;
         // The cursor's line is on screen, and a line takes at least one screen row, so every line shown
         // is within a screen's rows of it; only those are queried
         const int rows = (codeBottom - 12) / LINE + 1, row = processor_.text().row();
+        const char* wordType = processor_.codeKeys().wordType;
+        if (highlighter_ && wordType && !words_) {
+            auto words = script.words();
+            words_ = !words.empty();
+            if (words_) highlighter_->setWords(wordType, { words.begin(), words.end() }, ssp::Highlighter::BUILTIN);
+        }
         if (highlighter_) highlighter_->update(processor_.text(), row - rows, row + rows);
         g.setFont(mono(22));
         ssp::drawCode(g, processor_.text(), { MARGIN, 4, W - 2 * MARGIN, codeBottom - 8 }, LINE, top_,
@@ -283,8 +294,15 @@ public:
         g.drawHorizontalLine(codeBottom - 3, 0.f, float(W));
         if (parts.isNotEmpty()) {
             g.setColour(dim);
-            g.drawText(parts, MARGIN, codeBottom, W - 2 * MARGIN, LINE, juce::Justification::left, true);
+            g.drawText(parts, MARGIN, outputY, W - 2 * MARGIN, LINE, juce::Justification::left, true);
         }
+        g.setFont(mono(18));
+        for (size_t i = 0; i < out.size(); i++) {
+            g.setColour(out[i].error ? juce::Colours::red : dim);
+            g.drawText(juce::String(out[i].text), MARGIN, outputY - int(out.size() - i) * OUTPUT_LINE,
+                       W - 2 * MARGIN, OUTPUT_LINE, juce::Justification::left, false);
+        }
+        g.setFont(mono(22));
 
         const juce::String path = script.path(), error = script.error();
         const auto& keys = processor_.codeKeys();
@@ -325,6 +343,7 @@ private:
     int flashFirst_ = 0, flashLast_ = -1;
     juce::uint32 flashUntil_ = 0;
     std::unique_ptr<ssp::Highlighter> highlighter_;
+    bool words_ = false;  // the engine's built-in words given to highlighter_
     ssp::TextBuffer prompt_;
     bool prompting_ = false, overwrite_ = false;
 };

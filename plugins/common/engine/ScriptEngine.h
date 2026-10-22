@@ -72,6 +72,15 @@ public:
     // UI thread: what the Code view's status line shows in place of "running", such as a position; empty
     // for "running".
     virtual std::string runState() const { return {}; }
+    // UI thread: the last `max` lines the program printed, oldest first, for the Code view's output pane.
+    // False for an engine without one.
+    struct OutputLine {
+        std::string text;
+        bool error;
+    };
+    virtual bool output(std::vector<OutputLine>& lines, size_t max) const { return false; }
+    // UI thread: the names CodeKeys::wordType colours as built-ins; empty until known
+    virtual std::vector<std::string> words() const { return {}; }
 
     // A control as the running program declares it.
     struct ParamSpec {

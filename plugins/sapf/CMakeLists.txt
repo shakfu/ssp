@@ -29,20 +29,19 @@ juce_add_plugin(SAPF
         PRODUCT_NAME "sapf")
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/../common/CMakeLists.txt)
-include(${CMAKE_CURRENT_SOURCE_DIR}/../common/keys/CMakeLists.txt)
+include(${CMAKE_CURRENT_SOURCE_DIR}/../common/engine/CMakeLists.txt)
 
 target_sources(SAPF
         PUBLIC
         Source/SSPApi.cpp
         PRIVATE
-        Source/FilePicker.cpp
         Source/PluginEditor.cpp
         Source/PluginProcessor.cpp
+        Source/SapfEngine.cpp
         Source/Session.cpp
-        ${KEYS_SRC}
-        ${TEXT_SRC}
-        ${HIGHLIGHT_SRC}
         ${COMMON_SRC}
+        ${ENGINE_SRC}
+        ${SCRIPT_SRC}
         )
 target_include_directories(SAPF PRIVATE Source ${SAPF_DIR}/include)
 ssp_highlights(SAPF sapf)  # the code's colours

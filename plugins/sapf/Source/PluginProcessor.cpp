@@ -3,8 +3,10 @@
 #include <cstdlib>
 
 #include "PluginEditor.h"
-#include "keys/KeyInput.h"
 #include "ssp/EditorHost.h"
+#include "tree-sitter-sapf-highlights.h"
+
+extern "C" const TSLanguage* tree_sitter_sapf(void);
 
 namespace {
 
@@ -27,24 +29,11 @@ float peak(const float* x, int n) {
 }  // namespace
 
 PluginProcessor::PluginProcessor()
-    : BaseProcessor(getBusesProperties(), createParameterLayout()),
-      session_(std::make_unique<sapf::Session>(sapf::Session::Paths{
-          envOr("SAPF_PRELUDE", filesDir() + "/sapf-prelude.txt"), filesDir().toStdString() })) {
-    init();
-    ssp::KeyInput::acquire(SAPF_KEY_PORT, SAPF_KEYBOARD_ENV);
-    ssp::KeyInput::setTarget(&keys_);  // the newest instance takes the keys
-}
-
-PluginProcessor::~PluginProcessor() {
-    ssp::KeyInput::clearTarget(&keys_);
-    ssp::KeyInput::release();
-    session_.reset();  // its threads end first
-}
-
-AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLayout() {
-    AudioProcessorValueTreeState::ParameterLayout params;
-    BaseProcessor::addBaseParameters(params);
-    return params;
+    : ScriptProcessor(std::make_unique<sapf::SapfEngine>(sapf::Session::Paths{
+                          envOr("SAPF_PRELUDE", filesDir() + "/sapf-prelude.txt"), filesDir().toStdString() }),
+                      filesDir(),
+                      { SAPF_KEY_PORT, SAPF_KEYBOARD_ENV, ".sapf", ";", tree_sitter_sapf, SAPF_HIGHLIGHTS, false,
+                        "C-Enter run  C-E block  C-. stop  C-L clear  C-S save  C-O open  Esc", "word" }) {
 }
 
 String PluginProcessor::filesDir() {
@@ -52,57 +41,16 @@ String PluginProcessor::filesDir() {
     return dir && *dir ? String(dir) : String("/media/BOOT/sapf");
 }
 
-void PluginProcessor::prepareToPlay(double newSampleRate, int estimatedSamplesPerBlock) {
-    BaseProcessor::prepareToPlay(newSampleRate, estimatedSamplesPerBlock);
-    sampleRate_ = newSampleRate;
-    maxBlock_ = std::max(1, estimatedSamplesPerBlock);
-    in_.setSize(CHANNELS, maxBlock_);
-    spare_.setSize(CHANNELS, maxBlock_);
-    session_->prepare(float(newSampleRate));
+void PluginProcessor::control(const float* const* in, int n) {
+    ScriptProcessor::control(in, n);
+    for (int c = 0; c < METERED; c++) inLevel_[c].process(peak(in[c], n));
 }
 
 void PluginProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midi) {
-    juce::ScopedNoDenormals noDenormals;
-    BaseProcessor::processBlock(buffer, midi);
-    const int n = buffer.getNumSamples(), chans = buffer.getNumChannels();
-    if (n == 0 || maxBlock_ == 0) return;
-    if (chans < CHANNELS) in_.clear();  // a host with fewer channels leaves the rest silent
-    for (int c = 0; c < CHANNELS; c++) inPtrs_[c] = in_.getReadPointer(c);
-    // the host may exceed the block size it announced
-    for (int pos = 0; pos < n; pos += maxBlock_) {
-        const int len = std::min(maxBlock_, n - pos);
-        for (int c = 0; c < std::min(chans, CHANNELS); c++) in_.copyFrom(c, 0, buffer, c, pos, len);
-        for (int c = 0; c < CHANNELS; c++)
-            outPtrs_[c] = c < chans ? buffer.getWritePointer(c, pos) : spare_.getWritePointer(c);
-        session_->process(inPtrs_, outPtrs_, len);
-        for (int c = 0; c < METERED; c++) {
-            inLevel_[c].process(peak(inPtrs_[c], len));
-            outLevel_[c].process(peak(outPtrs_[c], len));
-        }
-    }
-    for (int c = CHANNELS; c < chans; c++) buffer.clear(c, 0, n);
-}
-
-String PluginProcessor::save() {
-    juce::File f(filesDir() + "/" + current_);
-    f.getParentDirectory().createDirectory();
-    return f.replaceWithText(text_.text() + "\n") ? "saved " + f.getFullPathName() : "cannot write " + f.getFullPathName();
-}
-
-String PluginProcessor::open(const String& name) {
-    juce::File f(filesDir() + "/" + name);
-    if (!f.existsAsFile()) return "no " + f.getFullPathName();
-    text_.setText(f.loadFileAsString().trimEnd().toStdString());
-    current_ = name;
-    return "opened " + f.getFullPathName();
-}
-
-StringArray PluginProcessor::files() const {
-    StringArray names;
-    for (const auto& f : juce::File(filesDir()).findChildFiles(juce::File::findFiles, false, "*.sapf;*.txt"))
-        names.add(f.getFileName());
-    names.sort(true);
-    return names;
+    ScriptProcessor::processBlock(buffer, midi);
+    const int n = buffer.getNumSamples();
+    for (int c = 0; c < std::min(METERED, buffer.getNumChannels()); c++)
+        if (n > 0) outLevel_[c].process(peak(buffer.getReadPointer(c), n));
 }
 
 AudioProcessorEditor* PluginProcessor::createEditor() {
@@ -110,17 +58,18 @@ AudioProcessorEditor* PluginProcessor::createEditor() {
     return new ssp::EditorHost(this, new PluginEditor(*this), false);
 }
 
-// the code, so a patch reopens with it
-void PluginProcessor::customToXml(juce::XmlElement* xml) {
-    xml->setAttribute("CODE", String(text_.text()));
-    xml->setAttribute("FILE", current_);
-}
-
+// 0.1.0 kept the text as CODE and its file's name as FILE, and ran nothing on load: the text comes back
+// unrun, and Ctrl-S still writes that file
 void PluginProcessor::customFromXml(juce::XmlElement* xml) {
-    if (xml->hasAttribute("CODE")) text_.setText(xml->getStringAttribute("CODE").toStdString());
-    // a name only: a preset cannot point the code's saves outside filesDir()
-    String name = xml->getStringAttribute("FILE", "live.sapf");
-    if (name.isNotEmpty() && !name.containsAnyOf("/\\") && name != "." && name != "..") current_ = name;
+    if (xml->hasAttribute("CODE") && !xml->hasAttribute("program")) {
+        // a name only: a preset cannot point the code's saves outside filesDir()
+        String name = xml->getStringAttribute("FILE", "live.sapf");
+        if (name.isEmpty() || name.containsAnyOf("/\\") || name == "." || name == "..") name = "live.sapf";
+        xml->setAttribute("program", filesDir() + "/" + name);
+        xml->setAttribute("code", "");
+        xml->setAttribute("text", xml->getStringAttribute("CODE"));
+    }
+    ScriptProcessor::customFromXml(xml);
 }
 
 AudioProcessor* JUCE_CALLTYPE createPluginFilter() {

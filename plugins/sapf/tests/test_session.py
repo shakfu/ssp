@@ -1,4 +1,4 @@
-"""Step 3 on the host: the plugin's TextBuffer, KeyQueue, FilePicker and Session (session_test.cpp)."""
+"""Step 3 on the host: the plugin's TextBuffer, KeyQueue and Session (session_test.cpp)."""
 
 import os
 import subprocess

@@ -23,6 +23,8 @@ struct CodeKeys {
     // the keys the Code view's status line lists; null for the default, DEFAULT_HINT
     const char* hint = nullptr;
     static constexpr const char* DEFAULT_HINT = "C-Enter run  C-E block  C-L clear  C-S save  C-S-S as  C-O open  Esc pages";
+    // the grammar's node type whose names in ScriptEngine::words() are built-ins; null for none
+    const char* wordType = nullptr;
 };
 
 // Hosts a ScriptEngine: eight audio inputs and outputs, controls p1..p16, and the program file in
@@ -72,7 +74,7 @@ public:
     bool resetCode();
 
     // The controls the running program declares, four to a page; all of them if it declares none.
-    std::vector<ParamPage> pages();
+    virtual std::vector<ParamPage> pages();
     // Message thread: sets each control the running program gives a default to that default.
     void applyDefaults();
 

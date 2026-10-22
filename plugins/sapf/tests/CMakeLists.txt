@@ -25,10 +25,9 @@ endif ()
 add_executable(sapf_harness harness.cpp)
 target_link_libraries(sapf_harness PRIVATE sapf_engine ${STDCXXFS})
 
-# Step 3: the plugin's Session and FilePicker, and common/keys' TextBuffer and KeyQueue
+# Step 3: the plugin's Session, and common/keys' TextBuffer and KeyQueue
 set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/../Source)
 set(KEYS ${CMAKE_CURRENT_SOURCE_DIR}/../../common/keys)
-add_executable(sapf_session_test session_test.cpp ${SRC}/Session.cpp ${KEYS}/TextBuffer.cpp ${KEYS}/KeyQueue.cpp
-        ${SRC}/FilePicker.cpp)
+add_executable(sapf_session_test session_test.cpp ${SRC}/Session.cpp ${KEYS}/TextBuffer.cpp ${KEYS}/KeyQueue.cpp)
 target_include_directories(sapf_session_test PRIVATE ${SRC} ${CMAKE_CURRENT_SOURCE_DIR}/../../common)
 target_link_libraries(sapf_session_test PRIVATE sapf_engine ${STDCXXFS})
