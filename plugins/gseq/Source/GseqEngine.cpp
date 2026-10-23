@@ -31,7 +31,7 @@ uint32_t GseqEngine::Step::pack() const {
            uint32_t(std::min<int>(duration, DURATIONS - 1)) << 15;
 }
 
-// length - 1: bits 0-4; division: 5-7; channel: 8-12; voice: 13-15; velocity CV: 16; mute: 17
+// length - 1: bits 0-4; division: 5-7; channel: 8-12; voice: 13-15; velocity CV: 16; mute: 17; gated: 18
 GseqEngine::Row GseqEngine::Row::unpack(uint32_t w) {
     Row r;
     r.length = uint8_t(bits(w, 0, 5) + 1);
@@ -40,13 +40,14 @@ GseqEngine::Row GseqEngine::Row::unpack(uint32_t w) {
     r.voice = uint8_t(std::min<uint32_t>(bits(w, 13, 3), VOICES));
     r.velocityCv = bits(w, 16, 1);
     r.mute = bits(w, 17, 1);
+    r.velocityGated = bits(w, 18, 1);
     return r;
 }
 
 uint32_t GseqEngine::Row::pack() const {
     return uint32_t(std::clamp<int>(length, 1, STEPS) - 1) | uint32_t(std::min<int>(division, DIVISIONS - 1)) << 5 |
            uint32_t(std::min<int>(channel, 16)) << 8 | uint32_t(std::min<int>(voice, VOICES)) << 13 |
-           uint32_t(velocityCv) << 16 | uint32_t(mute) << 17;
+           uint32_t(velocityCv) << 16 | uint32_t(mute) << 17 | uint32_t(velocityGated) << 18;
 }
 
 GseqEngine::GseqEngine() {
@@ -104,6 +105,7 @@ void GseqEngine::start(int r, const Row& row, const Step& s, double at) {
     gate_[v] = true;
     pitch_[v] = std::clamp(float(s.note - 60) / 12.0f * SIGNAL_PER_VOLT, -1.0f, 1.0f);
     velocity_[v] = row.velocityCv ? float(s.velocity) / 127.0f : 0.0f;
+    velocityGated_[v] = row.velocityGated;
 }
 
 void GseqEngine::stop(int r) {
@@ -129,7 +131,11 @@ void GseqEngine::stopAll(bool replay) {
 }
 
 void GseqEngine::noteIn(int note, int velocity) {
-    notesIn_.try_enqueue({ uint8_t(note & 127), uint8_t(velocity & 127) });  // full: the note is lost
+    notesIn_.try_enqueue({ uint8_t(note & 127), uint8_t(velocity & 127), false });  // full: the note is lost
+}
+
+void GseqEngine::playIn(int note, int velocity) {
+    notesIn_.try_enqueue({ uint8_t(note & 127), uint8_t(velocity & 127), true });
 }
 
 void GseqEngine::startRecording(double at) {
@@ -153,6 +159,9 @@ void GseqEngine::takeNotes() {
     } else if (toggled && !stepping) {
         startRecording(at);
     }
+    if (recordState_.load(std::memory_order_relaxed) == ARMED &&
+        cursorRow() != recordRow_.load(std::memory_order_relaxed))
+        startRecording(at);  // the cursor moved to another row before the take
     NoteIn k;
     // the notes queued now; later ones wait, so a stream of notes cannot hold the block
     for (size_t due = notesIn_.size_approx(); due > 0 && notesIn_.try_dequeue(k); due--) {
@@ -165,7 +174,7 @@ void GseqEngine::keyDown(const NoteIn& k, double at) {
     keyUp(k.note);  // pressed again without a release
     const bool stepping = stepEntry_.load(std::memory_order_relaxed);
     const auto state = recordState_.load(std::memory_order_relaxed);
-    if (!stepping && state == IDLE) return;
+    if (!k.play && !stepping && state == IDLE) return;
     Held* h = nullptr;
     for (auto& f : held_)
         if (!f.active) h = &f;
@@ -173,7 +182,10 @@ void GseqEngine::keyDown(const NoteIn& k, double at) {
     *h = Held();
     h->active = true, h->note = k.note, h->velocity = k.velocity, h->since = samples_;
     int base;
-    if (stepping) {
+    if (k.play) {
+        base = cursorRow();
+        h->chord = PLAY;
+    } else if (stepping) {
         base = cursorRow();
         h->col = cursorCol();
         h->chord = -1;
@@ -286,10 +298,11 @@ void GseqEngine::process(const float* const* in, float* const* out, int n) {
             }
         }
         for (int v = 0; v < VOICES; v++) {
-            out[v][i] = gate_[v] && !closed_[v] ? GATE_HIGH : 0.0f;
+            const bool open = gate_[v] && !closed_[v];
+            out[v][i] = open ? GATE_HIGH : 0.0f;
             if (closed_[v]) closed_[v]--;
             out[VOICES + v][i] = pitch_[v];
-            out[2 * VOICES + v][i] = velocity_[v];
+            out[2 * VOICES + v][i] = open || !velocityGated_[v] ? velocity_[v] : 0.0f;
         }
         clock_.advance();
     }

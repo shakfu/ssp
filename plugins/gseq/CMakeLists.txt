@@ -17,17 +17,20 @@ juce_add_plugin(GSEQ
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/../common/CMakeLists.txt)
 include(${CMAKE_CURRENT_SOURCE_DIR}/../common/engine/CMakeLists.txt)
+include(${CMAKE_CURRENT_SOURCE_DIR}/../common/launchpad/CMakeLists.txt)
 
 target_sources(GSEQ
         PUBLIC
         Source/SSPApi.cpp
         PRIVATE
         Source/GseqEngine.cpp
+        Source/LaunchpadView.cpp
         Source/PluginEditor.cpp
         Source/PluginProcessor.cpp
         ${COMMON_SRC}
         ${ENGINE_SRC}
         ${CLOCK_SRC}
+        ${LAUNCHPAD_SRC}
         )
 
 target_compile_definitions(GSEQ

@@ -30,3 +30,20 @@ Needs `gseq.so` in `BOOT/plugins`, an oscillator and an envelope (or a scope) fo
 | 23 | Cursor on row 7; Rec; a three-note chord in the pass | lowest note on row 7, the next on row 8, the top on row 1; rows 8 and 1 keep their other steps |
 | 24 | Step; play notes, one at a time, then a chord | each at the cursor, which moves on when the keys are up; the chord across rows |
 | 25 | Rec while armed; Step while recording | Rec stops the take; Step stops it and starts step entry |
+| 26 | Rec on row 1 with a long row 3; while Rec blinks, ROW+ twice; then ROW- while recording | `REC row 3 armed`; the take starts at row 3's next pass; ROW- leaves it on row 3 |
+| 26b | Row page, encoder 3 to `gated`; `Vel 1` into Plaits' LEVEL, TRIG empty, `CV 1` into V/OCT | `E3 vel cv gated`; each note sounds for its duration, louder for higher velocity; silent between notes and after the steps are off |
+
+Launchpad Mini MK3, on the powered hub with the keyboard ([gseq-launchpad.md](gseq-launchpad.md)). Rows 1-4 patched to an oscillator and envelope, or `dexd` on `gseq`'s MIDI.
+
+| # | Do | Expect |
+|-|-|-|
+| 27 | Add `gseq`, with the Launchpad plugged in | within a second the Launchpad shows rows 1-6, steps 1-8: white playheads move; the keyboard rows light, C brighter |
+| 28 | Press a cursor pad on row 2, step 3 | the SSP's cyan frame moves there; the pad flashes; the step stays off |
+| 29 | Press a key pad, then the side key + and press it again | the cursor's row sounds the note, then an octave higher; release ends each note |
+| 30 | Drums (Step); press a cursor pad; again; press G, then a cursor pad | on with C4, off; then on with G; the cursor does not move on |
+| 31 | In Step: hold C, E and G, press a cursor pad on row 7 | C on row 7, E on row 8, G on row 1 (when the window shows it); the notes sound while held |
+| 32 | Session (Rec) on row 1; press a cursor pad on row 3 while Rec blinks | the SSP header: `REC row 3 armed`; play key pads in the take; they land on row 3 |
+| 33 | Side key beside row 1 | row 1 mutes: red side key, `mute` on the SSP |
+| 34 | Arrows: down twice, right three times; then move the cursor with the SSP arrows to row 1, step 1 | the window shows rows 3-8, steps 25-32; then jumps back to rows 1-6, steps 1-8 |
+| 35 | Keys (Follow) with the cursor on a 32-step row | the window pages with that row's playhead |
+| 36 | Unplug the Launchpad, plug it back | within a second it shows the grid again; remove `gseq`: it returns to its own Session layout |

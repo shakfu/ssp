@@ -88,8 +88,10 @@ static void testWords() {
     CHECK(Step::unpack(0).velocity == 1);  // velocity 0 would be a note-off
     Row r;
     r.length = 32, r.division = 5, r.channel = 16, r.voice = 4, r.velocityCv = true, r.mute = true;
+    r.velocityGated = true;
     Row u = Row::unpack(r.pack());
     CHECK(u.length == 32 && u.division == 5 && u.channel == 16 && u.voice == 4 && u.velocityCv && u.mute);
+    CHECK(u.velocityGated && !Row::unpack(Row().pack()).velocityGated);  // a word before bit 18: held
     Row w = Row::unpack(0xFFFFFFFFu);  // any word is valid
     CHECK(w.length == 32 && w.division == GseqEngine::DIVISIONS - 1 && w.channel == 16 && w.voice == 4);
     GseqEngine e;
@@ -121,6 +123,28 @@ static void testCv() {
     CHECK(r.at(0, 4 * STEP16 + 10) == 1.0f);  // the row's 4 steps again
     CHECK(r.e.playing(0) == 0);
     CHECK(r.midi().empty());
+}
+
+// gated velocity CV: the velocity while the gate is open, 0 V when it closes and in a retrigger's gap
+static void testVelocityGated() {
+    Rig r;
+    silence(r.e);
+    Row row = cvRow(1, 4);
+    row.velocityGated = true;
+    r.e.setRow(0, row);
+    r.e.setStep(0, 0, note(60, 9, 127));  // 2 steps: step 2 retriggers it
+    r.e.setStep(0, 1, note(62, 3, 64));   // half a step
+    r.runTo(3 * STEP16);
+    NEAR(r.at(8, 10), 1.0, 1e-6);
+    NEAR(r.at(8, STEP16 - 10), 1.0, 1e-6);
+    CHECK(r.at(0, STEP16 + 20) == 0.0f && r.at(8, STEP16 + 20) == 0.0f);  // the gap
+    NEAR(r.at(8, STEP16 + 60), 64.0 / 127.0, 1e-6);
+    CHECK(r.at(0, STEP16 + STEP16 / 2 + 10) == 0.0f && r.at(8, STEP16 + STEP16 / 2 + 10) == 0.0f);  // closed
+    row.velocityGated = false;  // held: stays after the gate closes, as before
+    r.e.setRow(0, row);
+    r.runTo(6 * STEP16);
+    CHECK(r.at(0, 5 * STEP16 + STEP16 / 2 + 10) == 0.0f);
+    NEAR(r.at(8, 5 * STEP16 + STEP16 / 2 + 10), 64.0 / 127.0, 1e-6);
 }
 
 static void testRetrigger() {
@@ -357,6 +381,124 @@ static void testRecordCancel() {
     CHECK(r.e.step(0, 1).on);
 }
 
+// Rec moves with the cursor while armed; once recording, the take stays on its row
+static void testRecordRearm() {
+    Rig r;
+    silence(r.e);
+    r.e.setRow(0, lengthRow(4));
+    r.e.setRow(2, lengthRow(8));
+    r.e.setCursor(0, 0);
+    r.e.toggleRecord();
+    r.runTo(BLOCK);
+    CHECK(r.e.record() == GseqEngine::ARMED && r.e.recordRow() == 0);
+    r.e.setCursor(2, 5);
+    r.runTo(2 * BLOCK);
+    CHECK(r.e.record() == GseqEngine::ARMED && r.e.recordRow() == 2);
+    r.runTo(4 * STEP16 + 200);  // row 1's next pass would start here; row 3's starts at step 9
+    CHECK(r.e.record() == GseqEngine::ARMED);
+    r.runTo(8 * STEP16 + 200);
+    CHECK(r.e.record() == GseqEngine::RECORDING && r.e.recordRow() == 2);
+    r.e.setCursor(0, 0);
+    r.e.noteIn(70, 100);
+    r.runTo(8 * STEP16 + 1200);
+    r.e.noteIn(70, 0);
+    r.runTo(8 * STEP16 + 2200);
+    CHECK(r.e.recordRow() == 2);
+    CHECK(r.e.step(2, 0).on && r.e.step(2, 0).note == 70);
+    CHECK(!r.e.step(0, 0).on);
+}
+
+// playIn: sounds from the cursor's row down in any mode, writes no step, and does not move the cursor
+static void testPlay() {
+    Rig r;
+    silence(r.e);
+    Row a = cvRow(1, 4), b = cvRow(2, 4);
+    a.channel = 1, b.channel = 2;
+    r.e.setRow(3, a);
+    r.e.setRow(4, b);
+    r.e.setCursor(3, 1);
+    r.e.playIn(64, 90);
+    r.e.playIn(60, 100);
+    r.runTo(BLOCK);
+    CHECK(r.at(0, BLOCK - 1) == 1.0f && r.at(1, BLOCK - 1) == 1.0f);  // voices 1 and 2
+    auto m = r.midi();
+    CHECK(m.size() == 2 && m[0].bytes[0] == 0x90 && m[0].bytes[1] == 64 && m[1].bytes[0] == 0x91);
+    r.runTo(4 * STEP16);  // held past the step: still sounding
+    CHECK(r.at(0, 4 * STEP16 - 1) == 1.0f);
+    r.e.playIn(64, 0);
+    r.e.playIn(60, 0);
+    r.runTo(4 * STEP16 + 2 * BLOCK);
+    CHECK(r.at(0, 4 * STEP16 + 2 * BLOCK - 1) == 0.0f && r.at(1, 4 * STEP16 + 2 * BLOCK - 1) == 0.0f);
+    for (int row = 0; row < GseqEngine::ROWS; row++)
+        for (int st = 0; st < 4; st++) CHECK(!r.e.step(row, st).on);
+    r.e.setStepEntry(true);  // step entry: noteIn writes at the cursor, playIn does not
+    r.e.playIn(67, 100);
+    r.e.playIn(67, 0);
+    r.runTo(4 * STEP16 + 3 * BLOCK);
+    CHECK(!r.e.step(3, 1).on && r.e.cursorCol() == 1);
+}
+
+// Every note-on gets its note-off and every gate closes: random patterns, edits, keys (noteIn and
+// playIn) and modes, then every step off and every key up
+static void testNoteOffs() {
+    for (int seed = 1; seed <= 20; seed++) {
+        Rig r;
+        uint32_t x = uint32_t(seed) * 2654435761u;
+        auto rnd = [&](int n) {
+            x ^= x << 13, x ^= x >> 17, x ^= x << 5;
+            return int(x % uint32_t(n));
+        };
+        int count[16][128] = {};
+        auto drain = [&] {
+            for (auto& m : r.midi()) {
+                const int ch = m.bytes[0] & 15, n = m.bytes[1];
+                if ((m.bytes[0] & 0xF0) == 0x90 && m.bytes[2]) count[ch][n]++;
+                else if ((m.bytes[0] & 0xF0) == 0x80 || (m.bytes[0] & 0xF0) == 0x90) count[ch][n]--;
+            }
+        };
+        bool down[128] = {};
+        for (int t = 0; t < 3000; t++) {
+            const int what = rnd(20);
+            if (what < 6) {
+                Step st;
+                st.on = rnd(3) > 0, st.note = uint8_t(36 + rnd(48)), st.velocity = uint8_t(1 + rnd(127));
+                st.duration = uint8_t(rnd(GseqEngine::DURATIONS));
+                r.e.setStep(rnd(8), rnd(32), st);
+            } else if (what < 8) {
+                Row row = r.e.row(rnd(8));
+                row.length = uint8_t(1 + rnd(32)), row.division = uint8_t(rnd(GseqEngine::DIVISIONS));
+                row.channel = uint8_t(rnd(17)), row.voice = uint8_t(rnd(5)), row.mute = rnd(4) == 0;
+                r.e.setRow(rnd(8), row);
+            } else if (what < 12) {
+                const int n = 48 + rnd(24);
+                if (rnd(2)) r.e.noteIn(n, down[n] ? 0 : 100);
+                else r.e.playIn(n, down[n] ? 0 : 100);
+                down[n] = !down[n];
+            } else if (what == 12) {
+                r.e.toggleRecord();
+            } else if (what == 13) {
+                r.e.setStepEntry(rnd(2));
+            } else if (what == 14) {
+                r.e.setCursor(rnd(8), rnd(32));
+            }
+            r.runTo(r.frame + BLOCK * (1 + rnd(40)));
+            drain();
+        }
+        for (int row = 0; row < GseqEngine::ROWS; row++)
+            for (int st = 0; st < GseqEngine::STEPS; st++) r.e.setStep(row, st, Step());
+        for (int n = 0; n < 128; n++)
+            if (down[n]) r.e.playIn(n, 0);
+        r.runTo(r.frame + 20 * RATE);  // longer than any note: 16 steps of 1/4 at 120 bpm is 8 s
+        drain();
+        int open = 0;
+        for (auto& ch : count)
+            for (int c : ch) open += c != 0;
+        CHECK(open == 0);
+        for (int v = 0; v < GseqEngine::VOICES; v++) CHECK(r.at(v, r.frame - 1) == 0.0f);
+        if (open) std::printf("seed %d: %d notes left open\n", seed, open);
+    }
+}
+
 static void testThreads() {
     Rig r;
     std::atomic<bool> stop{ false };
@@ -376,6 +518,7 @@ static void testThreads() {
             if (i % 50 == 0) r.e.midiStart();
             if (i % 50 == 25) r.e.midiStop();
             r.e.noteIn(40 + i % 30, i % 3 ? 100 : 0);
+            r.e.playIn(70 + i % 20, i % 4 ? 90 : 0);  // the Launchpad's keys, on the same MIDI input thread
         }
     });
     std::thread keys([&] {  // as the UI thread's Rec, Step and cursor
@@ -411,6 +554,7 @@ int main(int argc, char** argv) {
     }
     testWords();
     testCv();
+    testVelocityGated();
     testRetrigger();
     testMinimumGate();
     testMidi();
@@ -423,6 +567,9 @@ int main(int argc, char** argv) {
     testRecordChord();
     testStepEntry();
     testRecordCancel();
+    testRecordRearm();
+    testPlay();
+    testNoteOffs();
     std::printf("%s\n", failures ? "FAILED" : "all passed");
     return failures ? 1 : 0;
 }

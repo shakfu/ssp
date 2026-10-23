@@ -22,7 +22,7 @@ Rows of different lengths drift against each other and realign after their least
 ## Row limits
 
 - **CV:** 4 voices. Outputs `Gate 1-4`, `CV 1-4`, then `Vel 1-4`: 12 jacks, in that order, so the first 8 match alda's and the user's preset template (gates, then CVs). sfct already has 14 outputs, so 12 fit.
-- **Velocity CV:** a per-row setting, off or on. On: `Vel k` carries the step's velocity, 127 at 5 V, held until the next step. Off: `Vel k` stays at 0 V. The jacks are fixed either way, because Synthor's jacks cannot change with a setting.
+- **Velocity CV:** a per-row setting, off, held or gated. Held: `Vel k` carries the step's velocity, 127 at 5 V, held until the next step. Gated (added 2026-10-23): the same while the gate is open, 0 V otherwise; Plaits with TRIG empty drones at the last pitch, and gated velocity into its LEVEL closes it. Off: `Vel k` stays at 0 V. The jacks are fixed either way, because Synthor's jacks cannot change with a setting.
 - **MIDI:** the protocol imposes no row limit. Rows can share a channel: drum rows all on channel 10, one note each. The real limit is the screen. 8 rows at 46 px each fill the grid area.
 
 So `ROWS = 8`, of which at most 4 drive CV.

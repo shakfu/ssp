@@ -47,6 +47,7 @@ PluginProcessor::PluginProcessor()
 PluginProcessor::~PluginProcessor() {
     midiQuit_ = true;
     midiThread_.join();
+    pad_.close();
     MidiBuffer off;
     for (int ch = 1; ch <= 16; ch++) off.addEvent(MidiMessage::allNotesOff(ch), 0);
     send(off);
@@ -125,10 +126,22 @@ void PluginProcessor::send(const MidiBuffer& buf) {
 void PluginProcessor::midiLoop() {
     MidiBuffer buf;
     GseqEngine::Midi m;
-    while (!midiQuit_.load(std::memory_order_relaxed)) {
+    ssp::launchpad::Surface surface;
+    ssp::launchpad::Frame frame;
+    std::vector<uint8_t> lights;
+    // ms counts loops, wrapping where both periods divide it
+    for (int ms = 0; !midiQuit_.load(std::memory_order_relaxed);
+         ms = (ms + MIDI_POLL_MS) % (PAD_POLL_MS * PAD_FRAME_MS)) {
         buf.clear();
         while (gseq().midiOut(m)) buf.addEvent(m.bytes, m.size, 0);
         if (!buf.isEmpty()) send(buf);
+        if (ms % PAD_POLL_MS == 0 && pad_.poll()) surface.invalidate();
+        if (ms % PAD_FRAME_MS == 0 && pad_.isOpen()) {
+            padView_.render(frame);
+            lights.clear();
+            surface.update(frame, lights);
+            pad_.send(lights);
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(MIDI_POLL_MS));
     }
 }

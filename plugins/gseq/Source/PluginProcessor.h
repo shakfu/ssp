@@ -5,8 +5,10 @@
 #include <thread>
 
 #include "GseqEngine.h"
+#include "LaunchpadView.h"
 #include "engine/EngineEditor.h"
 #include "engine/EngineProcessor.h"
+#include "launchpad/LaunchpadDevice.h"
 
 using namespace juce;
 
@@ -14,6 +16,7 @@ using namespace juce;
 class PluginProcessor : public ssp::engine::EngineProcessor {
 public:
     static constexpr int MIDI_POLL_MS = 1;
+    static constexpr int PAD_POLL_MS = 1000, PAD_FRAME_MS = 16;                  // looks for the Launchpad; redraws it
     static constexpr const char* CLOCK_NAMES[3] = { "free", "analog", "midi" };  // Clock::Source order
 
     PluginProcessor();
@@ -55,7 +58,8 @@ protected:
 private:
     static AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     // Sends the engine's MIDI, every MIDI_POLL_MS, to the plugin's own ALSA port and to the general panel's
-    // MIDI out, if one is chosen. Without either the messages are dropped, so the queue never fills.
+    // MIDI out, if one is chosen. Without either the messages are dropped, so the queue never fills. Also
+    // opens the Launchpad when it appears and redraws it.
     void midiLoop();
     void send(const MidiBuffer& buf);  // MIDI thread, or after it ends
 
@@ -68,6 +72,10 @@ private:
     // instances. Null if ALSA refused it.
     std::unique_ptr<MidiOutput> port_;
     int portIndex_ = 0;  // 1-based; 0 without a port
+
+    // the Launchpad: its input reaches the view on the MIDI input thread; midiLoop draws it
+    gseq::LaunchpadView padView_{ gseq() };
+    ssp::launchpad::Device pad_{ [this](const ssp::launchpad::Event& e) { padView_.press(e); } };
 
     std::atomic<bool> midiQuit_{ false };
     std::thread midiThread_;

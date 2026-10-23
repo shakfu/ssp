@@ -17,7 +17,7 @@ BUILDROOT_DEP := $(BUILDROOT_DIR)
 endif
 
 .DEFAULT_GOAL := ssp
-.PHONY: ssp configure buildroot deps faust-kernels scsy-builtin release release-pdf release-notes publish clean-releases deploy deploy-mod install install-faust install-scsy install-sapf install-fsyn install-brks install-presets midisend test clean help
+.PHONY: ssp configure buildroot deps faust-kernels scsy-builtin release release-pdf release-notes publish clean-releases deploy deploy-mod install install-faust install-scsy install-sapf install-fsyn install-brks install-presets midisend mididump test clean help
 
 help:
 	@echo "make [ssp]              download buildroot if needed, configure, build all plugins"
@@ -40,6 +40,7 @@ help:
 	@echo "make install-fsyn       copy fsyn's soundfont, FluidR3_GM.sf2, to the card"
 	@echo "make install-brks       download _core's default sample banks, copy them to the card as brks's default"
 	@echo "make midisend           build tools/midisend, copy it to SSP_HOST's /tmp and start it: a MIDI input for tests"
+	@echo "make mididump           build tools/mididump, copy it to SSP_HOST's /tmp: prints a port's MIDI"
 	@echo "make install-presets    check, then copy presets/ (or PRESETS=dir) to the card (SSP_PRESETS)"
 	@echo "make test               run the tools, scripts and plugin tests"
 	@echo "make clean              remove $(BUILD_DIR)"
@@ -135,13 +136,20 @@ install-brks:
 MIDISEND_BR := $(or $(SSP_BUILDROOT),$(BUILDROOT),$(CURDIR)/$(BUILDROOT_DIR))
 MIDISEND_SYSROOT := $(MIDISEND_BR)/arm-rockchip-linux-gnueabihf/sysroot
 MIDISEND_GCC := $(MIDISEND_BR)/lib/gcc/arm-rockchip-linux-gnueabihf/8.4.0
+MIDI_TOOL_CC := clang --target=arm-linux-gnueabihf --sysroot=$(MIDISEND_SYSROOT) -mcpu=cortex-a17 -mfloat-abi=hard -O2 \
+	-fuse-ld=lld -L$(MIDISEND_SYSROOT)/lib -B$(MIDISEND_SYSROOT)/lib -L$(MIDISEND_GCC) -B$(MIDISEND_GCC)
+
 midisend: | $(BUILDROOT_DEP)
 	mkdir -p build/midisend
-	clang --target=arm-linux-gnueabihf --sysroot=$(MIDISEND_SYSROOT) -mcpu=cortex-a17 -mfloat-abi=hard -O2 \
-		tools/midisend/midisend.c -lasound -fuse-ld=lld -L$(MIDISEND_SYSROOT)/lib -B$(MIDISEND_SYSROOT)/lib \
-		-L$(MIDISEND_GCC) -B$(MIDISEND_GCC) -o build/midisend/midisend
+	$(MIDI_TOOL_CC) tools/midisend/midisend.c -lasound -o build/midisend/midisend
 	scp -O -q build/midisend/midisend $${SSP_HOST:-root@192.168.1.6}:/tmp/midisend-bin
 	ssh $${SSP_HOST:-root@192.168.1.6} 'killall midisend-bin 2>/dev/null; nohup /tmp/midisend-bin /tmp/midisend > /tmp/midisend.log 2>&1 & sleep 1; cat /tmp/midisend.log'
+
+# prints the MIDI of the SSP's ports whose names contain an argument (tools/mididump/mididump.c)
+mididump: | $(BUILDROOT_DEP)
+	mkdir -p build/mididump
+	$(MIDI_TOOL_CC) tools/mididump/mididump.c -lasound -o build/mididump/mididump
+	scp -O -q build/mididump/mididump $${SSP_HOST:-root@192.168.1.6}:/tmp/mididump
 
 install-presets:
 	scripts/install-presets.sh $(PRESETS)

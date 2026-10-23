@@ -20,6 +20,10 @@ Changes to the build, tools and presets. Each plugin keeps its own changelog in 
 
 - `sfct` joins the plugins `plugins/common/tests` drives through the SSP API, and `tools/py2rack/modules-local.json`.
 
+- `make mididump` (`tools/mididump`): prints the notes and controllers of the SSP's MIDI ports whose names contain a word, over ssh. The SSP has no alsa-utils; it found that a stuck note during the `gseq` Launchpad test came from Plaits droning, not from a missing note-off.
+
+- `plugins/common/launchpad`: the Launchpad Mini MK3's Programmer-mode protocol and a JUCE device that finds, opens and reconnects it; `gseq` uses it. See [docs/dev/gseq-launchpad.md](docs/dev/gseq-launchpad.md).
+
 ## [0.4.0]
 
 Five modules are new since 0.3.0: `dexd`, `sapf`, `alda`, `fsyn` and `brks`, so the release ships 18.

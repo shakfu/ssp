@@ -19,7 +19,7 @@ Copy `gseq.so` to the `plugins` folder on the SD card.
 
 - Pitch: 1 V/octave, C4 (MIDI 60) at 0 V, within the SSP's +-5 V: notes above 120 clip, and their cells get a red frame. It holds after the gate closes.
 
-- Velocity: 127 at 5 V, held until the next note, when the row's velocity CV is on; 0 V when off.
+- Velocity: 127 at 5 V, when the row's velocity CV is on; 0 V when off. `held` keeps it until the next note; `gated` only while the gate is open, 0 V otherwise. Gated velocity into an oscillator's level input (Plaits' LEVEL, with TRIG empty) gives notes their duration and their velocity from one jack.
 
 - A step that starts while the row's last note still sounds retriggers it: the gate closes for 1 ms, and MIDI gets a note-off first.
 
@@ -33,7 +33,7 @@ Each row's label shows its number, MIDI channel and CV voice (`1 ch1 cv1`), then
 |-|-|-|-|
 | Encoder 1 | note (held: octaves); a turn sets the step on; press toggles it | MIDI channel, off or 1-16 | tempo, 20-300 (held: by 10) |
 | Encoder 2 | velocity (held: by 10) | CV voice, off or 1-4 | swing, 50-75% |
-| Encoder 3 | duration: 1/8 to 7/8 of a step, then 1, 1.5, 2, 3, 4, 6, 8, 12, 16 steps | velocity CV, on or off | clock: free, analog, midi |
+| Encoder 3 | duration: 1/8 to 7/8 of a step, then 1, 1.5, 2, 3, 4, 6, 8, 12, 16 steps | velocity CV: off, held, gated | clock: free, analog, midi |
 | Encoder 4 | row length, 1-32; press cycles the step | step: 1/4, 1/8, 1/8T, 1/16, 1/16T, 1/32 | the clock input's pulses a quarter, 1-24 |
 
 | Button | Does |
@@ -55,13 +55,37 @@ The patch keeps the pattern.
 
 Play a MIDI keyboard into `gseq`'s MIDI IN (general panel). Notes count only while Rec or Step is on.
 
-- Rec: blinks until the cursor's row starts its next pass, then lights and records that one pass. Each note lands on the nearest step; steps no note lands on are cleared, so the take replaces the row. It then stops; press Rec again for another take, or while it blinks or records to stop it.
+- Rec: blinks until the cursor's row starts its next pass, then lights and records that one pass. Moving the cursor to another row while it blinks arms that row instead. Each note lands on the nearest step; steps no note lands on are cleared, so the take replaces the row. It then stops; press Rec again for another take, or while it blinks or records to stop it.
 - Step: each note goes to the cursor's step, and the cursor moves on when every key is up. The grid may be playing or not.
 - A note's duration is how long it was held, snapped to the nearest duration and capped at the row's length. Its velocity is kept.
 - A chord spreads over rows: its lowest note on the cursor's row, the next on the row below, and so on, wrapping from row 8 to row 1. Only the cursor's row is replaced; the chord's notes overwrite their steps on the other rows.
 - While recording, the keyboard sounds through each row's own routing: its MIDI channel, its CV voice, or both. A synth that also hears the keyboard directly sounds it twice.
 
 The header shows `REC row N armed` or `recording`, or `STEP`.
+
+## Launchpad
+
+A Novation Launchpad Mini MK3 plugged into the SSP (through a powered USB hub on the left port) edits and shows the grid. `gseq` finds it within a second, with no setting; with several `gseq` modules, one drives it, and another takes over when it is removed. Do not choose the Launchpad as `gseq`'s MIDI IN: its pads would arrive as notes.
+
+```
+ [^][v][<][>] [Rec][Stp][Fol][ - ]     top row
+ [ 6 rows x 8 steps of the grid  ] [m]  cursor pads; side keys mute their rows
+ [ .  C# D# .  F# G# A# .        ] [+]  key pads; side keys: octave up
+ [ C  D  E  F  G  A  B  C        ] [-]                         and down
+```
+
+- Arrows move the window: up and down by a row, left and right by 8 steps. The window moves by itself to show the cursor when the SSP or step entry moves it.
+- Session, Drums and Keys are Rec, Step and Follow; their printed labels do not apply. Follow keeps the cursor row's playing step in view.
+- Steps light amber, brighter for higher velocity; each row's playing step is white; the cursor flashes.
+- The pads are not velocity sensitive: key pads play velocity 100.
+
+| Mode | Cursor pad | Key pad |
+|-|-|-|
+| neither | moves the cursor | sounds through the cursor row's routing |
+| Rec | moves the cursor; before the take starts, Rec moves to its row | sounds; records during the take |
+| Step | switches the step on (the last key's note) or off; with keys held, sets their notes, a chord down the rows | sounds; held for the next cursor pad |
+
+In Step mode the cursor stays where the pad put it; step entry from a MIDI keyboard still moves it on.
 
 ## Clock
 
@@ -83,7 +107,7 @@ Synthor runs a module only while at least one of its jacks is patched, even to a
 
 ## Not yet
 
-- Scales (TODO.md); probability, ratchets, pattern chaining; a computer keyboard.
+- Scales (TODO.md); probability, ratchets, pattern chaining; a computer keyboard; MIDI clock to the Launchpad, so its flashing follows the tempo.
 
 ## Licence
 

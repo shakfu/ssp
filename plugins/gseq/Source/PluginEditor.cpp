@@ -50,7 +50,7 @@ PluginEditor::PluginEditor(PluginProcessor& p) : BaseEditor(&p), processor_(p) {
     downBtn_.label("ROW+");
     addAndMakeVisible(leftBtn_);
     addAndMakeVisible(rightBtn_);
-    p.gseq().setCursor(row_, col_);
+    syncCursor();
     setSize(1600, 480);
 }
 
@@ -65,10 +65,14 @@ void PluginEditor::onSSPTimer() {
     buttons_[B_REC]->value(rec == Engine::RECORDING ||
                            (rec == Engine::ARMED && juce::Time::getMillisecondCounter() / 250 % 2));
     buttons_[B_STEP]->value(g.stepEntry());
-    if (g.stepEntry()) {
-        row_ = g.cursorRow();
-        col_ = std::min(g.cursorCol(), g.row(row_).length - 1);
-    }
+    syncCursor();
+}
+
+// the engine holds the cursor: step entry and the Launchpad move it too
+void PluginEditor::syncCursor() {
+    auto& g = processor_.gseq();
+    row_ = g.cursorRow();
+    col_ = std::min(g.cursorCol(), g.row(row_).length - 1);
 }
 
 void PluginEditor::note(const String& s) {
@@ -83,23 +87,28 @@ void PluginEditor::moveTo(int row, int col) {
 }
 
 void PluginEditor::eventUp(bool longPress) {
+    syncCursor();
     moveTo(longPress ? 0 : row_ - 1, col_);
 }
 
 void PluginEditor::eventDown(bool longPress) {
+    syncCursor();
     moveTo(longPress ? Engine::ROWS - 1 : row_ + 1, col_);
 }
 
 void PluginEditor::eventLeft(bool longPress) {
+    syncCursor();
     moveTo(row_, longPress ? 0 : col_ - 1);
 }
 
 void PluginEditor::eventRight(bool longPress) {
+    syncCursor();
     moveTo(row_, longPress ? Engine::STEPS : col_ + 1);
 }
 
 void PluginEditor::onEncoder(unsigned enc, float v) {
     if (enc > 3 || v == 0.0f) return;
+    syncCursor();
     const int d = v > 0.0f ? 1 : -1;
     const bool held = encoderState_[enc];
     if (held) turned_[enc] = true;
@@ -117,6 +126,7 @@ void PluginEditor::onEncoderSwitch(unsigned enc, bool v) {
         turned_[enc] = false;
         return;
     }
+    syncCursor();
     if (!turned_[enc]) pressed(enc);
 }
 
@@ -143,7 +153,7 @@ void PluginEditor::editStep(unsigned enc, int d, bool held) {
     g.setStep(row_, col_, s);
 }
 
-// Row: 1 MIDI channel, 2 CV voice (past those other rows hold), 3 velocity CV, 4 division
+// Row: 1 MIDI channel, 2 CV voice (past those other rows hold), 3 velocity CV (off, held, gated), 4 division
 void PluginEditor::editRow(unsigned enc, int d) {
     auto& g = processor_.gseq();
     auto row = g.row(row_);
@@ -163,7 +173,9 @@ void PluginEditor::editRow(unsigned enc, int d) {
         if (v < 0 || v > Engine::VOICES) return;
         row.voice = uint8_t(v);
     } else if (enc == 2) {
-        row.velocityCv = d > 0;
+        const int vel = std::clamp((row.velocityCv ? 1 + row.velocityGated : 0) + d, 0, 2);  // off, held, gated
+        row.velocityCv = vel > 0;
+        row.velocityGated = vel == 2;
     } else {
         row.division = uint8_t(std::clamp(row.division + d, 0, Engine::DIVISIONS - 1));
     }
@@ -198,6 +210,7 @@ void PluginEditor::onButton(unsigned btn, bool v) {
 
 void PluginEditor::eventButton(unsigned btn, bool longPress) {
     BaseEditor::eventButton(btn, longPress);
+    syncCursor();
     auto& g = processor_.gseq();
     switch (btn) {
     case B_ROW: mode_ = mode_ == ROW ? GRID : ROW; break;
@@ -254,8 +267,9 @@ String PluginEditor::legend() const {
     switch (mode_) {
     case ROW:
         return "E1 midi " + (row.channel ? "ch" + String(row.channel) : String("off")) + "   E2 cv " +
-               (row.voice ? String(row.voice) : String("off")) + "   E3 vel cv " + (row.velocityCv ? "on" : "off") +
-               "   E4 " + DIVISION_NAMES[row.division];
+               (row.voice ? String(row.voice) : String("off")) + "   E3 vel cv " +
+               (!row.velocityCv ? "off" : row.velocityGated ? "gated" : "held") + "   E4 " +
+               DIVISION_NAMES[row.division];
     case GLOBAL:
         return "E1 tempo " + String(int(value(processor_.tempo()))) + "   E2 swing " +
                String(int(value(processor_.swing()))) + "%   E3 clock " + processor_.clock().getCurrentValueAsText() +

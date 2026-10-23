@@ -14,7 +14,8 @@ namespace gseq {
 // 1 / division quarter notes whatever its length, so rows of different lengths drift (polymeter). A step
 // plays a note on the row's MIDI channel, on its CV voice, or both: voice k gates output k (5 V), sets
 // output 4 + k to the pitch (1 V/octave, MIDI 60 at 0 V) and output 8 + k to the velocity (127 at 5 V)
-// when the row's velocity CV is on. A note that a step starts while the row's last still sounds
+// when the row's velocity CV is on: held until the next note, or with velocityGated, only while the gate is
+// open (0 V otherwise, also in a retrigger's gap). A note that a step starts while the row's last still sounds
 // retriggers: the gate closes for GAP_MS, and MIDI gets a note-off first. A gate stays open MIN_GATE_MS.
 //
 // Inputs: 1 resets to the first step, 2 is the clock for the INPUT source (ssp::engine::Clock).
@@ -22,11 +23,12 @@ namespace gseq {
 // A new row plays MIDI on its own channel; rows 1-4 also play CV voices 1-4, with velocity CV.
 //
 // Recording (plugins/gseq/TODO.md has the decisions): notes from noteIn() become steps. Rec arms on the
-// cursor's row and records its next whole pass, each note at the nearest step, replacing the row's steps,
-// then stops. Step entry writes each note at the cursor, which moves on when every key is up. A chord's
-// notes, lowest first, go to the cursor's row and the rows below it, wrapping to row 1; only the cursor's
-// row is replaced. A note's duration is how long it was held, snapped to DURATION_EIGHTHS. While either
-// is on, notes also sound through each row's own routing (echo).
+// cursor's row, follows the cursor until the take starts, and records the row's next whole pass, each note
+// at the nearest step, replacing the row's steps, then stops. Step entry writes each note at the cursor,
+// which moves on when every key is up. A chord's notes, lowest first, go to the cursor's row and the rows
+// below it, wrapping to row 1; only the cursor's row is replaced. A note's duration is how long it was
+// held, snapped to DURATION_EIGHTHS. While either is on, notes also sound through each row's own routing
+// (echo). Notes from playIn() only sound, from the cursor's row down, in any mode.
 //
 // The pattern is a word per step and per row, set and read from any thread: edits need no handoff, and
 // the audio thread reads them as it plays.
@@ -55,6 +57,7 @@ public:
         uint8_t channel = 0;    // MIDI, 1-16; 0 off
         uint8_t voice = 0;      // CV, 1-VOICES; 0 off
         bool velocityCv = false, mute = false;
+        bool velocityGated = false;  // velocity CV only while the gate is open
         static Row unpack(uint32_t w);
         uint32_t pack() const;
     };
@@ -85,6 +88,8 @@ public:
     int cursorCol() const { return cursor_.load(std::memory_order_relaxed) & 0xFF; }
     // MIDI input thread: a note from a keyboard; velocity 0 is its note-off. Ignored unless recording.
     void noteIn(int note, int velocity);
+    // MIDI input thread, as noteIn(): a note that sounds from the cursor's row down and writes no step
+    void playIn(int note, int velocity);
 
     // audio thread, before process(): the clock's source, its input's pulses a quarter, tempo and swing
     void setClock(ssp::engine::Clock::Source s, int ppqn) { source_ = s, clock_.setPpqn(ppqn); }
@@ -123,13 +128,15 @@ private:
         uint8_t note = 0, velocity = 0;
         bool written = false;     // a step holds it: row and col
         int row = 0, col = 0;
-        int64_t chord = 0;        // its step, real time; its notes share it. Step entry: 0
+        int64_t chord = 0;        // its step, real time; its notes share it. Step entry: -1; playIn(): PLAY
         int echo = -1;            // the row sounding it
         int64_t since = 0;        // the sample it started
     };
     static constexpr int HELD = 16;
+    static constexpr int64_t PLAY = -2;
     struct NoteIn {
         uint8_t note, velocity;
+        bool play;  // playIn()
     };
     void takeNotes();  // block start: Rec and step entry, then the notes queued
     void keyDown(const NoteIn& k, double at);
@@ -158,6 +165,7 @@ private:
     bool gate_[VOICES] = {};
     int closed_[VOICES] = {};
     float pitch_[VOICES] = {}, velocity_[VOICES] = {};
+    bool velocityGated_[VOICES] = {};  // as the row that last started the voice
 
     // recording: requests from the UI and notes from the MIDI thread, state for the UI
     std::atomic<bool> recordToggle_{ false }, stepEntry_{ false };

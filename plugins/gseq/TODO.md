@@ -14,3 +14,7 @@ Open:
 2. Recorded notes: quantize to the row's scale, or keep what was played?
 3. Several rows at once: copy the cursor row's scale to every row (a held button), or one pattern scale that each row can override.
 4. Where: the row page's four encoders are taken (channel, voice, velocity CV, division). A second row page, with Row pressed again to reach it, can hold scale and root.
+
+## Launchpad Mini MK3
+
+- [ ] Design 2026-10-23: docs/dev/gseq-launchpad.md. All decisions made; step 1 is a device check.

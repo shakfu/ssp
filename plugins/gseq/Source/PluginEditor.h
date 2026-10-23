@@ -10,7 +10,7 @@ class PluginEditor : public ssp::BaseEditor {
 public:
     explicit PluginEditor(PluginProcessor&);
     void drawView(Graphics&) override;
-    void onSSPTimer() override;  // the buttons' lights; in step entry, the cursor the engine moved
+    void onSSPTimer() override;  // the buttons' lights and the engine's cursor
 
 protected:
     void onEncoder(unsigned enc, float v) override;
@@ -34,10 +34,11 @@ private:
     void note(const String& s);  // a line shown for a moment
     String legend() const;       // what the encoders do in this mode
     void moveTo(int row, int col);
+    void syncCursor();  // row_ and col_ from the engine, before any input acts on them
 
     PluginProcessor& processor_;
     Mode mode_ = GRID;
-    int row_ = 0, col_ = 0;  // the cursor
+    int row_ = 0, col_ = 0;  // the engine's cursor, read each timer tick
     bool turned_[4] = {};    // turned while held: the release does not act
     struct Clip {
         bool full = false;
