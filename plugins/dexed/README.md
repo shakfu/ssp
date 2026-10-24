@@ -1,16 +1,25 @@
-# dexed
+# dexd
 
-`dexed` is a 6-operator FM synth played from MIDI. It runs the [Dexed](https://github.com/asb2m10/dexed) engine through [Synth_Dexed](https://codeberg.org/dcoredump/Synth_Dexed) and plays DX7 cartridges from the card. GPLv3; see [NOTICE.md](NOTICE.md).
-
-Design and plan: [docs/dev/dexed.md](../../docs/dev/dexed.md).
+`dexd` is a 6-operator FM synth played from MIDI. It runs the [Dexed](https://github.com/asb2m10/dexed) engine through [Synth_Dexed](https://codeberg.org/dcoredump/Synth_Dexed) and plays DX7 cartridges from the card. GPL-3.0; see [NOTICE.md](NOTICE.md).
 
 ## Install
 
-Copy `dexd.so` to the `plugins` folder on the SD card (`make install MOD=dexd`). The module is `dexd`. Put cartridges under `dexed/` on the card's BOOT partition (`/media/BOOT/dexed`); Load opens there.
+Copy `dexd.so` to `BOOT/plugins` (from source: `make install MOD=dexd`) and restart the SSP.
+
+No cartridges ship. Copy `.syx` cartridges to `BOOT/dexed`; Load opens there. The DX7 factory banks are `Original Yamaha/DX7 ROM1` to `ROM4` in [Yamaha-DX7-patch-library](https://github.com/visualizersdotnl/Yamaha-DX7-patch-library).
+
+Playing needs a MIDI source: a keyboard on a powered hub ([Using](../../docs/USING.md#usb-devices)), or a module such as `gseq`.
+
+## First use
+
+1. Add `dexd`.
+2. Patch Out L and Out R to the outputs ([Using](../../docs/USING.md#a-module-runs-only-while-a-jack-is-patched)).
+3. Open the general panel (LS + RS, see [Using](../../docs/USING.md#the-general-panel)) and set MIDI IN to your keyboard or `gseq`.
+4. Play a note. With no cartridge, every voice is a sine.
 
 ## Playing
 
-Set MIDI IN in the module's general panel (RS + LS). Note In is on by default.
+Set MIDI IN in the general panel. Note In is on by default.
 
 | Message | Effect |
 |-|-|
@@ -29,7 +38,7 @@ Changing Voice (or a program change to another voice), Voices, Engine or Mono cu
 
 Load (button 5) picks a `.syx` file: a 32-voice bulk dump of 4104 bytes, alone or inside a longer sysex file, or its 4096 bytes of data. A dump whose checksum fails still loads, as in Dexed; the status panel says so. A file over 64 KB is refused. Each value is clamped to its DX7 range.
 
-With no cartridge, every voice is Dexed's init voice: a sine. None ship with `dexd`. The DX7 factory banks are `Original Yamaha/DX7 ROM1` to `ROM4` in [Yamaha-DX7-patch-library](https://github.com/visualizersdotnl/Yamaha-DX7-patch-library); copy the `.syx` files to `BOOT/dexed`.
+With no cartridge, every voice is Dexed's init voice: a sine.
 
 The preset stores the cartridge's path and the selected voice's data. If the file has gone, the preset plays its saved voice in every slot.
 
@@ -45,7 +54,7 @@ The controls change the voice as it plays; the cartridge is not modified. Offset
 | op 5-6 lfo | Op 5 | Op 6 | LFO Rate | LFO Depth |
 | play | Bend Range | Portamento | Mono | Engine |
 
-- **Voice**: 1-32 in the cartridge. PG- and PG+ (Left and Right) step it, wrapping from 32 to 1.
+- **Voice**: 1-32 in the cartridge. `PG-` and `PG+` step it, wrapping from 32 to 1.
 
 - **Level**: output gain, 0-2.
 
@@ -67,16 +76,16 @@ The controls change the voice as it plays; the cartridge is not modified. Offset
 
 - **Portamento**: time, 0 (off) to 99.
 
-- **Engine**: `modern`, `mark I` (default) or `OPL`, Dexed's three resolutions.
+- **Engine**: one of Dexed's three engine models: `modern` (MSFA), `mark I` (default) or `OPL`.
 
 The status panel shows the cartridge, the voice's number and name, notes playing, and DSP load.
 
 ## Jacks
 
-| Jack | |
-|-|-|
-| Cutoff CV | adds to Cutoff; 1.0 (5 V) is the full range. Cutoff defaults to 1.0, fully open, so lower it to give positive CV room |
-| Mod CV | the mod wheel, 0 to 1.0 (5 V); the higher of this and CC1 applies |
-| Out L, Out R | the synth, mono, on both |
+| Jack | Name | |
+|-|-|-|
+| In 1 | `Cutoff CV` | adds to Cutoff; 1.0 (5 V) is the full range. Cutoff defaults to 1.0, fully open, so lower it to give positive CV room |
+| In 2 | `Mod CV` | the mod wheel, 0 to 1.0 (5 V); the higher of this and CC1 applies |
+| Out 1, 2 | `Out L`, `Out R` | the synth, mono, on both |
 
 CV is read once per block.

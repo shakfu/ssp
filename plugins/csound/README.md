@@ -1,54 +1,100 @@
-# csound
+# csnd
 
-`csound` runs a [Csound 7](https://csound.com) orchestra (`.csd`) on the SSP. The orchestra gets eight audio inputs and outputs, sixteen controls, and MIDI.
+`csnd` runs a [Csound 7](https://csound.com) orchestra (`.csd`). The orchestra gets eight audio inputs and outputs, sixteen controls, and MIDI.
 
-Ported from the [`csound` engine](https://github.com/shakfu/sk-engines/tree/main/src/engine/csound) in [sk-engines](https://github.com/shakfu/sk-engines); see [docs/dev/engines.md](../../docs/dev/engines.md).
+Ported from the [`csound` engine](https://github.com/shakfu/sk-engines/tree/main/src/engine/csound) in [sk-engines](https://github.com/shakfu/sk-engines).
 
 ## Install
 
-Copy `csnd.so` to the `plugins` folder on the SD card. The module is `csnd`: the SSP lists a module only if its id spells its name (see [docs/dev/engines.md](../../docs/dev/engines.md)). Csound is linked in; nothing else is needed. Put orchestras anywhere on the card; the browser opens at `/media/BOOT/csound`.
+Copy `csnd.so` to `BOOT/plugins` (from source: `make install MOD=csnd`, to a mounted card) and restart the SSP. See [Using](../../docs/USING.md#installing).
+
+The example orchestras go in `BOOT/csound`, where the browser opens. A release has them there. From source, copy `examples/` to `BOOT/csound` by hand. Orchestras can sit anywhere on the card.
+
+A USB keyboard edits the code; it is optional ([Keyboard](#keyboard)).
+
+## First use
+
+1. Add `csnd` and patch Out 1 and Out 2 to outputs. Synthor runs a module only while a jack is patched ([Using](../../docs/USING.md#a-module-runs-only-while-a-jack-is-patched)). The built-in drone plays.
+2. Press Load (button 5), select `filter.csd`, and press Load again.
+3. Patch stereo audio to In 1 and In 2.
+4. Turn encoder 4 (`mix`) up to hear the filter, then encoder 1 to sweep the cutoff.
+
+[Walkthrough: `filter.csd`](#walkthrough-filtercsd) explains each step.
+
+## The language
+
+### What it is
+
+A Csound program is a `.csd` file holding an orchestra and an optional score. The orchestra, in `<CsInstruments>`, defines instruments as `instr` ... `endin` blocks. The score, in `<CsScore>`, lists events that start instruments. Instruments compute `a` variables at audio rate and `k` variables once per `ksmps` samples. See the [reference manual](https://csound.com/docs/manual/index.html) and, for beginners, the [Csound FLOSS Manual](https://flossmanual.csound.com/).
+
+### A first program
+
+A mono lowpass filter from In 1 to Out 1, with its cutoff on encoder 1:
+
+```csound
+<CsoundSynthesizer>
+<CsInstruments>
+; @p1 cutoff 40 20000 Hz log
+nchnls = 1
+0dbfs = 1
+massign 0, 0             ; ignore MIDI
+
+instr 1
+  ain  inch 1            ; In 1
+  kcut chnget "p1"       ; encoder 1, in Hz
+  outch 1, moogladder(ain, kcut, 0.5)
+endin
+schedule 1, 0, -1
+</CsInstruments>
+</CsoundSynthesizer>
+```
+
+- `; @p1 cutoff 40 20000 Hz log` names encoder 1 and sets its range.
+- `chnget "p1"` reads that control as a k-rate value in Hz.
+- `inch 1` reads In 1; `outch 1` writes Out 1.
+- `schedule 1, 0, -1` starts instrument 1 now, with no end.
+
+### How it maps to the SSP
+
+| SSP | In Csound |
+|-|-|
+| Audio in | `inch 1` .. `inch 8` are In 1..In 8; also `ins`. [Audio in](#audio-in) |
+| Audio out | `outch 1` .. `outch 8` are Out 1..Out 8; also `outs`. [Audio out](#audio-out) |
+| Encoders | `chnget "p1"` .. `chnget "p16"`, set once per audio block. [Labels and ranges](#labels-and-ranges) |
+| CV in | `cv N` on an `@pN` line, or `inch N` / 0.2 for volts. [CV in](#cv-in) |
+| CV out | `outch N`, 0.2 per volt with `0dbfs = 1`. [CV out](#cv-out) |
+| Gates and triggers | in: `trigger` on `k(inch(N))`; out: `outch N` with 1.0 (5 V) |
+| MIDI in | `massign`, `notnum`, `veloc`, `cpsmidi`; notes only, channel 1. [The orchestra](#the-orchestra) |
+| MIDI out | n/a: the module passes no MIDI from the orchestra to the host |
+| Clock and tempo | n/a: no clock from Synthor; patch one to an input. Score `t` sets score tempo |
+| Sample rate and block size | `sr` is the host's (48 kHz); `ksmps` is the orchestra's. [The orchestra](#the-orchestra) |
+| Files on the card | GEN01, `diskin`, `#include` paths resolve next to the `.csd` |
+| Not available on the SSP | console output (`prints`, `printks`); MIDI out |
 
 ## Use
 
-Load (button 5) opens a browser. Choose a `.csd` and press Load again. The screen shows the file, and the compile error if there is one. A program that fails to compile leaves the previous one running. With no program, a built-in drone plays: pitch, level and cutoff. MIDI notes play it too.
+Load (button 5) opens a browser. Choose a `.csd` and press Load again. The screen shows the file, and the compile error if there is one. A program that fails to compile leaves the previous one running. With no program, a built-in drone plays, with controls pitch, level and cutoff. MIDI notes play a separate plucked voice through the same cutoff.
 
-The preset stores the file's path, not its contents, unless the code ran from the [keyboard](#keyboard).
+A preset stores the program as [Script modules](../../docs/script-editor.md#presets) describes.
 
 ## Keyboard
 
-A USB keyboard, or port 7773 on 127.0.0.1 over ssh (`ssh -L 7773:127.0.0.1:7773 root@192.168.1.6`), edits the program as text. The first key typed opens the Code view; Code (button 6) or Esc returns to the pages. The keyboard goes to the keyboard module on screen, as for `sapf` and `ttyp`.
+The [shared editor](../../docs/script-editor.md) edits the orchestra, on key port 7773. Ctrl-S on the built-in writes `BOOT/csound/live.csd`. Ctrl-., Ctrl-R and Ctrl-1..0 do nothing.
 
-| Key | Does |
-|-|-|
-| Ctrl-Enter | compiles the whole code in place of the program; the file is unchanged |
-| Ctrl-S | writes the code to the program's file; for the built-in, to `BOOT/csound/live.csd` |
-| Ctrl-O | opens the browser, as Load |
-| Ctrl-Shift-S | Save As: type a file name (beside the current file; the extension added if missing), Enter saves and makes it the program's file; an existing file needs a second Enter; Esc cancels |
-| Ctrl-L | empties the code view; again on the empty view, brings the text back |
-| Ctrl-E | runs the block around the cursor in the running orchestra: the lines up to blank lines outside brackets, strings and comments; on a blank line, the block above |
-| Esc | returns to the pages |
-| arrows, Home, End, PageUp, PageDown | move; with Ctrl, Home and End go to the start and end |
+Ctrl-E runs the block around the cursor in the running orchestra. A block inside `<CsScore>` goes as score events, such as `i 2 0 4`. Elsewhere it compiles the block as orchestra code: `schedule 2, 0, 4` plays, `instr 2 ... endin` replaces instrument 2, and `gkx = 0.5` sets a global.
 
-The code is coloured by syntax. Encoder 1 moves the cursor by rows, encoder 2 by columns. A held key repeats. Tab inserts spaces to the next multiple of 4. The layout is US. Relative paths in the code resolve next to the program's file. Controls keep their positions when the code runs and when Load opens a program.
-
-Ctrl-E sends a block inside `<CsScore>` as score events, such as `i 2 0 4`. Elsewhere it compiles the block as orchestra code: `schedule 2, 0, 4` plays, `instr 2 ... endin` replaces instrument 2, and `gkx = 0.5` sets a global. A replaced instrument applies to notes that start after it; a held note keeps the old definition until it ends. A block ends at a blank line, so keep an instrument free of blank lines to send it whole. A held note on the same instrument number ties to the running one; use a fractional number, such as `i 2.1`, for a second voice. Errors in an event show only when it plays, not on Ctrl-E.
-
-The preset stores the code last run, and the text when it holds an edit not yet run. It does not store what Ctrl-E added.
+- A replaced instrument applies to notes that start after it. A held note keeps the old definition until it ends.
+- A block ends at a blank line. Keep an instrument free of blank lines to send it whole.
+- A held note on the same instrument number ties to the running one. Use a fractional number, such as `i 2.1`, for a second voice.
+- Errors in an event show only when it plays, not on Ctrl-E.
 
 ## The orchestra
-
-| | |
-|-|-|
-| controls | `chnget "p1"` .. `chnget "p16"`; see Labels and ranges |
-| audio and CV | see Inputs and outputs |
-| MIDI | Csound's MIDI opcodes: `massign`, `notnum`, `veloc`, `cpsmidi`, `madsr`, ... |
-| files | relative paths (GEN01, `diskin`, `#include`) resolve next to the `.csd` |
 
 - The SSP sets `sr`; the orchestra's own `sr` is ignored.
 
 - `ksmps` is the orchestra's. Output is one k-cycle late.
 
-- MIDI comes from the device chosen in the general panel (RS + LS). Notes arrive on channel 1. Csound starts `instr n` for MIDI channel `n` unless told otherwise, so an orchestra that ignores MIDI needs `massign 0, 0`. Once a note has arrived, the status panel counts them: `MIDI notes: 12`.
+- MIDI comes from the device chosen in the general panel (LS + RS, see [Using](../../docs/USING.md#the-general-panel)). Notes arrive on channel 1. Csound starts `instr n` for MIDI channel `n` unless told otherwise, so an orchestra that ignores MIDI needs `massign 0, 0`. Once a note has arrived, the status panel counts them: `MIDI notes: 12`.
 
 ## Labels and ranges
 
@@ -59,13 +105,11 @@ A comment line names a control and gives its range; the screen then shows the na
 ; @p2 mix
 ```
 
-The form is `@pN label [min max [unit]] [log] [cv N]`, on a line that starts with `;`. The label is one word. Without a range a control is 0 to 1. `log` maps the encoder logarithmically and needs a positive range. The encoder pages show only the declared controls, four to a page, in order; a program that declares none shows all sixteen as `P1`..`P16`. Every control still exists for presets, MIDI learn and rack, and the parameter ids stay `p1`..`p16`; a preset stores the encoder position, so it restores the same position in a program with a different range.
-
-`cv N` makes input N move the control; see [CV in](#cv-in).
+The line starts with `;`. [`@pN` lines](../../docs/script-editor.md#pn-lines) gives the form and its rules.
 
 ## Inputs and outputs
 
-Inputs 1..8 and outputs 1..8 carry audio and CV alike. An SSP signal of 1.0 is 5 V, so CV is 0.2 per volt: 1 V is 0.2, and 1 V/oct pitch is 0.2 per octave.
+In 1..In 8 and Out 1..Out 8 carry audio and CV alike, at 0.2 per volt; see [CV](../../docs/script-editor.md#cv).
 
 ### Audio in
 
@@ -73,32 +117,13 @@ Inputs 1..8 and outputs 1..8 carry audio and CV alike. An SSP signal of 1.0 is 5
 
 ### CV in
 
-A program gets CV in two ways: on a control, or by reading the input itself.
-
-#### On a control
-
-A control with CV follows input N (1..8): add `cv N` at the end of its `@pN` line.
+On a control, add `cv N` at the end of its `@pN` line; see [CV on a control](../../docs/script-editor.md#cv-on-a-control). The CV is read once per audio block: 128 frames, 2.7 ms at 48 kHz. That suits envelopes, LFOs and sequencers, not audio-rate modulation.
 
 ```text
 ; @p1 cutoff 20 20000 Hz log cv 3
 ```
 
-| Range | Each volt | -1 V | +1 V | +5 V |
-|-|-|-|-|-|
-| log | an octave | half | double | 32x |
-| linear | a tenth of the range | -10% of the range | +10% | +50% |
-
-- The encoder sets the value the CV moves from. The result stays within the control's range.
-
-- The CV is read once per audio block: 128 frames, 2.7 ms at 48 kHz. That is fine for envelopes, LFOs and sequencers, not for audio-rate modulation.
-
-- An orange mark on the control's bar shows where the CV has moved it, and the value shown is the moved one. A preset stores the encoder position, not the moved value.
-
-- The input still reaches the program as audio.
-
-#### In the orchestra
-
-Read the input yourself, for audio-rate modulation or a scaling of your own. There is no mark on screen. `examples/filter.csd` reads In 3 at k-rate and multiplies the cutoff by `2 ^` its volts:
+In the orchestra, read the input yourself. `examples/filter.csd` reads In 3 at k-rate and multiplies the cutoff by `2 ^` its volts:
 
 ```text
 kcv = k(inch(3)) / 0.2        ; SSP CV is 0.2 per volt
@@ -112,7 +137,7 @@ kcv = k(inch(3)) / 0.2        ; SSP CV is 0.2 per volt
 
 ### CV out
 
-Write a value or a slow signal to an output, at 0.2 per volt. With `0dbfs = 1` and `nchnls` at least 4:
+With `0dbfs = 1` and `nchnls` at least 4:
 
 ```text
 aLfo oscili 0.5, 2                ; +-2.5 V at 2 Hz
@@ -121,7 +146,7 @@ outch 3, aLfo, 4, a(0.2 * kOct)   ; Out 3: the LFO; Out 4: 1 V/oct, kOct octaves
 
 ## Examples
 
-`examples/` holds orchestras to copy to the card's `csound/` folder. `make test` compiles and runs each one.
+`examples/` holds orchestras to copy to `BOOT/csound`. `make test` compiles and runs each one.
 
 | File | What | Controls |
 |-|-|-|
@@ -133,11 +158,11 @@ outch 3, aLfo, 4, a(0.2 * kOct)   ; Out 3: the LFO; Out 4: 1 V/oct, kOct octaves
 | `xanadu.csd` | Joseph T. Kung's *Xanadu* (1988), plucked strings through delays, 1 min; from Csound's `examples/` (LGPL-2.1) | none |
 | `trapped.csd` | Richard Boulanger's *Trapped in Convert* (1979, revised 1986), about 4 min 50 s; from Csound's `examples/` (LGPL-2.1) | none |
 
-`xanadu.csd` and `trapped.csd` are the Csound 7.0.0 files with `massign 0, 0` added: they play their score once and ignore MIDI. In `xanadu.csd` a MIDI note started instrument 1 at octave 0, its vibrato took `cpsoct` below 0, and Csound returned a garbage frequency that crashed `pluck`; see [docs/dev/issues/261021-csound-cpsoct.md](../../docs/dev/issues/261021-csound-cpsoct.md).
+`xanadu.csd` and `trapped.csd` are the Csound 7.0.0 files. Both add `massign 0, 0`: they play their score once and ignore MIDI.
 
 ## Walkthrough: `filter.csd`
 
-`examples/filter.csd` is a stereo ladder filter. This follows it from the card to the screen.
+`examples/filter.csd` is a stereo ladder filter. It extends [A first program](#a-first-program) with resonance, drive, mix and cutoff CV. This follows it from the card to the screen.
 
 ```csound
 ; Stereo ladder filter on inputs 1 and 2; input 3 is cutoff CV, 1 V/oct.
@@ -169,7 +194,7 @@ schedule 1, 0, -1
 
 ### 1. Copy it to the card
 
-Put `filter.csd` in `csound/` on the card's BOOT partition. The release already has it there.
+Put `filter.csd` in `BOOT/csound`. The release already has it there.
 
 ### 2. Patch it in Synthor
 
@@ -183,7 +208,7 @@ Put `filter.csd` in `csound/` on the card's BOOT partition. The release already 
 
 ### 3. Load it
 
-Press soft key 5 (Load). The browser opens at `/media/BOOT/csound`. Turn encoder 1, or press Up and Down, to select `filter.csd`; Left and Right jump a column, and pressing encoder 1 opens a folder. Press Load again. Soft key 7 (Cancel) leaves without loading.
+Press Load (button 5). The browser opens at `BOOT/csound`. Turn encoder 1, or press Up and Down, to select `filter.csd`. Left and Right (`PG-`, `PG+`) jump a column, and pressing encoder 1 opens a folder. Press Load again. Cancel (button 7) leaves without loading.
 
 ### 4. Read the screen
 
@@ -208,11 +233,7 @@ The right panel shows the page (`1/1 controls`), the DSP load, the file name, an
 
 Every control starts at the bottom of its range, so `mix` is 0 and you hear the dry input. Turn encoder 4 up to hear the filter, then encoder 1 to sweep the cutoff.
 
-- Turning moves a control 5% of its range a detent. `cutoff` is logarithmic, so each detent is the same interval: 40 to 20000 Hz is about 9 octaves, so a detent is about half an octave.
-
-- Holding the encoder while turning moves it 0.5% a detent.
-
-- Pressing and releasing without turning returns it to the bottom of its range.
+[Encoders](../../docs/script-editor.md#encoders) gives the step sizes. `cutoff` spans about 9 octaves, so a detent is about half an octave.
 
 ### 6. Add CV
 

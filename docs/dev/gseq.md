@@ -98,3 +98,5 @@ Done 2026-10-22: `plugins/common/engine/Clock.h`, JUCE-free like the engines, us
 - `transport()` also fixes the MIDI ticks the block takes. alda read the count once a block; reading it per tick let a stream of ticks hold the audio thread, which alda's ThreadSanitizer test caught as a hang.
 
 Check: `plugins/alda/tests/alda_test.cpp` covers input clock, MIDI clock with Start, Stop and Continue, the Clock control, and source changes mid-score; it passes unchanged, also under ThreadSanitizer. `plugins/common/tests/clock_test.cpp` covers the class alone, including a position that never wraps (gseq's case). At 120 bpm (960 ticks/s), a double's step stays under 2e-6 ticks for 2,000 hours, against 0.02 ticks advanced per sample at 48 kHz. Pending: alda's device test, steps on clocking, again on the SSP.
+
+An external pulse moves the time to that pulse's position. Between pulses the time runs at the rate of the last interval, but never past the next pulse. gseq uses this clock (`plugins/common/engine/Clock`), moved here from its README.

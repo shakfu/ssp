@@ -4,7 +4,7 @@ sfct follows [semantic versioning](https://semver.org). Until 1.0.0, a minor ver
 
 The version is set in `CMakeLists.txt` (`project(SFCT VERSION ...)`) and shown at the top right of the screen.
 
-## [Unreleased]
+## [0.2.0] - 2026-10-24
 
 - `norns` mode has three tracks, six voices, as norns softcut has. Track 4 keeps its settings, is silent, and is skipped by TRK+; `4 loop` keeps four. A preset that plays track 4 in `norns` mode loses it.
 

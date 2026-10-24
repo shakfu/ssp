@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(TELETYPE VERSION 0.1.0 LANGUAGES C CXX)  # see CHANGELOG.md
+project(TELETYPE VERSION 0.1.1 LANGUAGES C CXX)  # see CHANGELOG.md
 # xcSSP.cmake gives C and C++ the cross target and CPU flags; the assembler needs the same
 set(CMAKE_ASM_COMPILER_TARGET "${CMAKE_C_COMPILER_TARGET}")
 set(CMAKE_ASM_FLAGS "${CMAKE_C_FLAGS}")

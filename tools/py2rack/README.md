@@ -1,32 +1,36 @@
 # py2rack
 
-Read and write rack presets from the command line.
+py2rack reads and writes [rack](../../plugins/rack/README.md) presets from the command line. rack loads and saves JSON itself, so a hand-written `.json` needs no tool. Format: [README-json-presets.md](../../plugins/rack/README-json-presets.md).
 
-rack loads and saves JSON itself, so writing a `.json` and copying it to the SSP needs no tool at all. The format is documented in `plugins/rack/README-json-presets.md`. This tool adds one thing that only makes sense off the device:
+py2rack does three things:
 
-- **Checking a preset before it gets there.** Module and channel names are verified against the plugin sources, so a typo is an error at your desk instead of a line in `dmesg`.
+- **check** a JSON preset's parameter and channel names against the plugin sources, so a typo fails on the desktop and not in `dmesg` on the SSP;
+- **encode** JSON to the binary format, which rack shares with upstream trax;
+- **decode** the binary format to JSON.
 
-It also converts between JSON and the binary format, which rack shares with upstream trax. That half reads the byte layout and is expected to break; see Limits.
+Encode and decode read the byte layout and will break when upstream changes it; see [Limits](#limits).
 
-`examples/two_track/` holds one patch in both formats.
+[examples/two_track](examples/two_track/README.md) holds one patch in both formats.
 
 ## Commands
 
-    python3 py2rack.py scan <SSP>/technobear -o modules.json   # regenerate the manifest
-    python3 py2rack.py encode preset.json -o out -m modules.json
-    python3 py2rack.py decode rack_presets/mypatch
+From the repo root, where `<SSP>` is a checkout of [TheTechnobear/SSP](https://github.com/TheTechnobear/SSP):
 
-`encode` takes the format rack reads and writes; the schema is in rack's README. `decode` prints the same schema, with channels as indices and parameters as ids, because that is what a preset file stores.
+    python3 tools/py2rack/py2rack.py scan <SSP>/technobear -o tools/py2rack/modules.json   # regenerate the manifest
+    python3 tools/py2rack/py2rack.py encode preset.json -o mypatch -m tools/py2rack/modules.json -m tools/py2rack/modules-local.json
+    python3 tools/py2rack/py2rack.py decode rack_presets/mypatch
 
-The manifest is what makes names checkable. Without `-m`, `encode` writes what it is given and checks nothing beyond the syntax.
+`encode` takes the format rack reads and writes; the schema is in [README-json-presets.md](../../plugins/rack/README-json-presets.md#format). `decode` prints the same schema, with channels as indices and parameters as ids, because a preset file stores those.
+
+The manifest (`-m`) maps names to ids and indices. Without `-m`, give every parameter as an id and every channel as an index. A channel given by name then fails: `cannot resolve slot 1 output 'Main': this module's channel names are not known`.
 
 `modules-local.json` covers this repo's own modules (`edrm`, `gltc`, `rdio`, `chrs`, `fstr`, ...). Their channels and parameters are built at runtime, so a source scan cannot read them; `plugins/common/tests/test_engine_plugins.py` reads them from the built plugins instead, and fails when the file is stale (`UPDATE_MANIFEST=1 make test` rewrites it). Parameters are listed by id. `-m` can be given twice: `-m modules.json -m modules-local.json`.
 
-`modules.json` is vendored: this repo no longer holds TheTechnobear's module sources. It was scanned from commit `7804388`. When upstream changes a module, rescan a checkout of [TheTechnobear/SSP](https://github.com/TheTechnobear/SSP).
+`modules.json` is vendored: this repo no longer holds TheTechnobear's module sources. It was scanned from commit `7804388`. When upstream changes a module, rescan `<SSP>`.
 
 ## Matrix authoring
 
-A track's routing can be a `matrix` field, which rack reads and writes itself; its format is in `plugins/rack/README-json-presets.md`. `encode` accepts the field and checks its names like `wires`.
+A track's routing can be a `matrix` field, which rack reads and writes itself; see [README-json-presets.md](../../plugins/rack/README-json-presets.md#format). `encode` accepts the field and checks its names like `wires`.
 
 In Python, `matrix_wires` builds a track's `wires` from the same matrix. Rows are sources, columns destinations, and each nonzero cell becomes one wire:
 
@@ -45,7 +49,7 @@ wires = py2rack.matrix_wires(
 ```
 
 - `gain` is any 2-D sequence, including a numpy array. Name only the jacks you use.
-- A `dc` row is a constant 1.0 source. Its weight becomes the `offset` of the first wire into that column, since the engine adds each wire's offset. A `dc` entry in a column with no other wire is an error.
+- A `dc` row is a constant 1.0 source. Its weight becomes the `offset` of the first wire into that column. The engine adds each wire's offset, so one wire carries it. A `dc` entry in a column with no other wire is an error.
 - Labels are checked for syntax. Channel names are checked by `encode -m`, as for hand-written wires.
 
 `decode` reads the binary format, so it still prints `wires`.
@@ -58,8 +62,8 @@ Neither is complete, because both are sometimes built at runtime:
 
 | | covered | not covered |
 |-|-|-|
-| parameters | 134 | 110 (`getPID()`, per-layer groups) |
-| channel names | 18 modules | 14 modules (`loop`, `gra4`, `pmix`, ...) |
+| parameters | 135 | 137 (`getPID()`, per-layer groups) |
+| channel names | 18 modules | 15 modules (`loop`, `gra4`, `pmix`, ...) |
 
 The manifest records which modules it read incompletely, and `encode` uses that to decide how hard to be:
 
@@ -75,7 +79,7 @@ None of this constrains rack. It resolves both against the loaded module, so eve
 
 - The binary format is not a specification. Upstream states that preset layout and module state may change between releases ([forum](https://forum.percussa.com/t/can-you-add-support-for-human-readable-presets-in-json/2084)), and `encode` and `decode` will break when they do. Prefer JSON, which rack resolves against the loaded module rather than against fixed offsets.
 
-- `.filtergraph` is not a rack input. It is what JUCE's desktop plugin host writes when it saves a graph, with each module's state as a VST3 chunk. rack is an SSP module host, not a VST host; upstream's modules build as VSTs only as a development convenience. `decode` accepts a filtergraph because it makes a convenient test fixture.
+- rack does not read `.filtergraph` files. JUCE's desktop plugin host writes them, with each module's state as a VST3 chunk. rack hosts SSP modules only; upstream builds its modules as VSTs for development. `decode` accepts a filtergraph for use as a test fixture.
 
 ## Tests
 

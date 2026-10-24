@@ -2,9 +2,9 @@
 
 alda follows [semantic versioning](https://semver.org). The version is set in `CMakeLists.txt` (`project(ALDA VERSION ...)`).
 
-## [Unreleased]
+## [0.1.1] - 2026-10-24
 
-- The clock (tempo, In 2, MIDI clock, reset, swing) moved to `plugins/common/engine/Clock`, for the planned `gseq` to share. No change in behaviour; alda's tests pass unchanged.
+- The clock (tempo, In 2, MIDI clock, reset, swing) moved to `plugins/common/engine/Clock`, which `gseq` shares. No change in behaviour.
 
 - Two `alda` modules compiling at once could corrupt each other's score: the alda core sorts notes through a file-scope pointer. Builds now take turns.
 

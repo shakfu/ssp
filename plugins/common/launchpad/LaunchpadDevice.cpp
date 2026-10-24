@@ -10,9 +10,9 @@ namespace {
 std::atomic<bool> held{ false };  // an instance holds the device
 
 template <typename List>
-juce::String find(const List& devices) {
+juce::String find(const List& devices, const Model& m) {
     for (const auto& d : devices)
-        if (isPort(d.name.toStdString())) return d.identifier;
+        if (isPort(d.name.toStdString(), m)) return d.identifier;
     return {};
 }
 
@@ -34,11 +34,16 @@ bool Device::poll() {
         return false;
     }
     if (held.exchange(true)) return false;
-    inId_ = find(juce::MidiInput::getAvailableDevices());
-    outId_ = find(juce::MidiOutput::getAvailableDevices());
-    if (inId_.isNotEmpty() && outId_.isNotEmpty()) {
+    const auto ins = juce::MidiInput::getAvailableDevices();
+    const auto outs = juce::MidiOutput::getAvailableDevices();
+    for (const Model& m : MODELS) {
+        inId_ = find(ins, m);
+        outId_ = find(outs, m);
+        if (inId_.isEmpty() || outId_.isEmpty()) continue;
+        model_ = &m;
         in_ = juce::MidiInput::openDevice(inId_, this);
         out_ = juce::MidiOutput::openDevice(outId_);
+        break;
     }
     if (!in_ || !out_) {
         in_.reset();
@@ -46,9 +51,9 @@ bool Device::poll() {
         held = false;
         return false;
     }
-    send(programmerMode(true));
+    send(programmerMode(*model_, true));
     in_->start();
-    ssp::log("launchpad: open");
+    ssp::log(std::string("launchpad: open ") + model_->port);
     return true;
 }
 
@@ -59,7 +64,7 @@ void Device::send(const std::vector<uint8_t>& bytes) {
 void Device::close() {
     if (!out_) return;
     if (in_) in_->stop();
-    send(programmerMode(false));
+    send(programmerMode(*model_, false));
     in_.reset();
     out_.reset();
     held = false;
@@ -67,7 +72,7 @@ void Device::close() {
 
 void Device::handleIncomingMidiMessage(juce::MidiInput*, const juce::MidiMessage& m) {
     Event e;
-    if (decode(m.getRawData(), m.getRawDataSize(), e)) handler_(e);
+    if (decode(*model_, m.getRawData(), m.getRawDataSize(), e)) handler_(e);
 }
 
 }  // namespace ssp::launchpad

@@ -53,13 +53,13 @@ To skip steps A1 to A5:
 scripts/new_plugin.py wobble wobl --faust
 ```
 
-This copies `examples/tremolo` to `plugins/wobble` as the module `wobl`: `Source/wobble.dsp`, its kernel, the processor, CMake, README and CHANGELOG stubs. It adds the folder to `plugins/CMakeLists.txt` and the kernel to `make faust-kernels`. Edit `wobble.dsp`, run `make faust-kernels`, and build.
+This copies `examples/tremolo` to `plugins/wobble` as the module `wobl`: `Source/wobble.dsp`, its kernel, the processor, CMake, README and CHANGELOG stubs. It adds the folder to `plugins/CMakeLists.txt` and the kernel to `make faust-kernels`. Edit `wobble.dsp`, run `make faust-kernels`, and build. Then do [A7](#a7-test).
 
 ### A1. Write the program
 
 Pick a name of at most four characters, and use its capitals as the uid: `trem`/`TREM`. Synthor lists a plugin only if its uid spells its name.
 
-Save the program as `plugins/tremolo/Source/tremolo.dsp`.
+Save the program as `plugins/tremolo/Source/tremolo.dsp`. Use your own name in place of `tremolo` and `trem`: `examples/tremolo` already builds as `TREMOLO` in the host tests, and a second one fails to configure.
 
 ### A2. Compile the kernel
 
@@ -183,7 +183,8 @@ It prints the inputs, outputs and controls, or Faust's error. On the SSP the sam
 
 ```text
 make install-faust                                  # once: the Faust libraries, in BOOT/faust/libraries
-cp tremolo.dsp /media/$USER/BOOT/faust/
+cp tremolo.dsp /media/$USER/BOOT/faust/             # a mounted card
+scp -O tremolo.dsp $SSP_HOST:/media/BOOT/faust/ && ssh $SSP_HOST sync   # or over ssh
 ```
 
 `import("stdfaust.lib")` looks in the program's folder, then in `BOOT/faust/libraries`.

@@ -10,7 +10,7 @@ scripts/new_plugin.py my_amp mamp --description "mono amp"
 
 This copies `examples/svca` to `plugins/my_amp` as the module `mamp`, renames it throughout, adds README and CHANGELOG stubs, and adds the folder to `plugins/CMakeLists.txt`. The copy builds as it is. It prints the remaining steps: the test, the manifest, the build. The arguments are the folder, which is also the C++ namespace, and the four-character name. The script refuses a name another plugin uses.
 
-The rest of this guide explains what the copy contains.
+The script does not do steps [7](#7-test) and [8](#8-document-it). The rest of this guide explains what the copy contains.
 
 ## The example
 
@@ -24,9 +24,9 @@ The rest of this guide explains what the copy contains.
 
 ## 1. Pick a name
 
-The name has at most four characters, and the uid is the same name in capitals: `svca`/`SVCA`. Synthor does not list a plugin whose uid does not spell its name. Check that the name is free: `ls plugins` and the module list on your card.
+The name has at most four characters, and the uid is the same name in capitals: `svca`/`SVCA`. Synthor does not list a plugin whose uid does not spell its name. Check that the name is free: `grep -h PRODUCT_NAME plugins/*/CMakeLists.txt`, and the module list on your card.
 
-Create `plugins/<dir>/` with a `Source/` folder. The rest of this guide uses `svca`.
+Create `plugins/<dir>/` with a `Source/` folder. The rest of this guide uses `svca`. Use your own name: `examples/svca` already builds as `SVCA` in the host tests, and a second `SVCA` fails to configure.
 
 ## 2. The engine
 
@@ -294,4 +294,9 @@ This writes `tools/py2rack/modules-local.json`, the jack and parameter names py2
 
 ## 8. Document it
 
-Add `plugins/<dir>/README.md` and `CHANGELOG.md`, and a row to the table in the root `README.md`. In `scripts/release.py`, add the module to `ORIGINS`, to `LICENSES` if it is not AGPL-3.0, and to `DATA` or `USER_DATA` if it reads files on the card. `make release` copies each plugin's README and CHANGELOG into the package and lists the plugin from its `CMakeLists.txt`.
+- `plugins/<dir>/README.md`: follow the other module READMEs: title `# <name>`, Install, First use, a numbered Jacks table. Link [USING.md](USING.md) for what all modules share.
+- `plugins/<dir>/CHANGELOG.md`.
+- A row in the table of the root `README.md`.
+- In `scripts/release.py`: the module in `ORIGINS`; in `LICENSES` if it is not AGPL-3.0; in `DATA` or `USER_DATA` if it reads files on the card.
+
+`make release` copies each plugin's README and CHANGELOG into the package and lists the plugin from its `CMakeLists.txt`.

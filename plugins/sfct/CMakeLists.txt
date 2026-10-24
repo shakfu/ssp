@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(SFCT VERSION 0.1.0)  # see CHANGELOG.md
+project(SFCT VERSION 0.2.0)  # see CHANGELOG.md
 
 set(SOFTCUT_DIR "${PROJECT_SOURCE_DIR}/../../external/softcut-lib")
 

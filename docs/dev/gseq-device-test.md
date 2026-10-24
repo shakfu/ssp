@@ -47,3 +47,21 @@ Launchpad Mini MK3, on the powered hub with the keyboard ([gseq-launchpad.md](gs
 | 34 | Arrows: down twice, right three times; then move the cursor with the SSP arrows to row 1, step 1 | the window shows rows 3-8, steps 25-32; then jumps back to rows 1-6, steps 1-8 |
 | 35 | Keys (Follow) with the cursor on a 32-step row | the window pages with that row's playhead |
 | 36 | Unplug the Launchpad, plug it back | within a second it shows the grid again; remove `gseq`: it returns to its own Session layout |
+| 36b | Launchpad X in place of the Mini; add `gseq` | the log shows `launchpad: open LPX MIDI`; the X shows the grid as in step 27; with the Mini also plugged in, the X still drives gseq |
+| 36c | On the X: a key pad softly, then hard; in Step, hold a key softly and press a cursor pad on an empty step; then hold it hard and press the same pad | the notes play at low and high velocity; the step's velocity on the SSP goes low, then high, and stays on |
+| 36d | Move the Launchpad window with its arrows, in grid and in roll mode, on the X and on the Mini; unplug it | a dim red frame on the SSP follows the window: 6 rows by 8 steps, then 8 pitches by 8 steps, cut at the screen's edge; it goes when unplugged. In roll, Step, pads soft and hard on the X: the notes' velocity follows |
+
+Roll mode ([gseq-roll.md](gseq-roll.md)). Rows 1-4 into four oscillators and envelopes (or Plaits with gated `Vel`), and `dexd` on `gseq`'s MIDI.
+
+| # | Do | Expect |
+|-|-|-|
+| 37 | Global page, press encoder 1 | `roll`: 12 pitch rows, C4 at the bottom; every row takes row 1's channel; the Launchpad's 8 pad rows show C4-G4, no keyboard |
+| 38 | Cursor on step 1; press encoder 1 on C4, E4, G4 (ROW- between) | a chord: three cells in a column; it sounds on CV voices 1-3 and on MIDI |
+| 39 | Add 5 more notes at step 1 | the 5th to 8th have grey frames (MIDI only); a 9th: `8 notes sound at this step` |
+| 40 | On a note: encoder 1, encoder 2, encoder 3 | the note moves in pitch with the cursor; velocity; duration bar |
+| 41 | A note of 4 steps at step 1 on C4; another C4 at step 3 | the second retriggers the first on its row: one MIDI note at a time on C4 |
+| 42 | Rec; play a chord, then overlapping notes in the pass | after the pass, the take replaced the track; each note on its own row; the chord's notes all sound |
+| 43 | Launchpad: Drums (Step), press pads in the window; up and down | pads add and remove notes; the window moves a semitone |
+| 44 | Save the patch, reload it | still `roll`, the notes as they were |
+| 45 | Global, encoder 1 again | `grid`: each row shows the notes gseq put on it |
+| 46 | One oscillator on voice 1; a chord at step 1; track page, press encoder 2 | `mono`: the step keeps one note; a new note at a step replaces it and sounds on voice 1; the nanoKEY plays one note at a time |

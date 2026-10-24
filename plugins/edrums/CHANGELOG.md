@@ -4,7 +4,7 @@ edrums follows [semantic versioning](https://semver.org). Until 1.0.0, a minor v
 
 The version is set in `CMakeLists.txt` (`project(EDRUMS VERSION ...)`) and shown at the top right of the screen.
 
-## [Unreleased]
+## [0.2.1] - 2026-10-24
 
 - The step rows start 60 px closer to the track names. With 16 steps they ended at x=1574, under Synthor's menu letters at the right edge; they now end at x=1514.
 

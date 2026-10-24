@@ -4,9 +4,9 @@ csound follows [semantic versioning](https://semver.org). Until 1.0.0, a minor v
 
 The version is set in `CMakeLists.txt` (`project(CSOUND VERSION ...)`) and shown at the top right of the screen.
 
-## [Unreleased]
+## [0.3.0] - 2026-10-24
 
-- Two examples from Csound's own: Kung's `xanadu.csd` and Boulanger's `trapped.csd`. Each has `massign 0, 0` added, so it ignores MIDI: in `xanadu.csd` a MIDI note started instrument 1 at octave 0, the vibrato took `cpsoct` below 0, which returns garbage in Csound, and `pluck` read outside its buffer and crashed. See [docs/dev/issues/261021-csound-cpsoct.md](../../docs/dev/issues/261021-csound-cpsoct.md).
+- Two examples from Csound's own: Kung's `xanadu.csd` and Boulanger's `trapped.csd`. Each has `massign 0, 0` added, so it ignores MIDI: in `xanadu.csd` a MIDI note started instrument 1 at octave 0, the vibrato took `cpsoct` below 0, which returns garbage in Csound, and `pluck` read outside its buffer and crashed.
 
 - Csound 7.0.0, the release, replaces 7.0.0-beta.17. `scripts/build_deps.sh` turns off 7.0.0's new `USE_WASMTIME` option with the other optional libraries, and builds each version in its own directory, as CMake refuses a cache made from another source tree. Run `make deps` to rebuild.
 

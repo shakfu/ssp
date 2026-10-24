@@ -217,3 +217,15 @@ Two results would change this:
 - Preset switches take seconds. A player then needs modules preloaded or swapped without a gap, a larger engine project.
 
 - Module state that is not a parameter can only be captured on the device, and presets depend on it. Then keep the editor (option B) and add a performance mode inside it.
+
+## 9. JSON preset implementation
+
+Format: [README-json-presets.md](../../plugins/rack/README-json-presets.md).
+
+| file | what it holds |
+|-|-|
+| `Source/JsonPreset.h/.cpp` | slot, jack and channel parsing; `matrix` parsing and formatting; format sniffing |
+| `Source/Track.cpp` | `setStateInformation(var, int)` and `getStateInformation(var&)` |
+| `Source/PluginProcessor.cpp` | `loadJsonPreset`, `saveJsonPreset`, and the dispatch in `loadPreset` / `savePreset` |
+
+Loading goes through the same `requestModuleChange` and `requestMatrixConnect` calls as the binary path, so the handshake with the audio thread is unchanged. Parameters are read and written through `SSPExtendedApi::PluginInterface`, which is plain C++ and makes them addressable by name. `state` is a JUCE XML chunk taken from the module's own `getState`.

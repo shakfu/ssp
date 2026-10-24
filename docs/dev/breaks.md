@@ -74,6 +74,13 @@ The plugin compiles the engine `-mthumb -O3`. Thumb-2 and ARM code interwork und
 
 - In the plugin's 128-sample block, playing the default banks: 1.8-2.5% mean, 362 us worst at FIFO priority. At normal priority, about 9 in 7500 blocks took 3.7 ms. That was preemption beside Synthor; the SSP gives the test shell one CPU.
 
+## Moved from the README (2026-10-24)
+
+- Sound: the firmware runs at its own 44.1 kHz, in 441-frame blocks. Its output is resampled to 48 kHz by 4-point Hermite interpolation. Clock and button inputs reach it with 44.1 kHz resolution.
+- Bank change: a load reads every bank's metadata, then the current bank's audio. A new bank loads on a worker thread.
+- Timing, beside Synthor, 2026-10-19, with `tests/run_on_ssp.sh`, a 128-sample block at Break 1: mean 47-66 us (1.8-2.5%), p99 130-230 us, max 362 us at FIFO priority. At FIFO priority, as an audio thread runs, no block exceeded 1 ms.
+- `make install-brks` checks the ZIP against the SHA-256 that `_core` pins, and leaves out the editor project. It marks `BOOT/brks/default` with a `.brks-default` file, and replaces the folder only if that marker is there.
+
 ## Controls without combinations
 
 The hardware reaches Volume, Filter, Gating and Play with Tap held. Driving the virtual panel's Tap button also runs `TapTempo_tap`, and two Tap presses within 1 s set the tempo. A scratch test pressing Tap three times 0.3 s apart moved the tempo from 170 to 155.

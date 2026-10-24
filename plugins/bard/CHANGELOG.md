@@ -4,7 +4,7 @@ bard follows [semantic versioning](https://semver.org). Until 1.0.0, a minor ver
 
 The version is set in `CMakeLists.txt` (`project(BARD VERSION ...)`) and shown at the top right of the screen.
 
-## [Unreleased]
+## [0.1.1] - 2026-10-24
 
 - A book whose `<shelf>/<name>` key ran past 255 characters added a resume entry on every save, until the table's 64 slots held only that book. The key is stored truncated and now matches truncated.
 

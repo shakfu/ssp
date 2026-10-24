@@ -33,6 +33,8 @@ Synthor does not load VST3 bundles. CMake builds a JUCE `VST3` target, but Synth
 
 1. **A, as `chrs`.** sk-engines' `chorus.dsp`, compiled by `scripts/faust_kernel.sh`, hosted by `plugins/common/engine/FaustEngine.h` and `FaustProcessor.*`. sk-engines' arch shim is vendored as `FaustArch.h`.
 
+   `chrs` is the first module built on `FaustProcessor`. The Faust compiler emits controls sorted by label, so its page and CV jacks run delay, depth, mix, rate, not the `.dsp`'s declaration order.
+
 2. **D, as `fstr`.** Before porting, benchmark the interpreter against compiled C++ on the host, then on the SSP. Only the zone capture carries over from A: libfaust builds the UI at runtime.
 
 B stays open if one tool should emit both gen~ and Faust modules.

@@ -13,8 +13,8 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 src="$root/build/deps/src"
 
-SAPF_REF=09e809884d0eec93ff7d888b631e2eb205133b84  # 2026-10-15, "bug fixes in linux": MaxMSPSetInputLead
-SAPF_SHA=88f88f1cff9509fccc0baab2aaf539ce8808f4183517d55e60ae6df1c7467431
+SAPF_REF=0c8a3a443eae29fe73d8b7828b103087b31bd048  # 2026-10-24, "fix mouse-related words": SapfSetMouse
+SAPF_SHA=ea344bac63a78eafa7f3241e3534345a6e2d8bce819f859b2fae4019b6d36eab
 
 dir="$src/sapf-$SAPF_REF"
 if [ ! -d "$dir" ]; then

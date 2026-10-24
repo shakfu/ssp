@@ -48,7 +48,7 @@ X
 
 ## 5. A script, run by a trigger
 
-A script runs when its trigger input rises. Patch TR 1 to Trig 1 in Synthor, so `ttyp` triggers itself.
+A script runs when its trigger input rises. In Synthor, patch `ttyp`'s output 1 (TR 1) to its input 1 (Trig 1), so `ttyp` triggers itself.
 
 1. Press Alt+F1 to edit script 1. Type `X + X 1` and press Enter.
 
@@ -70,7 +70,7 @@ The metro runs the M script at a fixed rate, with nothing patched.
 
 ## 7. Reading In
 
-In is the one input whose value teletype reads. A script reads it with `IN` when it runs; a change on In runs nothing. Patch a voltage to input 9 and type `IN`. It prints 0-16383 for 0-10 V: about 1638 per volt.
+In is the one input whose value teletype reads. A script reads it with `IN` when it runs; a change on In runs nothing. Patch a voltage to input 9 and type `IN`. Teletype's scale is 0-16383 for 0-10 V, about 1638 per volt. In range is `0-5V` by default, so a 0-5 V signal reads about 0-8191. Encoder 2 on the main page sets In range.
 
 For a sample and hold, put `CV 1 IN` in script 1 and clock Trig 1. To read In in semitones instead, type `IN.SCALE 0 120` once; `CV 1 N IN` then gives CV 1 the nearest semitone. The example scene `tt01.txt` does this.
 

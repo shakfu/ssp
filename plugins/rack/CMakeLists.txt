@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(RACK VERSION 0.2.0)
+project(RACK VERSION 0.2.1)
 
 
 include_directories("${PROJECT_SOURCE_DIR}/../common")

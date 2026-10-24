@@ -18,6 +18,7 @@ public:
     static constexpr int MIDI_POLL_MS = 1;
     static constexpr int PAD_POLL_MS = 1000, PAD_FRAME_MS = 16;                  // looks for the Launchpad; redraws it
     static constexpr const char* CLOCK_NAMES[3] = { "free", "analog", "midi" };  // Clock::Source order
+    static constexpr const char* MODE_NAMES[2] = { "grid", "roll" };
 
     PluginProcessor();
     // Sends All Notes Off on every channel before the devices go.
@@ -35,6 +36,12 @@ public:
     RangedAudioParameter& swing() { return swing_; }
     RangedAudioParameter& clock() { return clock_; }
     RangedAudioParameter& ppqn() { return ppqn_; }
+    RangedAudioParameter& mode() { return mode_; }
+    bool roll() const;
+    // UI thread: grid or roll mode, the parameter and the engine together (docs/dev/gseq-roll.md)
+    void setRoll(bool on);
+    // the Launchpad's window, for the screen; null while no Launchpad is open
+    const gseq::LaunchpadView* padView() const { return padOpen_.load(std::memory_order_relaxed) ? &padView_ : nullptr; }
 
 protected:
     void control(const float* const* in, int n) override;
@@ -67,6 +74,7 @@ private:
     RangedAudioParameter& swing_;
     RangedAudioParameter& clock_;
     RangedAudioParameter& ppqn_;
+    RangedAudioParameter& mode_;  // last in the layout: MIDI automation keys parameters by index
 
     // An ALSA output port that other modules choose as MIDI in: "gseq", then "gseq 2" and so on for further
     // instances. Null if ALSA refused it.
@@ -77,6 +85,7 @@ private:
     gseq::LaunchpadView padView_{ gseq() };
     ssp::launchpad::Device pad_{ [this](const ssp::launchpad::Event& e) { padView_.press(e); } };
 
+    std::atomic<bool> padOpen_{ false };  // pad_.isOpen(), for other threads
     std::atomic<bool> midiQuit_{ false };
     std::thread midiThread_;
 

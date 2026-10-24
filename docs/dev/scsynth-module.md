@@ -234,6 +234,8 @@ The label in `@pN label` is the control name to map. A label that names no contr
 
 SSP CV reads 0.2 per volt (`CV_PER_VOLT` in `Engine.h`). For 1 V/oct pitch on input 3: `freq = base * 2 ** (In.ar(bus=NumOutputBuses.ir() + 2) * 5)`.
 
+CV on a control (`cv N`): the module fills an audio bus with the encoder's value moved by the CV, sample by sample, and maps the control to it. An audio-rate control follows every sample; a control-rate one reads every 64th.
+
 ### MIDI
 
 scsynth has no MIDI. The module turns `midiNoteInput(note, velocity)` into commands. The convention:
@@ -390,6 +392,8 @@ Then check level, CPU and controls on the SSP. The DSP load shows on screen thro
 ### Installing
 
 Copy the `.scsyndef` and its metadata file to the card, for example `/media/BOOT/scsy/`, as `csnd` uses `/media/BOOT/csound`. The preset stores the path, not the contents.
+
+The UGen plugins load from `/media/BOOT/scsy/ugens`. The environment variable `SCSY_UGENS` names another folder, for tests and desktop builds.
 
 ## Risks
 

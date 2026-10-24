@@ -92,6 +92,8 @@ static void testWords() {
     Row u = Row::unpack(r.pack());
     CHECK(u.length == 32 && u.division == 5 && u.channel == 16 && u.voice == 4 && u.velocityCv && u.mute);
     CHECK(u.velocityGated && !Row::unpack(Row().pack()).velocityGated);  // a word before bit 18: held
+    r.mono = true;
+    CHECK(Row::unpack(r.pack()).mono && !Row::unpack(Row().pack()).mono);
     Row w = Row::unpack(0xFFFFFFFFu);  // any word is valid
     CHECK(w.length == 32 && w.division == GseqEngine::DIVISIONS - 1 && w.channel == 16 && w.voice == 4);
     GseqEngine e;
@@ -438,6 +440,202 @@ static void testPlay() {
     CHECK(!r.e.step(3, 1).on && r.e.cursorCol() == 1);
 }
 
+// Roll on: every row takes row 1's channel, length, division and velocity CV, voices 1-4, no mute
+static void testRollMode() {
+    GseqEngine e;
+    Row first = e.row(0);
+    first.length = 12, first.division = 2, first.channel = 3, first.velocityGated = true, first.mute = true;
+    e.setRow(0, first);
+    e.setRoll(true);
+    CHECK(e.roll());
+    for (int r = 0; r < GseqEngine::ROWS; r++) {
+        const Row x = e.row(r);
+        CHECK(x.length == 12 && x.division == 2 && x.channel == 3 && x.velocityCv && x.velocityGated && !x.mute);
+        CHECK(x.voice == (r < GseqEngine::VOICES ? r + 1 : 0));
+    }
+    e.setRoll(false);  // back to grid: the rows stay
+    CHECK(!e.roll() && e.row(5).channel == 3);
+    Row noCv = e.row(0);
+    noCv.voice = 0;
+    e.setRow(0, noCv);
+    e.setRoll(true);  // row 1 without a voice: CV off for the track
+    for (int r = 0; r < GseqEngine::ROWS; r++) CHECK(e.row(r).voice == 0);
+}
+
+// the placement rules of docs/dev/gseq-roll.md; durations: index 3 half a step, 7 one, 9 two, 10 three, 11 four
+static void testRollPlace() {
+    GseqEngine e;
+    e.setRoll(true);
+    CHECK(e.addNote(0, note(60, 7)) == 0 && e.addNote(0, note(64, 7)) == 1 && e.addNote(0, note(67, 7)) == 2);
+    CHECK(e.addNote(0, note(64, 7, 30)) == 1 && e.step(1, 0).velocity == 30);  // the same cell: updated
+    CHECK(e.findNote(0, 67) == 2 && e.findNote(0, 65) == -1);
+    CHECK(e.addNote(4, note(50, 11)) == 0);  // steps 4-7 on row 1
+    CHECK(e.addNote(6, note(52, 3)) == 1);   // row 1 sounds there
+    CHECK(e.addNote(7, note(50, 3)) == 0);   // rule 1: the same pitch, sounding: that row
+    CHECK(e.addNote(4, note(55, 10)) == 2);  // rule 2: on row 2 it would run into step 6's note
+    CHECK(e.removeNote(0, 60) == 0 && e.findNote(0, 60) == -1 && e.removeNote(0, 60) == -1);
+
+    GseqEngine full;  // rule 3, and refusal: 8 notes at step 2 of 4, then a long one at step 1
+    Row four = full.row(0);
+    four.length = 4;
+    full.setRow(0, four);
+    full.setRoll(true);
+    for (int i = 0; i < GseqEngine::ROWS; i++) CHECK(full.addNote(2, note(40 + i, 7)) == i);
+    CHECK(full.addNote(2, note(90, 7)) == -1);
+    CHECK(full.addNote(1, note(30, 9)) == 0);  // no row free for 2 steps: the first free at the step
+
+    GseqEngine wrap;  // a note at the last step covers the first
+    Row eight = wrap.row(0);
+    eight.length = 8;
+    wrap.setRow(0, eight);
+    wrap.setRoll(true);
+    CHECK(wrap.addNote(7, note(60, 9)) == 0 && wrap.addNote(0, note(62, 7)) == 1);
+
+    GseqEngine d;  // a longer duration moves a note to a free row; one that retriggers its own pitch stays
+    d.setRoll(true);
+    CHECK(d.addNote(0, note(60, 7)) == 0 && d.addNote(2, note(62, 7)) == 0);
+    CHECK(d.setNoteDuration(0, 60, 10) == 1);
+    CHECK(d.step(1, 0).on && d.step(1, 0).duration == 10 && !d.step(0, 0).on);
+    CHECK(d.setNoteDuration(0, 60, 7) == 1);  // fits where it is
+    CHECK(d.addNote(4, note(70, 11)) == 0 && d.addNote(6, note(70, 3)) == 0);
+    CHECK(d.setNoteDuration(6, 70, 15) == 0);
+    CHECK(d.setNoteDuration(9, 99, 7) == -1);
+}
+
+// Rec in roll: the whole track's next pass; a chord and overlapping (legato) notes each get a row; the
+// notes no key landed on are cleared from every row
+static void testRollRecord() {
+    Rig r;
+    silence(r.e);
+    Row track = lengthRow(4);
+    track.channel = 1;
+    r.e.setRow(0, track);
+    r.e.setRoll(true);
+    r.e.setStep(5, 1, note(40, 3));
+    r.e.setStep(0, 3, note(41, 3));
+    r.e.setCursor(3, 0);  // any row: a roll take is the whole track
+    r.e.toggleRecord();
+    r.runTo(4 * STEP16 + 200);
+    CHECK(r.e.record() == GseqEngine::RECORDING && r.e.recordRow() == 0);
+    r.e.noteIn(60, 100);
+    r.e.noteIn(64, 90);
+    r.runTo(4 * STEP16 + 1200);
+    r.e.noteIn(60, 0);
+    r.e.noteIn(64, 0);
+    r.runTo(5 * STEP16 - 300);
+    r.e.noteIn(67, 100);  // step 6 of the pass
+    r.runTo(6 * STEP16 - 300);
+    r.e.noteIn(69, 100);  // step 7, while 67 is held
+    r.runTo(6 * STEP16 + 2700);
+    r.e.noteIn(67, 0);  // held 1.5 steps
+    r.runTo(7 * STEP16 - 600);
+    r.e.noteIn(69, 0);
+    r.runTo(8 * STEP16 + 100);
+    CHECK(r.e.record() == GseqEngine::IDLE);
+    const int a = r.e.findNote(0, 60), b = r.e.findNote(0, 64);
+    CHECK(a >= 0 && b >= 0 && a != b);
+    const int c = r.e.findNote(1, 67), d = r.e.findNote(2, 69);
+    CHECK(c >= 0 && d >= 0 && c != d);
+    CHECK(c < 0 || r.e.step(c, 1).duration == 8);  // 1.5 steps
+    CHECK(r.e.findNote(1, 40) == -1 && r.e.findNote(3, 41) == -1);
+    r.midi();
+    r.runTo(12 * STEP16 + 100);  // the next pass plays the take
+    int ons = 0;
+    for (auto& m : r.midi()) ons += m.bytes[0] == 0x90;
+    CHECK(ons == 4);
+}
+
+// step entry in roll: a chord at the cursor's step, each note its own row; the cursor moves on
+static void testRollStepEntry() {
+    Rig r;
+    silence(r.e);
+    Row track = lengthRow(4);
+    track.channel = 1;
+    r.e.setRow(0, track);
+    r.e.setRoll(true);
+    r.e.setStepEntry(true);
+    r.e.setCursor(0, 1);
+    r.e.noteIn(60, 100);
+    r.e.noteIn(64, 100);
+    r.runTo(BLOCK);
+    r.e.noteIn(60, 0);
+    r.e.noteIn(64, 0);
+    r.runTo(2 * BLOCK);
+    const int a = r.e.findNote(1, 60), b = r.e.findNote(1, 64);
+    CHECK(a >= 0 && b >= 0 && a != b && r.e.cursorCol() == 2);
+}
+
+// keys in roll sound on the first silent rows, not from the cursor's row down: a chord gets CV voices 1, 2
+static void testRollEcho() {
+    Rig r;
+    silence(r.e);
+    Row track = cvRow(1, 4);
+    track.channel = 1;
+    r.e.setRow(0, track);
+    r.e.setRoll(true);
+    r.e.setCursor(5, 0);
+    r.e.playIn(60, 100);
+    r.e.playIn(64, 100);
+    r.runTo(BLOCK);
+    CHECK(r.at(0, BLOCK - 1) == 1.0f && r.at(1, BLOCK - 1) == 1.0f);
+    r.e.playIn(60, 0);
+    r.e.playIn(64, 0);
+    r.runTo(2 * BLOCK);
+    auto m = r.midi();
+    CHECK(m.size() == 4 && m[0].bytes[0] == 0x90 && m[1].bytes[0] == 0x90 && m[1].bytes[1] == 64);
+    CHECK(m.size() == 4 && m[2].bytes[0] == 0x80 && m[3].bytes[0] == 0x80);
+}
+
+// mono roll: one note per step on row 1; a new note replaces the step's; switching on keeps one note per
+// step; keys and recording follow
+static void testRollMono() {
+    Rig r;
+    silence(r.e);
+    Row track = cvRow(1, 4);
+    track.channel = 1;
+    r.e.setRow(0, track);
+    r.e.setRoll(true);
+    CHECK(r.e.addNote(0, note(60, 7)) == 0 && r.e.addNote(0, note(64, 7)) == 1);  // poly: a chord
+    CHECK(r.e.addNote(2, note(67, 7)) == 0);
+    r.e.addNote(3, note(50, 7));
+    r.e.removeNote(3, 50);
+    CHECK(r.e.addNote(3, note(52, 7)) == 0);
+    r.e.setStep(2, 1, note(55, 7));  // a step whose only note is on row 3
+    r.e.setMono(true);
+    CHECK(r.e.mono() && r.e.row(5).mono);
+    CHECK(r.e.findNote(0, 60) == 0 && r.e.findNote(0, 64) == -1);  // row 1's kept
+    CHECK(r.e.findNote(1, 55) == 0);                                 // the lowest row's, moved to row 1
+    CHECK(r.e.addNote(0, note(72, 3)) == 0);  // replaces
+    CHECK(r.e.findNote(0, 72) == 0 && r.e.findNote(0, 60) == -1);
+    CHECK(r.e.setNoteDuration(0, 72, 11) == 0);  // overlaps step 2's note: stays, cut by it
+    for (int row = 1; row < GseqEngine::ROWS; row++)
+        for (int st = 0; st < 4; st++) CHECK(!r.e.step(row, st).on);
+    // keys sound on voice 1, one at a time (the track muted, so its steps do not take the voice)
+    Row muted = r.e.row(0);
+    muted.mute = true;
+    r.e.setRow(0, muted);
+    r.e.playIn(60, 100);
+    r.e.playIn(64, 100);
+    r.runTo(BLOCK);
+    CHECK(r.at(0, BLOCK - 1) == 1.0f && r.at(1, BLOCK - 1) == 0.0f);
+    NEAR(r.at(4, BLOCK - 1), 4.0 / 12 * 0.2, 1e-6);  // E4: the later key
+    r.e.playIn(60, 0);
+    r.e.playIn(64, 0);
+    r.runTo(2 * BLOCK);
+    muted.mute = false;
+    r.e.setRow(0, muted);
+    // Rec: a chord at a step leaves its last note
+    r.e.toggleRecord();
+    r.runTo(4 * STEP16 + 200);
+    for (int n : { 60, 64, 67 }) r.e.noteIn(n, 100);
+    r.runTo(4 * STEP16 + 1200);
+    for (int n : { 60, 64, 67 }) r.e.noteIn(n, 0);
+    r.runTo(8 * STEP16 + 100);
+    CHECK(r.e.findNote(0, 67) == 0 && r.e.findNote(0, 60) == -1 && r.e.findNote(0, 64) == -1);
+    r.e.setMono(false);
+    CHECK(!r.e.mono() && r.e.addNote(0, note(48, 7)) == 1);  // poly again: stacks
+}
+
 // Every note-on gets its note-off and every gate closes: random patterns, edits, keys (noteIn and
 // playIn) and modes, then every step off and every key up
 static void testNoteOffs() {
@@ -480,6 +678,14 @@ static void testNoteOffs() {
                 r.e.setStepEntry(rnd(2));
             } else if (what == 14) {
                 r.e.setCursor(rnd(8), rnd(32));
+            } else if (what == 15) {
+                r.e.setRoll(rnd(3) > 0);
+            } else if (what < 18) {
+                r.e.addNote(rnd(32), note(36 + rnd(48), rnd(GseqEngine::DURATIONS), 1 + rnd(127)));
+            } else if (what == 18) {
+                r.e.removeNote(rnd(32), 36 + rnd(48));
+            } else if (what == 19) {
+                r.e.setMono(rnd(2));
             }
             r.runTo(r.frame + BLOCK * (1 + rnd(40)));
             drain();
@@ -508,6 +714,10 @@ static void testThreads() {
             Row row = cvRow(i % 5, 1 + i % 32);
             row.channel = uint8_t(i % 17);
             r.e.setRow((i / 3) % 8, row);
+            if (i % 50 == 0) r.e.setRoll(i % 100 == 0);
+            if (i % 70 == 0) r.e.setMono(i % 140 == 0);
+            r.e.addNote(i % 32, note(40 + i % 40, i % 16));
+            r.e.removeNote((i + 7) % 32, 40 + (i + 3) % 40);
             (void)r.e.playing(i % 8);
             (void)r.e.bpm();
         }
@@ -569,6 +779,12 @@ int main(int argc, char** argv) {
     testRecordCancel();
     testRecordRearm();
     testPlay();
+    testRollMode();
+    testRollPlace();
+    testRollRecord();
+    testRollStepEntry();
+    testRollEcho();
+    testRollMono();
     testNoteOffs();
     std::printf("%s\n", failures ? "FAILED" : "all passed");
     return failures ? 1 : 0;

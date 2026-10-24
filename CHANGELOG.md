@@ -2,9 +2,15 @@
 
 Changes to the build, tools and presets. Each plugin keeps its own changelog in `plugins/<name>/CHANGELOG.md`.
 
-## [Unreleased]
+## [0.5.0]
+
+One module is new since 0.4.0: `gseq`, so the release ships 19.
 
 ### Plugins
+
+- `gseq`, new: a grid sequencer of 8 rows of up to 32 steps, each row with its own length and division, out as MIDI and CV voices with velocity CV. Recording from a MIDI keyboard, step entry, and a piano-roll mode with chords. A Launchpad Mini MK3 or Launchpad X edits and shows the grid; the X's pads send velocity. See [plugins/gseq/CHANGELOG.md](plugins/gseq/CHANGELOG.md).
+
+- `sapf` moves to the script editor of `chuk`, `csnd`, `fstr` and `alda`, and its mouse words read encoders 1 and 2. See [plugins/sapf/CHANGELOG.md](plugins/sapf/CHANGELOG.md).
 
 - `BaseProcessor` guards its MIDI automation map with a lock. The MIDI input thread iterated it while a preset load cleared it, or an editor erased an entry: a use-after-free. Its MIDI echo of a learned parameter now takes the device lock, as `sendMidiMessagesNow` does since 0.4.0; it tries rather than waits, since a device change holding the lock stops the MIDI input thread that may be the caller.
 
@@ -14,7 +20,15 @@ Changes to the build, tools and presets. Each plugin keeps its own changelog in 
 
 - `rack`, `sfct`, `alda`, `csnd`, `scsy`, `bard`, `ttyp`, `fstr` and `edrm` fixes: see their CHANGELOGs.
 
+- Docs: [docs/USING.md](docs/USING.md) covers what every module shares: installing, card paths, the rule that Synthor runs a module only while a jack is patched, buttons, the general panel and USB hubs. [docs/script-editor.md](docs/script-editor.md) covers the code editor, keys, controls and CV the script modules share. Each module README now opens with Install and First use, is titled by its module name, and numbers its jacks. The root README opens with installing and a module table; the release ships both shared docs.
+
 ### Build and tools
+
+- The `install-*` targets copy over ssh to `SSP_HOST` when the card is not mounted locally, and check each copy by md5 (`scripts/ssp-card.sh`). The card kept a `sapf-examples.txt` with errors that the fork had fixed, as the scripts needed the card in the desktop. `make install` still needs the mounted card; `make deploy` is its ssh form.
+
+- `scripts/ssp_card_image.py` images an SSP card to a compressed file and writes it to another card. It copies the whole device, as the rk3288 boots from loader sectors outside the partitions, but stops at the last partition's end, so the image fits a card slightly smaller than the source.
+
+- `SSP_IP` sets the SSP's address in the Makefile, and `SSP_HOST` defaults to `root@$(SSP_IP)`. `midisend` and `mididump` had the address written in.
 
 - `make deploy` syncs the card after copying. A copy by hand without `sync`, then a power-cycle, left a half-written `edrm.so` on the card, which Synthor loaded; `make deploy` had the same gap. `make deploy-mod` already synced.
 
@@ -22,7 +36,7 @@ Changes to the build, tools and presets. Each plugin keeps its own changelog in 
 
 - `make mididump` (`tools/mididump`): prints the notes and controllers of the SSP's MIDI ports whose names contain a word, over ssh. The SSP has no alsa-utils; it found that a stuck note during the `gseq` Launchpad test came from Plaits droning, not from a missing note-off.
 
-- `plugins/common/launchpad`: the Launchpad Mini MK3's Programmer-mode protocol and a JUCE device that finds, opens and reconnects it; `gseq` uses it. See [docs/dev/gseq-launchpad.md](docs/dev/gseq-launchpad.md).
+- `plugins/common/launchpad`: the Programmer-mode protocol of the Launchpad Mini MK3 and Launchpad X, and a JUCE device that finds, opens and reconnects either, preferring the X; `gseq` uses it.
 
 ## [0.4.0]
 

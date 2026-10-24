@@ -1,6 +1,7 @@
 """Tests for release.py: plugin discovery, link rewriting, and the package's layout."""
 
 import pathlib
+import re
 import sys
 import zipfile
 
@@ -15,6 +16,11 @@ def test_finds_every_plugin_with_its_version():
     assert set(plugins) == {"bard", "chrs", "chuk", "csnd", "edrm", "fstr", "gltc", "strc", "rack", "rdio", "sfct",
                             "scsy", "ttyp", "dexd", "sapf", "alda", "fsyn", "brks", "gseq"}
     assert all(p.version and p.description for p in plugins.values())
+
+
+def test_every_module_has_an_origin():
+    # an entry missing here leaves the release README's From column empty
+    assert {p.product for p in release.find_plugins(ROOT)} == set(release.ORIGINS)
 
 
 def test_links_point_at_the_tag_unless_copied_alongside():
@@ -88,8 +94,13 @@ def test_package_mirrors_the_card(tmp_path):
         row = next(line for line in readme.splitlines() if line.startswith(f"| `{m}` |"))
         assert "[sk-engines](https://github.com/shakfu/sk-engines)" in row
     fstr = (top / "docs" / "fstr" / "README.md").read_text()
-    assert "../" not in fstr  # no link left pointing into the repo
-    assert f"]({release.REPO_URL}/blob/9.9.9/docs/dev/faust.md)" in fstr
+    assert "](../USING.md#installing)" in fstr  # shipped: the link resolves inside the package
+    assert (top / "docs" / "USING.md").is_file() and (top / "docs" / "script-editor.md").is_file()
+    assert "[docs/USING.md](docs/USING.md)" in readme
+    for link in re.findall(r"\]\((\.\./[^)#\s]+)", fstr):  # no other link left pointing into the repo
+        assert (top / "docs" / "fstr" / link).resolve().is_file(), link
+    # a repo doc that is not shipped (docs/dev, linked from released CHANGELOG sections) points at the tag
+    assert f"]({release.REPO_URL}/blob/9.9.9/docs/dev/" in (top / "CHANGELOG.md").read_text()
 
     with zipfile.ZipFile(archive) as z:
         assert all(n.startswith("shakfu-ssp-plugins-9.9.9/") for n in z.namelist())
@@ -130,4 +141,4 @@ def test_pdf_package_keeps_only_pdfs(tmp_path):
     assert "](README-json-presets.pdf)" in (top / "docs" / "rack" / "README.pdf").read_text()
     assert (top / "docs" / "rack" / "README-json-presets.pdf").is_file()
     assert (top / "BOOT" / "rack_presets" / "README.pdf").is_file()
-    assert "/blob/9.9.9/docs/dev/faust.md)" in (top / "docs" / "fstr" / "README.pdf").read_text()
+    assert "/blob/9.9.9/docs/dev/" in (top / "CHANGELOG.pdf").read_text()  # repo links stay on GitHub

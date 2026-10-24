@@ -8,6 +8,9 @@ BUILDROOT_DIR := buildroot/arm-rockchip-linux-gnueabihf_sdk-buildroot
 BUILD_DIR := $(CURDIR)/build.cmake.ssp
 PRESET := ssp toolchain
 JOBS ?= $(shell nproc 2>/dev/null || sysctl -n hw.ncpu)
+# the SSP over ssh, for deploy, the install targets, midisend and mididump
+SSP_IP ?= 192.168.1.6
+SSP_HOST ?= root@$(SSP_IP)
 
 export BUILD_DIR SSP_HOST
 
@@ -44,7 +47,7 @@ help:
 	@echo "make install-presets    check, then copy presets/ (or PRESETS=dir) to the card (SSP_PRESETS)"
 	@echo "make test               run the tools, scripts and plugin tests"
 	@echo "make clean              remove $(BUILD_DIR)"
-	@echo "variables: SSP_BUILDROOT, SSP_HOST (root@192.168.1.6), SSP_PLUGINS (/media/$$USER/BOOT/plugins), SSP_PRESETS (/media/$$USER/BOOT/rack_presets), JOBS ($(JOBS))"
+	@echo "variables: SSP_BUILDROOT, SSP_IP ($(SSP_IP)), SSP_HOST ($(SSP_HOST)), SSP_PLUGINS (/media/$$USER/BOOT/plugins), SSP_PRESETS (unset: the card), JOBS ($(JOBS))"
 
 buildroot: $(BUILDROOT_DIR)
 
@@ -142,14 +145,14 @@ MIDI_TOOL_CC := clang --target=arm-linux-gnueabihf --sysroot=$(MIDISEND_SYSROOT)
 midisend: | $(BUILDROOT_DEP)
 	mkdir -p build/midisend
 	$(MIDI_TOOL_CC) tools/midisend/midisend.c -lasound -o build/midisend/midisend
-	scp -O -q build/midisend/midisend $${SSP_HOST:-root@192.168.1.6}:/tmp/midisend-bin
-	ssh $${SSP_HOST:-root@192.168.1.6} 'killall midisend-bin 2>/dev/null; nohup /tmp/midisend-bin /tmp/midisend > /tmp/midisend.log 2>&1 & sleep 1; cat /tmp/midisend.log'
+	scp -O -q build/midisend/midisend $(SSP_HOST):/tmp/midisend-bin
+	ssh $(SSP_HOST) 'killall midisend-bin 2>/dev/null; nohup /tmp/midisend-bin /tmp/midisend > /tmp/midisend.log 2>&1 & sleep 1; cat /tmp/midisend.log'
 
 # prints the MIDI of the SSP's ports whose names contain an argument (tools/mididump/mididump.c)
 mididump: | $(BUILDROOT_DEP)
 	mkdir -p build/mididump
 	$(MIDI_TOOL_CC) tools/mididump/mididump.c -lasound -o build/mididump/mididump
-	scp -O -q build/mididump/mididump $${SSP_HOST:-root@192.168.1.6}:/tmp/mididump
+	scp -O -q build/mididump/mididump $(SSP_HOST):/tmp/mididump
 
 install-presets:
 	scripts/install-presets.sh $(PRESETS)

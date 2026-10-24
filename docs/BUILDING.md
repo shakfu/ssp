@@ -11,6 +11,8 @@ sudo apt install cmake clang lld pkg-config curl zip flex bison libasound2-dev \
     libxrender-dev libxcomposite-dev libfreetype-dev libfontconfig1-dev llvm-dev
 ```
 
+Install [uv](https://docs.astral.sh/uv/) as well: `make deps` and `make test` run Python through it.
+
 `llvm-dev` is for the host tests of the faust plugin; the SSP build uses the buildroot's LLVM.
 
 The X11, freetype and fontconfig headers are for `juceaide`, a tool JUCE builds for the host during configure. flex, bison and the ALSA headers are for ChucK.
@@ -18,52 +20,83 @@ The X11, freetype and fontconfig headers are for `juceaide`, a tool JUCE builds 
 ## Build
 
 ```text
-make
+make deps   # once: the libraries and sources nine plugins need (about 3 minutes)
+make        # every plugin
 ```
 
-On first run, `make` downloads the SSP buildroot (608 MB) into `./buildroot`. Set `SSP_BUILDROOT` to use an existing one. It then configures with the `ssp toolchain` preset (`xcSSP.cmake`) and builds into `build.cmake.ssp`.
+The first `make deps` or `make` downloads the SSP buildroot (608 MB) into `./buildroot`. Set `SSP_BUILDROOT` to use an existing one. `make` configures with the `ssp toolchain` preset (`xcSSP.cmake`) and builds into `build.cmake.ssp`.
 
-The csound, chuck and faust plugins link Csound, ChucK and libfaust, which `make deps` downloads and cross-builds into `build/deps/ssp` (about three minutes). Without them, `make` builds the other plugins and skips these three, and `scsy`, `ttyp`, `sapf`, `alda`, `brks` and `fsyn`, whose libraries and sources `make deps` also provides. `make deps` also fetches the teletype sources that `ttyp` builds its firmware from (`scripts/fetch_teletype.sh`, into `build/deps/src/teletype`, checked against SHA-256); it builds ragel 6.10 there if ragel is not installed. It fetches _core for `brks` (`scripts/fetch_core.sh ssp`, into `build/deps/src/core-<commit>`, checked against SHA-256) and generates its engine for the SSP; that needs clang and `uv`, which runs the generator with numpy. Run `make configure` after `make deps`.
+Without `make deps`, `make` skips 9 plugins: `csnd`, `chuk`, `fstr`, `scsy`, `ttyp`, `sapf`, `alda`, `brks` and `fsyn`. The `make deps` row below lists what it fetches and builds. If you run `make deps` after a first `make`, run `make configure` too.
 
 Plugins land in `build.cmake.ssp/plugins/*/*_artefacts/Release/VST3/*.vst3/Contents/armv7l-linux/*.so`.
+
+### Build targets
 
 | target | action |
 |-|-|
 | `make` | build all plugins |
 | `make configure` | re-run CMake configure |
 | `make buildroot` | download the buildroot only |
-| `make deps` | build libsndfile, Csound, ChucK, libfaust, libscsynth and the SC UGens for the SSP (`scripts/build_deps.sh ssp`), fetch the teletype sources (`scripts/fetch_teletype.sh`), fetch sapf and alda (`scripts/fetch_sapf.sh`, `scripts/fetch_alda.sh`), fetch _core and generate `brks`'s engine (`scripts/fetch_core.sh ssp`), and build FluidSynth and fetch its soundfonts (`scripts/build_fluidsynth.sh ssp`) |
-| `make install [MOD=sfct]` | copy all plugins, or one, to the mounted SD card |
+| `make deps` | build libsndfile, Csound, ChucK, libfaust, libscsynth and the SC UGens for the SSP (`scripts/build_deps.sh ssp`), fetch the teletype sources (`scripts/fetch_teletype.sh`; builds ragel 6.10 if it is missing), fetch sapf and alda (`scripts/fetch_sapf.sh`, `scripts/fetch_alda.sh`), fetch _core and generate `brks`'s engine (`scripts/fetch_core.sh ssp`), and build FluidSynth and fetch its soundfonts (`scripts/build_fluidsynth.sh ssp`) |
+
+### Install on the card
+
+`make install` needs the card mounted on this computer; `make deploy` is its ssh form. The `install-*` targets copy to the mounted card, else to `SSP_HOST` over ssh. Over ssh each copy is synced and checked by md5 (`scripts/ssp-card.sh`).
+
+| target | action |
+|-|-|
+| `make install [MOD=sfct]` | copy all plugins, or one, to the mounted card |
 | `make install-faust` | copy the Faust libraries and `fstr` examples to the card's `BOOT/faust` |
 | `make install-scsy` | copy the UGen plugins and `scsy` examples to the card |
 | `make install-sapf` | copy sapf's prelude and examples to the card's `BOOT/sapf` |
 | `make install-fsyn` | copy `FluidR3_GM.sf2` to the card's `BOOT/fsyn` |
 | `make install-brks` | download _core's default sample banks (127 MB, checked against SHA-256) and copy them to the card's `BOOT/brks/default` |
-| `make install-presets [PRESETS=dir]` | check JSON presets with `py2rack`, then copy `presets/` or `dir` to the card |
-| `make deploy` | copy all plugins to the SSP over `scp` |
-| `make deploy-mod MOD=sfct` | copy one plugin over `scp` |
+| `make install-presets [PRESETS=dir]` | check JSON presets with `py2rack`, then copy `presets/` or `dir` to the card's `BOOT/rack_presets`, or to `SSP_PRESETS` when set |
+
+### Over ssh
+
+These reach the SSP at `SSP_HOST` ([Network access](#network-access)).
+
+| target | action |
+|-|-|
+| `make deploy` | build, then copy all plugins to the SSP over `scp` |
+| `make deploy-mod MOD=sfct` | build one plugin, copy it over `scp` and check its md5. It refuses while Synthor runs, since replacing a loaded plugin can crash it. Stop Synthor with `ssh $SSP_HOST 'kill -9 $(pidof SYNTHOR)'`; it then stays down until the SSP restarts |
 | `make midisend` | build `tools/midisend`, copy it to `SSP_HOST`'s `/tmp` and start it: a MIDI input for tests |
-| `make faust-kernels` | regenerate the committed Faust kernel headers (needs `uv`) |
-| `make scsy-builtin` | regenerate `scsy`'s committed built-in SynthDef header (needs `uv`) |
+| `make mididump` | build `tools/mididump` and copy it to `SSP_HOST`'s `/tmp`: prints the MIDI a port sends ([DEVELOPING.md](DEVELOPING.md#tools)) |
+
+### Release
+
+| target | action |
+|-|-|
 | `make release` | package `releases/shakfu-ssp-plugins-<VERSION>/`, laid out as the SD card's BOOT partition, and its zip, then runs `release-notes`; the version is in `VERSION` |
 | `make release-pdf` | as `make release`, with the docs rendered to PDF by `quarto render --to pdf`; needs quarto and a LaTeX engine (`quarto install tinytex`) |
+| `make release-notes` | write `CHANGELOG.md`'s `## [<VERSION>]` section to `releases/shakfu-ssp-plugins-<VERSION>-notes.md`, for the release body |
 | `make publish` | create the GitHub release for tag `<VERSION>` with `gh`, attaching the zip and using the notes as its body. It refuses unless the tree is clean, the tag is `HEAD` and pushed, the zip is newer than `HEAD`, and no release exists; it never commits, tags or pushes |
 | `make clean-releases` | delete `releases/`, with every version's package, zip and notes; `make release` replaces only its own version's |
-| `make release-notes` | write `CHANGELOG.md`'s `## [<VERSION>]` section to `releases/shakfu-ssp-plugins-<VERSION>-notes.md`, for the release body |
+
+### Maintenance
+
+| target | action |
+|-|-|
 | `make test` | run the tools, scripts and plugin tests |
+| `make faust-kernels` | regenerate the committed Faust kernel headers (needs `uv`) |
+| `make scsy-builtin` | regenerate `scsy`'s committed built-in SynthDef header (needs `uv`) |
 | `make clean` | remove `build.cmake.ssp` |
+
+### Variables
 
 | variable | default |
 |-|-|
 | `SSP_BUILDROOT` | `./buildroot/arm-rockchip-linux-gnueabihf_sdk-buildroot` |
 | `SSP_PLUGINS` | `/media/$USER/BOOT/plugins` |
-| `SSP_PRESETS` | `/media/$USER/BOOT/rack_presets` |
-| `SSP_HOST` | `root@192.168.1.6` |
+| `SSP_PRESETS` | unset: the card's `BOOT/rack_presets`. Set, a local directory, written with sudo where needed |
+| `SSP_IP` | `192.168.1.6` |
+| `SSP_HOST` | `root@$(SSP_IP)` |
 | `JOBS` | number of CPUs |
 
 ### Network access
 
-`make deploy` and `deploy-mod` copy over ssh. The SSP has no Ethernet port; a USB-Ethernet adapter works in either USB port.
+`make deploy`, `deploy-mod`, `midisend` and `mididump` use ssh, as do the `install-*` targets without a mounted card. The SSP has no Ethernet port; a USB-Ethernet adapter works in either USB port.
 
 - The SSP comes up at `192.168.1.6/24`, static, when the adapter appears as `eth0` (`/etc/network/interfaces`, `/etc/udev/rules.d/90-usb-ethernet.rules` on rootfs). It runs no DHCP client or server.
 
@@ -78,8 +111,6 @@ Plugins land in `build.cmake.ssp/plugins/*/*_artefacts/Release/VST3/*.vst3/Conte
   sudo chmod 600 /media/$USER/rootfs/root/.ssh/authorized_keys
   sudo chown -R 0:0 /media/$USER/rootfs/root/.ssh
   ```
-
-`install-presets` copies to BOOT, which needs no `sudo`. It uses `sudo` only for a destination that is not writable, such as one on rootfs.
 
 ## Tests
 

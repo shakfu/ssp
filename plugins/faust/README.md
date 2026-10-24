@@ -1,84 +1,95 @@
-# faust
+# fstr
 
-`faust` runs Faust programs (`.dsp`) loaded from the SD card. libfaust's LLVM backend compiles each to machine code on the SSP, so no rebuild is needed per program. It links the SSP's own `libLLVM-9.so`. See [docs/dev/faust.md](../../docs/dev/faust.md).
+`fstr` runs Faust programs (`.dsp`) loaded from the SD card. libfaust's LLVM backend compiles each to machine code on the SSP, so no rebuild is needed per program.
 
 ## Install
 
-Copy `fstr.so` to the `plugins` folder on the SD card, and the `faust` folder to the card's BOOT partition (`/media/BOOT/faust`): it holds the examples and, in `libraries`, the Faust standard libraries that `import("stdfaust.lib")` needs. `fstr` uses the SSP's own `/usr/lib/libLLVM-9.so`, part of its system.
+Copy `fstr.so` to `BOOT/plugins` (from source: `make install MOD=fstr`, to a mounted card) and restart the SSP. See [Using](../../docs/USING.md#installing).
 
-From source: `make deps` builds libfaust once; then `make install MOD=fstr` and `make install-faust`.
+`BOOT/faust` holds the examples and, in `libraries`, the Faust standard libraries that `import("stdfaust.lib")` needs. A release has them there. From source, `make deps` builds libfaust once; then `make install-faust` copies both to a mounted card, or over ssh to `SSP_HOST`.
+
+A USB keyboard edits the code; it is optional ([Keyboard](#keyboard)).
+
+## First use
+
+1. Add `fstr` and patch Out 1 and Out 2 to outputs. Synthor runs a module only while a jack is patched ([Using](../../docs/USING.md#a-module-runs-only-while-a-jack-is-patched)). The built-in drone plays.
+2. Press Load (button 5), select `filter.dsp`, and press Load again.
+3. Patch stereo audio to In 1 and In 2.
+4. Turn encoder 1 to sweep the cutoff from its default, 1000 Hz, then encoder 2 for resonance.
+
+[Walkthrough: `filter.dsp`](#walkthrough-filterdsp) explains each step.
+
+## The language
+
+### What it is
+
+Faust is a functional language for block diagrams of signal processors. A program defines `process`, a function from input signals to output signals. The compiler turns it into a function that computes one sample at a time. UI elements such as `hslider` become controls. A program is a text file, `name.dsp`. See the [Faust manual](https://faustdoc.grame.fr/manual/syntax/) and the [Faust 101 tutorial](https://faustdoc.grame.fr/workshops/2020-04-10-faust-101/).
+
+### A first program
+
+`filter.dsp` with one control: a resonant low-pass on In 1 and In 2, to Out 1 and Out 2.
+
+```faust
+import("stdfaust.lib");
+
+cutoff = hslider("cutoff [scale:log][unit:Hz]", 1000, 40, 16000, 1) : si.smoo;
+
+process = par(i, 2, fi.resonlp(cutoff, 2, 1));
+```
+
+- `import("stdfaust.lib")` loads the standard libraries: `si.` smoothing, `fi.` filters.
+- `hslider(label, default, min, max, step)` becomes encoder 1, from 40 to 16000 Hz.
+- `: si.smoo` sends the slider through a smoother, so a fast turn does not click.
+- `par(i, 2, ...)` places two filters side by side: two inputs, two outputs.
+
+### How it maps to the SSP
+
+| SSP | In Faust |
+|-|-|
+| Audio in | `process` inputs, in order, are In 1..8; see [Audio in](#audio-in) |
+| Audio out | `process` outputs, in order, are Out 1..8; see [Audio out](#audio-out) |
+| Encoders | first 16 `hslider`, `vslider`, `nentry`, `button`, `checkbox` become p1..p16; see [Programs](#programs) |
+| CV in | `[cv:N]` in a label, once per block; or a `process` input; see [CV in](#cv-in) |
+| CV out | a `process` output, at 0.2 per volt; see [CV out](#cv-out) |
+| Gates and triggers | an input compared to a level, such as `x > 0.2`; `button`, `checkbox` become 0-to-1 controls |
+| MIDI in | `declare options "[nvoices:N]";`: notes set `freq`, `gain`, `gate`; see [MIDI](#midi) |
+| MIDI out | n/a: `fstr` sends no MIDI |
+| Clock and tempo | n/a: no host tempo; count clock pulses on an input |
+| Sample rate and block size | `ma.SR` is the SSP's rate; `process` runs per 128-frame block; a rate change recompiles |
+| Files on the card | `.dsp` in `BOOT/faust`; `import` searches the program's folder, then `BOOT/faust/libraries` |
+| Not available on the SSP | `soundfile` (no file loads); bargraphs (not shown); `[midi:...]` metadata (ignored); controls past 16 |
 
 ## Programs
 
 Load (button 5) picks a `.dsp` file. A program that fails to compile shows its error, and the previous program keeps running. With no program, a built-in drone plays.
 
-- **Channels**: In 1..8 and Out 1..8, for audio and CV; see [Inputs and outputs](#inputs-and-outputs).
-
-- **Controls**: the program's first 16 sliders, number entries, buttons and checkboxes become p1..p16, in Faust's order: by label, or by `[0]`, `[1]`... prefixes. Each takes the control's label, range and `[unit:...]`; `[scale:log]` maps it logarithmically.
+- **Controls**: Faust orders controls by label, or by `[0]`, `[1]`... prefixes. Each takes the control's label, range and `[unit:...]`; `[scale:log]` maps it logarithmically. A control whose minimum equals its maximum is skipped.
 
 - **Defaults**: a program chosen with Load sets its controls to the program's defaults. A preset restores its own values.
 
-- **Imports**: `import("stdfaust.lib")` and the other libraries resolve in the program's folder, then in `BOOT/faust/libraries`.
-
-- **CV**: `[cv:N]` in a control's label makes input N move it; see [CV in](#cv-in).
-
-- **MIDI**: a program with `declare options "[nvoices:N]";` plays N voices from MIDI notes; see [MIDI](#midi).
-
 ## Keyboard
 
-A USB keyboard, or port 7772 on 127.0.0.1 over ssh (`ssh -L 7772:127.0.0.1:7772 root@192.168.1.6`), edits the program as text. The first key typed opens the Code view; Code (button 6) or Esc returns to the pages. The keyboard goes to the keyboard module on screen, as for `sapf` and `ttyp`.
+The [shared editor](../../docs/script-editor.md) edits the program, on key port 7772. Ctrl-S on the built-in writes `BOOT/faust/live.dsp`. Ctrl-E does nothing: a Faust program compiles only whole, with Ctrl-Enter. Ctrl-., Ctrl-R and Ctrl-1..0 do nothing either.
 
-| Key | Does |
-|-|-|
-| Ctrl-Enter | compiles the whole code in place of the program; the file is unchanged |
-| Ctrl-S | writes the code to the program's file; for the built-in, to `BOOT/faust/live.dsp` |
-| Ctrl-O | opens the browser, as Load |
-| Ctrl-Shift-S | Save As: type a file name (beside the current file; the extension added if missing), Enter saves and makes it the program's file; an existing file needs a second Enter; Esc cancels |
-| Ctrl-L | empties the code view; again on the empty view, brings the text back |
-| Ctrl-E | none: a Faust program compiles only whole, with Ctrl-Enter |
-| Esc | returns to the pages |
-| arrows, Home, End, PageUp, PageDown | move; with Ctrl, Home and End go to the start and end |
-
-The code is coloured by syntax. Encoder 1 moves the cursor by rows, encoder 2 by columns. A held key repeats. Tab inserts spaces to the next multiple of 4. The layout is US. Relative paths in the code resolve next to the program's file. Controls keep their positions when the code runs; Load sets a program's defaults.
-
-The preset stores the code last run, and the text when it holds an edit not yet run.
+A preset stores the program as [Script modules](../../docs/script-editor.md#presets) describes.
 
 ## Inputs and outputs
 
-Inputs 1..8 and outputs 1..8 carry audio and CV alike. An SSP signal of 1.0 is 5 V, so CV is 0.2 per volt: 1 V is 0.2, and 1 V/oct pitch is 0.2 per octave.
+In 1..In 8 and Out 1..Out 8 carry audio and CV alike, at 0.2 per volt; see [CV](../../docs/script-editor.md#cv).
 
 ### Audio in
 
-`process`'s inputs are In 1..8, in order. Signals arrive unscaled, 1.0 for 5 V.
+Signals arrive unscaled, 1.0 for 5 V. A program with fewer inputs ignores the rest.
 
 ### CV in
 
-A program gets CV in two ways: on a control, or by reading the input itself.
-
-#### On a control
-
-A control with CV follows input N (1..8): add `[cv:N]` to its label.
+On a control, add `[cv:N]` to its label; see [CV on a control](../../docs/script-editor.md#cv-on-a-control). The CV is read once per audio block: 128 frames, 2.7 ms at 48 kHz. That suits envelopes, LFOs and sequencers, not audio-rate modulation.
 
 ```text
 cutoff = hslider("cutoff [scale:log][unit:Hz][cv:3]", 1000, 40, 16000, 1);
 ```
 
-| Range | Each volt | -1 V | +1 V | +5 V |
-|-|-|-|-|-|
-| log | an octave | half | double | 32x |
-| linear | a tenth of the range | -10% of the range | +10% | +50% |
-
-- The encoder sets the value the CV moves from. The result stays within the control's range.
-
-- The CV is read once per audio block: 128 frames, 2.7 ms at 48 kHz. That is fine for envelopes, LFOs and sequencers, not for audio-rate modulation.
-
-- An orange mark on the control's bar shows where the CV has moved it, and the value shown is the moved one. A preset stores the encoder position, not the moved value.
-
-- The input still reaches the program as audio.
-
-#### In the program
-
-Give `process` an input for the CV and use it, at audio rate, with a scaling of your own. There is no mark on screen. `examples/filter_cv.dsp` reads In 3 as 1 V/oct:
+In the program, give `process` an input for the CV and use it at audio rate. `examples/filter_cv.dsp` reads In 3 as 1 V/oct:
 
 ```faust
 fc(cv) = max(20, min(16000, cutoff * pow(2, cv / 0.2)));
@@ -89,11 +100,11 @@ process(l, r, cv) = (l : fi.resonlp(fc(cv), q, 1)), (r : fi.resonlp(fc(cv), q, 1
 
 ### Audio out
 
-`process`'s outputs are Out 1..8, in order. Channels past 8 are silent.
+Outputs past Out 8 are discarded. Jacks past the program's outputs are silent.
 
 ### CV out
 
-Write a value or a slow signal to an output, at 0.2 per volt. A constant is a signal:
+A constant is a signal:
 
 ```faust
 import("stdfaust.lib");
@@ -102,7 +113,7 @@ process = _, _, os.osc(2) * 0.5, 0.2 * octaves;   // In 1-2 to Out 1-2; Out 3: +
 
 ## MIDI
 
-Notes come from the MIDI input chosen in the general panel (RS + LS), and take effect at the next block. A program is polyphonic when its options declare a voice count:
+Notes come from the MIDI input chosen in the general panel (LS + RS, see [Using](../../docs/USING.md#the-general-panel)), and take effect at the next block. A program is polyphonic when its options declare a voice count:
 
 ```faust
 declare options "[nvoices:8]";
@@ -150,7 +161,7 @@ process = par(i, 2, fi.resonlp(cutoff, q, 1));
 
 ### 1. Copy it to the card
 
-Put `filter.dsp` in `faust/` on the card's BOOT partition, with the Faust libraries in `faust/libraries`. The release already has both there.
+Put `filter.dsp` in `BOOT/faust`, with the Faust libraries in `BOOT/faust/libraries`. The release already has both there.
 
 ### 2. Patch it in Synthor
 
@@ -163,7 +174,7 @@ Put `filter.dsp` in `faust/` on the card's BOOT partition, with the Faust librar
 
 ### 3. Load it
 
-Press soft key 5 (Load). The browser opens at `/media/BOOT/faust`. Turn encoder 1, or press Up and Down, to select `filter.dsp`; Left and Right jump a column, and pressing encoder 1 opens a folder. Press Load again. Soft key 7 (Cancel) leaves without loading. The SSP compiles the program in a moment, and the previous program plays until it is ready.
+Press Load (button 5). The browser opens at `BOOT/faust`. Turn encoder 1, or press Up and Down, to select `filter.dsp`. Left and Right (`PG-`, `PG+`) jump a column, and pressing encoder 1 opens a folder. Press Load again. Cancel (button 7) leaves without loading. The SSP compiles the program in a moment, and the previous program plays until it is ready.
 
 ### 4. Read the screen
 
@@ -184,19 +195,13 @@ Each `hslider` became one control. There are no comments to write: the label, ra
 
 - **Metadata**: `[unit:Hz]` puts the unit on screen; `[scale:log]` makes the encoder logarithmic. Both are stripped from the label.
 
-- **Defaults**: a Load sets each control to its slider's default. A preset restores its own positions instead.
-
 The right panel shows the page (`1/1 controls`), the DSP load, the file name, and a compile error in orange if there is one. If the libraries are missing, for example, it shows `ERROR : unable to open file stdfaust.lib (built-in running)`.
 
 ### 5. Play it
 
 Turn encoder 1 to sweep the cutoff and encoder 2 for resonance. `si.smoo` smooths each change, so even a fast turn does not click.
 
-- Turning moves a control 5% of its range a detent. `cutoff` is logarithmic, so each detent is the same interval: 40 to 16000 Hz is about 8.6 octaves, so a detent is about 0.4 octave.
-
-- Holding the encoder while turning moves it 0.5% a detent.
-
-- Pressing and releasing without turning returns a control to the bottom of its range, not to the slider's default.
+[Encoders](../../docs/script-editor.md#encoders) gives the step sizes. `cutoff` spans about 8.6 octaves, so a detent is about 0.4 octave. Pressing returns a control to the bottom of its range, not to the slider's default.
 
 ### 6. Add CV
 

@@ -1,14 +1,23 @@
-# glitch
+# gltc
 
-`glitch` is two lo-fi noise voices. Each deck runs one of 12 algorithms ported from Rob Scape's [Noisferatu](https://github.com/rob-scape/noisferatu): buffer glitches, logic noise, generative scale blips and rhythmic noise.
+`gltc` is two lo-fi noise voices. Each deck runs one of 12 algorithms ported from Rob Scape's [Noisferatu](https://github.com/rob-scape/noisferatu): buffer glitches, logic noise, generative scale blips and rhythmic noise.
 
-Ported from the [`glitch` engine](https://github.com/shakfu/sk-engines/tree/main/src/engine/glitch) in [sk-engines](https://github.com/shakfu/sk-engines); see [docs/dev/engines.md](../../docs/dev/engines.md). `gltc` is GPLv3; see [NOTICE.md](NOTICE.md).
+Ported from the [`glitch` engine](https://github.com/shakfu/sk-engines/tree/main/src/engine/glitch) in [sk-engines](https://github.com/shakfu/sk-engines). `gltc` is GPL-3.0; see [NOTICE.md](NOTICE.md).
 
 ## Install
 
-Copy `gltc.so` to the `plugins` folder on the SD card (`make install MOD=gltc`). The module is `gltc`: the SSP lists a module only if its id spells its name.
+Copy `gltc.so` to `BOOT/plugins` (from source: `make install MOD=gltc`) and restart the SSP.
+
+## First use
+
+1. Add `gltc`.
+2. Patch Out L and Out R to the outputs ([Using](../../docs/USING.md#a-module-runs-only-while-a-jack-is-patched)).
+3. Both decks play `sparse`, the first algorithm.
+4. Turn Algo (encoder 1 on the `A voice` page) to hear the others.
 
 ## Controls
+
+The pages form three groups: deck A, deck B, and the global `mix` page ([Using](../../docs/USING.md#buttons)). A long `PG+` goes to `mix`; a long `PG-` returns.
 
 | Page | Encoder 1 | Encoder 2 | Encoder 3 | Encoder 4 |
 |-|-|-|-|-|
@@ -23,9 +32,13 @@ Copy `gltc.so` to the `plugins` folder on the SD card (`make install MOD=gltc`).
 
 - **Tone**: a one-pole low-pass, 0 dark, 1 open.
 
+- **Level**: the deck's output level, 0.8 by default.
+
+- **A/B**: the crossfade. At 0.5 both decks play at full level; at 0 only A, at 1 only B.
+
 - **Route**: `stereo` centres both decks; `split` puts A left, B right; `random` pans each deck at random.
 
-- Buttons 1 and 2 refill deck A's and B's glitch buffer, for the three buffer algorithms.
+- Buttons 1 and 2 refill deck A's and B's glitch buffer with a new random pattern. The buffer is 4000 samples, mostly silence with bursts of noise. Only `sparse`, `wander` and `bitmangle` play it.
 
 | Algo | P1 | P2 |
 |-|-|-|
@@ -44,16 +57,15 @@ Copy `gltc.so` to the `plugins` folder on the SD card (`make install MOD=gltc`).
 
 Pitch does not act on `dust` and `rhythm`.
 
-- Up and Down step through the pages. A long Down jumps to the first page of the next group, in the order deck A, deck B, the global pages, and round; a long Up to the previous group. A long Right (Prog +) goes to the global pages, and a long Left (Prog -) back.
+## Jacks
 
-## I/O
+| In | Name | Does |
+|-|-|-|
+| 1 | `A Pitch` | V/oct, added to Pitch, within its +/-2 octaves |
+| 2, 3 | `A P1`, `A P2` | added to P1 and P2; 5 V spans the range |
+| 4-6 | `B Pitch`, `B P1`, `B P2` | as 1-3, for deck B |
 
-| Input | |
-|-|-|
-| A Pitch, B Pitch | V/oct, added to Pitch, within its +/-2 octaves |
-| A P1, A P2, B P1, B P2 | added to P1 and P2; 5 V spans the range |
-
-| Output | |
-|-|-|
-| Out L, Out R | the mix, through a soft limiter |
-| A Out, B Out | each deck after Tone and Level, before the crossfade and route |
+| Out | Name | Carries |
+|-|-|-|
+| 1, 2 | `Out L`, `Out R` | the mix, through a soft limiter |
+| 3, 4 | `A Out`, `B Out` | each deck after Tone and Level, before the crossfade and route |

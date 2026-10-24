@@ -2,17 +2,26 @@
 
 `bard` is two spoken-word players. Each deck plays a book (an audiobook, a lecture, a radio play) from a shelf, remembers where it was, and moves through the book by bookmarks written in a text file beside the audio.
 
-Ported from the [`bard` engine](https://github.com/shakfu/sk-engines/tree/main/src/engine/bard) in [sk-engines](https://github.com/shakfu/sk-engines); see [docs/dev/engines.md](../../docs/dev/engines.md).
+Ported from the [`bard` engine](https://github.com/shakfu/sk-engines/tree/main/src/engine/bard) in [sk-engines](https://github.com/shakfu/sk-engines).
 
 ## Install
 
-Copy `bard.so` to the `plugins` folder on the SD card (`make install MOD=bard`). The module is `bard`: the SSP lists a module only if its id spells its name. Put the library under `bard/` on the card's BOOT partition (`/media/BOOT/bard`), or choose another folder with Load.
+Copy `bard.so` to `BOOT/plugins` (from source: `make install MOD=bard`) and restart the SSP.
+
+Put the library in `BOOT/bard`, or choose another folder with Load. None ships.
+
+## First use
+
+1. Copy a few `.wav` books into `BOOT/bard/<shelf>/`, where `<shelf>` is any folder name.
+2. Add `bard`.
+3. Patch Out L and Out R to the outputs ([Using](../../docs/USING.md#a-module-runs-only-while-a-jack-is-patched)).
+4. Both decks open the first book and play it. Buttons 1 and 3 pause and play decks A and B.
 
 ## Library
 
 - **Root**: a folder of shelves. Load (button 5) opens a browser; navigate into the root and press Load again.
 
-- **Shelf**: each subfolder of the root, in name order. A root without subfolders is a single shelf. A Daisy card's `bard/0` to `bard/15` work unchanged.
+- **Shelf**: each subfolder of the root, in name order. A root without subfolders is a single shelf. A card laid out for the engine's Daisy build, with shelves `bard/0` to `bard/15`, works unchanged.
 
 - **Book**: each `.wav` or `.raw` file on a shelf, in name order. `.wav` is 16, 24 or 32-bit PCM or 32-bit float, any channel count, at its own rate. `.raw` is 16-bit mono at the rate in `bard.cfg`.
 
@@ -39,11 +48,13 @@ Copy `bard.so` to the `plugins` folder on the SD card (`make install MOD=bard`).
 
 - `order=file` plays the marks in line order, `order=time` in time order, `order=shuffle` in a shuffled order that is the same each time.
 
-- `loop=segment` loops a segment in Recite; `loop=book` restarts the book at its end in Read; `loop=off` holds.
+- `loop=segment` loops a segment in `recite`; `loop=book` restarts the book at its end in `read`; `loop=off` holds.
 
 - A line that does not parse is skipped.
 
 ## Controls
+
+The pages form three groups: deck A, deck B, and the global `mix` page ([Using](../../docs/USING.md#buttons)). A long `PG+` goes to `mix`; a long `PG-` returns.
 
 | Page | Encoder 1 | Encoder 2 | Encoder 3 | Encoder 4 |
 |-|-|-|-|-|
@@ -55,13 +66,16 @@ Copy `bard.so` to the `plugins` folder on the SD card (`make install MOD=bard`).
 | B pages | as deck A | | | |
 | mix | A/B | Route | | |
 
-- **Book**, **Mark**, **Shelf**: selectors across the shelf, the marks (in line order) and the shelves. A change acts once it has rested 180 ms. Mark acts only when it moves, so it does not undo Next.
+- Selectors. Each acts once it has rested 180 ms.
+  - **Book**: a book on the shelf.
+  - **Mark**: a mark, in line order. It acts only when it moves, so it does not undo Next.
+  - **Shelf**: a shelf in the root.
 
 - **Rate**: 0.5x at 0, 1x at the centre, 2.5x at 1.
 
-- **Keep**: at 0 the pitch follows the rate; at 1 the pitch is held (WSOLA time-scaling).
+- **Keep**: at 0 the pitch follows the rate; at 1 the pitch is held.
 
-- **Position**: a move jumps to that point of the book, or of the segment in Recite and Wander.
+- **Position**: a move jumps to that point of the book, or of the segment in `recite` and `wander`.
 
 - **Seq**: `read` plays through the book, marks are only jump targets; `recite` plays one segment and stops at its end; `wander` plays the segments in the sidecar's order.
 
@@ -82,26 +96,25 @@ Copy `bard.so` to the `plugins` folder on the SD card (`make install MOD=bard`).
 | Button | |
 |-|-|
 | 1, 3 | play/pause deck A, B |
-| 2, 4 | back 15 s on deck A, B; not before the start of the segment in Recite and Wander |
+| 2, 4 | back 15 s on deck A, B; not before the start of the segment in `recite` and `wander` |
 | 6, 8 | next entry in the play order on deck A, B |
 
 A book opens playing, at its resumed position. The screen shows each deck's shelf, book, position, length and mark.
 
-- Up and Down step through the pages. A long Down jumps to the first page of the next group, in the order deck A, deck B, the global pages, and round; a long Up to the previous group. A long Right (Prog +) goes to the global pages, and a long Left (Prog -) back.
+## Jacks
 
-## I/O
+| In | Name | Does |
+|-|-|-|
+| 1 | `A Book` | added to Book; 5 V spans the shelf |
+| 2 | `A Mark` | added to Mark; 5 V spans the marks |
+| 3 | `A Volume` | added to Volume |
+| 4 | `A Gate` | a rising edge above 2 V is Next |
+| 5-8 | `B Book`, `B Mark`, `B Volume`, `B Gate` | as 1-4, for deck B |
+| 9 | `A/B` | added to A/B |
 
-| Input | |
-|-|-|
-| A Book, B Book | added to Book; 5 V spans the shelf |
-| A Mark, B Mark | added to Mark; 5 V spans the marks |
-| A Volume, B Volume | added to Volume |
-| A Gate, B Gate | a rising edge above 2 V is Next |
-| A/B | added to A/B |
-
-| Output | |
-|-|-|
-| Out L, Out R | the mix, through a soft limiter |
-| A Out, B Out | each deck after Volume and the duck, before the crossfade and route |
-| A Env, B Env | each deck's voice envelope, 0 to 5 V |
-| A Gate, B Gate | a 5 ms pulse when the playhead enters another bookmark |
+| Out | Name | Carries |
+|-|-|-|
+| 1, 2 | `Out L`, `Out R` | the mix, through a soft limiter |
+| 3, 4 | `A Out`, `B Out` | each deck after Volume and the duck, before the crossfade and route |
+| 5, 6 | `A Env`, `B Env` | each deck's voice envelope, 0 to 5 V |
+| 7, 8 | `A Gate`, `B Gate` | a 5 ms pulse when the playhead enters another bookmark |

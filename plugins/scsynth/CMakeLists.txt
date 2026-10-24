@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(SCSYNTH VERSION 0.2.0)
+project(SCSYNTH VERSION 0.2.1)
 
 # built by scripts/build_deps.sh ssp|host; see docs/BUILDING.md
 if (TARGET_SSP)

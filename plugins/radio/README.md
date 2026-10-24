@@ -1,12 +1,21 @@
-# radio
+# rdio
 
-`radio` is two independent virtual [Radio Music](https://github.com/TomWhitwell/RadioMusic) modules over one library of sound files. Each deck tunes through the stations in a bank. Every station runs on a shared free-running clock, so tuning in lands where the station would be had it played all along.
+`rdio` is two independent virtual [Radio Music](https://github.com/TomWhitwell/RadioMusic) modules over one library of sound files. Each deck tunes through the stations in a bank. Every station runs on a shared free-running clock, so tuning in lands where the station would be had it played all along.
 
-Ported from the [`radio` engine](https://github.com/shakfu/sk-engines/tree/main/src/engine/radio) in [sk-engines](https://github.com/shakfu/sk-engines); see [docs/dev/engines.md](../../docs/dev/engines.md).
+Ported from the [`radio` engine](https://github.com/shakfu/sk-engines/tree/main/src/engine/radio) in [sk-engines](https://github.com/shakfu/sk-engines).
 
 ## Install
 
-Copy `rdio.so` to the `plugins` folder on the SD card (`make install MOD=rdio`). The module is `rdio`: the SSP lists a module only if its id spells its name (see [docs/dev/engines.md](../../docs/dev/engines.md)). Put the library under `radio/` on the card's BOOT partition (`/media/BOOT/radio`), or choose another folder with Load.
+Copy `rdio.so` to `BOOT/plugins` (from source: `make install MOD=rdio`) and restart the SSP.
+
+Put the library in `BOOT/radio`, or choose another folder with Load. None ships.
+
+## First use
+
+1. Copy a few `.wav` files into `BOOT/radio/<bank>/`, where `<bank>` is any folder name.
+2. Add `rdio`.
+3. Patch Out L and Out R to the outputs ([Using](../../docs/USING.md#a-module-runs-only-while-a-jack-is-patched)).
+4. Turn Station (encoder 1) to tune deck A through the files.
 
 ## Library
 
@@ -21,11 +30,19 @@ Copy `rdio.so` to the `plugins` folder on the SD card (`make install MOD=rdio`).
 
 - **Name order** ignores case and compares numbers by value: `2` before `10`, `NUMBER9` before `NUMBER10`.
 
-- **SETTINGS.TXT** in the root, from a Radio Music card, sets `Fade ms` (`crossfadeTime`, or `DECLICK`), `Start Pot Imm` (`startPotImmediate`) and `Start CV Imm` (`startCVImmediate`) when you choose the root with Load. A preset keeps its own values. Other keys are ignored.
+- **SETTINGS.TXT** in the root, from a Radio Music card, sets three controls when you choose the root with Load. A preset keeps its own values. Other keys are ignored.
+
+  | Key | Sets |
+  |-|-|
+  | `crossfadeTime` or `DECLICK` | Fade ms |
+  | `startPotImmediate` | Start Pot Imm |
+  | `startCVImmediate` | Start CV Imm |
 
 Stations stream from the card, so their length is unlimited.
 
 ## Controls
+
+The pages form three groups: deck A, deck B, and the global `mix` and `settings` pages ([Using](../../docs/USING.md#buttons)). A long `PG+` goes to `mix`; a long `PG-` returns.
 
 | Page | Encoder 1 | Encoder 2 | Encoder 3 | Encoder 4 |
 |-|-|-|-|-|
@@ -35,13 +52,13 @@ Stations stream from the card, so their length is unlimited.
 | mix | A/B | Route | Raw Rate | |
 | settings | Fade ms | Start Pot Imm | Start CV Imm | |
 
-- **Station**: the tuning dial, across the bank. A clean move switches once the dial has rested 180 ms. With Static at 0.15 or above, it switches at once.
+- **Station**: the tuning dial, across the bank. With Static below 0.15, the station switches once the dial has rested 180 ms. At 0.15 or above, it switches at once.
 
 - **Start**: offset into the station, applied on the next switch or reset. With Start Pot Imm or Start CV Imm on, moving the knob or the CV jumps there at once.
 
 - **Speed**: varispeed in octaves, -2 to +2. Radio Music has none.
 
-- **Static**: tuning noise between stations, and its level on a switch.
+- **Static**: the level of tuning noise. Between two stations on the dial, only static plays. A switch to a station starts with a 0.1 s burst of static.
 
 - **A/B**: crossfade between the decks.
 
@@ -51,18 +68,17 @@ Stations stream from the card, so their length is unlimited.
 
 - Buttons 1 and 2 reset deck A and deck B: playback jumps to Start.
 
-- Up and Down step through the pages. A long Down jumps to the first page of the next group, in the order deck A, deck B, the global pages, and round; a long Up to the previous group. A long Right (Prog +) goes to the global pages, and a long Left (Prog -) back.
+## Jacks
 
-## I/O
+| In | Name | Does |
+|-|-|-|
+| 1 | `A Station` | added to the dial; 5 V sweeps the whole bank |
+| 2 | `A Start` | added to Start; 5 V is the whole station |
+| 3 | `A Speed` | V/oct, added to Speed |
+| 4 | `A Reset` | a rising edge above 2.5 V resets the deck |
+| 5-8 | `B Station`, `B Start`, `B Speed`, `B Reset` | as 1-4, for deck B |
 
-| Input | |
-|-|-|
-| A Station, B Station | added to the dial; 5 V sweeps the whole bank |
-| A Start, B Start | added to Start; 5 V is the whole station |
-| A Speed, B Speed | V/oct, added to Speed |
-| A Reset, B Reset | a rising edge above 2.5 V resets the deck |
-
-| Output | |
-|-|-|
-| Out L, Out R | the mix |
-| A Out, B Out | each deck, after Level, before the crossfade and route |
+| Out | Name | Carries |
+|-|-|-|
+| 1, 2 | `Out L`, `Out R` | the mix |
+| 3, 4 | `A Out`, `B Out` | each deck, after Level, before the crossfade and route |

@@ -18,9 +18,9 @@ A program on the card is the fastest to try: no build, and Load swaps it in. A m
 
 | Path | What | Used by |
 |-|-|-|
-| `ssp-sdk/` | Percussa's `SSPApi.h`: the C entry points Synthor calls | every plugin |
-| `plugins/common/` | TheTechnobear's framework: `BaseProcessor` (JUCE `AudioProcessor` plus SSP glue), views, editors, controls, the file browser; `SSPApi.h` exports a `PluginProcessor` | every plugin |
-| `plugins/common/engine/` | the engine layer: `Engine`, `EngineProcessor`, `EngineEditor`, and the Faust and script hosts on top | all but `sfct`, `rack`, `sapf` and `ttyp` |
+| `ssp-sdk/` | Percussa's `Percussa.h`: the C entry points Synthor calls | every plugin |
+| `plugins/common/` | TheTechnobear's framework: `BaseProcessor` (JUCE `AudioProcessor` plus SSP glue), views, editors, controls, the file browser; `SSPApi.h` requires a class named `PluginProcessor` | every plugin |
+| `plugins/common/engine/` | the engine layer: `Engine`, `EngineProcessor`, `EngineEditor`, and the Faust and script hosts on top | all but `sfct`, `rack` and `ttyp` |
 | `examples/` | `svca` and `tremolo`, the guides' worked examples; built and tested on the host, never shipped | the guides |
 
 [dev/engines.md](dev/engines.md#layout) lists every file in the engine layer. Its three core types:
@@ -31,7 +31,7 @@ A program on the card is the fastest to try: no build, and Load swaps it in. A m
 
 - `EngineEditor` and `EngineMiniEditor`: the full-screen editor and rack's compact one. Both draw `ParamPage`s: four controls a page, one per encoder.
 
-`FaustProcessor` builds the parameters, jacks and pages from a compiled Faust kernel. `ScriptProcessor` hosts a program loaded from the card, with controls `p1`..`p16`; `csnd`, `chuk`, `fstr`, `scsy` and `alda` use it.
+`FaustProcessor` builds the parameters, jacks and pages from a compiled Faust kernel. `ScriptProcessor` hosts a program loaded from the card, with controls `p1`..`p16`; `csnd`, `chuk`, `fstr`, `scsy`, `sapf` and `alda` use it.
 
 ## Tools
 
@@ -47,12 +47,28 @@ A program on the card is the fastest to try: no build, and Load swaps it in. A m
 | `make install [MOD=name]` (`scripts/install.sh`) | copies built plugins, or the one named, to the mounted card's `BOOT/plugins` |
 | `make deploy`, `make deploy-mod MOD=name` | copy all plugins, or one, to `SSP_HOST` over `scp`; `deploy-mod` refuses while Synthor runs |
 | `make install-faust`, `make install-scsy`, `make install-sapf`, `make install-fsyn`, `make install-brks`, `make install-presets` | the Faust libraries and `fstr` examples; the UGen plugins and `scsy` examples; sapf's prelude and examples; `fsyn`'s soundfont; `brks`'s default banks; rack presets |
-| `make midisend` (`tools/midisend`) | a MIDI input for tests, without a keyboard: builds it, copies it to `SSP_HOST`'s `/tmp` and starts it. Choose `midisend` as a module's MIDI input in its general panel (RS + LS), then play it over ssh: `ssh root@192.168.1.6 'echo "on 60 100" > /tmp/midisend'`, and `off 60`. A reboot removes it |
-| `make mididump` (`tools/mididump`) | prints the notes and controllers of the SSP's MIDI ports whose names contain a word: builds it and copies it to `SSP_HOST`'s `/tmp`. `ssh root@192.168.1.6 /tmp/mididump gseq` shows what `gseq` sends; `LPMiniMK3` what the Launchpad sends. A reboot removes it |
+| `make midisend` (`tools/midisend`) | a MIDI input for tests, without a keyboard: builds it, copies it to `SSP_HOST`'s `/tmp` and starts it. Choose `midisend` as a module's MIDI input in its general panel (LS + RS), then play it over ssh: `ssh $SSP_HOST 'echo "on 60 100" > /tmp/midisend'`, and `off 60`. A reboot removes it |
+| `make mididump` (`tools/mididump`) | prints the notes and controllers of the SSP's MIDI ports whose names contain a word: builds it and copies it to `SSP_HOST`'s `/tmp`. `ssh $SSP_HOST /tmp/mididump gseq` shows what `gseq` sends; `LPMiniMK3` what the Launchpad sends. A reboot removes it |
+| `scripts/ssp_card_image.py` | image a whole SD card, or write an image to one: see [Card images](#card-images) |
 | `plugins/scsynth/tests/run_on_ssp.sh` | cross-compiles the `scsy` tests and runs them on the SSP over ssh |
 | `tools/py2rack` | writes, checks and decodes rack presets off the device. See its [README](../tools/py2rack/README.md) |
 | `make release`, `make publish` | the release package and its GitHub release. See [BUILDING.md](BUILDING.md) |
 
+
+### Card images
+
+`scripts/ssp_card_image.py` copies a whole SSP card to a compressed file, and writes such a file to another card. It runs as root. Check the device name with `lsblk` first: `write` overwrites the whole device.
+
+```
+sudo python3 scripts/ssp_card_image.py create /dev/sdX card.img.zst
+sudo python3 scripts/ssp_card_image.py write card.img.zst /dev/sdX
+```
+
+- `create` zeroes the free space of BOOT and rootfs first, so it compresses away; `--no-zero` skips this. rootfs uses `zerofree` when installed.
+- The image runs from sector 0 to the end of the last partition, so it holds the boot loader.
+- The suffix picks the compressor: `.zst`, `.xz` or `.gz`. A sidecar `card.img.zst.json` holds the size and SHA-256.
+- `write` refuses a smaller card, checks the written card against the SHA-256, and moves the backup GPT to the card's end.
+- `--yes` skips the questions.
 ## Naming
 
 Synthor lists a plugin only if its uid spells its name. So `PRODUCT_NAME` has at most four characters, and `PLUGIN_CODE` is the same name in capitals: `trem`/`TREM`. [dev/engines.md](dev/engines.md#naming) has the evidence.

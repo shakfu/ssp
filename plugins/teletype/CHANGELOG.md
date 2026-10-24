@@ -2,7 +2,7 @@
 
 ttyp follows [semantic versioning](https://semver.org). The version is set in `CMakeLists.txt` (`project(TELETYPE VERSION ...)`).
 
-## [Unreleased]
+## [0.1.1] - 2026-10-24
 
 - An empty audio block read the sample before the input buffer.
 

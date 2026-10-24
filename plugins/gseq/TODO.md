@@ -18,3 +18,8 @@ Open:
 ## Launchpad Mini MK3
 
 - [ ] Design 2026-10-23: docs/dev/gseq-launchpad.md. All decisions made; step 1 is a device check.
+- [ ] Launchpad X, velocity-sensitive key pads: built 2026-10-24, device steps 36b-36c pending.
+
+## Piano roll mode
+
+- [x] Built 2026-10-23: docs/dev/gseq-roll.md; usage in the README (Roll mode). Device test: docs/dev/gseq-device-test.md steps 37-45.

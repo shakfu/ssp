@@ -1,6 +1,6 @@
 # fsyn: device test
 
-`plugins/fsyn/tests/run_on_ssp.sh` passed on 2026-10-18, beside Synthor: the engine tests with TimGM6mb, and the benchmark of TimGM6mb, GeneralUser-GS and FluidR3_GM in [plugins/fsyn/README.md](../../plugins/fsyn/README.md#soundfonts). The steps below test the module in Synthor.
+`plugins/fsyn/tests/run_on_ssp.sh` passed on 2026-10-18, beside Synthor: the engine tests with TimGM6mb, and the benchmark of TimGM6mb, GeneralUser-GS and FluidR3_GM in [plugins/fsyn/README.md](../../plugins/fsyn/README.md#soundfonts). In the benchmark, load time is from the card with a cold cache; dsp% is one core's share for 8 channels of held chords plus drums, reverb and chorus on. SF3 fonts do not load because the build leaves out libsndfile, which decodes them. The steps below test the module in Synthor.
 
 2026-10-18, user, in Synthor with `alda`: FluidR3_GM plays at 4-5% DSP average, 9-10% peak, and sounds best; GeneralUser-GS second, at the same cost; TimGM6mb costs the same and sounds worst. Steps 2-3 pass on that report; the others are not yet run.
 

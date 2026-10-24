@@ -7,7 +7,7 @@ A two-track rack patch, and the files it was built from.
 | `two_track.json` | the patch, hand-written; rack loads this directly |
 | `two_track` | the same patch in rack's binary format, from `py2rack.py encode` |
 
-The two presets describe the same patch by different routes, which makes them a differential test: load each and the resulting graph should be identical.
+Both files describe the same patch. Loading either should give the same graph, so a difference between them points to a bug in `encode` or in rack.
 
 ## The patch
 
@@ -21,9 +21,9 @@ Track 1 is a beat. `omod` runs as a square-wave LFO and its main and sub outputs
 
 All three voices go to both track outputs. Everything else on `drum` stays at its default, which is enough to make sound.
 
-`omod` keeps `Lfo` on, which multiplies `Freq` by 0.01 (`omod/Source/PluginProcessor.cpp`). `Freq` of 800 is therefore 8 Hz. `drum` triggers on a rising edge above 0.2, so a slower main oscillator gives correspondingly sparser hits: at `Freq` 50 the snare fires once every two seconds.
+`omod` keeps `Lfo` on, so `Freq` 800 is 8 Hz ([omod as a clock](../../../../presets/README.md#omod-as-a-clock)). `drum` triggers on a rising edge above 0.2. A slower main oscillator gives fewer hits: at `Freq` 50 the snare fires once every two seconds.
 
-A drum voice only runs when both its trigger input and its output are wired. Connecting a trigger alone produces silence, not a silent voice.
+A drum voice runs only when its trigger input and its output are both wired.
 
 Track 2 is a stereo `clds` on the track inputs, returning to the outputs at half gain.
 
@@ -37,7 +37,7 @@ Wires use channel names, so `"1:Main -> 2:HH1 Trig"` says what it does. Indices 
 
 rack itself has no such limit: it resolves names against the loaded plugin, so `Sub A Ratio` works when the JSON is loaded on the device. The ids are here so the same file also works through `encode`.
 
-Channel names are the same story in reverse: `encode` checks them against the manifest, and every module in this patch declares its channels as a literal array, so all of them resolve.
+`encode` checks channel names against the manifest. Every module in this patch declares its channels as a literal array, so all names resolve.
 
 ## Rebuilding
 
@@ -50,18 +50,11 @@ python3 tools/py2rack/py2rack.py encode \
     --modules tools/py2rack/modules.json
 ```
 
-The manifest is what lets `encode` check the parameter and channel names. Drop `--modules` and nothing is checked, but the preset must then give every parameter as an id and every channel as an index.
+The manifest lets `encode` check parameter and channel names. Without `--modules`, give every parameter as an id and every channel as an index.
 
 ## Using it
 
-Copy either file into `rack_presets` on the SD card's BOOT partition. With the card mounted:
-
-    cp tools/py2rack/examples/two_track/two_track.json /media/$USER/BOOT/rack_presets/
-    cp tools/py2rack/examples/two_track/two_track      /media/$USER/BOOT/rack_presets/
-
-Then load from rack's options page. rack decides by content, not by extension: a file starting with `{` is parsed as JSON, anything else as the binary format.
-
-The filename is the preset name, so the binary one carries no extension.
+Copy either file to `BOOT/rack_presets` and load it from rack's options page; see [Loading](../../../../plugins/rack/README-json-presets.md#loading). The filename is the preset name, so the binary one has no extension.
 
 ## Reading it back
 

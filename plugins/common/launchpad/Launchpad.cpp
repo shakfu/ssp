@@ -1,15 +1,16 @@
 #include "Launchpad.h"
 
-#include <iterator>
-
 namespace ssp::launchpad {
 
 namespace {
-const uint8_t HEADER[] = { 0xF0, 0x00, 0x20, 0x29, 0x02, 0x0D };
 constexpr uint8_t PROGRAMMER = 0x0E, LIGHT = 0x03;
+
+void header(uint8_t id, std::vector<uint8_t>& out) {
+    out.insert(out.end(), { 0xF0, 0x00, 0x20, 0x29, 0x02, id });
+}
 }  // namespace
 
-bool decode(const uint8_t* data, int size, Event& e) {
+bool decode(const Model& m, const uint8_t* data, int size, Event& e) {
     if (size < 3) return false;
     const uint8_t status = data[0], i = data[1];
     const bool note = status == 0x90 || status == 0x80, cc = status == 0xB0;
@@ -20,13 +21,15 @@ bool decode(const uint8_t* data, int size, Event& e) {
     if (note != pad) return false;  // pads send notes, the keys round them CCs
     e.x = x, e.y = y;
     e.down = status != 0x80 && data[2] > 0;
+    e.velocity = pad && m.velocity && e.down ? data[2] : 0;
     return true;
 }
 
-std::vector<uint8_t> programmerMode(bool on) {
-    std::vector<uint8_t> m(std::begin(HEADER), std::end(HEADER));
-    m.insert(m.end(), { PROGRAMMER, uint8_t(on ? 1 : 0), 0xF7 });
-    return m;
+std::vector<uint8_t> programmerMode(const Model& m, bool on) {
+    std::vector<uint8_t> out;
+    header(m.id, out);
+    out.insert(out.end(), { PROGRAMMER, uint8_t(on ? 1 : 0), 0xF7 });
+    return out;
 }
 
 int Surface::update(const Frame& next, std::vector<uint8_t>& out) {
@@ -36,7 +39,7 @@ int Surface::update(const Frame& next, std::vector<uint8_t>& out) {
             const Led& l = next.at(x, y);
             if (known_ && l == shown_.at(x, y)) continue;
             if (sent++ == 0) {
-                out.insert(out.end(), std::begin(HEADER), std::end(HEADER));
+                header(id_, out);
                 out.push_back(LIGHT);
             }
             out.insert(out.end(), { uint8_t(l.type), uint8_t(index(x, y)), l.a });

@@ -602,10 +602,11 @@ def gseq_row(length=16, division=3, channel=0, voice=0, vel_cv=False, mute=False
     return " ".join(f"{w:x}" for w in words)
 
 
-def gseq_preset(path, rows):
+def gseq_preset(path, rows, params=None):
     custom = " ".join(f'row{r}="{w}"' for r, w in rows.items())
-    xml = ('<?xml version="1.0" encoding="UTF-8"?> <VST><state/><MIDI MIDI_IN="" MIDI_OUT="" MIDI_CH="0" '
-           f'MIDI_NOTE_IN="0"><Automation/></MIDI><CUSTOM pattern="1" {custom}/></VST>').encode() + b"\0"
+    state = "".join(f'<PARAM id="{k}" value="{v}"/>' for k, v in (params or {}).items())
+    xml = (f'<?xml version="1.0" encoding="UTF-8"?> <VST><state>{state}</state><MIDI MIDI_IN="" MIDI_OUT="" '
+           f'MIDI_CH="0" MIDI_NOTE_IN="0"><Automation/></MIDI><CUSTOM pattern="1" {custom}/></VST>').encode() + b"\0"
     path.write_bytes(struct.pack("<II", 0x21324356, len(xml)) + xml)
     return path
 
@@ -638,6 +639,22 @@ def test_gseq_default_rows(plugins, tmp_path):
     assert 'row1="1216f ' in state and 'row4="1846f ' in state  # channel k, voice k, velocity CV
     assert 'row3="1636f ' in state  # unnamed rows keep their defaults, voices included
     assert 'row5="56f ' in state and 'row8="86f ' in state  # MIDI only
+
+
+def test_gseq_roll(plugins, tmp_path):
+    """Mode roll (docs/dev/gseq-roll.md): every row takes row 1's channel, length, division and velocity CV,
+    rows 1-4 voices 1-4; the state keeps the mode and the roll draws its notes."""
+    row1 = gseq_row(length=8, division=2, channel=3, voice=1, vel_cv=True, steps={0: (60, 127, 7)})
+    preset = gseq_preset(tmp_path / "g.state", {1: row1, 6: gseq_row(channel=9, voice=0)}, {"mode": 1})
+    frame = tmp_path / "g.bgra"
+    levels, state = run(plugins, "gseq", "prepare", 48000, 128, "load", preset, "run", 0.05, 128, "level", 0,
+                        "render", frame, "state")
+    assert 'id="mode" value="1' in state
+    assert f'row1="{row1}"' in state
+    assert 'row2="14347 ' in state and 'row4="18347 ' in state  # voices 2 and 4
+    assert 'row6="10347 ' in state  # channel 3, length 8, division 2, no voice
+    assert levels[0][1] == 1.0  # the note plays on voice 1
+    assert amber_in(frame, 150, 36, 1526, 370) > 0  # the note's cell in the roll
 
 
 def test_teletype(plugins, tmp_path, monkeypatch):

@@ -31,7 +31,8 @@ uint32_t GseqEngine::Step::pack() const {
            uint32_t(std::min<int>(duration, DURATIONS - 1)) << 15;
 }
 
-// length - 1: bits 0-4; division: 5-7; channel: 8-12; voice: 13-15; velocity CV: 16; mute: 17; gated: 18
+// length - 1: bits 0-4; division: 5-7; channel: 8-12; voice: 13-15; velocity CV: 16; mute: 17; gated: 18;
+// mono: 19
 GseqEngine::Row GseqEngine::Row::unpack(uint32_t w) {
     Row r;
     r.length = uint8_t(bits(w, 0, 5) + 1);
@@ -41,13 +42,14 @@ GseqEngine::Row GseqEngine::Row::unpack(uint32_t w) {
     r.velocityCv = bits(w, 16, 1);
     r.mute = bits(w, 17, 1);
     r.velocityGated = bits(w, 18, 1);
+    r.mono = bits(w, 19, 1);
     return r;
 }
 
 uint32_t GseqEngine::Row::pack() const {
     return uint32_t(std::clamp<int>(length, 1, STEPS) - 1) | uint32_t(std::min<int>(division, DIVISIONS - 1)) << 5 |
            uint32_t(std::min<int>(channel, 16)) << 8 | uint32_t(std::min<int>(voice, VOICES)) << 13 |
-           uint32_t(velocityCv) << 16 | uint32_t(mute) << 17 | uint32_t(velocityGated) << 18;
+           uint32_t(velocityCv) << 16 | uint32_t(mute) << 17 | uint32_t(velocityGated) << 18 | uint32_t(mono) << 19;
 }
 
 GseqEngine::GseqEngine() {
@@ -126,7 +128,7 @@ void GseqEngine::stopAll(bool replay) {
     if (replay && recordState_.load(std::memory_order_relaxed) != IDLE) {  // a take restarts from step 1
         recordState_.store(ARMED, std::memory_order_relaxed);
         take_ = 0;
-        written_ = 0;
+        for (auto& w : written_) w = 0;
     }
 }
 
@@ -139,13 +141,13 @@ void GseqEngine::playIn(int note, int velocity) {
 }
 
 void GseqEngine::startRecording(double at) {
-    const int r = cursorRow();
+    const int r = roll() ? 0 : cursorRow();  // roll: every row, which share row 1's length and division
     const Row row = this->row(r);
     const double tps = double(ssp::engine::Clock::TICKS_PER_QUARTER) / DIVISION[row.division];
     const auto k = int64_t(std::floor(at / tps));
     take_ = (k / row.length + 1) * row.length;  // the row's next pass
     takeLength_ = row.length;
-    written_ = 0;
+    for (auto& w : written_) w = 0;
     recordRow_.store(r, std::memory_order_relaxed);
     recordState_.store(ARMED, std::memory_order_relaxed);
 }
@@ -159,7 +161,7 @@ void GseqEngine::takeNotes() {
     } else if (toggled && !stepping) {
         startRecording(at);
     }
-    if (recordState_.load(std::memory_order_relaxed) == ARMED &&
+    if (!roll() && recordState_.load(std::memory_order_relaxed) == ARMED &&
         cursorRow() != recordRow_.load(std::memory_order_relaxed))
         startRecording(at);  // the cursor moved to another row before the take
     NoteIn k;
@@ -198,17 +200,27 @@ void GseqEngine::keyDown(const NoteIn& k, double at) {
         h->chord = kr;
         h->col = int(kr - take_);
         h->written = kr >= take_ && kr < take_ + takeLength_;
-        if (h->written) written_ |= 1u << h->col;
+        if (h->written && !roll()) written_[base] |= 1u << h->col;
     }
     int before = 0;  // the chord's notes already held: this one echoes on the row below theirs
     for (const auto& o : held_)
         if (&o != h && o.active && o.chord == h->chord) before++;
-    h->echo = (base + before) % ROWS;
+    h->echo = roll() ? echoRow(h->note) : (base + before) % ROWS;
     Step s;
     s.on = true, s.note = h->note, s.velocity = std::max<uint8_t>(h->velocity, 1);
     start(h->echo, row(h->echo), s, at);
     notes_[h->echo].end = std::numeric_limits<double>::infinity();  // until its key is up
-    if (h->written) place(h->chord, base);
+    if (h->written && roll()) placeRoll(*h);
+    else if (h->written) place(h->chord, base);
+}
+
+void GseqEngine::placeRoll(Held& h) {
+    Step s;
+    s.on = true, s.note = h.note, s.velocity = std::max<uint8_t>(h.velocity, 1);
+    s.duration = durationIndex(samples_ - h.since, row(0));
+    h.row = addNote(h.col, s);
+    h.written = h.row >= 0;
+    if (h.written && h.chord != -1) written_[h.row] |= 1u << h.col;  // a take's: kept, not played this pass
 }
 
 void GseqEngine::place(int64_t chord, int base) {
@@ -244,7 +256,9 @@ void GseqEngine::keyUp(int note) {
     for (auto& f : held_)
         if (f.active && f.note == note) h = &f;
     if (!h) return;
-    if (h->written) {
+    if (h->written && roll()) {
+        setNoteDuration(h->col, h->note, durationIndex(samples_ - h->since, row(h->row)));
+    } else if (h->written) {
         Step s = step(h->row, h->col);
         if (s.on && s.note == h->note) {
             s.duration = durationIndex(samples_ - h->since, row(h->row));
@@ -261,6 +275,139 @@ void GseqEngine::keyUp(int note) {
     setCursor(r, (cursorCol() + 1) % row(r).length);
 }
 
+void GseqEngine::setRoll(bool on) {
+    if (roll_.exchange(on) == on || !on) return;
+    Row base = row(0);
+    base.mute = false;
+    const bool cv = base.voice != 0;
+    for (int r = 0; r < ROWS; r++) {  // free the voices first, so none is refused as taken
+        Row x = row(r);
+        x.voice = 0;
+        setRow(r, x);
+    }
+    for (int r = 0; r < ROWS; r++) {
+        Row x = base;
+        x.voice = uint8_t(cv && r < VOICES ? r + 1 : 0);
+        setRow(r, x);
+    }
+}
+
+void GseqEngine::setMono(bool on) {
+    for (int r = 0; r < ROWS; r++) {
+        auto x = row(r);
+        x.mono = on;
+        setRow(r, x);
+    }
+    if (!on) return;
+    for (int s = 0; s < STEPS; s++) {
+        int keep = -1;  // row 1's note, else the lowest row's
+        for (int r = 0; r < ROWS && keep < 0; r++)
+            if (step(r, s).on) keep = r;
+        if (keep < 0) continue;
+        const Step st = step(keep, s);
+        for (int r = 1; r < ROWS; r++) {
+            Step x = step(r, s);
+            x.on = false;
+            setStep(r, s, x);
+        }
+        setStep(0, s, st);
+    }
+}
+
+int GseqEngine::findNote(int s, int p) const {
+    for (int r = 0; r < ROWS; r++) {
+        if (s >= row(r).length) continue;
+        const Step st = step(r, s);
+        if (st.on && st.note == p) return r;
+    }
+    return -1;
+}
+
+bool GseqEngine::fits(int r, int s, int p, uint8_t duration, int rule) const {
+    const Row row = this->row(r);
+    const int len = row.length;
+    if (s >= len || step(r, s).on) return false;
+    auto eighths = [&](uint8_t d) { return std::min<int>(DURATION_EIGHTHS[d], len * 8); };
+    int back = 0;  // the steps since the row's last note before s, which a note at s would retrigger
+    Step prev;
+    for (int t = 1; t < len && !back; t++)
+        if ((prev = step(r, (s - t + len) % len)).on) back = t;
+    const bool covered = back && eighths(prev.duration) > back * 8;
+    if (rule == 1) return covered && prev.note == p;
+    if (covered) return false;
+    if (rule == 3) return true;
+    int ahead = len;  // the steps to the row's next note
+    for (int t = 1; t < len; t++)
+        if (step(r, (s + t) % len).on) {
+            ahead = t;
+            break;
+        }
+    return eighths(duration) <= ahead * 8;
+}
+
+int GseqEngine::placeRow(int s, int p, uint8_t duration, bool strict) const {
+    for (int rule = 1; rule <= (strict ? 2 : 3); rule++)
+        for (int r = 0; r < ROWS; r++)
+            if (fits(r, s, p, duration, rule)) return r;
+    return -1;
+}
+
+int GseqEngine::addNote(int s, Step st) {
+    if (mono()) {  // the step's one note, replaced
+        st.on = true;
+        setStep(0, s, st);
+        return 0;
+    }
+    int r = findNote(s, st.note);
+    if (r < 0) r = placeRow(s, st.note, st.duration, false);
+    if (r < 0) return -1;
+    st.on = true;
+    setStep(r, s, st);
+    return r;
+}
+
+int GseqEngine::removeNote(int s, int p) {
+    const int r = findNote(s, p);
+    if (r < 0) return -1;
+    Step st = step(r, s);
+    st.on = false;
+    setStep(r, s, st);
+    return r;
+}
+
+int GseqEngine::setNoteDuration(int s, int p, uint8_t duration) {
+    const int r = findNote(s, p);
+    if (r < 0) return -1;
+    Step st = step(r, s);
+    if (mono()) {  // its row is row 1 whatever it overlaps: the next note cuts it, as on a mono synth
+        st.duration = duration;
+        setStep(r, s, st);
+        return r;
+    }
+    st.on = false;  // off while the rows are tested, so its own row is judged without it
+    setStep(r, s, st);
+    int to = r;  // placeRow tries rule 1 first: a note that retriggers its own pitch stays on that row
+    if (!fits(r, s, p, duration, 2)) {
+        const int free = placeRow(s, p, duration, true);
+        if (free >= 0) to = free;
+    }
+    st.on = true;
+    st.duration = duration;
+    setStep(to, s, st);
+    return to;
+}
+
+int GseqEngine::echoRow(int pitch) const {
+    if (mono()) return 0;
+    for (int r = 0; r < ROWS; r++)
+        if (notes_[r].sounding && notes_[r].note == pitch) return r;
+    for (int r = 0; r < ROWS; r++) {
+        const Row x = row(r);
+        if (!notes_[r].sounding && (x.channel || x.voice)) return r;
+    }
+    return 0;
+}
+
 void GseqEngine::process(const float* const* in, float* const* out, int n) {
     using ssp::engine::Clock;
     clock_.follow(source_, sampleRate_);
@@ -274,6 +421,7 @@ void GseqEngine::process(const float* const* in, float* const* out, int n) {
     takeNotes();
     Row rows[ROWS];
     for (int r = 0; r < ROWS; r++) rows[r] = row(r);
+    const bool rolling = roll();
     for (int i = 0; i < n; i++) {
         if (clock_.resetInput(in[RESET_INPUT][i])) stopAll(true);
         clock_.clockInput(in[CLOCK_INPUT][i]);
@@ -288,7 +436,7 @@ void GseqEngine::process(const float* const* in, float* const* out, int n) {
                 const int s = int((k % row.length + row.length) % row.length);
                 playing_[r].store(s, std::memory_order_relaxed);
                 bool taken = false;  // written this take: kept, and not played this pass
-                if (r == recordRow_.load(std::memory_order_relaxed)) taken = takeStep(r, k, s);
+                if (rolling || r == recordRow_.load(std::memory_order_relaxed)) taken = takeStep(r, k, s);
                 const Step st = step(r, s);
                 if (st.on && !row.mute && !taken) start(r, row, st, double(k) * tps);
             }
@@ -322,7 +470,7 @@ bool GseqEngine::takeStep(int r, int64_t k, int s) {
         recordState_.store(IDLE, std::memory_order_relaxed);
         return false;
     }
-    if (written_ >> (k - take_) & 1u) return true;
+    if (written_[r] >> (k - take_) & 1u) return true;
     Step st = step(r, s);
     if (st.on) {  // replace: a step no note landed on is cleared
         st.on = false;

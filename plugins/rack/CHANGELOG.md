@@ -1,8 +1,8 @@
 # Changelog
 
-rack is a fork of TheTechnobear's trax 1.0.1 and numbers its own versions, independent of trax's, and follows [semantic versioning](https://semver.org) from 0.2.0, its first release. The version is set in `CMakeLists.txt` (`project(RACK VERSION ...)`) and shown on the SSP. Design notes: [docs/dev/rack-design.md](../../docs/dev/rack-design.md).
+rack is a fork of TheTechnobear's trax 1.0.1 and numbers its own versions, independent of trax's, and follows [semantic versioning](https://semver.org) from 0.2.0, its first release. The version is set in `CMakeLists.txt` (`project(RACK VERSION ...)`) and shown on the SSP.
 
-## [Unreleased]
+## [0.2.1] - 2026-10-24
 
 - A wire in a Synthor patch or binary preset naming a module slot out of range indexed past the module array and crashed Synthor; it is dropped. JSON presets were already checked.
 

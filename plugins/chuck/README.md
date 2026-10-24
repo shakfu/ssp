@@ -1,51 +1,94 @@
-# chuck
+# chuk
 
-`chuck` runs a [ChucK](https://chuck.stanford.edu) program (`.ck`) on the SSP. The program gets eight audio inputs and outputs, sixteen controls, and MIDI notes.
+`chuk` runs a [ChucK](https://chuck.stanford.edu) program (`.ck`). The program gets eight audio inputs and outputs, sixteen controls, and MIDI notes.
 
-Ported from the [`chuck` engine](https://github.com/shakfu/sk-engines/tree/main/src/engine/chuck) in [sk-engines](https://github.com/shakfu/sk-engines); see [docs/dev/engines.md](../../docs/dev/engines.md).
+Ported from the [`chuck` engine](https://github.com/shakfu/sk-engines/tree/main/src/engine/chuck) in [sk-engines](https://github.com/shakfu/sk-engines).
 
 ## Install
 
-Copy `chuk.so` to the `plugins` folder on the SD card. The module is `chuk`: the SSP lists a module only if its id spells its name (see [docs/dev/engines.md](../../docs/dev/engines.md)). ChucK is linked in; nothing else is needed. Put programs anywhere on the card; the browser opens at `/media/BOOT/chuck`.
+Copy `chuk.so` to `BOOT/plugins` (from source: `make install MOD=chuk`, to a mounted card) and restart the SSP. See [Using](../../docs/USING.md#installing).
+
+The example programs go in `BOOT/chuck`, where the browser opens. A release has them there. From source, copy `examples/` to `BOOT/chuck` by hand. Programs can sit anywhere on the card.
+
+A USB keyboard edits the code; it is optional ([Keyboard](#keyboard)).
+
+## First use
+
+1. Add `chuk` and patch Out 1 and Out 2 to outputs. Synthor runs a module only while a jack is patched ([Using](../../docs/USING.md#a-module-runs-only-while-a-jack-is-patched)). The built-in drone plays.
+2. Press Load (button 5), select `filter.ck`, and press Load again.
+3. Patch stereo audio to In 1 and In 2.
+4. Turn encoder 1 (`cutoff`) up from 40 Hz to open the filter, then encoder 2 for resonance.
+
+[Walkthrough: `filter.ck`](#walkthrough-filterck) explains each step.
+
+## The language
+
+### What it is
+
+ChucK is strongly timed: a program advances time itself, by chucking a duration to `now`. A program is a `.ck` file of statements that run top to bottom as one shred, ChucK's name for a thread. `=>` (chuck) connects unit generators, such as `adc => LPF => dac`, and assigns values. See the [language reference](https://chuck.stanford.edu/doc/reference/) and, for beginners, [Learning ChucK](https://chuck.stanford.edu/doc/learn/).
+
+### A first program
+
+A mono lowpass filter from In 1 to Out 1, with its cutoff on encoder 1:
+
+```chuck
+// @p1 cutoff 40 20000 Hz log
+global float p1;                       // encoder 1, in Hz
+
+adc.chan(0) => LPF f => dac.chan(0);   // In 1 to Out 1
+
+while (true) {
+    Math.max(p1, 20) => f.freq;        // p1 is 0 until the module sets it
+    10::ms => now;
+}
+```
+
+- `// @p1 cutoff 40 20000 Hz log` names encoder 1 and sets its range.
+- `global float p1;` receives that control, in Hz.
+- `adc.chan(0)` is In 1; `dac.chan(0)` is Out 1.
+- `10::ms => now` advances time 10 ms, then the loop reads `p1` again.
+
+### How it maps to the SSP
+
+| SSP | In ChucK |
+|-|-|
+| Audio in | `adc.chan(0)` .. `adc.chan(7)` are In 1..In 8. [Audio in](#audio-in) |
+| Audio out | `dac.chan(0)` .. `dac.chan(7)` are Out 1..Out 8; `=> dac` feeds all. [Audio out](#audio-out) |
+| Encoders | `global float p1;` .. `p16`, written every 10 ms. [Labels and ranges](#labels-and-ranges) |
+| CV in | `cv N` on an `@pN` line, or `adc.chan(N-1)` / 0.2 for volts. [CV in](#cv-in) |
+| CV out | `Step` or a UGen into `dac.chan(N)`, 0.2 per volt. [CV out](#cv-out) |
+| Gates and triggers | in: compare `.last()` of an `adc.chan`; out: `1 => step.next` (5 V) |
+| MIDI in | `global int midiNotes[128]`, `midiCount`, `Event midiEvent`; notes only. [MIDI](#midi) |
+| MIDI out | `MidiOut` opens an ALSA device itself. [MIDI](#midi) |
+| Clock and tempo | n/a: no clock from Synthor; patch one to an input |
+| Sample rate and block size | the host's rate (48 kHz), as `second / samp`; time is sample-accurate within a block |
+| Files on the card | `me.dir()` is the program's folder; `@import` resolves there |
+| Not available on the SSP | `KBHit`, `Hid`, chugins; `<<< >>>` and `chout` print nowhere. [The program](#the-program) |
 
 ## Use
 
-Load (button 5) opens a browser. Choose a `.ck` and press Load again. The screen shows the file, and the compile error if there is one. A program that fails to compile leaves the previous one running. With no program, a built-in drone plays: pitch, level and cutoff.
+Load (button 5) opens a browser. Choose a `.ck` and press Load again. The screen shows the file, and the compile error if there is one. A program that fails to compile leaves the previous one running. With no program, a built-in drone plays, with controls pitch, level and cutoff.
 
-Audio stops while a program compiles. The preset stores the file's path, not its contents, unless the code ran from the [keyboard](#keyboard).
+Audio stops while a program compiles.
+
+A preset stores the program as [Script modules](../../docs/script-editor.md#presets) describes; it does not store Ctrl-E shreds.
 
 ## Keyboard
 
-A USB keyboard, or port 7774 on 127.0.0.1 over ssh (`ssh -L 7774:127.0.0.1:7774 root@192.168.1.6`), edits the program as text. The first key typed opens the Code view; Code (button 6) or Esc returns to the pages. The keyboard goes to the keyboard module on screen, as for `sapf` and `ttyp`.
+The [shared editor](../../docs/script-editor.md) edits the program, on key port 7774. Ctrl-S on the built-in writes `BOOT/chuck/live.ck`. Ctrl-R does nothing. These keys differ:
 
 | Key | Does |
 |-|-|
-| Ctrl-Enter | compiles the whole code in place of the program; the file is unchanged |
-| Ctrl-S | writes the code to the program's file; for the built-in, to `BOOT/chuck/live.ck` |
-| Ctrl-O | opens the browser, as Load |
-| Ctrl-Shift-S | Save As: type a file name (beside the current file; the extension added if missing), Enter saves and makes it the program's file; an existing file needs a second Enter; Esc cancels |
-| Ctrl-L | empties the code view; again on the empty view, brings the text back |
-| Ctrl-E | runs the block around the cursor as a new shred beside the program: the lines up to blank lines outside brackets, strings and comments; on a blank line, the block above |
+| Ctrl-E | runs the block around the cursor as a new shred beside the program |
 | Ctrl-1 .. Ctrl-9, Ctrl-0 | removes Ctrl-E shred 1 to 10, numbered in the order added |
 | Ctrl-- | removes the newest Ctrl-E shred |
 | Ctrl-. | removes every shred, the program's too: silence until the next Ctrl-Enter |
-| Esc | returns to the pages |
-| arrows, Home, End, PageUp, PageDown | move; with Ctrl, Home and End go to the start and end |
 
-The code is coloured by syntax: types, keywords, numbers, strings, comments. Encoder 1 moves the cursor by rows, encoder 2 by columns. A held key repeats. Tab inserts spaces to the next multiple of 4. The layout is US. Relative paths in the code resolve next to the program's file. Controls keep their positions when the code runs and when Load opens a program.
+The code is coloured by syntax: types, keywords, numbers, strings, comments.
 
 The Code view lists the Ctrl-E shreds still running above the status line; a shred that ends leaves the list. Ctrl-Enter replaces the program and ends every shred. Up to 16 run at once.
 
-The preset stores the code last run, and the text when it holds an edit not yet run. It does not store Ctrl-E shreds.
-
 ## The program
-
-| | |
-|-|-|
-| controls | `global float p1;` .. `p16`, updated every 10 ms; see Labels and ranges |
-| audio and CV | see Inputs and outputs |
-| MIDI | notes from the general panel's input as globals; see MIDI. `MidiIn` and `MidiOut` also reach the SSP's ALSA devices directly |
-| files | `me.dir()` is the program's folder |
 
 - A new program replaces every shred, and every connection into `dac` and `blackhole`.
 
@@ -53,13 +96,13 @@ The preset stores the code last run, and the text when it holds an edit not yet 
 
 - A `public class` stays defined until the plugin is reloaded, so reloading a program that defines one fails.
 
-- `<<< >>>` and `chout` print nowhere.
+- `KBHit` and `Hid` are compiled out: their threads would outlive the module.
 
-- No `KBHit` or `Hid`: their threads would outlive the module, so they are compiled out.
+- Chugins do not load.
 
 ## MIDI
 
-Notes come from the MIDI input chosen in the general panel (RS + LS). A program reads them from three globals:
+Notes come from the MIDI input chosen in the general panel (LS + RS, see [Using](../../docs/USING.md#the-general-panel)). A program reads them from three globals:
 
 ```chuck
 global int midiNotes[128];   // note << 8 | velocity; velocity 0 is a note off
@@ -69,7 +112,7 @@ global Event midiEvent;      // broadcast after each note
 
 Wait on `midiEvent`, then read every note from the last count read up to `midiCount`; several can arrive between two wakes. Start from the current `midiCount`: the globals keep earlier programs' notes. `examples/midi.ck` does this. Once a note has arrived, the status panel counts them: `MIDI notes: 12`.
 
-`MidiIn` opens an ALSA device itself, whatever the general panel chooses.
+`MidiIn` and `MidiOut` open an ALSA device themselves, whatever the general panel chooses.
 
 ## Labels and ranges
 
@@ -80,13 +123,11 @@ A comment line names a control and gives its range; the screen then shows the na
 // @p2 mix
 ```
 
-The form is `@pN label [min max [unit]] [log] [cv N]`, on a line that starts with `//`. The label is one word. Without a range a control is 0 to 1. `log` maps the encoder logarithmically and needs a positive range. The encoder pages show only the declared controls, four to a page, in order; a program that declares none shows all sixteen as `P1`..`P16`. Every control still exists for presets, MIDI learn and rack, and the parameter ids stay `p1`..`p16`; a preset stores the encoder position, so it restores the same position in a program with a different range.
-
-`cv N` makes input N move the control; see [CV in](#cv-in).
+The line starts with `//`. [`@pN` lines](../../docs/script-editor.md#pn-lines) gives the form and its rules.
 
 ## Inputs and outputs
 
-Inputs 1..8 and outputs 1..8 carry audio and CV alike. An SSP signal of 1.0 is 5 V, so CV is 0.2 per volt: 1 V is 0.2, and 1 V/oct pitch is 0.2 per octave.
+In 1..In 8 and Out 1..Out 8 carry audio and CV alike, at 0.2 per volt; see [CV](../../docs/script-editor.md#cv).
 
 ### Audio in
 
@@ -94,32 +135,13 @@ Inputs 1..8 and outputs 1..8 carry audio and CV alike. An SSP signal of 1.0 is 5
 
 ### CV in
 
-A program gets CV in two ways: on a control, or by reading the input itself.
-
-#### On a control
-
-A control with CV follows input N (1..8): add `cv N` at the end of its `@pN` line.
+On a control, add `cv N` at the end of its `@pN` line; see [CV on a control](../../docs/script-editor.md#cv-on-a-control). The CV reaches the program every 10 ms, when the globals `p1`..`p16` update. That suits envelopes, slow LFOs and sequencers, not audio-rate modulation.
 
 ```text
 // @p1 cutoff 20 20000 Hz log cv 3
 ```
 
-| Range | Each volt | -1 V | +1 V | +5 V |
-|-|-|-|-|-|
-| log | an octave | half | double | 32x |
-| linear | a tenth of the range | -10% of the range | +10% | +50% |
-
-- The encoder sets the value the CV moves from. The result stays within the control's range.
-
-- The CV reaches the program every 10 ms, when the globals `p1`..`p16` update. That is fine for envelopes, slow LFOs and sequencers, not for audio-rate modulation.
-
-- An orange mark on the control's bar shows where the CV has moved it, and the value shown is the moved one. A preset stores the encoder position, not the moved value.
-
-- The input still reaches the program as audio.
-
-#### In the program
-
-Read the input yourself, for a scaling of your own. There is no mark on screen. `examples/filter.ck` keeps In 3 running into `blackhole` and reads its last sample:
+In the program, read the input yourself. `examples/filter.ck` keeps In 3 running into `blackhole` and reads its last sample:
 
 ```text
 adc.chan(2) => Gain cv => blackhole;
@@ -130,11 +152,11 @@ p1 * Math.pow(2, cv.last() / 0.2) => float f;   // SSP CV is 0.2 per volt
 
 ### Audio out
 
-`dac.chan(0)` .. `dac.chan(7)`; `=> dac` feeds all eight.
+`=> dac` feeds all eight outputs.
 
 ### CV out
 
-Write a value or a slow signal to an output, at 0.2 per volt. `Step` holds a value:
+`Step` holds a value:
 
 ```text
 SinOsc lfo => dac.chan(2);  2 => lfo.freq;  0.5 => lfo.gain;   // Out 3: +-2.5 V at 2 Hz
@@ -143,7 +165,7 @@ Step pitch => dac.chan(3);  0.2 * octaves => pitch.next;      // Out 4: 1 V/oct
 
 ## Examples
 
-`examples/` holds programs to copy to the card's `chuck/` folder. `make test` compiles and runs each one.
+`examples/` holds programs to copy to `BOOT/chuck`. `make test` compiles and runs each one.
 
 | File | What | Controls |
 |-|-|-|
@@ -154,7 +176,7 @@ Step pitch => dac.chan(3);  0.2 * octaves => pitch.next;      // Out 4: 1 V/oct
 
 ## Walkthrough: `filter.ck`
 
-`examples/filter.ck` is a stereo resonant lowpass. This follows it from the card to the screen.
+`examples/filter.ck` is a stereo resonant lowpass. It extends [A first program](#a-first-program) with Q and cutoff CV. This follows it from the card to the screen.
 
 ```chuck
 // Stereo resonant lowpass on inputs 1 and 2; input 3 is cutoff CV, 1 V/oct.
@@ -177,7 +199,7 @@ while (true) {
 
 ### 1. Copy it to the card
 
-Put `filter.ck` in `chuck/` on the card's BOOT partition. The release already has it there.
+Put `filter.ck` in `BOOT/chuck`. The release already has it there.
 
 ### 2. Patch it in Synthor
 
@@ -191,7 +213,7 @@ Put `filter.ck` in `chuck/` on the card's BOOT partition. The release already ha
 
 ### 3. Load it
 
-Press soft key 5 (Load). The browser opens at `/media/BOOT/chuck`. Turn encoder 1, or press Up and Down, to select `filter.ck`; Left and Right jump a column, and pressing encoder 1 opens a folder. Press Load again. Soft key 7 (Cancel) leaves without loading. Audio stops while the program compiles.
+Press Load (button 5). The browser opens at `BOOT/chuck`. Turn encoder 1, or press Up and Down, to select `filter.ck`. Left and Right (`PG-`, `PG+`) jump a column, and pressing encoder 1 opens a folder. Press Load again. Cancel (button 7) leaves without loading. Audio stops while the program compiles.
 
 ### 4. Read the screen
 
@@ -216,11 +238,7 @@ The right panel shows the page (`1/1 controls`), the DSP load, the file name, an
 
 Both controls start at the bottom of their ranges: the cutoff at 40 Hz, which passes little, and Q at 1. Turn encoder 1 to open the filter, then encoder 2 for resonance.
 
-- Turning moves a control 5% of its range a detent. `cutoff` is logarithmic, so each detent is the same interval: 40 to 20000 Hz is about 9 octaves, so a detent is about half an octave.
-
-- Holding the encoder while turning moves it 0.5% a detent.
-
-- Pressing and releasing without turning returns it to the bottom of its range.
+[Encoders](../../docs/script-editor.md#encoders) gives the step sizes. `cutoff` spans about 9 octaves, so a detent is about half an octave.
 
 ### 6. Add CV
 

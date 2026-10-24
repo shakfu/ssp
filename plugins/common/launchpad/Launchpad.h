@@ -5,20 +5,28 @@
 #include <string>
 #include <vector>
 
-// Launchpad Mini MK3 in Programmer mode: the messages to and from its MIDI interface, without JUCE or a
-// device. docs/dev/gseq-launchpad.md has the protocol's sources.
+// Launchpad Mini MK3 and Launchpad X in Programmer mode: the messages to and from their MIDI interfaces, without
+// JUCE or a device. Both share the layout and messages; the SysEx header's device byte differs. docs/dev/gseq-launchpad.md
+// has the protocol's sources.
 //
 // A position is x 0-8 left to right, y 0-8 bottom to top: the pads are x, y < 8, the side keys x 8, the top
 // row y 8, and the logo (8, 8). Its Programmer-mode index is 10 * (y + 1) + x + 1: 11 bottom left, 99 the logo.
 namespace ssp::launchpad {
 
 constexpr int SIZE = 9, LEDS = SIZE * SIZE;
-// the MIDI interface's ports, by name: ALSA cuts names to 31 characters, so on the SSP the port is
-// "Launchpad Mini MK3 LPMiniMK3 MI" (and the DAW interface's "... LPMiniMK3 DA")
-constexpr const char* PORT = "LPMiniMK3 MI";
 
-inline bool isPort(const std::string& name) {
-    return name.find(PORT) != std::string::npos;
+struct Model {
+    // the MIDI interface's ports contain this name: ALSA cuts names to 31 characters, so on the SSP the Mini's
+    // port is "Launchpad Mini MK3 LPMiniMK3 MI" (and the DAW interface's "... LPMiniMK3 DA")
+    const char* port;
+    uint8_t id;     // the SysEx header's device byte
+    bool velocity;  // the pads send their press's velocity; the Mini's send 127 whatever the force
+};
+constexpr Model MINI_MK3{ "LPMiniMK3 MI", 0x0D, false }, X{ "LPX MIDI", 0x0C, true };
+constexpr Model MODELS[] = { X, MINI_MK3 };  // Device opens the first one listed: the X, with velocity
+
+inline bool isPort(const std::string& name, const Model& m) {
+    return name.find(m.port) != std::string::npos;
 }
 inline int index(int x, int y) {
     return 10 * (y + 1) + x + 1;
@@ -27,9 +35,10 @@ inline int index(int x, int y) {
 struct Event {
     int x = 0, y = 0;
     bool down = false;
+    int velocity = 0;  // a pad's press, 1-127, on a model with velocity; 0 otherwise
 };
-// A pad's note or a key's CC, channel 1; false for anything else (SysEx replies, clock, other channels).
-bool decode(const uint8_t* data, int size, Event& e);
+// A pad's note or a key's CC, channel 1; false for anything else (SysEx replies, clock, aftertouch, other channels).
+bool decode(const Model& m, const uint8_t* data, int size, Event& e);
 
 struct Led {
     // the LED SysEx's lighting types
@@ -61,18 +70,20 @@ struct Frame {
 };
 
 // SysEx to enter Programmer mode, or to leave it for Live mode
-std::vector<uint8_t> programmerMode(bool on);
+std::vector<uint8_t> programmerMode(const Model& m, bool on);
 
-// What the device shows, and the SysEx that brings it to a new frame.
+// What the device shows, and the SysEx that brings it to a new frame. A new Surface sends every LED first, as
+// after a connect the device's LEDs are unknown.
 class Surface {
 public:
+    explicit Surface(const Model& m) : id_(m.id) {}
+
     // Appends one LED SysEx with the LEDs that differ from what the device shows; nothing if none do.
     // Returns the LEDs sent.
     int update(const Frame& next, std::vector<uint8_t>& out);
-    // The device's LEDs are unknown, after a connect: the next update sends every LED.
-    void invalidate() { known_ = false; }
 
 private:
+    uint8_t id_;
     Frame shown_;
     bool known_ = false;
 };

@@ -25,7 +25,8 @@ PluginProcessor::PluginProcessor()
       tempo_(*vts().getParameter("tempo")),
       swing_(*vts().getParameter("swing")),
       clock_(*vts().getParameter("clock")),
-      ppqn_(*vts().getParameter("ppqn")) {
+      ppqn_(*vts().getParameter("ppqn")),
+      mode_(*vts().getParameter("mode")) {
     init();
     {
         std::lock_guard<std::mutex> lock(portsLock);
@@ -62,6 +63,7 @@ AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParameterLa
     params.add(std::make_unique<ssp::BaseFloatParameter>("swing", "Swing", 50.0f, 75.0f, 50.0f, 1.0f));
     params.add(std::make_unique<ssp::BaseChoiceParameter>("clock", "Clock", StringArray(CLOCK_NAMES, 3), 0));
     params.add(std::make_unique<ssp::BaseFloatParameter>("ppqn", "PPQN", 1.0f, 24.0f, 4.0f, 1.0f));
+    params.add(std::make_unique<ssp::BaseChoiceParameter>("mode", "Mode", StringArray(MODE_NAMES, 2), 0));
     return params;
 }
 
@@ -78,6 +80,18 @@ void PluginProcessor::control(const float* const*, int) {
     gseq().setClock(source, int(std::lround(value(ppqn_))));
     gseq().setBpm(value(tempo_));
     gseq().setSwing((value(swing_) - 50.0) / 50.0);
+    gseq().setRoll(roll());  // a preset or automation may change Mode
+}
+
+bool PluginProcessor::roll() const {
+    return std::lround(value(mode_)) == 1;
+}
+
+void PluginProcessor::setRoll(bool on) {
+    mode_.beginChangeGesture();
+    mode_.setValueNotifyingHost(mode_.convertTo0to1(on ? 1.0f : 0.0f));
+    mode_.endChangeGesture();
+    gseq().setRoll(on);  // now, not at the next block: Synthor may not be running the module
 }
 
 void PluginProcessor::customToXml(XmlElement* xml) {
@@ -110,6 +124,7 @@ void PluginProcessor::customFromXml(XmlElement* xml) {
         g.setRow(r, row);
     }
     for (int r = 0; r < GseqEngine::ROWS; r++) g.setRow(r, rows[r]);
+    g.setRoll(roll());
 }
 
 std::vector<ssp::engine::ParamPage> PluginProcessor::pages() {
@@ -126,7 +141,7 @@ void PluginProcessor::send(const MidiBuffer& buf) {
 void PluginProcessor::midiLoop() {
     MidiBuffer buf;
     GseqEngine::Midi m;
-    ssp::launchpad::Surface surface;
+    ssp::launchpad::Surface surface(pad_.model());
     ssp::launchpad::Frame frame;
     std::vector<uint8_t> lights;
     // ms counts loops, wrapping where both periods divide it
@@ -135,7 +150,10 @@ void PluginProcessor::midiLoop() {
         buf.clear();
         while (gseq().midiOut(m)) buf.addEvent(m.bytes, m.size, 0);
         if (!buf.isEmpty()) send(buf);
-        if (ms % PAD_POLL_MS == 0 && pad_.poll()) surface.invalidate();
+        if (ms % PAD_POLL_MS == 0) {
+            if (pad_.poll()) surface = ssp::launchpad::Surface(pad_.model());  // shows unknown
+            padOpen_.store(pad_.isOpen(), std::memory_order_relaxed);
+        }
         if (ms % PAD_FRAME_MS == 0 && pad_.isOpen()) {
             padView_.render(frame);
             lights.clear();

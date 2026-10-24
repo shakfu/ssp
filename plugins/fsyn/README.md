@@ -4,11 +4,22 @@
 
 ## Install
 
-Copy `fsyn.so` to the `plugins` folder on the SD card (`make install MOD=fsyn`), and `FluidR3_GM.sf2` to `BOOT/fsyn` (`make install-fsyn`). A new `fsyn` loads `BOOT/fsyn/FluidR3_GM.sf2`; Load opens `BOOT/fsyn`.
+Copy `fsyn.so` to `BOOT/plugins` (from source: `make install MOD=fsyn`) and restart the SSP.
+
+Copy `FluidR3_GM.sf2` from the release to `BOOT/fsyn` (from source: `make install-fsyn`, on a mounted card or over ssh). A new `fsyn` loads it; Load opens `BOOT/fsyn`.
+
+Playing needs a MIDI source: `alda`, `gseq`, or a keyboard on a powered hub ([Using](../../docs/USING.md#usb-devices)).
+
+## First use
+
+1. Add `fsyn`. It loads `FluidR3_GM.sf2`.
+2. Patch Out L and Out R to the outputs ([Using](../../docs/USING.md#a-module-runs-only-while-a-jack-is-patched)).
+3. Open the general panel (LS + RS, see [Using](../../docs/USING.md#the-general-panel)) and set MIDI IN to your keyboard, `gseq` or `1:alda`.
+4. Play a note.
 
 ## Playing
 
-Set MIDI IN in the module's general panel (RS + LS): `1:alda` for `alda`. Note In is on by default, on every channel.
+Set MIDI IN in the general panel: `1:alda` for `alda`. Note In is on by default, on every channel.
 
 | Message | Effect |
 |-|-|
@@ -22,11 +33,11 @@ Channel 10 plays the font's drum kit (bank 128).
 
 ## Soundfonts
 
-Load (button 5) picks an `.sf2` file. It loads on the worker thread while the old font plays, then replaces it. Each channel keeps its program, bank, controllers and bend; notes playing end. A font that fails to load leaves the one playing, and the status panel shows FluidSynth's reason. The preset stores the font's path.
+Load (button 5) picks an `.sf2` file. The old font plays until the new one has loaded. Each channel keeps its program, bank, controllers and bend; notes playing end. A font that fails to load leaves the one playing, and the status panel shows FluidSynth's reason. The preset stores the font's path.
 
-SF3 (compressed) fonts do not load: the build leaves out libsndfile, which decodes them. FluidSynth holds a font's samples decoded in RAM, so an SF3 would take as much memory as its SF2.
+SF3 (compressed) fonts do not load; use the SF2. An SF3 would take as much RAM as its SF2 anyway, since FluidSynth holds samples decoded.
 
-Measured on the SSP with `plugins/fsyn/tests/run_on_ssp.sh`, beside Synthor, 2026-10-18. Load is from the card, cold cache; dsp% is one core's share for 8 channels of held chords plus drums, reverb and chorus on:
+Measured on the SSP, 2026-10-18. dsp% is one core's share for 8 channels of chords and drums, reverb and chorus on:
 
 | Font | Size | Load | RAM | dsp% at 32 voices | at 64 voices |
 |-|-|-|-|-|-|
@@ -52,7 +63,7 @@ Playing `alda` scores in Synthor, FluidR3_GM ran at 4-5% DSP on average, 9-10% a
 
 ## Jacks
 
-| Jack | |
-|-|-|
-| in 1, `Gain CV` | adds to Gain, 0.2 per volt, read once per block |
-| out 1, `Out L`; out 2, `Out R` | stereo |
+| Jack | Name | |
+|-|-|-|
+| In 1 | `Gain CV` | adds to Gain, 0.2 per volt, read once per block |
+| Out 1, 2 | `Out L`, `Out R` | stereo |

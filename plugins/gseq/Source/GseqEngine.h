@@ -30,6 +30,11 @@ namespace gseq {
 // held, snapped to DURATION_EIGHTHS. While either is on, notes also sound through each row's own routing
 // (echo). Notes from playIn() only sound, from the cursor's row down, in any mode.
 //
+// Roll mode (docs/dev/gseq-roll.md): the rows are one track's voices. addNote() places a note at a step and
+// pitch into a row by the doc's rules; recording and step entry place notes the same way, a Rec take
+// replaces every row, and keys echo on a row free to sound them. A mono track keeps every note on row 1, one
+// per step. Playback is the same in both modes.
+//
 // The pattern is a word per step and per row, set and read from any thread: edits need no handoff, and
 // the audio thread reads them as it plays.
 class GseqEngine : public ssp::engine::Engine {
@@ -58,6 +63,7 @@ public:
         uint8_t voice = 0;      // CV, 1-VOICES; 0 off
         bool velocityCv = false, mute = false;
         bool velocityGated = false;  // velocity CV only while the gate is open
+        bool mono = false;           // roll, row 1's: one note per step, all on row 1
         static Row unpack(uint32_t w);
         uint32_t pack() const;
     };
@@ -86,10 +92,32 @@ public:
     void setCursor(int row, int col) { cursor_.store(row << 8 | col, std::memory_order_relaxed); }
     int cursorRow() const { return cursor_.load(std::memory_order_relaxed) >> 8; }
     int cursorCol() const { return cursor_.load(std::memory_order_relaxed) & 0xFF; }
+    // any thread: roll mode's cursor pitch; the cursor's column is its step
+    void setCursorPitch(int p) { cursorPitch_.store(p, std::memory_order_relaxed); }
+    int cursorPitch() const { return cursorPitch_.load(std::memory_order_relaxed); }
     // MIDI input thread: a note from a keyboard; velocity 0 is its note-off. Ignored unless recording.
     void noteIn(int note, int velocity);
     // MIDI input thread, as noteIn(): a note that sounds from the cursor's row down and writes no step
     void playIn(int note, int velocity);
+
+    // Any thread: roll mode on or off. Switching it on gives every row row 1's MIDI channel, length,
+    // division and velocity CV; rows 1-4 voices 1-4 if row 1 has a voice, else none; mutes cleared.
+    void setRoll(bool on);
+    bool roll() const { return roll_.load(std::memory_order_relaxed); }
+    // Roll's mono track (row 1's `mono`), for one oscillator: every note on row 1, one per step, a new note
+    // replacing the step's. Switching it on keeps one note per step, row 1's or the lowest row's, and
+    // clears the rest. Any thread.
+    void setMono(bool on);
+    bool mono() const { return roll() && row(0).mono; }
+    // Roll, any thread. The row holding pitch p at step s, or -1.
+    int findNote(int s, int p) const;
+    // Sets the note at step s, of pitch st.note, or adds it to a row by the placement rules. Its row, or -1
+    // when every row sounds at s.
+    int addNote(int s, Step st);
+    int removeNote(int s, int p);  // its row, or -1
+    // A note's duration; it moves to a row free for its whole length if it would now overlap the next note
+    // in its own, and one is free. Its row, or -1 if there is no such note.
+    int setNoteDuration(int s, int p, uint8_t duration);
 
     // audio thread, before process(): the clock's source, its input's pulses a quarter, tempo and swing
     void setClock(ssp::engine::Clock::Source s, int ppqn) { source_ = s, clock_.setPpqn(ppqn); }
@@ -142,6 +170,12 @@ private:
     void keyDown(const NoteIn& k, double at);
     void keyUp(int note);
     void place(int64_t chord, int base);  // a chord's notes, lowest first, from row `base` down
+    void placeRoll(Held& h);              // roll: a recorded or step-entered note, by the placement rules
+    // Roll placement (docs/dev/gseq-roll.md): rule 1, a row sounding pitch p at s; 2, a row free at s for the
+    // whole duration; 3, a row free at s. fits() tests one row against one rule.
+    bool fits(int r, int s, int p, uint8_t duration, int rule) const;
+    int placeRow(int s, int p, uint8_t duration, bool strict) const;  // strict: rules 1 and 2 only
+    int echoRow(int pitch) const;  // roll, audio thread: the row sounding pitch, else the first silent one
     uint8_t durationIndex(int64_t samples, const Row& row) const;
     void startRecording(double at);
     bool takeStep(int r, int64_t k, int s);  // the take's row reaches step k (s in the row): true if written
@@ -169,14 +203,15 @@ private:
 
     // recording: requests from the UI and notes from the MIDI thread, state for the UI
     std::atomic<bool> recordToggle_{ false }, stepEntry_{ false };
-    std::atomic<int> cursor_{ 0 };
+    std::atomic<int> cursor_{ 0 }, cursorPitch_{ 60 };
+    std::atomic<bool> roll_{ false };
     std::atomic<uint8_t> recordState_{ IDLE };
     std::atomic<int> recordRow_{ 0 };
     moodycamel::ReaderWriterQueue<NoteIn> notesIn_{ 256 };
     // audio thread
     int64_t take_ = 0;         // the take's first step, as steps since 0 on its row
     int takeLength_ = 0;       // its row's length when armed: the steps the take covers
-    uint32_t written_ = 0;     // the take's steps a note was written to: they are kept, and not played this pass
+    uint32_t written_[ROWS] = {};  // per row, the take's steps a note was written to: kept, not played this pass
     Held held_[HELD];
     int64_t samples_ = 0;      // processed since start
 

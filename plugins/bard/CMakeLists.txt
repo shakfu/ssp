@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(BARD VERSION 0.1.0)
+project(BARD VERSION 0.1.1)
 
 include_directories("${PROJECT_SOURCE_DIR}/../common")
 

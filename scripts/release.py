@@ -67,17 +67,21 @@ ORIGINS = {
     "strc": f"[sk-engines]({SK_ENGINES})",
     "rack": "[TheTechnobear's trax](https://github.com/TheTechnobear/SSP)",
     "sfct": "[monome softcut](https://github.com/monome/softcut-lib)",
-    "fstr": "new",
+    "fstr": "new, on [Faust](https://github.com/grame-cncm/faust)'s libfaust",
     "gseq": "new",
     "dexd": "[Synth_Dexed](https://codeberg.org/dcoredump/Synth_Dexed), the [Dexed](https://github.com/asb2m10/dexed) engine",
     "ttyp": "[monome teletype](https://github.com/monome/teletype), on [monome-rack](https://github.com/Dewb/monome-rack)'s mock hardware",
     "sapf": "[sapf](https://github.com/lfnoise/sapf), through the fork [shakfu/sapf](https://github.com/shakfu/sapf)",
     "alda": "[psnd](https://github.com/shakfu/psnd)'s C implementation of [Alda](https://alda.io)",
     "fsyn": "[FluidSynth](https://github.com/FluidSynth/fluidsynth)",
+    "brks": "Zack Scholl's [_core](https://github.com/schollz/_core) v8.1.0",
+    "scsy": "[SuperCollider](https://github.com/supercollider/supercollider)'s scsynth, with "
+            "[sc3-plugins](https://github.com/supercollider/sc3-plugins)",
 }
 
 
 PACKAGE = "shakfu-ssp-plugins"
+SHIPPED_DOCS = ["USING.md", "script-editor.md"]  # from docs/, into the package's docs/
 
 
 def tag(version: str) -> str:
@@ -122,8 +126,10 @@ def find_plugins(root: pathlib.Path) -> list[Plugin]:
 LINK = re.compile(r"\]\(([^)\s#]+)(#[^)\s]*)?\)")
 
 
-def rewrite_links(text: str, src_dir: pathlib.Path, kept: set[str], tag: str, root: pathlib.Path) -> str:
-    """Links to files copied alongside stay; other repo links point at the tag on GitHub."""
+def rewrite_links(text: str, src_dir: pathlib.Path, kept: set[str], tag: str, root: pathlib.Path,
+                  dest_dir: pathlib.Path | None = None, shipped: dict[str, pathlib.Path] | None = None) -> str:
+    """Links to files copied alongside stay, and links to `shipped` repo files point at their copy in the
+    package; other repo links point at the tag on GitHub."""
     def fix(m: re.Match) -> str:
         target, anchor = m.group(1), m.group(2) or ""
         if re.match(r"[a-z][a-z0-9+.-]*:", target) or target in kept:
@@ -133,19 +139,23 @@ def rewrite_links(text: str, src_dir: pathlib.Path, kept: set[str], tag: str, ro
             rel = path.relative_to(root.resolve()).as_posix()
         except ValueError:
             return m.group(0)
+        if shipped and dest_dir and rel in shipped:
+            return f"]({os.path.relpath(shipped[rel], dest_dir)}{anchor})"
         kind = "tree" if path.is_dir() else "blob"
         return f"]({REPO_URL}/{kind}/{tag}/{rel}{anchor})"
     return LINK.sub(fix, text)
 
 
-def copy_docs(src_dir: pathlib.Path, dest_dir: pathlib.Path, names: list[str], tag: str, root: pathlib.Path) -> None:
+def copy_docs(src_dir: pathlib.Path, dest_dir: pathlib.Path, names: list[str], tag: str, root: pathlib.Path,
+              shipped: dict[str, pathlib.Path] | None = None) -> None:
     """Copies the named files that exist; Markdown gets its links rewritten."""
     dest_dir.mkdir(parents=True, exist_ok=True)
     present = [n for n in names if (src_dir / n).is_file()]
     for name in present:
         src = src_dir / name
         if src.suffix == ".md":
-            (dest_dir / name).write_text(rewrite_links(src.read_text(), src_dir, set(present), tag, root))
+            (dest_dir / name).write_text(rewrite_links(src.read_text(), src_dir, set(present), tag, root,
+                                                       dest_dir, shipped))
         else:
             shutil.copy2(src, dest_dir / name)
 
@@ -193,6 +203,8 @@ Most are ports of engines from [sk-engines]({SK_ENGINES}), a platform fork of th
 1. Turn off the SSP and mount its SD card on a computer.
 2. Copy the contents of `BOOT/` onto the card's BOOT partition, the one holding `plugins/`. Modules with the same names are replaced.
 3. Put the card back and turn the SSP on. Synthor lists each module by its four-letter name.
+
+[docs/USING.md](docs/USING.md) covers what every module shares: patching, buttons, the general panel and USB devices.
 
 ## What BOOT holds
 
@@ -260,6 +272,8 @@ def package(root: pathlib.Path, build_dir: pathlib.Path, deps_dir: pathlib.Path,
     boot = dest / "BOOT"
     (boot / "plugins").mkdir(parents=True)
     copied_whole = []  # third-party trees, such as the Faust libraries: their Markdown is theirs
+    # repo docs every module README links: shipped at docs/, so the links work offline
+    shipped = {f"docs/{name}": dest / "docs" / name for name in SHIPPED_DOCS}
 
     for p in plugins:
         so = boot / "plugins" / f"{p.product}.so"
@@ -269,7 +283,7 @@ def package(root: pathlib.Path, build_dir: pathlib.Path, deps_dir: pathlib.Path,
         # what a user reads; TODO.md and design notes stay in the repo
         names = sorted(f.name for f in p.dir.iterdir()
                        if f.is_file() and f.name.startswith(("README", "CHANGELOG", "LICENSE", "NOTICE")))
-        copy_docs(p.dir, dest / "docs" / p.product, names, release_tag, root)
+        copy_docs(p.dir, dest / "docs" / p.product, names, release_tag, root, shipped)
 
     for sources in DATA.values():
         for src, folder, pattern in sources:
@@ -283,13 +297,14 @@ def package(root: pathlib.Path, build_dir: pathlib.Path, deps_dir: pathlib.Path,
                 copied_whole.append(target)
                 continue
             names = sorted(f.name for f in src_dir.glob(pattern) if f.is_file())
-            copy_docs(src_dir, target, names, release_tag, root)
+            copy_docs(src_dir, target, names, release_tag, root, shipped)
 
     shutil.copy2(root / "LICENSE", dest / "LICENSE")
     softcut = root / "external" / "softcut-lib" / "LICENSE.txt"
     if softcut.is_file():
         shutil.copy2(softcut, dest / "docs" / "sfct" / "softcut-LICENSE.txt")
-    copy_docs(root, dest, ["CHANGELOG.md"], release_tag, root)
+    copy_docs(root, dest, ["CHANGELOG.md"], release_tag, root, shipped)
+    copy_docs(root / "docs", dest / "docs", SHIPPED_DOCS, release_tag, root, shipped)
     (dest / "README.md").write_text(readme(version, release_tag, plugins))
     if pdf:
         to_pdf(dest, copied_whole, pdf)

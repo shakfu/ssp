@@ -234,6 +234,86 @@ static void testRender() {
     CHECK(r.e.playing(7) >= 8 && r.v.left() == r.e.playing(7) / 8 * 8);
 }
 
+// roll: all 8 pad rows are pitches, no keyboard; a note's start lit and its held steps dim; Step-mode pads add
+// and remove notes; arrows move a semitone; the window follows the cursor's pitch; side keys do nothing
+static void testRoll() {
+    Rig r;
+    r.e.setRoll(true);
+    Frame f;
+    r.v.render(f);
+    CHECK(r.v.pitchLow() == 60);  // C4 .. G4
+    GseqEngine::Step st;
+    st.on = true, st.note = 60, st.velocity = 127, st.duration = 9;  // two steps
+    CHECK(r.e.addNote(1, st) == 0);
+    r.v.render(f);
+    CHECK(f.at(1, 0).type == Led::RGB && f.at(1, 0).a > 100);     // pitch 60: the bottom pad row
+    CHECK(f.at(2, 0) == Led::rgb(30, 18, 4));                     // held
+    CHECK(f.at(3, 0) == Led::rgb(10, 10, 10));                    // free, on a C: brighter
+    CHECK(f.at(3, 1) == Led::rgb(4, 4, 4));                       // free: no keyboard here
+    CHECK(f.at(8, 0) == Led::off() && f.at(8, 1) == Led::off());  // no octave keys
+    r.tap(8, 4);                                                  // side keys: no mute, no octave
+    r.tap(8, 1);
+    CHECK(!r.e.row(0).mute && !r.e.row(4).mute && r.v.octave() == LaunchpadView::START);
+    r.tap(5, 8);  // Step
+    r.tap(3, 1);  // pitch 61, step 4: added
+    CHECK(r.e.findNote(3, 61) >= 0 && r.e.cursorPitch() == 61 && r.e.cursorCol() == 3);
+    r.tap(3, 1);  // again: removed
+    CHECK(r.e.findNote(3, 61) < 0);
+    r.tap(2, 7);  // the top row: G4
+    CHECK(r.e.findNote(2, 67) >= 0 && r.e.step(r.e.findNote(2, 67), 2).velocity == 100);
+    r.v.press({ 4, 7, true, 45 });  // the X: the pad's velocity
+    r.v.press({ 4, 7, false });
+    CHECK(r.e.findNote(4, 67) >= 0 && r.e.step(r.e.findNote(4, 67), 4).velocity == 45);
+    r.tap(0, 8);  // up a semitone
+    CHECK(r.v.pitchLow() == 61);
+    r.e.setCursorPitch(80);  // moved elsewhere (the SSP): the window follows
+    r.v.render(f);
+    CHECK(r.v.pitchLow() == 73);
+    r.tap(5, 8);
+    r.tap(0, 0);  // Step off: a pad moves the cursor only
+    CHECK(r.e.cursorPitch() == 73 && r.e.findNote(0, 73) < 0);
+}
+
+// a velocity-sensitive model (the X): key pads play the press's velocity and write it to steps, over a step's own
+static void testKeyVelocity() {
+    Rig r;
+    r.e.setCursor(2, 0);
+    r.v.press({ 0, 0, true, 37 });
+    r.block();
+    auto m = r.midi();
+    CHECK(m.size() == 1 && m[0].bytes[0] == 0x92 && m[0].bytes[1] == 60 && m[0].bytes[2] == 37);
+    r.v.press({ 0, 0, false });
+    r.tap(5, 8);  // Step
+    Step old;
+    old.on = true, old.velocity = 30;
+    r.e.setStep(1, 4, old);
+    r.v.press({ 2, 0, true, 90 });  // E4
+    r.v.press({ 0, 0, true, 12 });  // C4
+    r.tap(4, padY(0));
+    r.v.press({ 0, 0, false });
+    r.v.press({ 2, 0, false });
+    CHECK(r.e.step(0, 4).note == 60 && r.e.step(0, 4).velocity == 12);
+    CHECK(r.e.step(1, 4).note == 64 && r.e.step(1, 4).velocity == 90 && r.e.step(1, 4).duration == old.duration);
+    r.v.press({ 6, padY(0), true, 22 });  // no key held: on at the cursor pad's velocity
+    r.v.press({ 6, padY(0), false });
+    CHECK(r.e.step(0, 6).on && r.e.step(0, 6).velocity == 22);
+}
+
+// a key pad held while roll mode comes on still ends its note when released
+static void testRollHeldKey() {
+    Rig r;
+    r.e.setCursor(0, 0);
+    r.v.press({ 0, 0, true });  // C4 on row 1's channel
+    r.block();
+    r.midi();
+    r.e.setRoll(true);
+    r.v.press({ 0, 0, false });
+    r.block();
+    auto m = r.midi();
+    CHECK(m.size() == 1 && (m[0].bytes[0] & 0xF0) == 0x80 && m[0].bytes[1] == 60);
+    CHECK(r.e.findNote(0, 60) < 0);  // the release added no note
+}
+
 static void testThreads() {
     Rig r;
     std::atomic<bool> stop{ false };
@@ -241,6 +321,7 @@ static void testThreads() {
         for (int i = 0; !stop.load(); i++) {
             const int x = i % 9, y = (i / 9) % 9;
             r.v.press({ x, y, i % 2 == 0 });
+            if (i % 500 == 0) r.e.setRoll(i % 1000 == 0);
         }
     });
     std::thread draw([&] {  // as midiLoop
@@ -267,8 +348,11 @@ int main(int argc, char** argv) {
     testCursorPad();
     testStepPads();
     testKeyPads();
+    testKeyVelocity();
     testSideAndTop();
     testRender();
+    testRoll();
+    testRollHeldKey();
     std::printf("%s\n", failures ? "FAILED" : "all passed");
     return failures ? 1 : 0;
 }

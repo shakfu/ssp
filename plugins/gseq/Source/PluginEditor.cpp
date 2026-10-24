@@ -8,7 +8,9 @@ namespace {
 
 // the grid: a label column, then STEPS cells, clear of the menu letters Synthor draws at the right edge
 constexpr int GX = 150, CW = 43, GY = 36, RH = 42, INFO_Y = 384;
+constexpr int ROLL_ROWS = 12, RRH = 28;  // roll: an octave of pitch rows in the same area
 const juce::Colour amber(255, 214, 140), dim(150, 150, 150), off(38, 38, 38), bar(255, 140, 0), cyan(0, 200, 255);
+const juce::Colour padWindow(120, 0, 0);  // the Launchpad's window: dim red
 
 const char* const DIVISION_NAMES[Engine::DIVISIONS] = { "1/4", "1/8", "1/8T", "1/16", "1/16T", "1/32" };
 const char* const DURATION_NAMES[Engine::DURATIONS] = { "1/8", "1/4", "3/8", "1/2", "5/8", "3/4", "7/8", "1",
@@ -73,6 +75,9 @@ void PluginEditor::syncCursor() {
     auto& g = processor_.gseq();
     row_ = g.cursorRow();
     col_ = std::min(g.cursorCol(), g.row(row_).length - 1);
+    const int p = g.cursorPitch();  // roll: the view follows a pitch the Launchpad or step entry moved
+    if (p < rollLow_) rollLow_ = p;
+    if (p >= rollLow_ + ROLL_ROWS) rollLow_ = p - ROLL_ROWS + 1;
 }
 
 void PluginEditor::note(const String& s) {
@@ -88,11 +93,13 @@ void PluginEditor::moveTo(int row, int col) {
 
 void PluginEditor::eventUp(bool longPress) {
     syncCursor();
+    if (roll()) return movePitch(processor_.gseq().cursorPitch() + (longPress ? 12 : 1));
     moveTo(longPress ? 0 : row_ - 1, col_);
 }
 
 void PluginEditor::eventDown(bool longPress) {
     syncCursor();
+    if (roll()) return movePitch(processor_.gseq().cursorPitch() - (longPress ? 12 : 1));
     moveTo(longPress ? Engine::ROWS - 1 : row_ + 1, col_);
 }
 
@@ -113,8 +120,8 @@ void PluginEditor::onEncoder(unsigned enc, float v) {
     const bool held = encoderState_[enc];
     if (held) turned_[enc] = true;
     switch (mode_) {
-    case GRID: editStep(enc, d, held); break;
-    case ROW: editRow(enc, d); break;
+    case GRID: roll() ? editRollNote(enc, d, held) : editStep(enc, d, held); break;
+    case ROW: roll() ? editTrack(enc, d) : editRow(enc, d); break;
     case GLOBAL: editGlobal(enc, d, held); break;
     }
 }
@@ -191,7 +198,18 @@ void PluginEditor::editGlobal(unsigned enc, int d, bool held) {
 
 void PluginEditor::pressed(unsigned enc) {
     auto& g = processor_.gseq();
+    if (mode_ == GLOBAL && enc == 0) {
+        processor_.setRoll(!roll());
+        note(roll() ? "roll: the rows are one track's voices" : "grid: a voice per row");
+        return;
+    }
+    if (mode_ == ROW && roll() && enc == 1) {
+        g.setMono(!g.row(0).mono);
+        note(g.row(0).mono ? "mono: one note per step, on CV voice 1" : "poly: up to 8 notes per step");
+        return;
+    }
     if (mode_ != GRID) return;
+    if (roll()) return pressedRoll(enc);
     if (enc == 0) {
         auto s = g.step(row_, col_);
         s.on = !s.on;
@@ -211,6 +229,7 @@ void PluginEditor::onButton(unsigned btn, bool v) {
 void PluginEditor::eventButton(unsigned btn, bool longPress) {
     BaseEditor::eventButton(btn, longPress);
     syncCursor();
+    if (roll() && rollButton(btn, longPress)) return;
     auto& g = processor_.gseq();
     switch (btn) {
     case B_ROW: mode_ = mode_ == ROW ? GRID : ROW; break;
@@ -263,9 +282,15 @@ void PluginEditor::eventButton(unsigned btn, bool longPress) {
 
 String PluginEditor::legend() const {
     auto& g = processor_.gseq();
-    const auto row = g.row(row_);
+    const auto row = g.row(roll() ? 0 : row_);  // roll: row 1 holds the track's settings
     switch (mode_) {
     case ROW:
+        if (roll())
+            return "E1 midi " + (row.channel ? "ch" + String(row.channel) : String("off")) + "   E2 cv " +
+                   (row.voice ? (row.mono ? "1" : "1-4") : "off") + ", press " + (row.mono ? "mono" : "poly") +
+                   "   E3 vel cv " +
+                   (!row.velocityCv ? "off" : row.velocityGated ? "gated" : "held") + "   E4 " +
+                   DIVISION_NAMES[row.division];
         return "E1 midi " + (row.channel ? "ch" + String(row.channel) : String("off")) + "   E2 cv " +
                (row.voice ? String(row.voice) : String("off")) + "   E3 vel cv " +
                (!row.velocityCv ? "off" : row.velocityGated ? "gated" : "held") + "   E4 " +
@@ -273,8 +298,11 @@ String PluginEditor::legend() const {
     case GLOBAL:
         return "E1 tempo " + String(int(value(processor_.tempo()))) + "   E2 swing " +
                String(int(value(processor_.swing()))) + "%   E3 clock " + processor_.clock().getCurrentValueAsText() +
-               "   E4 ppqn " + String(int(value(processor_.ppqn())));
+               "   E4 ppqn " + String(int(value(processor_.ppqn()))) + "   E1 press: " + (roll() ? "roll" : "grid");
     default:
+        if (roll())
+            return "E1 pitch, press on/off   E2 velocity   E3 duration   E4 length " + String(row.length) +
+                   ", press " + DIVISION_NAMES[row.division];
         return "E1 note, press on/off   E2 velocity   E3 duration   E4 length " + String(row.length) +
                ", press " + DIVISION_NAMES[row.division];
     }
@@ -290,11 +318,28 @@ void PluginEditor::drawView(Graphics& g) {
     if (unsigned dropped = e.midiDropped()) head << "   midi dropped " << String(dropped);
     const auto rec = e.record();
     if (rec != Engine::IDLE)
-        head << "   REC row " << String(e.recordRow() + 1) << (rec == Engine::ARMED ? " armed" : " recording");
+        head << (roll() ? String("   REC track") : "   REC row " + String(e.recordRow() + 1))
+             << (rec == Engine::ARMED ? " armed" : " recording");
     else if (e.stepEntry())
         head << "   STEP";
     g.drawText(head, 420, 6, 1050, 24, Justification::left, false);
 
+    const String info = roll() ? drawRoll(g) : drawGrid(g);
+    g.setFont(mono(18));
+    g.setColour(Colours::white);
+    g.drawText(info, 10, INFO_Y, 1100, 24, Justification::left, false);
+    g.setColour(mode_ == GRID ? dim : cyan);
+    g.drawText(String(mode_ == ROW ? (roll() ? "track: " : "row: ") : mode_ == GLOBAL ? "global: " : "") + legend(), 10, INFO_Y + 30, 880,
+               24, Justification::left, false);
+    if (juce::Time::getMillisecondCounter() < noteUntil_) {
+        g.setColour(amber);
+        g.drawText(note_, 10, INFO_Y + 60, 880, 24, Justification::left, false);
+    }
+}
+
+// the rows as voices: a row per engine row; returns the cursor's line
+String PluginEditor::drawGrid(Graphics& g) {
+    auto& e = processor_.gseq();
     for (int r = 0; r < Engine::ROWS; r++) {
         const auto row = e.row(r);
         const int y = GY + r * RH;
@@ -343,20 +388,205 @@ void PluginEditor::drawView(Graphics& g) {
             g.drawRect(GX + at * CW, y, CW, RH, 2);
         }
     }
+    if (auto* pad = processor_.padView()) {
+        g.setColour(padWindow);
+        g.drawRect(GX + pad->left() * CW - 2, GY + pad->top() * RH - 2, gseq::LaunchpadView::WINDOW_STEPS * CW + 4,
+                   gseq::LaunchpadView::WINDOW_ROWS * RH + 4, 2);
+    }
     g.setColour(cyan);
     g.drawRect(GX + col_ * CW - 1, GY + row_ * RH - 1, CW + 2, RH + 2, 3);
 
     const auto st = e.step(row_, col_);
-    g.setFont(mono(18));
-    g.setColour(Colours::white);
-    g.drawText("row " + String(row_ + 1) + " step " + String(col_ + 1) + "   " + (st.on ? "on " : "off ") +
-                   noteName(st.note) + "   vel " + String(st.velocity) + "   dur " + DURATION_NAMES[st.duration],
-               10, INFO_Y, 880, 24, Justification::left, false);
-    g.setColour(mode_ == GRID ? dim : cyan);
-    g.drawText(String(mode_ == ROW ? "row: " : mode_ == GLOBAL ? "global: " : "") + legend(), 10, INFO_Y + 30, 880,
-               24, Justification::left, false);
-    if (juce::Time::getMillisecondCounter() < noteUntil_) {
-        g.setColour(amber);
-        g.drawText(note_, 10, INFO_Y + 60, 880, 24, Justification::left, false);
+    return "row " + String(row_ + 1) + " step " + String(col_ + 1) + "   " + (st.on ? "on " : "off ") +
+           noteName(st.note) + "   vel " + String(st.velocity) + "   dur " + DURATION_NAMES[st.duration];
+}
+
+// Roll mode (docs/dev/gseq-roll.md). The engine places notes into rows; these edit the note at the cursor's
+// pitch and step, and the track's settings on every row.
+
+void PluginEditor::movePitch(int pitch) {
+    const int p = std::clamp(pitch, 0, 127);
+    processor_.gseq().setCursorPitch(p);
+    syncCursor();
+}
+
+template <typename F>
+void PluginEditor::eachRow(F f) {
+    auto& g = processor_.gseq();
+    for (int r = 0; r < Engine::ROWS; r++) {
+        auto row = g.row(r);
+        f(row);
+        g.setRow(r, row);
     }
+}
+
+// 1 the note's pitch, with the cursor (held: octaves), or the cursor alone; 2 velocity (held: by 10);
+// 3 duration; 4 the track's length
+void PluginEditor::editRollNote(unsigned enc, int d, bool held) {
+    auto& g = processor_.gseq();
+    const int p = g.cursorPitch(), s = col_;
+    if (enc == 3) {
+        const int length = std::clamp(g.row(0).length + d, 1, Engine::STEPS);
+        eachRow([&](Engine::Row& x) { x.length = uint8_t(length); });
+        moveTo(row_, col_);
+        return;
+    }
+    const int r = g.findNote(s, p);
+    if (enc == 0) {
+        const int to = std::clamp(p + d * (held ? 12 : 1), 0, 127);
+        if (r >= 0 && to != p) {
+            if (g.findNote(s, to) >= 0) return note(noteName(to) + " already plays at this step");
+            auto st = g.step(r, s);
+            g.removeNote(s, p);
+            st.note = uint8_t(to);
+            g.addNote(s, st);  // its own row is free again, so a row is found
+        }
+        return movePitch(to);
+    }
+    if (r < 0) return;
+    auto st = g.step(r, s);
+    if (enc == 1) {
+        st.velocity = uint8_t(std::clamp(st.velocity + d * (held ? 10 : 1), 1, 127));
+        g.setStep(r, s, st);
+    } else {
+        g.setNoteDuration(s, p, uint8_t(std::clamp(st.duration + d, 0, Engine::DURATIONS - 1)));
+    }
+}
+
+// 1 adds or removes the note at the cursor; 4 cycles the track's division
+void PluginEditor::pressedRoll(unsigned enc) {
+    auto& g = processor_.gseq();
+    if (enc == 3) {
+        const int division = (g.row(0).division + 1) % Engine::DIVISIONS;
+        eachRow([&](Engine::Row& x) { x.division = uint8_t(division); });
+        return;
+    }
+    if (enc != 0) return;
+    const int p = g.cursorPitch();
+    if (g.removeNote(col_, p) >= 0) return;
+    Engine::Step st;
+    st.note = uint8_t(p);
+    if (g.addNote(col_, st) < 0) note("8 notes sound at this step");
+}
+
+// the track page: 1 MIDI channel, 2 CV (voices 1-4 on rows 1-4, or none; press: mono or poly), 3 velocity
+// CV, 4 division
+void PluginEditor::editTrack(unsigned enc, int d) {
+    auto& g = processor_.gseq();
+    const auto first = g.row(0);
+    if (enc == 0) {
+        const int channel = std::clamp(first.channel + d, 0, 16);
+        eachRow([&](Engine::Row& x) { x.channel = uint8_t(channel); });
+    } else if (enc == 1) {
+        eachRow([](Engine::Row& x) { x.voice = 0; });
+        if (d > 0)
+            for (int r = 0; r < Engine::VOICES; r++) {
+                auto row = g.row(r);
+                row.voice = uint8_t(r + 1);
+                g.setRow(r, row);
+            }
+    } else if (enc == 2) {
+        const int vel = std::clamp((first.velocityCv ? 1 + first.velocityGated : 0) + d, 0, 2);
+        eachRow([&](Engine::Row& x) { x.velocityCv = vel > 0, x.velocityGated = vel == 2; });
+    } else {
+        const int division = std::clamp(first.division + d, 0, Engine::DIVISIONS - 1);
+        eachRow([&](Engine::Row& x) { x.division = uint8_t(division); });
+    }
+}
+
+bool PluginEditor::rollButton(unsigned btn, bool longPress) {
+    auto& g = processor_.gseq();
+    switch (btn) {
+    case B_MUTE: {
+        const bool mute = !g.row(0).mute;
+        eachRow([&](Engine::Row& x) { x.mute = mute; });
+        return true;
+    }
+    case B_COPY:
+    case B_PASTE: note("Copy and Paste: grid mode only"); return true;
+    case B_CLEAR:
+        if (!longPress) {
+            note("hold Clear to clear the track");
+            return true;
+        }
+        for (int r = 0; r < Engine::ROWS; r++)
+            for (int s = 0; s < Engine::STEPS; s++) g.setStep(r, s, Engine::Step());
+        note("cleared the track");
+        return true;
+    default: return false;
+    }
+}
+
+// An octave of pitch rows, highest at the top; a note spans its duration. Notes on rows without a CV voice
+// get a grey frame while the track has CV: they reach MIDI only.
+String PluginEditor::drawRoll(Graphics& g) {
+    auto& e = processor_.gseq();
+    const auto track = e.row(0);
+    const int length = track.length, cp = e.cursorPitch();
+    auto rowOf = [&](int pitch) { return rollLow_ + ROLL_ROWS - 1 - pitch; };  // the screen row, 0 at the top
+    for (int i = 0; i < ROLL_ROWS; i++) {
+        const int pitch = rollLow_ + ROLL_ROWS - 1 - i, y = GY + i * RRH;
+        if (pitch > 127) continue;
+        const bool c = pitch % 12 == 0;
+        g.setFont(mono(16));
+        g.setColour(pitch == cp ? amber : c ? Colours::white : dim);
+        g.drawText(noteName(pitch), 6, y + 5, GX - 10, 18, Justification::left, false);
+        g.setColour(c ? juce::Colour(48, 48, 48) : off);  // C rows a shade lighter
+        for (int s = 0; s < length; s++) g.fillRect(GX + s * CW + 1, y + 1, CW - 2, RRH - 2);
+    }
+    const float alpha = track.mute ? 0.35f : 1.0f;
+    int above = 0, below = 0;
+    String cursorNote;
+    for (int r = 0; r < Engine::ROWS; r++) {
+        const auto row = e.row(r);
+        for (int s = 0; s < row.length; s++) {
+            const auto st = e.step(r, s);
+            if (!st.on) continue;
+            const int i = rowOf(st.note);
+            if (s == col_ && st.note == cp)
+                cursorNote = "   vel " + String(st.velocity) + "   dur " + DURATION_NAMES[st.duration] + "   voice row " +
+                             String(r + 1) + (row.voice ? "" : " (MIDI only)");
+            if (i < 0 || i >= ROLL_ROWS) {
+                (i < 0 ? above : below)++;
+                continue;
+            }
+            const int y = GY + i * RRH;
+            const bool silent = !row.channel && !row.voice;
+            const auto fill = (silent ? dim : amber).withMultipliedBrightness(0.35f + 0.65f * st.velocity / 127.0f);
+            const float steps = std::min(Engine::DURATION_EIGHTHS[st.duration] / 8.0f, float(length - s));
+            g.setColour(bar.withMultipliedAlpha(0.6f * alpha));
+            g.fillRect(float(GX + s * CW + 1), float(y + 4), steps * CW - 2.0f, float(RRH - 8));
+            const Rectangle<int> cell(GX + s * CW + 1, y + 1, CW - 2, RRH - 2);
+            g.setColour(fill.withMultipliedAlpha(alpha));
+            g.fillRect(cell);
+            if (track.voice && !row.voice) {
+                g.setColour(dim);
+                g.drawRect(cell, 2);
+            } else if (row.voice && st.note > 120) {  // beyond +5 V on CV
+                g.setColour(Colours::red);
+                g.drawRect(cell, 2);
+            }
+        }
+    }
+    const int at = e.playing(0);
+    if (at >= 0 && at < length) {
+        g.setColour(Colours::white);
+        g.drawRect(GX + at * CW, GY, CW, ROLL_ROWS * RRH, 2);
+    }
+    if (auto* pad = processor_.padView()) {  // clipped to the pitches shown
+        Graphics::ScopedSaveState clip(g);
+        g.reduceClipRegion(GX - 2, GY - 2, Engine::STEPS * CW + 4, ROLL_ROWS * RRH + 4);
+        const int top = rowOf(pad->pitchLow() + gseq::LaunchpadView::ROLL_ROWS - 1);
+        g.setColour(padWindow);
+        g.drawRect(GX + pad->left() * CW - 2, GY + top * RRH - 2, gseq::LaunchpadView::WINDOW_STEPS * CW + 4,
+                   gseq::LaunchpadView::ROLL_ROWS * RRH + 4, 2);
+    }
+    const int ci = rowOf(cp);
+    if (ci >= 0 && ci < ROLL_ROWS) {
+        g.setColour(cyan);
+        g.drawRect(GX + col_ * CW - 1, GY + ci * RRH - 1, CW + 2, RRH + 2, 3);
+    }
+    String line = noteName(cp) + " step " + String(col_ + 1) + "   " + (cursorNote.isEmpty() ? "off" : "on" + cursorNote);
+    if (above || below) line << "   notes out of view: " << String(above) << " above, " << String(below) << " below";
+    return line;
 }

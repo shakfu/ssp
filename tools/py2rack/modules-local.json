@@ -486,6 +486,7 @@
     ],
     "params": {
       "clock": "clock",
+      "mode": "mode",
       "ppqn": "ppqn",
       "swing": "swing",
       "tempo": "tempo"
