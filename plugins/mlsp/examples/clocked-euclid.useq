@@ -1,0 +1,16 @@
+; Euclidean gates on a clock: 4 pulses a quarter note into In 2, a reset into In 1.
+; @clock 4
+; @reset
+; @p1 hits 1 8
+; @p2 spread 0 1
+
+(d1 (euclid 3 8 bar))
+(d2 (euclid 5 8 bar))
+(d3 (sqr (fast 4 beat)))
+(d4 (gates [1 0 0 1 0 0 1 0] bar))
+
+; a slow pitch walk, and an envelope per beat
+(a1 (seq [0 0.2 0.4 0.6 0.4 0.2] phrase))
+(a2 (* p2 (- 1 beat)))
+(a3 (usin bar))
+(a4 (/ (floor (* p1 (frac bar))) 8))

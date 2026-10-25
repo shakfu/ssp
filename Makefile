@@ -26,7 +26,7 @@ help:
 	@echo "make [ssp]              download buildroot if needed, configure, build all plugins"
 	@echo "make configure          re-run cmake configure"
 	@echo "make buildroot          download and extract the SSP buildroot into ./buildroot"
-	@echo "make deps               build Csound, ChucK, libfaust, libscsynth and FluidSynth for the SSP, fetch teletype, sapf, alda and _core (then re-run make configure)"
+	@echo "make deps               build Csound, ChucK, libfaust, libscsynth and FluidSynth for the SSP, fetch teletype, sapf, alda, uSEQ and _core (then re-run make configure)"
 	@echo "make faust-kernels      regenerate the Faust kernel headers (needs uv)"
 	@echo "make scsy-builtin       regenerate scsy's built-in SynthDef header (needs uv)"
 	@echo "make release            build, package releases/shakfu-ssp-plugins-$$(cat VERSION) and its zip, then release-notes"
@@ -69,6 +69,7 @@ deps: | $(BUILDROOT_DEP)
 	scripts/fetch_teletype.sh
 	scripts/fetch_sapf.sh
 	scripts/fetch_alda.sh
+	scripts/fetch_useq.sh
 	scripts/fetch_core.sh ssp
 	scripts/build_fluidsynth.sh ssp
 

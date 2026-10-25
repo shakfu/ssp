@@ -39,6 +39,12 @@ Sequencers:
 | `gseq` | grid sequencer and piano roll, out as MIDI and CV; optional Launchpad Mini MK3 or X control | [README](plugins/gseq/README.md) |
 | `alda` | an Alda score as gates, pitch CV and MIDI, in a loop | [README](plugins/alda/README.md) |
 
+Experimental, built from source and not in releases:
+
+| Module | What | Docs |
+|-|-|-|
+| `mlsp` | ModuLisp, uSEQ's language: outputs as functions of time, as gates and CV; waits on the formal clarification of uSEQ's software licence | [README](plugins/mlsp/README.md) |
+
 Live coding, from the card or a USB keyboard ([script editor](docs/script-editor.md)):
 
 | Module | What | Docs |
@@ -107,6 +113,8 @@ make release  # package releases/shakfu-ssp-plugins-<VERSION> and its zip
 
 - [psnd](https://github.com/shakfu/psnd)'s C implementation of [Alda](https://alda.io): the core of `alda`.
 
+- Emute Lab Instruments' [uSEQ](https://github.com/Emute-Lab-Instruments/uSEQ), through the fork [shakfu/useq](https://github.com/shakfu/useq): the signal engine of `mlsp` (experimental).
+
 - [FluidSynth](https://github.com/FluidSynth/fluidsynth): the synth of `fsyn`.
 
 - [SuperCollider](https://github.com/supercollider/supercollider)'s scsynth and UGens, with [sc3-plugins](https://github.com/supercollider/sc3-plugins): the server of `scsy`.
@@ -115,6 +123,6 @@ make release  # package releases/shakfu-ssp-plugins-<VERSION> and its zip
 
 The repository is AGPL-3.0; see [LICENSE](LICENSE). These modules carry their own licence, for the code they include:
 
-- GPL-3.0: `sfct` (softcut), `gltc`, `ttyp`, `dexd`, `sapf`, `alda`, `scsy`.
+- GPL-3.0: `sfct` (softcut), `gltc`, `ttyp`, `dexd`, `sapf`, `alda`, `scsy`; `mlsp` (experimental), pending clarification of uSEQ's licence.
 - GPL-3.0-only: `brks`.
 - AGPL-3.0 with FluidSynth (LGPL-2.1-or-later): `fsyn`; its `FluidR3_GM.sf2` is MIT.

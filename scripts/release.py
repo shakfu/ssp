@@ -28,6 +28,7 @@ DATA = {
     "csnd": [("plugins/csound/examples", "csound", "*")],
     "chuk": [("plugins/chuck/examples", "chuck", "*")],
     "alda": [("plugins/alda/examples", "alda", "*")],
+    "mlsp": [("plugins/mlsp/examples", "mlsp", "*")],
     "fsyn": [("{deps}/../src", "fsyn", "FluidR3_GM.sf2")],  # scripts/build_fluidsynth.sh fetches it
     "scsy": [("plugins/scsynth/examples", "scsy", "*"), ("{deps}/scsynth/plugins", "scsy/ugens", "**")],
     "rack": [("presets", "rack_presets", "*")],
@@ -47,9 +48,13 @@ USER_DATA = {
                          "`examples/` holds example scenes"),
 }
 
+# modules built and tested but left out of releases, with the reason
+EXPERIMENTAL = {"mlsp": "the licence of uSEQ's software is not yet formally clarified"}
+
 LICENSES = {"gltc": "GPL-3.0", "sfct": "GPL-3.0, for softcut", "scsy": "GPL-3.0, for SuperCollider",
             "ttyp": "GPL-3.0, for monome teletype", "dexd": "GPL-3.0, for Dexed", "sapf": "GPL-3.0, for sapf",
             "alda": "GPL-3.0, for psnd's Alda",
+            "mlsp": "GPL-3.0, for uSEQ",
             "brks": "GPL-3.0-only, for Zack Scholl's _core firmware",
             "fsyn": "AGPL-3.0, with FluidSynth (LGPL-2.1-or-later), and its `FluidR3_GM.sf2` is MIT"}
 
@@ -73,6 +78,7 @@ ORIGINS = {
     "ttyp": "[monome teletype](https://github.com/monome/teletype), on [monome-rack](https://github.com/Dewb/monome-rack)'s mock hardware",
     "sapf": "[sapf](https://github.com/lfnoise/sapf), through the fork [shakfu/sapf](https://github.com/shakfu/sapf)",
     "alda": "[psnd](https://github.com/shakfu/psnd)'s C implementation of [Alda](https://alda.io)",
+    "mlsp": "the signal engine of Emute Lab Instruments' [uSEQ](https://github.com/Emute-Lab-Instruments/uSEQ), through the fork [shakfu/useq](https://github.com/shakfu/useq)",
     "fsyn": "[FluidSynth](https://github.com/FluidSynth/fluidsynth)",
     "brks": "Zack Scholl's [_core](https://github.com/schollz/_core) v8.1.0",
     "scsy": "[SuperCollider](https://github.com/supercollider/supercollider)'s scsynth, with "
@@ -172,12 +178,15 @@ def readme(version: str, tag: str, plugins: list[Plugin]) -> str:
     ported = ", ".join(f"`{m}`" for m, o in ORIGINS.items() if o == f"[sk-engines]({SK_ENGINES})")
     data_rows = [("plugins", "all", "the modules")]
     for product, sources in DATA.items():
+        if product in EXPERIMENTAL:
+            continue
         for _, folder, _ in sources:
             if "/" not in folder and folder not in {r[0] for r in data_rows}:
                 data_rows.append((folder, product, {"faust": "example programs; `libraries/` holds the Faust "
                                                              "libraries that `import(\"stdfaust.lib\")` needs",
                                                     "csound": "example orchestras", "chuck": "example programs",
                                                     "alda": "example scores",
+                                                    "mlsp": "example programs",
                                                     "fsyn": "soundfonts: `FluidR3_GM.sf2`, the default; add "
                                                             "other `.sf2` files",
                                                     "scsy": "example SynthDefs; `ugens/` holds the UGen plugins "
@@ -187,7 +196,7 @@ def readme(version: str, tag: str, plugins: list[Plugin]) -> str:
                                                             "with Ctrl-O, and the code it saves"}[folder]))
     data = "\n".join(f"| `{f}` | {m if m == 'all' else f'`{m}`'} | {w} |" for f, m, w in data_rows)
     user = "\n".join(f"| `{f}` | `{m}` | {w} |" for m, (f, w) in USER_DATA.items())
-    licences = "; ".join(f"`{m}` is {l}" for m, l in LICENSES.items())
+    licences = "; ".join(f"`{m}` is {l}" for m, l in LICENSES.items() if m not in EXPERIMENTAL)
     return f"""# {PACKAGE} {version}
 
 Modules for the [Percussa SSP](https://www.percussa.com/), built from [shakfu/ssp]({REPO_URL}) at tag `{tag}`.
@@ -261,7 +270,7 @@ def package(root: pathlib.Path, build_dir: pathlib.Path, deps_dir: pathlib.Path,
     """Builds out_dir/shakfu-ssp-plugins-<version>/ and its zip; returns the zip's path. With pdf, the
     package's Markdown is rendered to PDF by that function and only the PDFs are kept."""
     release_tag = tag(version)
-    plugins = find_plugins(root)
+    plugins = [p for p in find_plugins(root) if p.product not in EXPERIMENTAL]
     missing = [p.product for p in plugins if built_so(build_dir, p) is None]
     if missing:
         raise SystemExit(f"not built in {build_dir}: {', '.join(missing)} (run make, and make deps for csnd and chuk)")
@@ -285,7 +294,9 @@ def package(root: pathlib.Path, build_dir: pathlib.Path, deps_dir: pathlib.Path,
                        if f.is_file() and f.name.startswith(("README", "CHANGELOG", "LICENSE", "NOTICE")))
         copy_docs(p.dir, dest / "docs" / p.product, names, release_tag, root, shipped)
 
-    for sources in DATA.values():
+    for product, sources in DATA.items():
+        if product in EXPERIMENTAL:
+            continue
         for src, folder, pattern in sources:
             src_dir = pathlib.Path(src.format(deps=deps_dir, sapf=sapf_dir or sapf_source(root)))
             src_dir = src_dir if src_dir.is_absolute() else root / src_dir

@@ -14,7 +14,7 @@ ROOT = release.ROOT
 def test_finds_every_plugin_with_its_version():
     plugins = {p.product: p for p in release.find_plugins(ROOT)}
     assert set(plugins) == {"bard", "chrs", "chuk", "csnd", "edrm", "fstr", "gltc", "strc", "rack", "rdio", "sfct",
-                            "scsy", "ttyp", "dexd", "sapf", "alda", "fsyn", "brks", "gseq"}
+                            "scsy", "ttyp", "dexd", "sapf", "alda", "fsyn", "brks", "gseq", "mlsp"}
     assert all(p.version and p.description for p in plugins.values())
 
 
@@ -58,9 +58,12 @@ def test_package_mirrors_the_card(tmp_path):
     build, deps = fake_build(tmp_path)
     archive = release.package(ROOT, build, deps, tmp_path / "out", "9.9.9", None, sapf_dir=tmp_path / "sapf")
     top = tmp_path / "out" / "shakfu-ssp-plugins-9.9.9"
-    products = {p.product for p in release.find_plugins(ROOT)}
+    products = {p.product for p in release.find_plugins(ROOT)} - {"mlsp"}
 
+    # mlsp is experimental: built, but not shipped
     assert {f.stem for f in (top / "BOOT" / "plugins").iterdir()} == products
+    assert not (top / "docs" / "mlsp").exists() and not (top / "BOOT" / "mlsp").exists()
+    assert "`mlsp`" not in (top / "README.md").read_text()
     assert (top / "BOOT" / "faust" / "libraries" / "stdfaust.lib").is_file()
     assert (top / "BOOT" / "faust" / "chorus.dsp").is_file()
     assert (top / "BOOT" / "rack_presets" / "empty.json").is_file()

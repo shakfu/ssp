@@ -1,6 +1,6 @@
 # Script modules
 
-What the script modules share: the code editor, the keys, presets, and the controls and CV of `csnd`, `chuk`, `fstr` and `scsy`. Each module's README covers its language. [Using](USING.md) covers what every module shares.
+What the script modules share: the code editor, the keys, presets, and the controls and CV of `csnd`, `chuk`, `fstr`, `mlsp` and `scsy`. Each module's README covers its language. [Using](USING.md) covers what every module shares.
 
 | Module | Language | Code view | Key port | Ctrl-S on the built-in writes |
 |-|-|-|-|-|
@@ -9,6 +9,7 @@ What the script modules share: the code editor, the keys, presets, and the contr
 | [`csnd`](../plugins/csound/README.md) | Csound | yes | 7773 | `BOOT/csound/live.csd` |
 | [`chuk`](../plugins/chuck/README.md) | ChucK | yes | 7774 | `BOOT/chuck/live.ck` |
 | [`alda`](../plugins/alda/README.md) | Alda | yes | 7775 | `BOOT/alda/live.alda` |
+| [`mlsp`](../plugins/mlsp/README.md) (experimental) | ModuLisp | yes | 7777 | `BOOT/mlsp/live.useq` |
 | [`scsy`](../plugins/scsynth/README.md) | SuperCollider SynthDef | no: a def is a compiled binary | none | - |
 
 ## The Code view
@@ -66,19 +67,22 @@ Save As opens a prompt holding the file's name. Type a name and press Enter. A r
 | Ctrl-Enter | `fstr` | the previous program plays until the new one compiles |
 | Ctrl-Enter | `sapf` | stops every sound, then evaluates the text |
 | Ctrl-Enter | `alda` | the score replaces the running one when the loop ends, or at once after a stop |
+| Ctrl-Enter | `mlsp` | runs only if the whole program compiles; outputs both programs assign keep their state |
 | Ctrl-E | `csnd` | compiles the block into the running orchestra, or sends it as score events; see [its README](../plugins/csound/README.md#keyboard) |
 | Ctrl-E | `chuk` | runs the block as a new shred, up to 16 |
+| Ctrl-E | `mlsp` | runs the block's forms on the running program, as uSEQ's editor sends them; shows the last form's value |
 | Ctrl-E | `fstr`, `alda` | none: shows `runs whole programs only: Ctrl-Enter` |
 | Ctrl-. | `chuk` | removes every shred, the program's too: silence until the next Ctrl-Enter |
 | Ctrl-. | `sapf` | interrupts the evaluation and stops every sound |
 | Ctrl-. | `alda` | stops: gates close, MIDI notes are released, silence until the next score runs |
+| Ctrl-. | `mlsp` | clears every output to 0 V until the next Ctrl-Enter or Ctrl-E |
 | Ctrl-1 .. Ctrl-9, Ctrl-0 | `chuk` | removes Ctrl-E shred 1 to 10, numbered in the order added |
 | Ctrl-- | `chuk` | removes the newest Ctrl-E shred |
-| Ctrl-R | `sapf`, `alda` | stops, empties the Code view, and forgets the program's file; Ctrl-L brings the text back, Ctrl-S then writes the built-in's file |
+| Ctrl-R | `sapf`, `alda`, `mlsp` | stops, empties the Code view, and forgets the program's file; Ctrl-L brings the text back, Ctrl-S then writes the built-in's file |
 
 ## Editor facts
 
-- The code is coloured by the module's tree-sitter grammar.
+- The code is coloured by the module's tree-sitter grammar; `mlsp` has none yet.
 - A held key repeats after 400 ms, every 50 ms. A Ctrl chord does not repeat: a held Ctrl-Enter runs once.
 - The layout is US.
 - Tabs in a loaded file become spaces, to the next multiple of 4.
@@ -102,7 +106,7 @@ The modules have sixteen controls, `p1`..`p16`. Each exists for presets, MIDI le
 
 ### `@pN` lines
 
-`csnd`, `chuk` and `scsy`'s sidecar declare controls in comment lines. The comment syntax is in each README. The form is `@pN label [min max [unit]] [log] [cv N]`:
+`csnd`, `chuk`, `mlsp` and `scsy`'s sidecar declare controls in comment lines. The comment syntax is in each README. The form is `@pN label [min max [unit]] [log] [cv N]`:
 
 - The label is one word.
 - Without a range a control is 0 to 1.

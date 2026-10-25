@@ -2,6 +2,18 @@
 
 Changes to the build, tools and presets. Each plugin keeps its own changelog in `plugins/<name>/CHANGELOG.md`.
 
+## [Unreleased]
+
+### Plugins
+
+- `mlsp`, new and experimental: ModuLisp, the language of Emute Lab's uSEQ module, on uSEQ's signal engine, as four gates and four CVs. The program reads the eight inputs and sixteen encoders, and follows its own tempo, a clock on In 2 or MIDI clock. Releases leave it out until uSEQ's software licence is formally clarified. See [plugins/mlsp/CHANGELOG.md](plugins/mlsp/CHANGELOG.md).
+
+### Build and tools
+
+- `make deps` fetches uSEQ from the fork [shakfu/useq](https://github.com/shakfu/useq) (`scripts/fetch_useq.sh`) at a pinned commit, which adds the SSP's inputs and two bound checks to upstream's b628d0e and keeps only the engine's source, built with CMake. `mlsp` builds it through the fork's `CMakeLists.txt`.
+
+- `scripts/release.py` leaves out the modules in `EXPERIMENTAL`, with their card folders and licence lines. A set in the script, not a `make release` variable, so a release cannot ship one by omission.
+
 ## [0.5.0]
 
 One module is new since 0.4.0: `gseq`, so the release ships 19.

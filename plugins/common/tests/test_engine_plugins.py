@@ -38,6 +38,7 @@ def plugins():
         subprocess.run([ROOT / "scripts" / "build_deps.sh", "host"], check=True, capture_output=True)
     subprocess.run([ROOT / "scripts" / "fetch_teletype.sh"], check=True, capture_output=True)
     subprocess.run([ROOT / "scripts" / "fetch_alda.sh"], check=True, capture_output=True)
+    subprocess.run([ROOT / "scripts" / "fetch_useq.sh"], check=True, capture_output=True)
     subprocess.run([ROOT / "scripts" / "fetch_sapf.sh"], check=True, capture_output=True)
     subprocess.run([ROOT / "scripts" / "fetch_core.sh", "host"], check=True, capture_output=True)
     if not (DEPS / "lib" / "libfluidsynth.a").exists():
@@ -55,7 +56,7 @@ def plugins():
 PRODUCTS = {"radio": "rdio", "csound": "csnd", "chuck": "chuk", "edrums": "edrm", "pstretch": "strc", "bard": "bard",
             "glitch": "gltc", "chorus": "chrs", "faust": "fstr", "scsynth": "scsy", "teletype": "ttyp",
             "dexed": "dexd", "alda": "alda", "fsyn": "fsyn", "breaks": "brks", "sfct": "sfct", "sapf": "sapf",
-            "gseq": "gseq"}
+            "gseq": "gseq", "mlsp": "mlsp"}
 # examples/: built and tested on the host, never shipped, so not in the manifest
 EXAMPLES = {"svca": "svca", "tremolo": "trem"}
 
@@ -162,6 +163,19 @@ def test_alda_midi_port(plugins):
     assert "Program change" in dump
     assert re.search(r"Note on\s+0, note 60, velocity 69", dump), dump  # the built-in's first note, c on channel 1
     assert host.returncode == 0, host.stderr[-4000:]
+
+
+def test_mlsp(plugins, tmp_path):
+    levels, _ = run(plugins, "mlsp", "prepare", 48000, 128, "run", 0.2, 128, "level", 0)
+    assert levels[0][0] > 0.01  # the built-in's d1, a gate on the beat
+    prog = tmp_path / "prog.useq"
+    prog.write_text("; @p1 level 0 1\n(a1 p1)\n(a2 ain2)\n(d1 in2)\n")
+    levels, state = run(plugins, "mlsp", "set", "program", prog, "set", "p1", 0.75, "in", 1, 0.3,
+                        "prepare", 48000, 128, "run", 0.3, 300, "level", 0, "level", 4, "level", 5, "state")
+    assert levels[0][1] == 1.0  # In 2 at 1.5 V is a gate
+    assert levels[4][1] == pytest.approx(0.75, abs=1e-6)
+    assert levels[5][1] == pytest.approx(0.3, abs=1e-6)
+    assert f'program="{prog}"' in state
 
 
 def wav(path, frames, sample, channels=1):
@@ -516,6 +530,21 @@ def test_script_code_parts(plugins, tmp_path, monkeypatch):
                           "wait", 0.5, "render", tmp_path / "f.bgra", *measure, *measure, *measure)
     assert levels[2] == [pytest.approx(0.25, abs=1e-6), 0.0, 0.0]
     assert levels[3] == [pytest.approx(0.5, abs=1e-6), pytest.approx(0.5, abs=1e-6), 0.0]
+
+
+def test_mlsp_code_parts(plugins, tmp_path, monkeypatch):
+    """mlsp's Ctrl-E forms beside the program, on the live engine; Ctrl-. clearing every output."""
+    monkeypatch.setenv("MLSP_KEYBOARD", "0")
+    prog = tmp_path / "empty.useq"
+    prog.write_text("")
+    ctrl_e = key_records("e", CTRL)
+    batches = [(0, key_records("(a1 0.25)\n") + ctrl_e + key_records("\n(a2 0.5)\n") + ctrl_e),
+               (4.5, key_records(".", CTRL))]
+    measure = ["wait", 2, "render", tmp_path / "f.bgra", "wait", 1, "run", 0.2, 128, "level", 4, "level", 5]
+    levels, _ = run_typed(plugins, "mlsp", 7777, batches, "prepare", 48000, 128, "set", "program", prog,
+                          "wait", 0.5, "render", tmp_path / "f.bgra", *measure, *measure)
+    assert levels[4] == [pytest.approx(0.25, abs=1e-6), 0.0]
+    assert levels[5] == [pytest.approx(0.5, abs=1e-6), 0.0]
 
 
 @pytest.fixture

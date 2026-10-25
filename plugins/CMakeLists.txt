@@ -57,6 +57,18 @@ else ()
     message(STATUS "skipping alda: run `make deps`")
 endif ()
 
+# mlsp: uSEQ at the commit scripts/fetch_useq.sh pins, or USEQ_DIR
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/fetch_useq.sh" USEQ_REF_LINE REGEX "^USEQ_REF=")
+string(REGEX REPLACE "^USEQ_REF=([0-9a-f]+).*" "\\1" USEQ_REF "${USEQ_REF_LINE}")
+if (NOT USEQ_DIR)
+    set(USEQ_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../build/deps/src/useq-${USEQ_REF}")
+endif ()
+if (EXISTS "${USEQ_DIR}/CMakeLists.txt")
+    add_subdirectory(mlsp)
+else ()
+    message(STATUS "skipping mlsp: run `make deps`")
+endif ()
+
 # breaks: _core at the commit scripts/fetch_core.sh pins, with its engine generated for this target
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/fetch_core.sh" CORE_REF_LINE REGEX "^CORE_REF=")
 string(REGEX REPLACE "^CORE_REF=([0-9a-f]+).*" "\\1" CORE_REF "${CORE_REF_LINE}")

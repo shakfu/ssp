@@ -1,6 +1,6 @@
 # mlsp: ModuLisp sequencer plugin (design)
 
-Status: sketch, 2026-10-17. Nothing built. Blocked on the licence (Licence). Choice of language: [dsls.md](dsls.md).
+Status: 2026-10-25, steps 1 and 3 built and host-tested; the plugin cross-builds; no device test yet ([mlsp-device-test.md](mlsp-device-test.md)). Steps 4 (MIDI) and 5 (highlighting) are open. Choice of language: [dsls.md](dsls.md). [As built](#as-built) lists where the code departs from this design.
 
 `mlsp` runs ModuLisp, the language of the [uSEQ](https://github.com/Emute-Lab-Instruments/uSEQ) eurorack module, inside an SSP plugin. You type ModuLisp on a USB keyboard and evaluate it. Each output is a function of time; the plugin samples it and drives SSP gate and CV outs, and optionally MIDI.
 
@@ -173,6 +173,24 @@ Each step ends with a check that must pass before the next. Steps 1-2 fetch uSEQ
 
 4. Does `dspengine` merge onto the signal engine? If so, re-pin after the merge, not before.
 
+## As built
+
+2026-10-25. Open question 1 went to `mlsp`; question 2 to the fork [shakfu/useq](https://github.com/shakfu/useq), detached from upstream: b628d0e, the SSP commit dad93d7, then the hardware, firmware, wasm and editor removed and the code moved to `src/` with a CMake build. `scripts/fetch_useq.sh` pins it, and the plugin builds the engine through the fork's `CMakeLists.txt` (`add_subdirectory`).
+
+- Controls are inputs 16-31, not cells. The graph builder folds a number cell to a constant (`graph_builder.cpp:589`), so a cell written per block would never reach a compiled graph. Inputs 0-15 are `in1`-`in8` and `ain1`-`ain8`; 32 is uSEQ's own `hw_inputs` size.
+
+- Ctrl-Enter is atomic: the program compiles on a fresh `SignalEngine` first, then on the live one. A copy of the live engine was the other option; `NodePool` holds a `unique_ptr`, so `SignalEngine` is not copyable, and it is 528 KB. The cost: a program cannot use a name only Ctrl-E defined.
+
+- The live engine is cleared (`useq-clear`) before a program only when it drops an output the running one assigns; otherwise state carries over.
+
+- `eval_cold` runs once per top-level form. One call takes at most `MAX_TOKENS` (256) tokens, and dropped the excess silently; the patch now reports it.
+
+- Time comes from `common/engine/Clock`, not uSEQ's `tempoEstimator`: `t` advances by the clock's quarter notes times `60 / bpm`. `alda` and `gseq` share that clock.
+
+- One process-wide mutex serialises every instance's `eval_cold`: `SymbolIntern` is a singleton `std::map`, and `report_error_with_fuzzy_match` writes static buffers. The audio thread never touches either.
+
+- Not patched: `NodePool::alloc_live_slot` compares a `uint8_t` count against `MAX_LIVE_SLOTS` (256 on desktop builds), always true, so the 257th live-edit slot wraps to slot 0. In bounds, but wrong; clang warns at `node_pool.cpp:45`.
+
 ## Licence
 
-Unresolved; email sent to Emute Lab, 2026-10-17. The repo carries only CERN-OHL-S v2 (`license/`), a hardware licence; no software licence or source headers were found. Code published without a licence is not open source: GitHub's terms let others view and fork it on GitHub, nothing more. Owning the module does not change this. The reply should state the licence of `uSEQ/src/`. If it is CERN-OHL-S v2, check its compatibility with this repository's AGPL-3 code before step 3; that is not yet researched.
+2026-10-25: `mlsp` is experimental: `scripts/release.py` leaves it out (`EXPERIMENTAL`) until the licence is formally clarified. It is marked GPL-3.0. The repository at b628d0e still carries only CERN-OHL-S v2; a written grant or an upstream LICENSE file should be on record. History: email sent to Emute Lab, 2026-10-17.
