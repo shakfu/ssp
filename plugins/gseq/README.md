@@ -131,6 +131,17 @@ In Step mode the cursor stays where the pad put it; step entry from a MIDI keybo
 
 Record into the roll from a MIDI keyboard.
 
+## Monome grid
+
+A 16 x 8 monome grid edits and shows the pattern. Plug it into the SSP's USB hub; `gseq` finds it within a second, with no setting. With several `gseq` modules, one drives it, and another takes over when it is removed. A grid and a Launchpad can be used at once.
+
+- The whole grid is the pattern: grid row 1 is row 1, and the 16 columns are steps 1-16 or 17-32. The page follows the cursor: move the cursor past step 16 with the SSP's arrows to see steps 17-32.
+- A key moves the cursor there and switches the step on or off. A step switched on takes the last note played on a MIDI keyboard or a Launchpad key, else C4, at velocity 100.
+- Brightness: off steps dim, on steps brighter for higher velocity, the playing step full. A step on in a muted row, or a row with no output, stays dim. The cursor blinks.
+- Mutes, Rec, Step and paging are on the SSP; the grid has no buttons for them.
+- Roll mode: the 8 rows are 8 pitches, highest at the top, and a key adds or removes the note there. The pitches follow the cursor's pitch.
+- Steps past a row's length are dark, and keys there do nothing.
+
 ## Clock
 
 | Clock | Time from |

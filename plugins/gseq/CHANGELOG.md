@@ -2,6 +2,10 @@
 
 gseq follows [semantic versioning](https://semver.org). The version is set in `CMakeLists.txt` (`project(GSEQ VERSION ...)`).
 
+## [Unreleased]
+
+- A 16 x 8 monome grid edits and shows the pattern: 8 rows by 16 steps, a page of the 32, following the cursor; a key switches a step on, with the last note played, or off. In roll mode the rows are pitches. Through libmonome's libftdi backend, as the SSP's kernel has no driver for the grid's FTDI chip (docs/dev/monome.md).
+
 ## [0.1.0] - 2026-10-24
 
 First version. A grid of 8 rows of up to 32 steps, each row with its own length and step, so rows drift (polymeter). Each step holds a note, a velocity and a duration; each row plays on a MIDI channel, a CV voice (gate, pitch and optional velocity), or both. Retrigger on overlap; a 2 ms minimum gate. Velocity CV per row is off, held until the next note, or gated: 0 V while the gate is closed, so one jack carries a note's duration and velocity into a level input such as Plaits' LEVEL. Free tempo, clock input or MIDI clock, from alda's clock. Recording from a MIDI keyboard: Rec (button 7) replaces the cursor's row with its next pass, each note on the nearest step, and follows the cursor to another row until the pass starts; Step (button 8) writes each note at the cursor. Durations come from how long notes are held; chords spread over rows. Rows 1-4 start on MIDI channels 1-4 and CV voices 1-4 with velocity CV, rows 5-8 on MIDI only; a row with no output shows its steps grey.

@@ -1,6 +1,13 @@
 cmake_minimum_required(VERSION 3.15)
 project(plugins)
 
+# the prebuilt libraries `make deps` builds, for this target
+if (TARGET_SSP)
+    set(DEPS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../build/deps/ssp")
+else ()
+    set(DEPS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../build/deps/host")
+endif ()
+
 add_subdirectory(sfct)
 add_subdirectory(rack)
 add_subdirectory(radio)
@@ -20,11 +27,6 @@ else ()
 endif ()
 
 # csound, chuck, faust and scsynth link prebuilt libraries: `make deps` builds them
-if (TARGET_SSP)
-    set(DEPS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../build/deps/ssp")
-else ()
-    set(DEPS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../build/deps/host")
-endif ()
 foreach (P csound chuck faust scsynth)
     if (EXISTS "${DEPS_DIR}/lib/lib${P}.a")
         add_subdirectory(${P})

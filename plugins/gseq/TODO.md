@@ -23,3 +23,8 @@ Open:
 ## Piano roll mode
 
 - [x] Built 2026-10-23: docs/dev/gseq-roll.md; usage in the README (Roll mode). Device test: docs/dev/gseq-device-test.md steps 37-45.
+
+## Monome grid
+
+- [ ] 16 x 8 grid built 2026-10-25: usage in the README (Monome grid), design in docs/dev/monome.md. Device test: docs/dev/gseq-device-test.md steps 47-56. Needs Synthor stopped to deploy (`make deploy-mod MOD=gseq`).
+- [ ] Pin the libmonome fork's `LATENCY_MS 4` commit in scripts/build_monome.sh once pushed; the SSP build used the local checkout (`LIBMONOME_DIR`).

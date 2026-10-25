@@ -65,3 +65,13 @@ Roll mode ([gseq-roll.md](gseq-roll.md)). Rows 1-4 into four oscillators and env
 | 44 | Save the patch, reload it | still `roll`, the notes as they were |
 | 45 | Global, encoder 1 again | `grid`: each row shows the notes gseq put on it |
 | 46 | One oscillator on voice 1; a chord at step 1; track page, press encoder 2 | `mono`: the step keeps one note; a new note at a step replaces it and sounds on voice 1; the nanoKEY plays one note at a time |
+| 47 | Monome grid on the hub; add `gseq` | within a second the grid shows the pattern: rows 1-8 by steps 1-16, off steps dim |
+| 48 | Press grid keys while it plays | each switches its step on or off, on screen too; the cursor moves there and blinks; the playing step is full |
+| 49 | Play a note on the nanoKEY, then switch a step on from the grid | the step takes that note |
+| 50 | Row page: length 24; arrows to step 20 | the grid pages to steps 17-32; steps 25-32 dark; back to step 3: page 1 |
+| 51 | Mute a row on the SSP | its on steps go dim on the grid |
+| 52 | Global: roll; press grid keys | each adds or removes a note at its pitch, highest at the top; the pitches follow the cursor |
+| 53 | Unplug the grid, plug it in again | within a second it shows the pattern again; no crash |
+| 54 | Two `gseq` modules; remove the one with the grid | the other takes the grid within a second |
+| 55 | Remove `gseq` | the grid goes dark |
+| 56 | DSP and CPU with the grid idle (`top` over ssh) | record them; expect about 2% of a core for the grid's thread |

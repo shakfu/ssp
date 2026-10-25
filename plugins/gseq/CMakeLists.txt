@@ -18,11 +18,13 @@ juce_add_plugin(GSEQ
 include(${CMAKE_CURRENT_SOURCE_DIR}/../common/CMakeLists.txt)
 include(${CMAKE_CURRENT_SOURCE_DIR}/../common/engine/CMakeLists.txt)
 include(${CMAKE_CURRENT_SOURCE_DIR}/../common/launchpad/CMakeLists.txt)
+include(${CMAKE_CURRENT_SOURCE_DIR}/../common/monome/CMakeLists.txt)
 
 target_sources(GSEQ
         PUBLIC
         Source/SSPApi.cpp
         PRIVATE
+        Source/GridView.cpp
         Source/GseqEngine.cpp
         Source/LaunchpadView.cpp
         Source/PluginEditor.cpp
@@ -31,6 +33,7 @@ target_sources(GSEQ
         ${ENGINE_SRC}
         ${CLOCK_SRC}
         ${LAUNCHPAD_SRC}
+        ${MONOME_SRC}
         )
 
 target_compile_definitions(GSEQ
@@ -43,6 +46,7 @@ target_compile_definitions(GSEQ
         JUCE_ALSA_MIDI_NAME="gseq")  # the ALSA client holding the module's MIDI port; JUCE's default is "JUCE"
 
 target_link_libraries(GSEQ PRIVATE juce::juce_audio_utils)
+ssp_link_monome(GSEQ)  # a monome grid, where scripts/build_monome.sh has built libmonome
 
 set_target_properties(${PROJECT_NAME}_VST3 PROPERTIES PREFIX "")
 

@@ -22,6 +22,8 @@ LIBUSB_REF=1.0.27
 LIBUSB_SHA=ffaa41d741a8a3bee244ac8e54a72ea05bf2879663c098c82fc5757853441575
 LIBFTDI_REF=1.5
 LIBFTDI_SHA=7c7091e9c86196148bd41177b4590dccb1510bfe6cea5bf7407ff194482eb049
+LIBMONOME_REF=7c18fdf3720982c6ea20d9e31ef8ef8b7e6270d2  # 2026-10-25: the libftdi backend
+LIBMONOME_SHA=db687051990f01a9eb8072b27d6f81e941258e61710aeeeb09e53f949cf97c36
 
 case "$target" in
     ssp)
@@ -57,7 +59,13 @@ fetch "https://github.com/libusb/libusb/releases/download/v$LIBUSB_REF/libusb-$L
     "libusb-$LIBUSB_REF"
 fetch "https://www.intra2net.com/en/developer/libftdi/download/libftdi1-$LIBFTDI_REF.tar.bz2" "$LIBFTDI_SHA" \
     "libftdi1-$LIBFTDI_REF"
-monome="${LIBMONOME_DIR:?set LIBMONOME_DIR to a checkout of github.com/shakfu/libmonome}"
+if [ -n "${LIBMONOME_DIR:-}" ]; then
+    monome="$LIBMONOME_DIR"
+else
+    fetch "https://github.com/shakfu/libmonome/archive/$LIBMONOME_REF.tar.gz" "$LIBMONOME_SHA" \
+        "libmonome-$LIBMONOME_REF"
+    monome="$src/libmonome-$LIBMONOME_REF"
+fi
 
 # autotools, in a build directory per target; no udev: libmonome names the device, libusb need not find it
 usb="$prefix/build/libusb"
@@ -83,8 +91,10 @@ cp "$prefix/build/libftdi1/src/libftdi1.a" "$prefix/lib/"
 mkdir -p "$prefix/include/libftdi1"
 cp "$src/libftdi1-$LIBFTDI_REF/src/ftdi.h" "$prefix/include/libftdi1/"
 
-cmake -S "$monome" -B "$prefix/build/libmonome" "${toolchain[@]}" "${common[@]}" -DMONOME_LIBFTDI=ON >/dev/null
-cmake --build "$prefix/build/libmonome" -j"$jobs" --target monome_static >/dev/null
-cp "$prefix/build/libmonome/libmonome.a" "$prefix/lib/"
+# a build directory per source tree: CMake refuses a cache made from another
+mb="$prefix/build/$(basename "$monome")"
+cmake -S "$monome" -B "$mb" "${toolchain[@]}" "${common[@]}" -DMONOME_LIBFTDI=ON >/dev/null
+cmake --build "$mb" -j"$jobs" --target monome_static >/dev/null
+cp "$mb/libmonome.a" "$prefix/lib/"
 cp "$monome/public/monome.h" "$prefix/include/"
 echo "$prefix/lib/libmonome.a"

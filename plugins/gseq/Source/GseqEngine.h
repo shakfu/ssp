@@ -99,6 +99,8 @@ public:
     void noteIn(int note, int velocity);
     // MIDI input thread, as noteIn(): a note that sounds from the cursor's row down and writes no step
     void playIn(int note, int velocity);
+    // any thread: the last note noteIn() or playIn() started, in any mode; -1 before one
+    int lastNote() const { return lastNote_.load(std::memory_order_relaxed); }
 
     // Any thread: roll mode on or off. Switching it on gives every row row 1's MIDI channel, length,
     // division and velocity CV; rows 1-4 voices 1-4 if row 1 has a voice, else none; mutes cleared.
@@ -203,7 +205,7 @@ private:
 
     // recording: requests from the UI and notes from the MIDI thread, state for the UI
     std::atomic<bool> recordToggle_{ false }, stepEntry_{ false };
-    std::atomic<int> cursor_{ 0 }, cursorPitch_{ 60 };
+    std::atomic<int> cursor_{ 0 }, cursorPitch_{ 60 }, lastNote_{ -1 };
     std::atomic<bool> roll_{ false };
     std::atomic<uint8_t> recordState_{ IDLE };
     std::atomic<int> recordRow_{ 0 };

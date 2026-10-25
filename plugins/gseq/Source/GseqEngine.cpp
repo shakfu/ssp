@@ -133,10 +133,12 @@ void GseqEngine::stopAll(bool replay) {
 }
 
 void GseqEngine::noteIn(int note, int velocity) {
+    if (velocity > 0) lastNote_.store(note & 127, std::memory_order_relaxed);
     notesIn_.try_enqueue({ uint8_t(note & 127), uint8_t(velocity & 127), false });  // full: the note is lost
 }
 
 void GseqEngine::playIn(int note, int velocity) {
+    if (velocity > 0) lastNote_.store(note & 127, std::memory_order_relaxed);
     notesIn_.try_enqueue({ uint8_t(note & 127), uint8_t(velocity & 127), true });
 }
 

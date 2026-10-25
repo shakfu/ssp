@@ -41,6 +41,7 @@ def plugins():
     subprocess.run([ROOT / "scripts" / "fetch_useq.sh"], check=True, capture_output=True)
     subprocess.run([ROOT / "scripts" / "fetch_sapf.sh"], check=True, capture_output=True)
     subprocess.run([ROOT / "scripts" / "fetch_core.sh", "host"], check=True, capture_output=True)
+    subprocess.run([ROOT / "scripts" / "build_monome.sh", "host"], check=True, capture_output=True)
     if not (DEPS / "lib" / "libfluidsynth.a").exists():
         subprocess.run([ROOT / "scripts" / "build_fluidsynth.sh", "host"], check=True, capture_output=True)
     subprocess.run(["cmake", "-S", ROOT, "-B", BUILD, "-DCMAKE_BUILD_TYPE=Release"], check=True, capture_output=True)

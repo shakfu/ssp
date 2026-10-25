@@ -144,6 +144,9 @@ void PluginProcessor::midiLoop() {
     ssp::launchpad::Surface surface(pad_.model());
     ssp::launchpad::Frame frame;
     std::vector<uint8_t> lights;
+#if SSP_MONOME
+    ssp::monome::Frame gridFrame;
+#endif
     // ms counts loops, wrapping where both periods divide it
     for (int ms = 0; !midiQuit_.load(std::memory_order_relaxed);
          ms = (ms + MIDI_POLL_MS) % (PAD_POLL_MS * PAD_FRAME_MS)) {
@@ -160,6 +163,12 @@ void PluginProcessor::midiLoop() {
             surface.update(frame, lights);
             pad_.send(lights);
         }
+#if SSP_MONOME
+        if (ms % PAD_FRAME_MS == 0 && grid_.isOpen()) {
+            gridView_.render(gridFrame, ms / BLINK_MS % 2 == 0);
+            grid_.show(gridFrame);
+        }
+#endif
         std::this_thread::sleep_for(std::chrono::milliseconds(MIDI_POLL_MS));
     }
 }

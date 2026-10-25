@@ -1,5 +1,5 @@
-"""GseqEngine (gseq_test.cpp) and LaunchpadView (launchpad_view_test.cpp) natively, and their threads under
-ThreadSanitizer."""
+"""GseqEngine (gseq_test.cpp), LaunchpadView (launchpad_view_test.cpp) and GridView (grid_view_test.cpp)
+natively, and their threads under ThreadSanitizer."""
 
 import os
 import shutil
@@ -22,12 +22,13 @@ def build(out, name, test, *flags):
     exe = out / name
     subprocess.run([cxx, "-std=c++17", "-Wall", "-pthread", *flags, f"-I{SRC}", f"-I{COMMON}",
                     f"-I{ROOT / 'external' / 'readerwriterqueue'}", HERE / test, SRC / "GseqEngine.cpp",
-                    SRC / "LaunchpadView.cpp", COMMON / "engine" / "Clock.cpp", COMMON / "launchpad" / "Launchpad.cpp",
+                    SRC / "LaunchpadView.cpp", SRC / "GridView.cpp", COMMON / "engine" / "Clock.cpp",
+                    COMMON / "launchpad" / "Launchpad.cpp", COMMON / "monome" / "Grid.cpp",
                     "-o", exe], check=True)
     return exe
 
 
-TESTS = ["gseq_test.cpp", "launchpad_view_test.cpp"]
+TESTS = ["gseq_test.cpp", "launchpad_view_test.cpp", "grid_view_test.cpp"]
 
 
 @pytest.mark.parametrize("test", TESTS)

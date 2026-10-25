@@ -4,11 +4,15 @@
 #include <memory>
 #include <thread>
 
+#include "GridView.h"
 #include "GseqEngine.h"
 #include "LaunchpadView.h"
 #include "engine/EngineEditor.h"
 #include "engine/EngineProcessor.h"
 #include "launchpad/LaunchpadDevice.h"
+#if SSP_MONOME
+#include "monome/GridDevice.h"
+#endif
 
 using namespace juce;
 
@@ -17,6 +21,7 @@ class PluginProcessor : public ssp::engine::EngineProcessor {
 public:
     static constexpr int MIDI_POLL_MS = 1;
     static constexpr int PAD_POLL_MS = 1000, PAD_FRAME_MS = 16;                  // looks for the Launchpad; redraws it
+    static constexpr int BLINK_MS = 250;  // the grid's cursor: lit, then not, for this long each
     static constexpr const char* CLOCK_NAMES[3] = { "free", "analog", "midi" };  // Clock::Source order
     static constexpr const char* MODE_NAMES[2] = { "grid", "roll" };
 
@@ -66,7 +71,7 @@ private:
     static AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     // Sends the engine's MIDI, every MIDI_POLL_MS, to the plugin's own ALSA port and to the general panel's
     // MIDI out, if one is chosen. Without either the messages are dropped, so the queue never fills. Also
-    // opens the Launchpad when it appears and redraws it.
+    // opens the Launchpad when it appears and redraws it, and redraws the grid.
     void midiLoop();
     void send(const MidiBuffer& buf);  // MIDI thread, or after it ends
 
@@ -86,6 +91,12 @@ private:
     ssp::launchpad::Device pad_{ [this](const ssp::launchpad::Event& e) { padView_.press(e); } };
 
     std::atomic<bool> padOpen_{ false };  // pad_.isOpen(), for other threads
+
+    // a monome grid: its own thread finds it and passes its keys to the view; midiLoop draws it
+    gseq::GridView gridView_{ gseq() };
+#if SSP_MONOME
+    ssp::monome::GridDevice grid_{ [this](const ssp::monome::Key& k) { gridView_.press(k); } };
+#endif
     std::atomic<bool> midiQuit_{ false };
     std::thread midiThread_;
 
