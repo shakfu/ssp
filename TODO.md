@@ -8,4 +8,6 @@ This section exclusively covers common code and issues. Each plugin should have 
 
 ## Medium
 
+- [ ] add a libpd based plugin so puredata patches can be run in ssp
+
 ## Low
