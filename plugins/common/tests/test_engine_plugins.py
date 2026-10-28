@@ -57,7 +57,7 @@ def plugins():
 PRODUCTS = {"radio": "rdio", "csound": "csnd", "chuck": "chuk", "edrums": "edrm", "pstretch": "strc", "bard": "bard",
             "glitch": "gltc", "chorus": "chrs", "faust": "fstr", "scsynth": "scsy", "teletype": "ttyp",
             "dexed": "dexd", "alda": "alda", "fsyn": "fsyn", "breaks": "brks", "sfct": "sfct", "sapf": "sapf",
-            "gseq": "gseq", "mlsp": "mlsp"}
+            "gseq": "gseq", "mlsp": "mlsp", "prdt": "prdt"}
 # examples/: built and tested on the host, never shipped, so not in the manifest
 EXAMPLES = {"svca": "svca", "tremolo": "trem"}
 
@@ -860,6 +860,21 @@ def orange_pixels(frame):
     """The x of each pixel of the CV marker, juce::Colours::orange, in a 1600-wide BGRA frame."""
     data = frame.read_bytes()
     return [(i // 4) % 1600 for i in range(0, len(data), 4) if data[i:i + 3] == b"\x00\xa5\xff"]
+
+
+def test_prdt(plugins, tmp_path):
+    pd = tmp_path / "prog.pd"
+    pd.write_text("#N canvas 0 50 450 300 12;\n#X obj 10 10 r p1;\n#X obj 10 40 sig~;\n#X obj 10 70 dac~ 3;\n"
+                  "#X obj 100 10 adc~ 2;\n#X obj 100 70 dac~ 4;\n"
+                  "#X connect 0 0 1 0;\n#X connect 1 0 2 0;\n#X connect 3 0 4 0;\n")
+    levels, _ = run(plugins, "prdt", "prepare", 48000, 128, "run", 0.2, 128, "level", 0)
+    assert levels[0][0] > 0.01  # the built-in, unpatched
+    # program set before prepare, as a preset restores it
+    levels, state = run(plugins, "prdt", "set", "program", pd, "set", "p1", 0.75, "in", 1, 0.3,
+                        "prepare", 48000, 128, "run", 0.3, 300, "level", 2, "level", 3, "state")
+    assert levels[2][1] == pytest.approx(0.75, abs=1e-6)
+    assert levels[3][1] == pytest.approx(0.3, abs=1e-6)
+    assert f'program="{pd}"' in state
 
 
 def test_scsynth(plugins, tmp_path, monkeypatch):

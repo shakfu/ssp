@@ -1,0 +1,3 @@
+# Pd's process-wide tick counter, incremented by every instance's sched_tick (m_sched.c:389). Only
+# the GUI's audio-error and meter polling read it, which libpd never runs.
+race:sched_counter

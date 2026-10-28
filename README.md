@@ -1,6 +1,6 @@
 # ssp
 
-19 modules for the [Percussa SSP](https://www.percussa.com/), a Eurorack module whose host software, Synthor, loads them. Also the tools to build, test and write more.
+20 modules for the [Percussa SSP](https://www.percussa.com/), a Eurorack module whose host software, Synthor, loads them. Also the tools to build, test and write more.
 
 ## Install
 
@@ -54,6 +54,7 @@ Live coding, from the card or a USB keyboard ([script editor](docs/script-editor
 | `fstr` | Faust programs, compiled by LLVM on the SSP | [README](plugins/faust/README.md) |
 | `scsy` | SuperCollider SynthDefs, run in scsynth | [README](plugins/scsynth/README.md) |
 | `sapf` | the sapf live-coding language | [README](plugins/sapf/README.md) |
+| `prdt` | Pure Data patches, through libpd; patches from the card only | [README](plugins/prdt/README.md) |
 | `ttyp` | monome teletype | [README](plugins/teletype/README.md), [getting started](plugins/teletype/README-getting-started.md) |
 
 Host:

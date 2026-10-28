@@ -6,11 +6,17 @@ Changes to the build, tools and presets. Each plugin keeps its own changelog in 
 
 ### Plugins
 
+- `prdt`, new: a Pure Data patch from the card, run by libpd with one instance per module, with cyclone's objects built in. Encoders reach receivers the patch names in `@pN` comments, and MIDI reaches Pd's MIDI objects. See [plugins/prdt/CHANGELOG.md](plugins/prdt/CHANGELOG.md).
+
 - `gseq`: a 16 x 8 monome grid edits and shows the pattern. See [plugins/gseq/CHANGELOG.md](plugins/gseq/CHANGELOG.md).
 
 - `mlsp`, new and experimental: ModuLisp, the language of Emute Lab's uSEQ module, on uSEQ's signal engine, as four gates and four CVs. The program reads the eight inputs and sixteen encoders, and follows its own tempo, a clock on In 2 or MIDI clock. Releases leave it out until uSEQ's software licence is formally clarified. See [plugins/mlsp/CHANGELOG.md](plugins/mlsp/CHANGELOG.md).
 
 ### Build and tools
+
+- `make install-prdt` copies `prdt`'s example patches and the Pd and cyclone abstractions to the card, mounted or over ssh.
+
+- libpd 0.16.1, with Pure Data 0.56-5, is vendored in `external/libpd` (BSD-3-Clause): a source copy, not a submodule, so the build needs no network and upstream libpd's nested `pure-data` submodule does not apply. `external/libpd/VERSION` names both commits; `external/libpd/PATCHES.md` lists one local patch, a Pd teardown for unloading. cyclone 0.9-5 is vendored in `external/pd-cyclone` (BSD-3-Clause) the same way, with patches for running one Pd instance per module, in `external/pd-cyclone/PATCHES.md`.
 
 - `make deps` fetches uSEQ from the fork [shakfu/useq](https://github.com/shakfu/useq) (`scripts/fetch_useq.sh`) at a pinned commit, which adds the SSP's inputs and two bound checks to upstream's b628d0e and keeps only the engine's source, built with CMake. `mlsp` builds it through the fork's `CMakeLists.txt`.
 

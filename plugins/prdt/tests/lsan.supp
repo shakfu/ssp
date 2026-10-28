@@ -1,0 +1,8 @@
+# Pd's inlet~ and outlet~ allocate a reblocker at creation (g_io.c:320, 688) that their free functions
+# do not free: 54 bytes per signal inlet or outlet of an abstraction, per load. Upstream.
+leak:vinlet_newsig
+leak:voutlet_newsig
+# canvas_setargs keeps the last abstraction's arguments in a static until the next call. Bounded.
+leak:canvas_setargs
+# Pd's [table] gives its canvas a gstub (g_canvas.c:453) that is not freed: 16 bytes per [table], per load.
+leak:table_donew

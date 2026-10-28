@@ -1,0 +1,45 @@
+--- a/pure-data/src/m_class.c
++++ b/pure-data/src/m_class.c
+@@ -269,6 +269,28 @@
+     s_inter_free(inter);  /* must happen after sys_unlock() */
+ }
+ 
++/* prdt (ssp): frees what pd_init() and class setup allocated, for a host that unloads Pd; call it after
++every other instance is freed. The main instance goes first, so its canvases free through their classes;
++then the classes, whose free hooks release the cos~ and FFT tables. */
++void pd_freeprocess(void)
++{
++    t_pdinstance *x = &pd_maininstance;
++    t_symbol *builtins[] = {&x->pd_s_pointer, &x->pd_s_float, &x->pd_s_symbol,
++        &x->pd_s_bang, &x->pd_s_list, &x->pd_s_anything, &x->pd_s_signal,
++        &x->pd_s__N, &x->pd_s__X, &x->pd_s_x, &x->pd_s_y, &x->pd_s_};
++    unsigned int i;
++    if (!pd_instances || pd_ninstances != 1)
++        return;
++    pdinstance_free(x);
++    while (class_list)
++        class_free(class_list);
++    for (i = 0; i < sizeof(builtins) / sizeof(*builtins); i++)
++        freebytes((void *)builtins[i]->s_name, strlen(builtins[i]->s_name) + 1);
++    freebytes(pd_instances, 0);
++    pd_instances = 0;
++    pd_objectmaker = pd_canvasmaker = 0;
++}
++
+ #endif /* PDINSTANCE */
+ 
+ /* this bootstraps the class management system (pd_objectmaker, pd_canvasmaker)
+--- a/pure-data/src/m_imp.h
++++ b/pure-data/src/m_imp.h
+@@ -96,6 +96,11 @@
+ EXTERN int obj_sigoutletindex(const t_object *x, int m);
+ EXTERN t_float *obj_findsignalscalar(const t_object *x, int m);
+ 
++/* m_class.c; prdt (ssp) */
++#ifdef PDINSTANCE
++EXTERN void pd_freeprocess(void);
++#endif
++
+ /* s_inter.c */
+ void pd_globallock(void);
+ void pd_globalunlock(void);

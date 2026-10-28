@@ -18,6 +18,7 @@ add_subdirectory(bard)
 add_subdirectory(chorus)
 add_subdirectory(dexed)
 add_subdirectory(gseq)
+add_subdirectory(prdt)  # libpd is vendored in external/libpd
 
 # teletype builds its firmware from sources `make deps` fetches (scripts/fetch_teletype.sh)
 if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../build/deps/src/teletype/monome-rack")

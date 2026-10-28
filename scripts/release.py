@@ -35,6 +35,8 @@ DATA = {
     # under examples/, where Disk does not read them into the scene slots
     "ttyp": [("plugins/teletype/examples", "teletype/examples", "tt*.txt")],
     "sapf": [("{sapf}", "sapf", "sapf-prelude.txt"), ("{sapf}", "sapf", "sapf-examples.txt")],
+    "prdt": [("plugins/prdt/examples", "prdt", "*.pd"), ("external/libpd/pure-data/extra", "prdt/extra", "*.pd"),
+             ("external/pd-cyclone/cyclone_objects/abstractions", "prdt/cyclone", "*.pd")],
 }
 
 # folders a module reads that the user fills
@@ -81,6 +83,8 @@ ORIGINS = {
     "mlsp": "the signal engine of Emute Lab Instruments' [uSEQ](https://github.com/Emute-Lab-Instruments/uSEQ), through the fork [shakfu/useq](https://github.com/shakfu/useq)",
     "fsyn": "[FluidSynth](https://github.com/FluidSynth/fluidsynth)",
     "brks": "Zack Scholl's [_core](https://github.com/schollz/_core) v8.1.0",
+    "prdt": "[Pure Data](https://puredata.info), through [libpd](https://github.com/libpd/libpd), with "
+            "[cyclone](https://github.com/porres/pd-cyclone)",
     "scsy": "[SuperCollider](https://github.com/supercollider/supercollider)'s scsynth, with "
             "[sc3-plugins](https://github.com/supercollider/sc3-plugins)",
 }
@@ -193,7 +197,9 @@ def readme(version: str, tag: str, plugins: list[Plugin]) -> str:
                                                             "they load",
                                                     "rack_presets": "presets",
                                                     "sapf": "the prelude sapf loads, sapf's examples to open "
-                                                            "with Ctrl-O, and the code it saves"}[folder]))
+                                                            "with Ctrl-O, and the code it saves",
+                                                    "prdt": "example patches; `extra/` and `cyclone/` hold the "
+                                                            "Pd and cyclone abstractions, and `lib/` yours"}[folder]))
     data = "\n".join(f"| `{f}` | {m if m == 'all' else f'`{m}`'} | {w} |" for f, m, w in data_rows)
     user = "\n".join(f"| `{f}` | `{m}` | {w} |" for m, (f, w) in USER_DATA.items())
     licences = "; ".join(f"`{m}` is {l}" for m, l in LICENSES.items() if m not in EXPERIMENTAL)

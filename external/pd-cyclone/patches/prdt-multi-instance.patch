@@ -1,0 +1,434 @@
+--- a/cyclone_objects/binaries/audio/cycle.c
++++ b/cyclone_objects/binaries/audio/cycle.c
+@@ -42,6 +42,15 @@
+ 
+ 
+ //making the cosine table
++/* prdt: built at setup, not on first use from a module's thread, and freed with the class */
++static double *costable;
++
++static void cycle_freecostab(t_class *c){
++    (void)c;
++    freebytes(costable, (COS_TABSIZE + 1) * sizeof(*costable));
++    costable = 0;
++}
++
+ static double *cycle_makecostab(t_cycle *x){
+ 	/*it looks like the original sickle was rounding up from the specified table length so COS_TABSIZE
+ 	 originally wasn't even reflective of the actual table size... 
+@@ -68,7 +77,6 @@
+ 	 just returns the pointer.
+ 	*/
+ 	 
+-	static double *costable; // stays allocated as long as pd is running
+ 	 
+ 	if (costable)
+ 	{
+@@ -543,6 +551,8 @@
+ {    
+     cycle_class = class_new(gensym("cycle~"), (t_newmethod)cycle_new, (t_method)cycle_free,
+         sizeof(t_cycle), 0, A_GIMME, 0);
++    class_setfreefn(cycle_class, cycle_freecostab);
++    cycle_makecostab(0);
+ 	CLASS_MAINSIGNALIN(cycle_class, t_cycle, x_freq); 
+ 	class_addmethod(cycle_class, (t_method)cycle_dsp, gensym("dsp"), A_CANT, 0);
+     class_addmethod(cycle_class, (t_method)cycle_set,gensym("set"),
+--- a/cyclone_objects/binaries/audio/gate.c
++++ b/cyclone_objects/binaries/audio/gate.c
+@@ -135,9 +135,15 @@
+     return (x);
+ }
+ 
++/* prdt: x_ovecs was leaked */
++static void gate_free(t_gate *x)
++{
++    freebytes(x->x_ovecs, x->x_sig_outs * sizeof(*x->x_ovecs));
++}
++
+ CYCLONE_OBJ_API void gate_tilde_setup(void)
+ {
+-    gate_class = class_new(gensym("gate~"), (t_newmethod)gate_new, 0,
++    gate_class = class_new(gensym("gate~"), (t_newmethod)gate_new, (t_method)gate_free,
+             sizeof(t_gate), CLASS_DEFAULT, A_GIMME, 0);
+     class_addmethod(gate_class, (t_method)gate_dsp, gensym("dsp"), A_CANT, 0);
+     CLASS_MAINSIGNALIN(gate_class, t_gate, x_state);
+--- a/cyclone_objects/binaries/audio/lookup.c
++++ b/cyclone_objects/binaries/audio/lookup.c
+@@ -191,6 +191,7 @@
+ 
+ static void *lookup_free(t_lookup *x)
+ {
++	cybuf_free(x->x_cybuf);  /* prdt: was leaked */
+ 	inlet_free(x->x_startlet);
+ 	inlet_free(x->x_endlet);
+ 	outlet_free(x->x_out);
+--- a/cyclone_objects/binaries/audio/onepole.c
++++ b/cyclone_objects/binaries/audio/onepole.c
+@@ -131,14 +131,14 @@
+     pd_float((t_pd *)x->x_inlet, f);
+     outlet_new((t_object *)x, &s_signal);
+     onepole_clear(x);
+-    if (sym == ps_linear)
++    if (sym == gensym("linear"))  /* prdt: per-instance symbols */
+ 	x->x_mode = ONEPOLE_LINEAR;
+-    else if (sym == ps_radians)
++    else if (sym == gensym("radians"))
+ 	x->x_mode = ONEPOLE_RADIANS;
+     else
+     {
+ 	x->x_mode = ONEPOLE_HZ;
+-	if (s && s != &s_ && s != ps_hz && s != gensym("Hz"))
++	if (s && s != &s_ && s != gensym("hz") && s != gensym("Hz"))
+ 	{
+ 	    /* CHECKED no warning */
+ 	}
+--- a/cyclone_objects/binaries/audio/record.c
++++ b/cyclone_objects/binaries/audio/record.c
+@@ -260,7 +260,7 @@
+     freebytes(x->x_ivecs, x->x_numchans * sizeof(*x->x_ivecs));
+     if(x->x_clock)
+         clock_free(x->x_clock);
+-    x->x_proxy->p_cnv = NULL;
++    record_proxy_free(x->x_proxy);  /* prdt: its clock never ran once the patch closed */
+ }
+ 
+ static void *record_new(t_symbol *s, int argc, t_atom *argv){
+--- a/cyclone_objects/binaries/audio/scope.c
++++ b/cyclone_objects/binaries/audio/scope.c
+@@ -1357,7 +1357,7 @@
+         pd_unbind(x->x_handle, ((t_handle *)x->x_handle)->h_bindsym);
+         pd_free(x->x_handle);
+     }
+-    clock_delay(x->x_proxy->p_clock, 0);
++    edit_proxy_free(x->x_proxy);  /* prdt: the clock never ran once the patch closed; libpd has no GUI */
+     gfxstub_deleteforkey(x);
+ }
+ 
+--- a/cyclone_objects/binaries/audio/svf.c
++++ b/cyclone_objects/binaries/audio/svf.c
+@@ -159,9 +159,9 @@
+     outlet_new((t_object *)x, &s_signal);
+     outlet_new((t_object *)x, &s_signal);
+     svf_clear(x);
+-    if (modesym == ps_linear)
++    if (modesym == gensym("linear"))  /* prdt: per-instance symbols */
+ 	x->x_mode = SVF_LINEAR;
+-    else if (modesym == ps_radians)
++    else if (modesym == gensym("radians"))
+ 	x->x_mode = SVF_RADIANS;
+     else
+     {
+--- a/cyclone_objects/binaries/control/coll.c
++++ b/cyclone_objects/binaries/control/coll.c
+@@ -30,7 +30,7 @@
+ #endif */
+ 
+ 
+-#define COLLTHREAD 1 //default is threaded
++#define COLLTHREAD 0 /* prdt: its I/O thread has no Pd instance (PDTHREADS) */
+ #define COLLEMBED 0 //default for save in patch
+ #define COLL_ALLBANG 1 //bang all when read instead of specific object
+ #define COLL_MAXEXTLEN 4 //maximum file extension length
+@@ -1949,7 +1949,8 @@
+ }
+ 
+ static void coll_threaded(t_coll *x, t_float f){
+-    int th = f == 0 ? 0 : 1;
++    int th = 0;  /* prdt: never threaded, see COLLTHREAD */
++    (void)f;
+     if(th != x->x_threaded)
+         coll_dothread(x, th);
+     x->x_threaded = th;
+--- a/cyclone_objects/binaries/control/comment.c
++++ b/cyclone_objects/binaries/control/comment.c
+@@ -1257,7 +1257,7 @@
+     }
+     if(x->x_buf)
+         freebytes(x->x_buf, x->x_bufsize);
+-    x->x_proxy->p_cnv = NULL;
++    edit_proxy_free(x->x_proxy);  /* prdt: was leaked; libpd has no GUI to message it */
+     gfxstub_deleteforkey(x);
+ }
+ 
+--- a/cyclone_objects/binaries/control/fromsymbol.c
++++ b/cyclone_objects/binaries/control/fromsymbol.c
+@@ -22,7 +22,7 @@
+ char *mtok(char *input, char *delimiter) {
+     // adapted from stack overflow - Derek Kwan
+     // designed to work like strtok
+-    static char *string;
++    static __thread char *string;  /* prdt: per thread */
+     //mif not passed null, use static var
+     if(input != NULL)
+         string = input;
+--- a/cyclone_objects/binaries/control/mtr.c
++++ b/cyclone_objects/binaries/control/mtr.c
+@@ -961,10 +961,14 @@
+                 binbuf_free(tp->tr_binbuf);
+             if(tp->tr_clock)
+                 clock_free(tp->tr_clock);
++            if(tp->tr_filehandle)
++                file_free(tp->tr_filehandle);  /* prdt: left on file.c's list and bound to #C after free */
+             pd_free((t_pd *)tp);
+         }
+         freebytes(x->x_tracks, x->x_ntracks * sizeof(*x->x_tracks));
+     }
++    if(x->x_filehandle)
++        file_free(x->x_filehandle);
+ }
+ 
+ static void *mtr_new(t_symbol *s, int ac, t_atom *av){
+--- a/cyclone_objects/binaries/control/pv.c
++++ b/cyclone_objects/binaries/control/pv.c
+@@ -124,7 +124,7 @@
+ 	    ((t_pv *)g)->x_family = pf;
+ }
+ 
+-static t_pvfamily *pvfamily_reusable;
++static __thread t_pvfamily *pvfamily_reusable;  /* prdt: per thread */
+ 
+ static void pv_breakup(t_pvlist *pvlist, t_glist *glist)
+ {
+--- a/cyclone_objects/binaries/control/seq.c
++++ b/cyclone_objects/binaries/control/seq.c
+@@ -902,7 +902,7 @@
+ }
+ 
+ static void seq_doread(t_seq *x, t_symbol *fn){
+-    static char fname[MAXPDSTRING];
++    static __thread char fname[MAXPDSTRING];  /* prdt: per thread */
+     char *bufptr;
+     int fd = canvas_open(x->x_canvas, fn->s_name, "", fname, &bufptr, MAXPDSTRING, 1);
+     if(fd < 0){
+--- a/cyclone_objects/binaries/control/spray.c
++++ b/cyclone_objects/binaries/control/spray.c
+@@ -94,7 +94,7 @@
+         nouts = SPRAY_DEFOUTS;
+     if (!(outs = (t_outlet **)getbytes(nouts * sizeof(*outs))))
+ 	return (0);
+-    x = (t_spray *)pd_new(spray_class);
++    /* prdt: a second pd_new() here leaked the first object */
+     x->x_nouts = nouts;
+     x->x_outs = outs;
+     x->x_offset = (int)f2;
+--- a/cyclone_objects/binaries/control/tosymbol.c
++++ b/cyclone_objects/binaries/control/tosymbol.c
+@@ -26,8 +26,8 @@
+ } t_tosymbol;
+ 
+ static t_class *tosymbol_class;
+-static char tosymbol_buffer[TOSYMBOL_MAXSTRING];
+-static int tosymbol_bufferlocked = 0;
++static __thread char tosymbol_buffer[TOSYMBOL_MAXSTRING];  /* prdt: per thread */
++static __thread int tosymbol_bufferlocked = 0;
+ /* The idea is to prevent two different tosymbol objects from using the static
+    buffer at the same time.  In the current scenario this buffer is never used
+    for output, so this lock is unnecessary... but it does no harm either... */
+--- a/cyclone_objects/binaries/control/zl.c
++++ b/cyclone_objects/binaries/control/zl.c
+@@ -1471,8 +1471,8 @@
+ static void zl_setmodearg(t_zl *x, t_symbol *s, int ac, t_atom *av){
+     if(zl_intargfn[x->x_mode]){
+         int i;
+-        if(zl_modesym[x->x_mode] == gensym("group")
+-        || zl_modesym[x->x_mode] == gensym("stream")){
++        if(!strcmp(zl_modesym[x->x_mode]->s_name, "group")
++        || !strcmp(zl_modesym[x->x_mode]->s_name, "stream")){
+             if(ac >= 1 && av->a_type == A_FLOAT){
+                 int f = (int)av->a_w.w_float;
+                 if (f > x->x_outbuf1.d_max)
+@@ -1572,7 +1572,7 @@
+     zldata_realloc(&x->x_inbuf2,sz);
+     zldata_realloc(&x->x_outbuf1,sz);
+     zldata_realloc(&x->x_outbuf2,sz);
+-    if(zl_modesym[x->x_mode] == gensym("group") || zl_modesym[x->x_mode] == gensym("stream"))
++    if(!strcmp(zl_modesym[x->x_mode]->s_name, "group") || !strcmp(zl_modesym[x->x_mode]->s_name, "stream"))
+     	zl_sizecheck(x, sz);
+ }
+ 
+@@ -1585,11 +1585,11 @@
+     zldata_reset(&x->x_inbuf2, sz2);
+     zldata_reset(&x->x_outbuf1, sz3);
+     zldata_reset(&x->x_outbuf2, sz4);
+-    if(zl_modesym[x->x_mode] == gensym("stream")){
++    if(!strcmp(zl_modesym[x->x_mode]->s_name, "stream")){
+     	x->x_counter = 0;
+     	outlet_float(x->x_out2, 0);
+     }
+-    else if(zl_modesym[x->x_mode] == gensym("queue"))
++    else if(!strcmp(zl_modesym[x->x_mode]->s_name, "queue"))
+         x->x_counter = 0;
+ }
+ 
+@@ -1656,10 +1656,10 @@
+     inlet_new((t_object *)x, (t_pd *)y, 0, 0);
+     outlet_new((t_object *)x, &s_anything);
+     x->x_out2 = outlet_new((t_object *)x, &s_anything);
+-    if(zl_modesym[x->x_mode] == gensym("group") ||
+-    zl_modesym[x->x_mode] == gensym("stream"))
++    if(!strcmp(zl_modesym[x->x_mode]->s_name, "group") ||
++    !strcmp(zl_modesym[x->x_mode]->s_name, "stream"))
+     	zl_sizecheck(x, sz);
+-    if(zl_modesym[x->x_mode] == gensym("scramble"))
++    if(!strcmp(zl_modesym[x->x_mode]->s_name, "scramble"))
+     	srand((unsigned int)clock_getlogicaltime());
+     return(x);
+ errstate:
+@@ -1737,7 +1737,9 @@
+         t_atom* av = malloc(ac * sizeof(t_atom)); \
+         memcpy(av + 1, argv, argc * sizeof(t_atom)); \
+         SETSYMBOL(av, gensym(#MODE)); \
+-        return zl_new(s, ac, av); \
++        void *x = zl_new(s, ac, av); \
++        free(av);  /* prdt: was leaked */ \
++        return x; \
+     } \
+     \
+     CYCLONE_OBJ_API void setup_zl0x2e##MODE(void) { \
+--- a/cyclone_objects/binaries/cyclone_lib.c
++++ b/cyclone_objects/binaries/cyclone_lib.c
+@@ -732,6 +732,7 @@
+        print_cyclone(x);
+        printed = 1;
+     }
++    pd_free((t_pd *)x);  /* prdt: was leaked */
+     
+ /* -- [!-] -- */
+     
+--- a/shared/common/file.c
++++ b/shared/common/file.c
+@@ -29,6 +29,7 @@
+ #include <stdlib.h>
+ #include <stdio.h>
+ #include <string.h>
++#include <pthread.h>
+ #include "m_pd.h"
+ #include "g_canvas.h"
+ #include "common/file.h"
+@@ -353,14 +354,16 @@
+ 
+ static t_class *file_class = 0;
+ static t_file *file_proxies;
+-static t_symbol *ps__C;
++static pthread_mutex_t file_proxies_lock = PTHREAD_MUTEX_INITIALIZER;  /* prdt: modules on other threads */
+ 
+ static t_file *file_getproxy(t_pd *master){
+     t_file *f;
++    pthread_mutex_lock(&file_proxies_lock);
+     for(f = file_proxies; f; f = f->f_next)
+         if(f->f_master == master)
+-            return(f);
+-    return(0);
++            break;
++    pthread_mutex_unlock(&file_proxies_lock);
++    return(f);
+ }
+ 
+ static void editor_guidefs(void){
+@@ -843,7 +846,7 @@
+ }
+ 
+ static void embed_restore(t_pd *master){
+-    embed_gc(master, ps__C, 1);
++    embed_gc(master, gensym("#C"), 1);
+ }
+ 
+ void embed_save(t_gobj *master, t_binbuf *bb){
+@@ -853,8 +856,8 @@
+     binbuf_addbinbuf(bb, t->te_binbuf);
+     binbuf_addsemi(bb);
+     if(f && f->f_embedfn)
+-        (*f->f_embedfn)(f->f_master, bb, ps__C);
+-    binbuf_addv(bb, "ss;", ps__C, gensym("restore"));
++        (*f->f_embedfn)(f->f_master, bb, gensym("#C"));
++    binbuf_addv(bb, "ss;", gensym("#C"), gensym("restore"));
+ }
+ 
+ int file_ismapped(t_file *f){
+@@ -887,9 +890,10 @@
+     editor_close(f, 0);
+     if(f->f_embedfn)
+         /* just in case of missing 'restore' */
+-        embed_gc(f->f_master, ps__C, 0);
++        embed_gc(f->f_master, gensym("#C"), 0);
+     if(f->f_savepanel){
+         pd_unbind((t_pd *)f->f_savepanel, f->f_savepanel->f_bindname);
++        clock_free(f->f_savepanel->f_panelclock);  /* prdt: was leaked */
+         pd_free((t_pd *)f->f_savepanel);
+     }
+     if(f->f_bindname)
+@@ -898,6 +902,7 @@
+         clock_free(f->f_panelclock);
+     if(f->f_editorclock)
+         clock_free(f->f_editorclock);
++    pthread_mutex_lock(&file_proxies_lock);
+     for(prev = 0, next = file_proxies; next; prev = next, next = next->f_next)
+         if(next == f)
+             break;
+@@ -905,6 +910,7 @@
+         prev->f_next = f->f_next;
+     else if(f == file_proxies)
+         file_proxies = f->f_next;
++    pthread_mutex_unlock(&file_proxies_lock);
+     pd_free((t_pd *)f);
+ }
+ 
+@@ -912,8 +918,10 @@
+ t_filefn readfn, t_filefn writefn, t_filefn updatefn){
+     t_file *result = (t_file *)pd_new(file_class);
+     result->f_master = master;
++    pthread_mutex_lock(&file_proxies_lock);
+     result->f_next = file_proxies;
+     file_proxies = result;
++    pthread_mutex_unlock(&file_proxies_lock);
+     if(!(result->f_canvas = canvas_getcurrent())){
+         bug("file_new: out of context");
+         return(result);
+@@ -921,9 +929,9 @@
+     /* 1. embedding */
+     if((result->f_embedfn = embedfn)){
+         /* just in case of missing 'restore' */
+-        embed_gc(master, ps__C, 0);
++        embed_gc(master, gensym("#C"), 0);
+         if(file_isloading(result) || file_ispasting(result))
+-            pd_bind(master, ps__C);
++            pd_bind(master, gensym("#C"));
+     }
+     /* 2. the panels */
+     if(readfn || writefn){
+@@ -967,8 +975,7 @@
+         class_addmethod(c, (t_method)embed_restore, gensym("restore"), 0);
+     }
+     if(!file_class){
+-        ps__C = gensym("#C");
+-        file_class = class_new(gensym("_file"), 0, 0,sizeof(t_file), CLASS_PD | CLASS_NOINLET, 0);
++            file_class = class_new(gensym("_file"), 0, 0,sizeof(t_file), CLASS_PD | CLASS_NOINLET, 0);
+         class_addsymbol(file_class, panel_symbol);
+         class_addmethod(file_class, (t_method)panel_path,gensym("path"), A_SYMBOL, A_DEFSYM, 0);
+ #ifdef PDL2ORK
+--- a/shared/common/random.c
++++ b/shared/common/random.c
+@@ -8,7 +8,7 @@
+ static int instance_number = 0;
+ 
+ int cyrandom_get_id(void){
+-    return(++instance_number);
++    return(__atomic_add_fetch(&instance_number, 1, __ATOMIC_RELAXED));  /* prdt: modules on other threads */
+ }
+     
+ uint32_t cyrandom_trand(uint32_t *s1, uint32_t *s2, uint32_t *s3){
+--- a/shared/control/rand.c
++++ b/shared/control/rand.c
+@@ -12,9 +12,9 @@
+     if(seed)
+         *statep = (seed & 0x7fffffff);
+     else{ // consider using time elapsed from system startup/login
+-        static unsigned int failsafe = 1489853723;
+-        static int shift = 0;
+-        static unsigned int lastticks = 0;
++        static __thread unsigned int failsafe = 1489853723;  /* prdt: per thread */
++        static __thread int shift = 0;
++        static __thread unsigned int lastticks = 0;
+         /* LATER rethink -- it might fail on faster machine than mine
+ 	   (but does it matter?) */
+         unsigned int newticks = (unsigned int)(sys_getrealtime() * 1000000.);
