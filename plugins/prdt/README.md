@@ -6,7 +6,7 @@
 
 Copy `prdt.so` to `BOOT/plugins` (from source: `make install MOD=prdt`, to a mounted card) and restart the SSP. See [Using](../../docs/USING.md#installing).
 
-The example patches go in `BOOT/prdt`, where the browser opens. Pd's own abstractions from `extra/` (`rev1~`..`rev3~`, `hilbert~`, `output~`, `complex-mod~`) go in `BOOT/prdt/extra`, and cyclone's `buffer~` in `BOOT/prdt/cyclone`. A release has them there. From source, `make install-prdt` copies them, to a mounted card or over ssh. Patches can sit anywhere on the card.
+The example patches go in `BOOT/prdt`, where the browser opens. Pd's own abstractions from `extra/` (`rev1~`..`rev3~`, `hilbert~`, `output~`, `complex-mod~`) go in `BOOT/prdt/extra`, cyclone's `buffer~` in `BOOT/prdt/cyclone`, and ELSE's abstractions in `BOOT/prdt/else`. A release has them there. From source, `make install-prdt` copies them, to a mounted card or over ssh. Patches can sit anywhere on the card.
 
 ## First use
 
@@ -87,7 +87,7 @@ In 1..In 8 and Out 1..Out 8 carry audio and CV alike, at 0.2 per volt. Output is
 
 ## Abstractions
 
-An abstraction is a patch used as an object: `[twice~]` opens `twice~.pd`. Pd looks in the patch's folder first, then in `BOOT/prdt/lib` for your shared abstractions, then in `BOOT/prdt/extra` and `BOOT/prdt/cyclone`. `[declare -path sub]` adds a folder relative to the patch.
+An abstraction is a patch used as an object: `[twice~]` opens `twice~.pd`. Pd looks in the patch's folder first, then in `BOOT/prdt/lib` for your shared abstractions, then in `BOOT/prdt/extra`, `BOOT/prdt/cyclone` and `BOOT/prdt/else`. `BOOT/prdt` is also on the path, so `[else/name]` finds `BOOT/prdt/else/name.pd`. `[declare -path sub]` adds a folder relative to the patch.
 
 ## Objects
 
@@ -95,6 +95,12 @@ All Pd vanilla objects, including `[expr]` and `[expr~]`. Also, compiled in:
 
 - Pd's `extra/` objects: `bob~`, `bonk~`, `choice`, `fiddle~`, `loop~`, `lrshift~`, `pique`, `sigmund~`, `stdout`. `pd~` is left out.
 - [cyclone](https://github.com/porres/pd-cyclone) 0.9-5, the Max/MSP-compatible library: about 215 objects, such as `[coll]`, `[zl]`, `[counter]`, `[cycle~]` and `[svf~]`, by their plain names. Left out: `[loadmess]`, and `[mousestate]`, `[mousefilter]` and `[active]`, which read the mouse. `[scope~]` and `[comment]` create but draw nothing. `[coll]` reads and writes files on the thread its message arrives on, never on its own thread.
+- [ELSE](https://github.com/porres/pd-else) 1.0-0 RC-15: about 370 objects, by their plain names and as `[else/name]`, and 305 abstractions. Ten names are also cyclone's: `atan2~`, `cartopol`, `cartopol~`, `pink~`, `poltocar`, `poltocar~`, `scope~`, `tanh`, `tanh~` and `trunc~`. The plain name is cyclone's object; `[else/pink~]` is ELSE's. Left out:
+  - objects that need another library: `[plaits~]`, `[sfont~]`, `[sfz~]`, `[circuit~]`, `[beat~]`, `[play.file~]`, `[sfload]`, `[sfinfo]`, `[streamin~]`, `[streamout~]`, `[pdlink]`, `[pdlink~]`, and the Lua objects such as `[display]`;
+  - `[mouse]`, `[keycode]` and `[properties]`, which read the mouse or keyboard or open a dialog;
+  - `[else]`, which prints the version.
+
+  21 abstractions need one of these, among them `[sample~]`, `[player~]`, `[sequencer]` and `[slider2d]`. GUI objects such as `[knob]` and `[note]` create but draw nothing. `[messcoll]` never uses its own thread.
 
 Externals cannot load from the card. `prdt.so` keeps Pd's functions private, so a compiled external (`.pd_linux`) fails to link, and its object cannot be created.
 
@@ -108,7 +114,8 @@ Externals cannot load from the card. `prdt.so` keeps Pd's functions private, so 
 | `synth.pd` | mono MIDI synth: a saw through a lowpass; any note off ends the note | cutoff, release |
 | `cv.pd` | sine on Out 1; In 1 is pitch CV, 1 V/oct above base | base |
 | `arp.pd` | arpeggio on Out 1 and Out 2, from cyclone's `[counter]`, `[coll]` with embedded notes, `[cycle~]` and `[onepole~]` | rate, cutoff |
+| `pluck.pd` | random notes from a pentatonic scale on Out 1 and Out 2, from ELSE's `[rand.i]` and `[pluck~]`, through its `[echo.rev~]` abstraction | rate, decay, size |
 
 ## Licence
 
-The module is AGPL-3.0, as the repo is. libpd, Pure Data and cyclone are BSD-3-Clause; [NOTICE.md](NOTICE.md) has their notices.
+The module is AGPL-3.0, as the repo is. libpd, Pure Data and cyclone are BSD-3-Clause. ELSE is mostly WTFPL-2; `conv~`, `fdn.rev~` and `giga.rev~` are GPL. [NOTICE.md](NOTICE.md) has the notices.

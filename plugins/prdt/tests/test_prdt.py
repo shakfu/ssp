@@ -95,3 +95,79 @@ def test_every_cyclone_object_creates(tmp_path):
     env = dict(os.environ, ASAN_OPTIONS="detect_leaks=1", LSAN_OPTIONS=f"suppressions={HERE / 'lsan.supp'}")
     r = subprocess.run([build("asan"), tmp_path, "load", tmp_path / "all.pd"], env=env, capture_output=True, text=True)
     assert r.returncode == 0, r.stderr[-4000:]
+
+
+ELSE = ROOT / "external" / "pd-else"
+# the sources pd/CMakeLists.txt leaves out
+ELSE_SKIP = {"play.file~", "streamin~", "streamout~", "sfload", "sfinfo", "pdlink", "pdlink~", "beat~", "mouse",
+             "keycode", "properties", "else"}
+
+
+def else_classes():
+    """ELSE's class names in the vendored sources prdt compiles, less internal classes, proxies, and "del~ in" and
+    "del~ out", which [del~ in] and [del~ out] create"""
+    src = ELSE / "Source"
+    names = set()
+    for f in sorted([*(src / "Control").glob("*.c"), *(src / "Audio").glob("*.c"), *(src / "Extra/Aliases").glob("*.c")]):
+        if f.stem in ELSE_SKIP:
+            continue
+        names.update(re.findall(r'class_new\(gensym\("([^"]+)"', f.read_text(errors="replace")))
+    return sorted(n for n in names if not n.startswith("_") and "proxy" not in n and "-inlet" not in n and " " not in n)
+
+
+def cyclone_owns():
+    """else_prdt.c's CYCLONE_OWNS"""
+    text = (HERE.parent / "pd" / "else_prdt.c").read_text()
+    return sorted(re.findall(r'"([^"]+)"', re.search(r"CYCLONE_OWNS\[\] = \{(.*?)\};", text, re.S).group(1)))
+
+
+def test_cyclone_owns_the_names_both_have():
+    assert cyclone_owns() == sorted(set(else_classes()) & set(cyclone_objects()))
+
+
+def run_asan(tmp_path, names, *path):
+    patch = "#N canvas 0 50 450 300 12;\n" + "".join(f"#X obj 10 {10 + 20 * i} {n};\n" for i, n in enumerate(names))
+    (tmp_path / "all.pd").write_text(patch)
+    env = dict(os.environ, ASAN_OPTIONS="detect_leaks=1", LSAN_OPTIONS=f"suppressions={HERE / 'lsan.supp'}")
+    return subprocess.run([build("asan"), tmp_path, "load", tmp_path / "all.pd", *path], env=env, capture_output=True,
+                          text=True)
+
+
+def test_every_else_object_creates(tmp_path):
+    # by both names, under AddressSanitizer, so each also frees without a leak; cyclone's where it has the name
+    names = else_classes()
+    assert len(names) > 350
+    r = run_asan(tmp_path, names + [f"else/{n}" for n in names])
+    assert r.returncode == 0, r.stderr[-4000:]
+
+
+# ELSE abstractions that need an object prdt does not have: pdlua's [display], ffmpeg's [sfload] and [sfinfo],
+# [mouse], [keycode], [pd~], [plaits~] or [sfont~]
+ELSE_UNSUPPORTED = {"about.MERDA", "abs.pd~", "brane.m~", "gran.player~", "keymap", "multi.vsl", "pattern", "phaser~",
+                    "phaser.m~", "plaits.m~", "plaits.unit", "player~", "pvoc.player~", "range.hsl", "sample~",
+                    "sequencer", "sfont.m~", "slider2d", "superosc~", "superosc.m~", "superosc.unit"}
+
+
+def test_every_else_abstraction_creates(tmp_path):
+    # flat in else/, as install-prdt.sh copies them
+    flat = tmp_path / "else"
+    flat.mkdir()
+    for f in (ELSE / "Abstractions").rglob("*.pd"):
+        shutil.copy(f, flat / f.name)
+    names = sorted(f.stem for f in flat.glob("*.pd") if f.stem not in ELSE_UNSUPPORTED)
+    assert len(names) > 280
+    r = run_asan(tmp_path, names, tmp_path, flat)
+    assert r.returncode == 0, r.stderr[-4000:]
+
+
+def test_libraries_share_no_global_names():
+    # a name two static libraries define links to one of them without an error
+    if shutil.which("nm") is None:
+        pytest.skip("no nm")
+    out = build("release").parent / "pd"
+    seen = {}
+    for lib in [*out.glob("libpd_*.a"), *out.glob("libpd/libs/*.a")]:
+        r = subprocess.run(["nm", "-g", "--defined-only", lib], check=True, capture_output=True, text=True)
+        for name in {f[2] for f in (line.split() for line in r.stdout.splitlines()) if len(f) == 3}:
+            seen.setdefault(name, []).append(lib.name)
+    assert {n: libs for n, libs in seen.items() if len(libs) > 1} == {}

@@ -2,8 +2,10 @@
 
 PluginProcessor::PluginProcessor()
     : ScriptProcessor(std::make_unique<prdt::PdEngine>(
+                          // BOOT/prdt itself, so that [else/name] finds BOOT/prdt/else/name.pd
                           std::vector<std::string>{ "/media/BOOT/prdt/lib", "/media/BOOT/prdt/extra",
-                                                    "/media/BOOT/prdt/cyclone" }),
+                                                    "/media/BOOT/prdt/cyclone", "/media/BOOT/prdt/else",
+                                                    "/media/BOOT/prdt" }),
                       "/media/BOOT/prdt") {
     noteInput(true);
 }

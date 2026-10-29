@@ -1,0 +1,154 @@
+// porres 2018
+
+#include <math.h>
+#include <m_pd.h>
+#include <stdlib.h>
+
+#define INV_HALF_PI 0.6366197723675814
+
+typedef struct _drive{
+    t_object  x_obj;
+    t_inlet  *x_inlet;
+    t_int     x_mode;
+    t_int     x_sig2;
+    t_int     x_ch1;
+    t_int     x_ch2;
+    t_int     x_n;
+    int       x_nchans;
+}t_drive;
+
+static t_class *drive_class;
+
+static void drive_mode(t_drive *x, t_floatarg f){
+    x->x_mode = f < 0 ? 0 : f > 7 ? 7 : (int)f;
+}
+
+static t_int *drive_perform(t_int *w){
+    t_drive *x = (t_drive *)(w[1]);
+    t_float *in1 = (t_float *)(w[2]);
+    t_float *in2 = (t_float *)(w[3]);
+    t_float *out = (t_float *)(w[4]);
+    t_float output;
+    for(int j = 0; j < x->x_nchans; j++){
+        for(int i = 0, n = x->x_n; i < n; i++){
+            float in = x->x_ch1 == 1 ? in1[i] : in1[j*n + i];
+            float f2 = x->x_ch2 == 1 ? in2[i] : in2[j*n + i];
+            if(f2 < 0)
+                f2 = 0;
+            switch(x->x_mode){
+                case 0: // Hyperbolic tangent soft clipper
+                    output = tanhf(in * f2);
+                    break;
+                case 1: // tanh cheap approximation
+                    in *= f2;
+                    if(in > 3)
+                        in = 3;
+                    else if(in < -3)
+                        in = -3;
+                    double insqr = in*in;
+                    output = in * (27 + insqr) / (27 + 9*insqr);
+                    break;
+                case 2: // Arctangent soft clipper
+                    output = atanf(in * f2) * INV_HALF_PI;
+                    break;
+                case 3: // Threshold soft clipper
+                    if(f2 > 1)
+                        f2 = 1;
+                    t_float abs_in = fabs(in);
+                    output = abs_in > f2 ? copysignf((1-(f2*(f2-2)+1) / (abs_in-2*f2+1)), in) : in;
+                    break;
+                case 4: // Cubic soft clipper
+                    in *= f2;
+                    if(in > 1)
+                        in = 1;
+                    else if(in < -1)
+                        in = -1;
+                    output = (in - powf(in, 3)/3) * 1.5;
+                    break;
+                case 5: // Cubic soft clipper with saturation parameter input
+                    f2 *= 1.5;
+                    in /= f2;
+                    if(in > 1)
+                        in = 1;
+                    else if(in < -1)
+                        in = -1;
+                    output = (in - powf(in, 3)/3) * f2;
+                    break;
+                case 6: // Exponential soft clipper
+                    output = copysignf(1.0f - expf(-f2 * fabsf(in)), in);
+                    break;
+                case 7: // Rational soft clipper
+                    if(in > 1)
+                        in = 1;
+                    else if(in < -1)
+                        in = -1;
+                    output = (in / (1.0f + f2 * fabsf(in))) * (1.0f + f2);
+                    break;
+            }
+            out[j*n + i] = output;
+        }
+    }
+    return(w+5);
+}
+
+static void drive_dsp(t_drive *x, t_signal **sp){
+    x->x_n = sp[0]->s_n;
+    x->x_nchans = x->x_ch1 = sp[0]->s_nchans;
+    x->x_ch2 = sp[1]->s_nchans;
+    if(x->x_ch2 > x->x_nchans)
+        x->x_nchans = x->x_ch2;
+    signal_setmultiout(&sp[2], x->x_nchans);
+    if((x->x_ch1 > 1 && x->x_ch1 != x->x_nchans)
+    || (x->x_ch2 > 1 && x->x_ch2 != x->x_nchans)){
+        dsp_add_zero(sp[3]->s_vec, x->x_nchans*x->x_n);
+        pd_error(x, "[drive~]: channel sizes mismatch");
+        return;
+    }
+    dsp_add(drive_perform, 4, x, sp[0]->s_vec, sp[1]->s_vec, sp[2]->s_vec);
+}
+
+void *drive_new(t_symbol *s, int ac, t_atom *av){
+    s = NULL;
+    t_drive *x = (t_drive *)pd_new(drive_class);
+    t_float drive = 1;
+    x->x_mode = 0;
+    int arg = 0;
+    while(ac > 0){
+        if(av->a_type == A_FLOAT){
+            drive = atom_getfloatarg(0, ac, av);
+            ac--, av++;
+            arg = 1;
+        }
+        else if(av->a_type == A_SYMBOL && !arg && ac >= 2){
+            if(atom_getsymbol(av) == gensym("-mode")){
+                ac--, av++;
+                if(av->a_type == A_FLOAT){
+                    t_float f = atom_getfloat(av);
+                    x->x_mode = f < 0 ? 0 : f > 7 ? 7 : (int)f;
+                    ac--, av++;
+                }
+                else
+                    goto errstate;
+            }
+            else
+                goto errstate;
+        }
+        else
+            goto errstate;
+    }
+    x->x_inlet = inlet_new((t_object *)x, (t_pd *)x, &s_signal, &s_signal);
+    pd_float((t_pd *)x->x_inlet, drive);
+    outlet_new(&x->x_obj, &s_signal);
+    return(x);
+errstate:
+    pd_error(x, "[drive~]: improper args");
+    return NULL;
+}
+
+void drive_tilde_setup(void){
+    drive_class = class_new(gensym("drive~"), (t_newmethod)drive_new, 0,
+        sizeof(t_drive), CLASS_MULTICHANNEL, A_GIMME, 0);
+    class_addmethod(drive_class, nullfn, gensym("signal"), 0);
+    class_addmethod(drive_class, (t_method) drive_dsp, gensym("dsp"), A_CANT, 0);
+    class_addmethod(drive_class, (t_method)drive_mode, gensym("mode"), A_DEFFLOAT, 0);
+}

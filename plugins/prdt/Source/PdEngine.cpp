@@ -26,7 +26,8 @@ void lrshift_tilde_setup(void);
 void pique_setup(void);
 void sigmund_tilde_setup(void);
 void stdout_setup(void);
-void cyclone_setup(void);  // external/pd-cyclone: every object, compiled in
+void cyclone_setup(void);    // external/pd-cyclone: every object, compiled in
+void else_prdt_setup(void);  // external/pd-else: pd/CMakeLists.txt generates it
 }
 
 namespace prdt {
@@ -96,6 +97,7 @@ static void initPd() {
         sigmund_tilde_setup();
         stdout_setup();
         cyclone_setup();
+        else_prdt_setup();
     });
 }
 

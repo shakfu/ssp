@@ -1,7 +1,8 @@
 // Native test of prdt::PdEngine against the host build of libpd; built and run by test_prdt.py, and on
 // the SSP by run_on_ssp.sh. argv[1] is an empty scratch directory; argv[2] == "threads" runs the threaded
-// test only, "bench" prints the DSP time per block, "load FILE" loads FILE and checks it created. PRDT_EXAMPLES and PRDT_EXTRA override the examples and Pd extra/ folders, and
-// PRDT_PIN=1 pins each audio thread to its own core from 1 up (the SSP's isolated cores).
+// test only, "bench" prints the DSP time per block, "load FILE [DIR...]" loads FILE, with the DIRs as the search
+// path, and checks it created. PRDT_EXAMPLES, PRDT_EXTRA and PRDT_ELSE override the examples, Pd extra/ and ELSE
+// abstraction folders, and PRDT_PIN=1 pins each audio thread to its own core from 1 up (the SSP's isolated cores).
 
 #include <algorithm>
 #include <atomic>
@@ -15,6 +16,7 @@
 #include <thread>
 #include <vector>
 #include <pthread.h>
+#include <dirent.h>
 #include <sched.h>
 #include <sys/stat.h>
 
@@ -230,6 +232,19 @@ static void testAbstractions(const std::string& dir) {
     CHECK(bare.e.error().find("thrice~") != std::string::npos);
 }
 
+// [clone] makes abstractions after the load, which a reload frees before the array: Pd left #A pointing at the
+// last one, and the array's free read it (external/libpd/PATCHES.md); a use after free under AddressSanitizer
+static void testCloneArray(const std::string& dir) {
+    write(dir, "one~.pd", "#N canvas 0 0 300 200 12;\n#X obj 10 10 inlet~;\n#X obj 10 40 outlet~;\n#X connect 0 0 1 0;\n");
+    Rig r;
+    r.load(write(dir, "clonearray.pd", patch({ "obj 10 10 clone one~ 1", "obj 10 40 loadbang", "msg 10 70 resize 3",
+                                               "obj 10 100 array define arr 4" },
+                                             { "1 0 2 0", "2 0 0 0" })));
+    CHECK(r.e.error().empty());
+    r.load(write(dir, "empty.pd", patch({}, {})));
+    CHECK(r.e.error().empty());
+}
+
 // the host rate reaches the instance
 static void testRate(const std::string& dir) {
     Rig r({}, 44100.0f);
@@ -255,16 +270,19 @@ static std::string examples() {
 // Two modules' audio threads run while a third thread reloads both: each output is silence or a
 // patch's constant.
 static void testThreads(const std::string& dir) {
-    // cyclone objects with shared state, created on each load and run on the audio thread; output 2 only
+    // cyclone and ELSE objects with shared state, created on each load and run on the audio thread; output 2 only
     auto busy = [&](const char* name, const char* value) {
         std::string sig = std::string("obj 10 10 sig~ ") + value;
         return write(dir, name, patch({ sig.c_str(), "obj 10 40 dac~ 1", "obj 100 10 loadbang", "obj 100 40 metro 1",
                                         "obj 100 70 drunk 100 5", "obj 100 100 tosymbol", "obj 100 130 fromsymbol",
                                         "obj 100 160 zl.len", "obj 100 190 urn 16", "obj 200 10 cycle~ 440",
                                         "obj 200 40 rand~ 100", "obj 200 70 +~", "obj 200 100 *~ 0", "obj 200 130 dac~ 2",
-                                        "obj 300 10 coll", "obj 300 40 pv shared" },
+                                        "obj 300 10 coll", "obj 300 40 pv shared", "obj 400 10 osc.format",
+                                        "obj 400 40 osc.parse", "obj 400 70 rand.f", "obj 400 100 pluck~ 440",
+                                        "obj 400 130 messcoll", "obj 400 160 knob" },
                                       { "0 0 1 0", "2 0 3 0", "3 0 4 0", "4 0 5 0", "5 0 6 0", "6 0 7 0", "4 0 8 0",
-                                        "9 0 11 0", "10 0 11 1", "11 0 12 0", "12 0 13 0" }));
+                                        "9 0 11 0", "10 0 11 1", "11 0 12 0", "12 0 13 0", "4 0 16 0", "16 0 17 0",
+                                        "3 0 18 0", "3 0 19 0", "19 0 12 0" }));
     };
     std::string a = busy("a.pd", "0.25");
     std::string b = busy("b.pd", "0.5");
@@ -353,6 +371,72 @@ static void testExamples() {
     NEAR(echo, 1.0, 1e-6);
 }
 
+// The ELSE abstractions, flat in dir/else as install-prdt.sh copies them: from PRDT_ELSE, or the repo's folders
+// (dirent, as the SSP's libstdc++ keeps std::filesystem in a separate library)
+static void copyPd(const std::string& from, const std::string& to) {
+    DIR* d = opendir(from.c_str());
+    if (!d) return;
+    while (dirent* e = readdir(d)) {
+        std::string name = e->d_name, path = from + "/" + name;
+        struct stat st;
+        if (name[0] == '.' || stat(path.c_str(), &st) != 0) continue;
+        if (S_ISDIR(st.st_mode))
+            copyPd(path, to);
+        else if (name.size() > 3 && name.compare(name.size() - 3, 3, ".pd") == 0)
+            std::ofstream(to + "/" + name, std::ios::binary) << std::ifstream(path, std::ios::binary).rdbuf();
+    }
+    closedir(d);
+}
+
+static void copyElse(const std::string& dir) {
+    const char* src = std::getenv("PRDT_ELSE");
+    mkdir((dir + "/else").c_str(), 0755);
+    copyPd(src ? src : ELSE_ABSTRACTIONS, dir + "/else");
+}
+
+// ELSE, compiled in: objects by their bare and else/ names, an alias (s2f~), a name cyclone also has, and an
+// abstraction by both names from a patch in another folder, as BOOT/prdt and BOOT/prdt/else are on the path
+static void testElse(const std::string& dir) {
+    copyElse(dir);
+    std::string proj = dir + "/elseproj";
+    mkdir(proj.c_str(), 0755);
+    Rig r({ dir, dir + "/else" });
+    r.load(write(proj, "else.pd", patch({ "obj 10 10 knob", "obj 10 30 else/knob", "obj 10 50 pink~", "obj 10 70 else/pink~",
+                                          "obj 10 90 osc.format", "obj 10 110 else/osc.parse", "obj 10 130 pluck~",
+                                          "obj 10 150 messcoll", "obj 10 170 f2s~", "obj 10 190 else/f2s~",
+                                          "obj 10 210 else/cartopol", "obj 10 230 s2f~", "obj 10 250 bd~",
+                                          "obj 10 270 else/rand.f" },
+                                        {})));
+    CHECK(r.e.error().empty());
+    if (!r.e.error().empty()) std::fprintf(stderr, "%s\n", r.e.error().c_str());
+
+    // [messcoll -k] restores the data saved in the patch under #C, a symbol of the module's instance
+    write(dir, "messcoll.pd", "#N canvas 0 50 450 300 12;\n#X obj 10 10 messcoll -k;\n#C store 1 42;\n#C keep 1;\n"
+                              "#C restore;\n#X obj 10 40 loadbang;\n#X msg 10 70 1;\n#X obj 10 100 print got;\n"
+                              "#X connect 1 0 2 0;\n#X connect 2 0 0 0;\n#X connect 0 0 3 0;\n");
+    r.load(dir + "/messcoll.pd");
+    CHECK(r.e.error().empty());
+    CHECK(r.e.status().find("got: 42") != std::string::npos);
+
+    // [osc.format] to [osc.parse]: the address and arguments back
+    r.load(write(dir, "osc.pd", patch({ "obj 10 10 loadbang", "msg 10 40 /x 1 2", "obj 10 70 osc.format", "obj 10 100 osc.parse",
+                                        "obj 10 130 print osc" },
+                                      { "0 0 1 0", "1 0 2 0", "2 0 3 0", "3 0 4 0" })));
+    CHECK(r.e.error().empty());
+    CHECK(r.e.status().find("osc: /x 1 2") != std::string::npos);
+
+    // the example: plucks through [echo.rev~] on both outputs, and a reload frees the array after the
+    // abstractions [echo.rev~] made at loadbang (external/libpd/PATCHES.md)
+    for (int k = 0; k < 2; k++) {
+        r.load(examples() + "/pluck.pd");
+        CHECK(r.e.error().empty());
+        if (!r.e.error().empty()) std::fprintf(stderr, "%s\n", r.e.error().c_str());
+        CHECK(r.e.spec(0).label == "rate" && r.e.spec(1).label == "decay" && r.e.spec(2).label == "size");
+        CHECK(r.level(200, 0) > 0.005);  // 0.5 s: the first note is at the load
+        CHECK(r.level(1, 1) > 0.005);
+    }
+}
+
 // test_prdt.py builds dir/hello.pd_linux: an external cannot find Pd's functions, so it fails to load
 static void testExternal(const std::string& dir) {
     Rig r;
@@ -399,8 +483,8 @@ static void testBench() {
 int main(int argc, char** argv) {
     if (argc < 2) return 2;
     std::string dir = argv[1];
-    if (argc > 3 && std::string(argv[2]) == "load") {  // argv[3] loads without error, then runs
-        Rig r;
+    if (argc > 3 && std::string(argv[2]) == "load") {  // argv[3] loads without error, then runs; argv[4..] are the path
+        Rig r(std::vector<std::string>(argv + 4, argv + argc));
         r.load(argv[3]);
         if (!r.e.error().empty()) std::fprintf(stderr, "%s\n", r.e.error().c_str());
         CHECK(r.e.error().empty());
@@ -416,7 +500,9 @@ int main(int argc, char** argv) {
         testSpecs();
         testEngine(dir);
         testAbstractions(dir);
+        testCloneArray(dir);
         testCyclone(dir);
+        testElse(dir);
         testRate(dir);
         testThreads(dir);
         testExamples();

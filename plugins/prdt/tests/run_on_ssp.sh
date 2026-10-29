@@ -14,13 +14,14 @@ out="$root/build/prdt-test-ssp"
 cmake -S "$root/plugins/prdt/tests" -B "$out" -DCMAKE_TOOLCHAIN_FILE="$root/xcSSP.cmake" -DCMAKE_BUILD_TYPE=Release >/dev/null
 cmake --build "$out" -j"$(nproc)" >/dev/null
 
-ssh -o BatchMode=yes "$host" 'rm -rf /tmp/prdt && mkdir -p /tmp/prdt/examples /tmp/prdt/extra /tmp/prdt/scratch'
+ssh -o BatchMode=yes "$host" 'rm -rf /tmp/prdt && mkdir -p /tmp/prdt/examples /tmp/prdt/extra /tmp/prdt/else /tmp/prdt/scratch'
 scp -O -q -o BatchMode=yes "$out/prdt_test" "$host":/tmp/prdt/
 scp -O -q -o BatchMode=yes "$root"/plugins/prdt/examples/*.pd "$host":/tmp/prdt/examples/
 scp -O -q -o BatchMode=yes "$root"/external/libpd/pure-data/extra/*.pd "$host":/tmp/prdt/extra/
+scp -O -q -o BatchMode=yes "$root"/external/pd-else/Abstractions/{Audio,Control,Extra,Merda/Modules}/*.pd "$host":/tmp/prdt/else/
 
 ssh -o BatchMode=yes "$host" 'set -e; cd /tmp/prdt
-export PRDT_EXAMPLES=/tmp/prdt/examples PRDT_EXTRA=/tmp/prdt/extra
+export PRDT_EXAMPLES=/tmp/prdt/examples PRDT_EXTRA=/tmp/prdt/extra PRDT_ELSE=/tmp/prdt/else
 ./prdt_test /tmp/prdt/scratch
 for i in $(seq 1 20); do rm -rf scratch/*; PRDT_PIN=1 ./prdt_test /tmp/prdt/scratch threads; done
 PRDT_PIN=1 ./prdt_test /tmp/prdt/scratch bench

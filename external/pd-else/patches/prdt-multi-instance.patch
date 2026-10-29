@@ -1,0 +1,1172 @@
+--- a/Source/Audio/comb.rev~.c
++++ b/Source/Audio/comb.rev~.c
+@@ -133,6 +133,7 @@
+ static void * comb_free(t_comb *x){
+     free(x->x_xbuf);
+     free(x->x_ybuf);
++    freebytes(x->x_wh, sizeof(*x->x_wh)); // prdt: was leaked
+     inlet_free(x->x_dellet);
+     inlet_free(x->x_alet);
+     inlet_free(x->x_blet);
+--- a/Source/Audio/cusp~.c
++++ b/Source/Audio/cusp~.c
+@@ -151,6 +151,7 @@
+ }
+ 
+ static void *cusp_free(t_cusp *x){
++    free(x->x_freq_list); // prdt: was leaked
+     outlet_free(x->x_outlet);
+     freebytes(x->x_phase, x->x_nchans * sizeof(*x->x_phase));
+     freebytes(x->x_yn, x->x_nchans * sizeof(*x->x_yn));
+--- a/Source/Audio/dust~.c
++++ b/Source/Audio/dust~.c
+@@ -93,6 +93,7 @@
+     return(w+5);
+ }
+ 
++// prdt: was never registered with the class, so the list leaked
+ static void *dust_free(t_dust *x){
+     free(x->x_density_list);
+     return(void *)x;
+@@ -172,7 +173,7 @@
+ 
+ void dust_tilde_setup(void){
+     dust_class = class_new(gensym("dust~"), (t_newmethod)dust_new,
+-        0, sizeof(t_dust), CLASS_MULTICHANNEL, A_GIMME, 0);
++        (t_method)dust_free, sizeof(t_dust), CLASS_MULTICHANNEL, A_GIMME, 0);
+     class_addmethod(dust_class, nullfn, gensym("signal"), 0);
+     class_addmethod(dust_class, (t_method)dust_dsp, gensym("dsp"), A_CANT, 0);
+     class_addlist(dust_class, dust_list);
+--- a/Source/Audio/envgen~.c
++++ b/Source/Audio/envgen~.c
+@@ -529,6 +529,8 @@
+     freebytes(x->x_n_lines, x->x_nchans * sizeof(*x->x_n_lines));
+     freebytes(x->x_line_idx, x->x_nchans * sizeof(*x->x_line_idx));
+     freebytes(x->x_running, x->x_nchans * sizeof(*x->x_running));
++    freebytes(x->x_release, x->x_nchans * sizeof(*x->x_release)); // prdt: was leaked
++    freebytes(x->x_av, MAX_SEGS*sizeof(*(x->x_av)));
+ }
+ 
+ static void envgen_pause(t_envgen *x){
+--- a/Source/Audio/fbsine2~.c
++++ b/Source/Audio/fbsine2~.c
+@@ -179,6 +179,7 @@
+ }
+ 
+ static void *fbsine2_free(t_fbsine2 *x){
++    free(x->x_freq_list); // prdt: was leaked
+     outlet_free(x->x_outlet);
+     freebytes(x->x_phase, x->x_nchans * sizeof(*x->x_phase));
+     freebytes(x->x_xn, x->x_nchans * sizeof(*x->x_xn));
+--- a/Source/Audio/formant~.c
++++ b/Source/Audio/formant~.c
+@@ -32,6 +32,7 @@
+     float       x_sr_inv;
+     t_glist    *x_glist;
+     t_float    *x_sigscalar1;
++    t_float     x_scalar1; // prdt: x_sigscalar1's target
+     t_float    *x_sigscalar2;
+     t_float    *x_sigscalar3;
+     t_symbol   *x_ignore;
+@@ -253,7 +254,7 @@
+     inlet_new((t_object *)x, (t_pd *)x, &s_signal, &s_signal);
+     outlet_new(&x->x_obj, gensym("signal"));
+     x->x_glist = canvas_getcurrent();
+-    x->x_sigscalar1 = obj_findsignalscalar((t_object *)x, 0);
++    x->x_sigscalar1 = &x->x_scalar1; // prdt: the main inlet has no scalar, so Pd returned its global zero, which the NaN below overwrote for every object
+     else_magic_setnan(x->x_sigscalar1);
+     x->x_sigscalar2 = obj_findsignalscalar((t_object *)x, 1);
+     else_magic_setnan(x->x_sigscalar2);
+--- a/Source/Audio/function~.c
++++ b/Source/Audio/function~.c
+@@ -186,6 +186,8 @@
+ 
+ static void function_free(t_function *x){
+     freebytes(x->x_n, x->x_nchans * sizeof(*x->x_n));
++    freebytes(x->x_points, MAX_SIZE*sizeof(float)); // prdt: was leaked
++    freebytes(x->x_dur, MAX_SIZE*sizeof(float));
+ }
+ 
+ static void *function_new(t_symbol *s,int ac,t_atom* av){
+--- a/Source/Audio/gbman~.c
++++ b/Source/Audio/gbman~.c
+@@ -176,6 +176,7 @@
+ }
+ 
+ static void *gbman_free(t_gbman *x){
++    free(x->x_freq_list); // prdt: was leaked
+     outlet_free(x->x_outlet);
+     freebytes(x->x_phase, x->x_nchans * sizeof(*x->x_phase));
+     freebytes(x->x_y_nm1, x->x_nchans * sizeof(*x->x_y_nm1));
+--- a/Source/Audio/henon~.c
++++ b/Source/Audio/henon~.c
+@@ -172,6 +172,7 @@
+ }
+ 
+ static void *henon_free(t_henon *x){
++    free(x->x_freq_list); // prdt: was leaked
+     outlet_free(x->x_outlet);
+     freebytes(x->x_phase, x->x_nchans * sizeof(*x->x_phase));
+     freebytes(x->x_ynm1, x->x_nchans * sizeof(*x->x_ynm1));
+--- a/Source/Audio/ikeda~.c
++++ b/Source/Audio/ikeda~.c
+@@ -178,6 +178,7 @@
+ }
+ 
+ static void *ikeda_free(t_ikeda *x){
++    free(x->x_freq_list); // prdt: was leaked
+     freebytes(x->x_phase, x->x_nchans * sizeof(*x->x_phase));
+     freebytes(x->x_xnm1, x->x_nchans * sizeof(*x->x_xnm1));
+     freebytes(x->x_ynm1, x->x_nchans * sizeof(*x->x_ynm1));
+--- a/Source/Audio/latoocarfian~.c
++++ b/Source/Audio/latoocarfian~.c
+@@ -179,6 +179,7 @@
+ }
+ 
+ static void *latoocarfian_free(t_latoocarfian *x){
++    free(x->x_freq_list); // prdt: was leaked
+     outlet_free(x->x_outlet);
+     freebytes(x->x_phase, x->x_nchans * sizeof(*x->x_phase));
+     freebytes(x->x_xn, x->x_nchans * sizeof(*x->x_xn));
+--- a/Source/Audio/lfnoise~.c
++++ b/Source/Audio/lfnoise~.c
+@@ -183,6 +183,7 @@
+ }
+ 
+ static void *lfnoise_free(t_lfnoise *x){
++    free(x->x_freq_list); // prdt: was leaked
+     freebytes(x->x_phase, x->x_nchans * sizeof(*x->x_phase));
+     freebytes(x->x_yn, x->x_nchans * sizeof(*x->x_yn));
+     freebytes(x->x_ynp1, x->x_nchans * sizeof(*x->x_ynp1));
+--- a/Source/Audio/lincong~.c
++++ b/Source/Audio/lincong~.c
+@@ -164,6 +164,7 @@
+ }
+ 
+ static void *lincong_free(t_lincong *x){
++    free(x->x_freq_list); // prdt: was leaked
+     outlet_free(x->x_outlet);
+     freebytes(x->x_phase, x->x_nchans * sizeof(*x->x_phase));
+     freebytes(x->x_ynm1, x->x_nchans * sizeof(*x->x_ynm1));
+--- a/Source/Audio/logistic~.c
++++ b/Source/Audio/logistic~.c
+@@ -151,6 +151,7 @@
+ }
+ 
+ static void *logistic_free(t_logistic *x){
++    free(x->x_freq_list); // prdt: was leaked
+     outlet_free(x->x_outlet);
+     freebytes(x->x_phase, x->x_nchans * sizeof(*x->x_phase));
+     freebytes(x->x_ynm1, x->x_nchans * sizeof(*x->x_ynm1));
+--- a/Source/Audio/lorenz~.c
++++ b/Source/Audio/lorenz~.c
+@@ -242,6 +242,7 @@
+ }
+ 
+ static void *lorenz_free(t_lorenz *x){
++    free(x->x_freq_list); // prdt: was leaked
+     outlet_free(x->x_outlet);
+     freebytes(x->x_phase, x->x_nchans * sizeof(*x->x_phase));
+     freebytes(x->x_dx, x->x_nchans * sizeof(*x->x_dx));
+--- a/Source/Audio/paf~.c
++++ b/Source/Audio/paf~.c
+@@ -33,6 +33,7 @@
+     double      x_cf_phase_shift;
+     t_glist    *x_glist;
+     t_float    *x_sigscalar1;
++    t_float     x_scalar1; // prdt: x_sigscalar1's target
+     t_float    *x_sigscalar2;
+     t_float    *x_sigscalar3;
+     t_symbol   *x_ignore;
+@@ -286,7 +287,7 @@
+ //        pd_float((t_pd *)x->x_inlet_bw, x->x_bw_list[0]);
+     outlet_new(&x->x_obj, gensym("signal"));
+     x->x_glist = canvas_getcurrent();
+-    x->x_sigscalar1 = obj_findsignalscalar((t_object *)x, 0);
++    x->x_sigscalar1 = &x->x_scalar1; // prdt: the main inlet has no scalar, so Pd returned its global zero, which the NaN below overwrote for every object
+     else_magic_setnan(x->x_sigscalar1);
+     x->x_sigscalar2 = obj_findsignalscalar((t_object *)x, 1);
+     else_magic_setnan(x->x_sigscalar2);
+--- a/Source/Audio/pluck~.c
++++ b/Source/Audio/pluck~.c
+@@ -503,7 +503,7 @@
+     x->x_glist = canvas_getcurrent();
+     x->x_sr = sys_getsr();
+     static int seed = 1;
+-    random_init(&x->x_rstate, seed++);
++    random_init(&x->x_rstate, __atomic_fetch_add(&seed, 1, __ATOMIC_RELAXED)); // prdt: modules on other threads
+     float freq = 0;
+     float decay = 0;
+     float cut_freq = DEF_RADIANS * x->x_sr;
+--- a/Source/Audio/quad~.c
++++ b/Source/Audio/quad~.c
+@@ -155,6 +155,7 @@
+ }
+ 
+ static void *quad_free(t_quad *x){
++    free(x->x_freq_list); // prdt: was leaked
+     outlet_free(x->x_outlet);
+     freebytes(x->x_phase, x->x_nchans * sizeof(*x->x_phase));
+     freebytes(x->x_yn, x->x_nchans * sizeof(*x->x_yn));
+--- a/Source/Audio/resonator~.c
++++ b/Source/Audio/resonator~.c
+@@ -224,8 +224,15 @@
+     return(NULL);
+ }
+ 
++static void resonator_free(t_resonator *x){ // prdt: was leaked
++    freebytes(x->x_xnm1, x->x_nchans * sizeof(double));
++    freebytes(x->x_xnm2, x->x_nchans * sizeof(double));
++    freebytes(x->x_ynm1, x->x_nchans * sizeof(double));
++    freebytes(x->x_ynm2, x->x_nchans * sizeof(double));
++}
++
+ void resonator_tilde_setup(void){
+-    resonator_class = class_new(gensym("resonator~"), (t_newmethod)resonator_new, 0,
++    resonator_class = class_new(gensym("resonator~"), (t_newmethod)resonator_new, (t_method)resonator_free,
+         sizeof(t_resonator), CLASS_MULTICHANNEL, A_GIMME, 0);
+     class_addmethod(resonator_class, (t_method)resonator_dsp, gensym("dsp"), A_CANT, 0);
+     CLASS_MAINSIGNALIN(resonator_class, t_resonator, x_freq);
+--- a/Source/Audio/rms~.c
++++ b/Source/Audio/rms~.c
+@@ -183,6 +183,7 @@
+     freebytes(x->x_result, x->x_nchs * sizeof(*x->x_result));
+     clock_free(x->x_clock);
+     freebytes(x->x_hann, (x->x_npoints + x->x_allocforvs) * sizeof(*x->x_hann));
++    freebytes(x->x_sumbuf, MAXOVERLAP * sizeof(*x->x_sumbuf)); // prdt: was leaked
+ }
+ 
+ static void *rms_tilde_new(t_symbol *s, int ac, t_atom *av){
+--- a/Source/Audio/rotate.mc~.c
++++ b/Source/Audio/rotate.mc~.c
+@@ -52,6 +52,7 @@
+     dsp_add(rotatemc_perform, 4, x, sp[0]->s_vec, sp[1]->s_vec, sp[2]->s_vec);
+ }
+ 
++// prdt: was never registered with the class, so its buffers leaked
+ void rotatemc_free(t_rotatemc *x){
+     freebytes(x->x_input, x->x_n*x->x_chs * sizeof(*x->x_input));
+ }
+@@ -68,7 +69,7 @@
+ 
+ void setup_rotate0x2emc_tilde(void){
+     rotatemc_class = class_new(gensym("rotate.mc~"), (t_newmethod)rotatemc_new,
+-        0, sizeof(t_rotatemc), CLASS_MULTICHANNEL, A_DEFFLOAT, 0);
++        (t_method)rotatemc_free, sizeof(t_rotatemc), CLASS_MULTICHANNEL, A_DEFFLOAT, 0);
+     class_addmethod(rotatemc_class, nullfn, gensym("signal"), 0);
+     class_addmethod(rotatemc_class, (t_method)rotatemc_dsp, gensym("dsp"), A_CANT, 0);
+     init_sine_table();
+--- a/Source/Audio/scope~.c
++++ b/Source/Audio/scope~.c
+@@ -944,7 +944,7 @@
+         pd_unbind(x->x_handle, ((t_handle *)x->x_handle)->h_bindsym);
+         pd_free(x->x_handle);
+     }
+-    clock_delay(x->x_proxy->p_clock, 0);
++    edit_proxy_free(x->x_proxy); // prdt: freed at once; deferred, it outlived a freed instance, and libpd has no GUI to message it
+     gfxstub_deleteforkey(x);
+ }
+ 
+--- a/Source/Audio/standard~.c
++++ b/Source/Audio/standard~.c
+@@ -176,6 +176,7 @@
+ }
+ 
+ static void *standard_free(t_standard *x){
++    free(x->x_freq_list); // prdt: was leaked
+     outlet_free(x->x_outlet);
+     freebytes(x->x_phase, x->x_nchans * sizeof(*x->x_phase));
+     freebytes(x->x_xn, x->x_nchans * sizeof(*x->x_xn));
+--- a/Source/Audio/toggleff~.c
++++ b/Source/Audio/toggleff~.c
+@@ -68,9 +68,14 @@
+     return(x);
+ }
+ 
++static void toggleff_free(t_toggleff *x){ // prdt: was leaked
++    freebytes(x->x_xm1, x->x_nchans * sizeof(t_float));
++    freebytes(x->x_ym1, x->x_nchans * sizeof(t_float));
++}
++
+ void toggleff_tilde_setup(void){
+     toggleff_class = class_new(gensym("toggleff~"), (t_newmethod)toggleff_new,
+-        0, sizeof(t_toggleff), CLASS_MULTICHANNEL, A_DEFFLOAT, 0);
++        (t_method)toggleff_free, sizeof(t_toggleff), CLASS_MULTICHANNEL, A_DEFFLOAT, 0);
+     class_addmethod(toggleff_class, nullfn, gensym("signal"), 0);
+     class_addmethod(toggleff_class, (t_method)toggleff_dsp, gensym("dsp"), A_CANT, 0);
+ }
+--- a/Source/Audio/trighold~.c
++++ b/Source/Audio/trighold~.c
+@@ -57,6 +57,7 @@
+     dsp_add(trighold_perform, 3, x, sp[0]->s_vec, sp[1]->s_vec);
+ }
+ 
++// prdt: was never registered with the class, so its buffers leaked
+ static void *trighold_free(t_trighold *x){
+     freebytes(x->x_lastin, x->x_nchans * sizeof(*x->x_lastin));
+     freebytes(x->x_trig, x->x_nchans * sizeof(*x->x_trig));
+@@ -75,7 +76,7 @@
+ 
+ void trighold_tilde_setup(void){
+     trighold_class = class_new(gensym("trighold~"),
+-        (t_newmethod) trighold_new, 0, sizeof (t_trighold), CLASS_MULTICHANNEL, 0);
++        (t_newmethod) trighold_new, (t_method)trighold_free, sizeof (t_trighold), CLASS_MULTICHANNEL, 0);
+     CLASS_MAINSIGNALIN(trighold_class, t_trighold, x_in);
+     class_addmethod(trighold_class, (t_method) trighold_dsp, gensym("dsp"), A_CANT, 0);
+     class_addmethod(trighold_class, (t_method)trighold_clear, gensym("clear"), 0);
+--- a/Source/Audio/vosim~.c
++++ b/Source/Audio/vosim~.c
+@@ -33,6 +33,7 @@
+     t_symbol   *x_ignore;
+     t_glist    *x_glist;
+     t_float    *x_sigscalar1;
++    t_float     x_scalar1; // prdt: x_sigscalar1's target
+     t_float    *x_sigscalar2;
+ }t_vosim;
+ 
+@@ -249,7 +250,7 @@
+     signalinlet_new(&x->x_obj, cf);
+ 	outlet_new(&x->x_obj, &s_signal);
+     x->x_glist = canvas_getcurrent();
+-    x->x_sigscalar1 = obj_findsignalscalar((t_object *)x, 0);
++    x->x_sigscalar1 = &x->x_scalar1; // prdt: the main inlet has no scalar, so Pd returned its global zero, which the NaN below overwrote for every object
+     else_magic_setnan(x->x_sigscalar1);
+     x->x_sigscalar2 = obj_findsignalscalar((t_object *)x, 1);
+     else_magic_setnan(x->x_sigscalar2);
+--- a/Source/Control/args.c
++++ b/Source/Control/args.c
+@@ -79,16 +79,14 @@
+     binbuf_clear(b);
+     binbuf_add(b, 1, name);
+     binbuf_add(b, argc, argv);
+-    if(x->x_argc)
+-        freebytes(x->x_argv, x->x_argc * sizeof(x->x_argv));
++    freebytes(x->x_argv, x->x_argc * sizeof(*x->x_argv)); // prdt: was leaked when empty
+     x->x_argc = argc;
+     x->x_argv = getbytes(argc * sizeof(*(x->x_argv)));
+     copy_atoms(argv, x->x_argv, argc);
+ }
+ 
+ static void args_free(t_args *x){
+-    if(x->x_argc)
+-        freebytes(x->x_argv, x->x_argc * sizeof(x->x_argv));
++    freebytes(x->x_argv, x->x_argc * sizeof(*x->x_argv)); // prdt: was leaked when empty
+ }
+ 
+ static void *args_new(t_symbol *s, int ac, t_atom* av){
+--- a/Source/Control/button.c
++++ b/Source/Control/button.c
+@@ -595,10 +595,11 @@
+     }
+ }
+ 
++static void edit_proxy_free(t_edit_proxy *p); // prdt
++
+ static void button_free(t_button *x){
+     pd_unbind(&x->x_obj.ob_pd, x->x_bindname);
+-    x->x_proxy->p_cnv = NULL;
+-    clock_free(x->x_proxy->p_clock);
++    edit_proxy_free(x->x_proxy); // prdt: was never freed
+     clock_free(x->x_clock);
+     pdgui_stub_deleteforkey(x);
+ }
+--- a/Source/Control/canvas.active.c
++++ b/Source/Control/canvas.active.c
+@@ -162,8 +162,7 @@
+         pd_unbind((t_pd *)x, gui_sink->g_psfocus);
+         if(!gui_sink->g_psfocus->s_thing) sys_gui("active_gui_refocus\n");
+     }
+-    x->x_proxy->p_parent = NULL;
+-    clock_delay(x->x_proxy->p_clock, 0);
++    mouse_proxy_free(x->x_proxy); // prdt: freed at once; deferred, it outlived a freed instance, and libpd has no GUI to message it
+ }
+ 
+ static void *active_new(t_symbol *s, int ac, t_atom *av){
+--- a/Source/Control/canvas.bounds.c
++++ b/Source/Control/canvas.bounds.c
+@@ -45,8 +45,7 @@
+ }
+ 
+ static void bounds_free(t_bounds *x){
+-    x->x_proxy->p_cnv = NULL;
+-    clock_delay(x->x_proxy->p_clock, 0);
++    bounds_proxy_free(x->x_proxy); // prdt: freed at once; deferred, it outlived a freed instance, and libpd has no GUI to message it
+ }
+ 
+ static void *bounds_new(t_floatarg f1){
+--- a/Source/Control/canvas.edit.c
++++ b/Source/Control/canvas.edit.c
+@@ -62,8 +62,7 @@
+ }
+ 
+ static void edit_free(t_edit *x){
+-    x->x_proxy->p_cnv = NULL;
+-    clock_delay(x->x_proxy->p_clock, 0);
++    edit_proxy_free(x->x_proxy); // prdt: freed at once; deferred, it outlived a freed instance, and libpd has no GUI to message it
+ }
+ 
+ static void *edit_new(t_floatarg f1){
+--- a/Source/Control/canvas.mouse.c
++++ b/Source/Control/canvas.mouse.c
+@@ -85,8 +85,7 @@
+ }
+ 
+ static void canvas_mouse_free(t_canvas_mouse *x){
+-    x->x_proxy->p_parent = NULL;
+-    clock_delay(x->x_proxy->p_clock, 0);
++    canvas_mouse_proxy_free(x->x_proxy); // prdt: freed at once; deferred, it outlived a freed instance, and libpd has no GUI to message it
+ }
+ 
+ static void *canvas_mouse_new(t_floatarg f1, t_floatarg f2, t_floatarg f3){
+--- a/Source/Control/canvas.vis.c
++++ b/Source/Control/canvas.vis.c
+@@ -41,8 +41,7 @@
+ }
+ 
+ static void canvas_vis_free(t_canvas_vis *x){
+-    x->x_proxy->p_cnv = NULL;
+-    clock_delay(x->x_proxy->p_clock, 0);
++    canvas_vis_proxy_free(x->x_proxy); // prdt: freed at once; deferred, it outlived a freed instance, and libpd has no GUI to message it
+ }
+ 
+ void canvas_vis_bang(t_canvas_vis *x){
+--- a/Source/Control/canvas.zoom.c
++++ b/Source/Control/canvas.zoom.c
+@@ -54,8 +54,7 @@
+ }
+ 
+ static void zoom_free(t_zoom *x){
+-    x->x_proxy->p_cnv = NULL;
+-    clock_delay(x->x_proxy->p_clock, 0);
++    zoom_proxy_free(x->x_proxy); // prdt: freed at once; deferred, it outlived a freed instance, and libpd has no GUI to message it
+ }
+ 
+ static void *zoom_new(t_floatarg f1){
+--- a/Source/Control/chance.c
++++ b/Source/Control/chance.c
+@@ -135,9 +135,14 @@
+     return(NULL);
+ }
+ 
++static void chance_free(t_chance *x){ // prdt: was leaked
++    freebytes(x->x_av, x->x_bytes);
++    freebytes(x->x_outs, x->x_ac * sizeof(*x->x_outs));
++}
++
+ void chance_setup(void){
+     chance_class = class_new(gensym("chance"), (t_newmethod)chance_new,
+-        0, sizeof(t_chance), 0, A_GIMME, 0);
++        (t_method)chance_free, sizeof(t_chance), 0, A_GIMME, 0);
+     class_addmethod(chance_class, (t_method)chance_seed, gensym("seed"), A_GIMME, 0);
+     class_addlist(chance_class, chance_list);
+ }
+--- a/Source/Control/click.c
++++ b/Source/Control/click.c
+@@ -1,5 +1,6 @@
+ // based on iemguts/properties
+ 
++#include <pthread.h>
+ #include "m_pd.h"
+ #include "g_canvas.h"
+ 
+@@ -15,6 +16,8 @@
+ }t_cnv_canvaslist;
+ 
+ static t_cnv_canvaslist *s_canvaslist = 0;
++// prdt: modules create and free objects on other threads; recursive, as a [click]'s bang can create or free one
++static pthread_mutex_t s_canvaslist_lock; // made in click_setup()
+ 
+ static t_cnv_canvaslist *findCanvas(const t_pd *parent){
+     t_cnv_canvaslist*list = s_canvaslist;
+@@ -73,14 +76,24 @@
+         p->obj = next;
+     freebytes(list, sizeof(*list));
+     list = 0;
++    if(!p->obj){ // prdt: the canvas's entry goes with its last object; it leaked with each canvas
++        t_cnv_canvaslist **pp = &s_canvaslist;
++        while(*pp != p)
++            pp = &(*pp)->next;
++        *pp = p->next;
++        freebytes(p, sizeof(*p));
++    }
+ }
+ 
+ static void removeObjectFromCanvases(const t_pd*obj) {
++    pthread_mutex_lock(&s_canvaslist_lock);
+     t_cnv_canvaslist*parents=s_canvaslist;
+     while(parents){
++        t_cnv_canvaslist *next = parents->next; // removeObjectFromCanvas() may free parents
+         removeObjectFromCanvas(parents->parent, obj);
+-        parents = parents->next;
++        parents = next;
+     }
++    pthread_mutex_unlock(&s_canvaslist_lock);
+ }
+ 
+ static void addObjectToCanvas(const t_pd *parent, const t_pd *obj){
+@@ -127,6 +140,7 @@
+ 
+ static void click_click(t_gobj *z, t_canvas *x){
+     x = NULL;
++    pthread_mutex_lock(&s_canvaslist_lock);
+     t_cnv_objlist *objs = objectsInCanvas((t_pd*)z);
+     if(objs == NULL) {
+         t_atom arg;
+@@ -138,6 +152,7 @@
+         click_bang((t_click*)cv);
+         objs = objs->next;
+     }
++    pthread_mutex_unlock(&s_canvaslist_lock);
+ }
+ 
+ static void *click_new(t_floatarg f){
+@@ -149,12 +164,19 @@
+         while(!canvas->gl_env)
+             canvas = canvas->gl_owner;
+     }
++    pthread_mutex_lock(&s_canvaslist_lock);
+     addObjectToCanvas((t_pd*)canvas, (t_pd*)x);
++    pthread_mutex_unlock(&s_canvaslist_lock);
+     x->x_click_bangout = outlet_new((t_object *)x, &s_bang);
+     return(x);
+ }
+ 
+ void click_setup(void){
++    pthread_mutexattr_t attr;
++    pthread_mutexattr_init(&attr);
++    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
++    pthread_mutex_init(&s_canvaslist_lock, &attr);
++    pthread_mutexattr_destroy(&attr);
+     click_class = class_new(gensym("click"), (t_newmethod)click_new,
+         (t_method)click_free, sizeof(t_click), CLASS_NOINLET, A_DEFFLOAT, 0);
+     class_addmethod(canvas_class, (t_method)click_click, gensym("click"), 0);
+--- a/Source/Control/fontsize.c
++++ b/Source/Control/fontsize.c
+@@ -48,8 +48,7 @@
+ }
+ 
+ static void fontsize_free(t_fontsize *x){
+-    x->x_proxy->p_cnv = NULL;
+-    clock_delay(x->x_proxy->p_clock, 0);
++    fontsize_proxy_free(x->x_proxy); // prdt: freed at once; deferred, it outlived a freed instance, and libpd has no GUI to message it
+ }
+ 
+ static void *fontsize_new(t_floatarg f1){
+--- a/Source/Control/format.c
++++ b/Source/Control/format.c
+@@ -509,6 +509,7 @@
+         }
+         freebytes(x->x_proxies, x->x_nproxies * sizeof(*x->x_proxies));
+     }
++    freebytes(x->x_fstring, x->x_fsize); // prdt: was leaked
+ }
+ 
+ /* adjusted binbuf_gettext(), LATER do it right */
+--- a/Source/Control/function.c
++++ b/Source/Control/function.c
+@@ -760,9 +760,10 @@
+ static void function_free(t_function *x){
+     if(x->x_receive != &s_)
+          pd_unbind(&x->x_obj.ob_pd, x->x_receive);
+-    x->x_proxy->p_cnv = NULL;
+-    clock_delay(x->x_proxy->p_clock, 0);
++    edit_proxy_free(x->x_proxy); // prdt: freed at once; deferred, it outlived a freed instance, and libpd has no GUI to message it
+     gfxstub_deleteforkey(x);
++    freebytes(x->x_points, (MAX_SIZE+1)*sizeof(float)); // prdt: was leaked
++    freebytes(x->x_dur, (MAX_SIZE+1)*sizeof(float));
+ }
+ 
+ ///////////////////// NEW / FREE / SETUP /////////////////////
+--- a/Source/Control/initmess.c
++++ b/Source/Control/initmess.c
+@@ -153,6 +153,8 @@
+ static void initmess_free(t_initmess *x){
+   if(x->x_av)
+     freebytes(x->x_av, x->x_ac * sizeof(t_atom));
++  if(x->x_atom != x->x_av) // prdt: initmess_output()'s copy was leaked
++    freebytes(x->x_atom, (x->x_ac+1) * sizeof(t_atom));
+ }
+ 
+ static void *initmess_new(t_symbol *s, int ac, t_atom *av){
+--- a/Source/Control/keyboard.c
++++ b/Source/Control/keyboard.c
+@@ -709,9 +709,9 @@
+     if(x->x_receive != &s_)
+         pd_unbind(&x->x_obj.ob_pd, x->x_receive);
+     pd_unbind(&x->x_obj.ob_pd, x->x_bindsym);
+-    x->x_proxy->p_cnv = NULL;
+-    clock_delay(x->x_proxy->p_clock, 0);
++    edit_proxy_free(x->x_proxy); // prdt: freed at once; deferred, it outlived a freed instance, and libpd has no GUI to message it
+     gfxstub_deleteforkey(x);
++    freebytes(x->x_tgl_notes, sizeof(int) * 256); // prdt: was leaked
+ }
+ 
+ void * keyboard_new(t_symbol *s, int ac, t_atom* av){
+--- a/Source/Control/knob.c
++++ b/Source/Control/knob.c
+@@ -355,7 +355,7 @@
+ }
+ 
+ static char* knob_get_number(t_knob *x) {
+-    static char nbuf[16];  // Make nbuf static so it persists after the function returns
++    static __thread char nbuf[16];  // Make nbuf static so it persists after the function returns; prdt: per thread
+     float absv = fabs(x->x_fval);
+     if(absv < 10)
+         sprintf(nbuf, "% .3f", x->x_fval);
+@@ -2277,7 +2277,7 @@
+         pd_unbind(x->x_handle, ((t_handle *)x->x_handle)->h_bindsym);
+         pd_free(x->x_handle);
+     }
+-    x->x_proxy->p_cnv = NULL;
++    edit_proxy_free(x->x_proxy); // prdt: was never freed
+     pdgui_stub_deleteforkey(x);
+ #ifndef PDINSTANCE
+     mouse_gui_stoppolling((t_pd *)x);
+--- a/Source/Control/listspread.c
++++ b/Source/Control/listspread.c
+@@ -65,7 +65,7 @@
+         nouts = listspread_DEFOUTS;
+     if(!(outs = (t_outlet **)getbytes(nouts * sizeof(*outs))))
+         return(0);
+-    x = (t_listspread *)pd_new(listspread_class);
++    // prdt: a second pd_new() here leaked the first object
+     x->x_nouts = nouts;
+     x->x_outs = outs;
+     for(i = 0; i < nouts; i++)
+--- a/Source/Control/message.c
++++ b/Source/Control/message.c
+@@ -34,6 +34,8 @@
+     x->x_first = 1;
+     x->x_sel = s;
+     if(!ac){
++        if(x->x_av) // prdt: was leaked
++            freebytes(x->x_av, x->x_ac * sizeof(t_atom));
+         x->x_ac = 0;
+         x->x_av = NULL;
+     }
+@@ -184,6 +186,8 @@
+     x->x_first = 1;
+     x->x_sel = s;
+     if(!ac){
++        if(x->x_av) // prdt: was leaked
++            freebytes(x->x_av, x->x_ac * sizeof(t_atom));
+         x->x_ac = 0;
+         x->x_av = NULL;
+     }
+--- a/Source/Control/messbox.c
++++ b/Source/Control/messbox.c
+@@ -442,6 +442,12 @@
+     pd_unbind(&x->x_obj.ob_pd, x->x_bind_sym);
+     pd_unbind(&x->x_proxy->p_ob.ob_pd, x->x_proxy->x_bind_sym);
+     pd_free((t_pd *)x->x_proxy);
++    freebytes(x->x_cv_id, strlen(x->x_cv_id)+1); // prdt: was leaked
++    freebytes(x->frame_id, strlen(x->frame_id)+1);
++    freebytes(x->text_id, strlen(x->text_id)+1);
++    freebytes(x->window_tag, strlen(x->window_tag)+1);
++    freebytes(x->all_tag, strlen(x->all_tag)+1);
++    freebytes(x->tcl_namespace, strlen(x->tcl_namespace)+1);
+ }
+ 
+ static void *messbox_new(t_symbol *s, int ac, t_atom *av){
+--- a/Source/Control/messcoll.c
++++ b/Source/Control/messcoll.c
+@@ -1186,7 +1186,8 @@
+ }
+ 
+ static void coll_threaded(t_messcoll *x, t_float f){
+-    int th = f == 0 ? 0 : 1;
++    int th = 0; // prdt: never threaded; its I/O thread has no Pd instance (PDTHREADS)
++    (void)f;
+     if(th != x->x_threaded)
+         coll_dothread(x, th);
+     x->x_threaded = th;
+--- a/Source/Control/midi.c
++++ b/Source/Control/midi.c
+@@ -841,7 +841,7 @@
+ }
+ 
+ static void midi_doread(t_midi *x, t_symbol *fn){
+-    static char fname[MAXPDSTRING];
++    static __thread char fname[MAXPDSTRING]; // prdt: per thread, two modules run at once
+     char *bufptr;
+     int fd = canvas_open(x->x_canvas, fn->s_name, "", fname, &bufptr, MAXPDSTRING, 1);
+     if(fd < 0){
+--- a/Source/Control/note.c
++++ b/Source/Control/note.c
+@@ -132,6 +132,8 @@
+             FREEA(av, t_atom, ac);
+         }
+     }
++    if(x->x_buf) // prdt: each call leaked the last text
++        freebytes(x->x_buf, x->x_bufsize);
+     binbuf_gettext(x->x_binbuf, &x->x_buf, &x->x_bufsize);
+     x->x_init = 1;
+ }
+@@ -528,6 +530,13 @@
+         pd_unbind(x, bindsym);  // if note gone, unbind
+ }
+ 
++// prdt: notesink goes with its class when prdt.so unloads
++static void notesink_classfree(t_class *c){
++    (void)c;
++    freebytes(notesink, sizeof(t_pd));
++    notesink = 0;
++}
++
+ static void notesink_anything(t_pd *x, t_symbol *s, int ac, t_atom *av){ // nop: avoid warnings
+     x = NULL;
+     s = NULL;
+@@ -817,6 +826,8 @@
+         note_initialize(x);
+     binbuf_clear(x->x_binbuf);
+     binbuf_restore(x->x_binbuf, ac, av);
++    if(x->x_buf)
++        freebytes(x->x_buf, x->x_bufsize);
+     binbuf_gettext(x->x_binbuf, &x->x_buf, &x->x_bufsize);
+     x->x_bbset = 0;
+     note_redraw(x);
+@@ -839,6 +850,8 @@
+             at[i+j] = av[j];
+         binbuf_clear(x->x_binbuf);
+         binbuf_restore(x->x_binbuf, n+ac, at);
++        if(x->x_buf)
++            freebytes(x->x_buf, x->x_bufsize);
+         binbuf_gettext(x->x_binbuf, &x->x_buf, &x->x_bufsize);
+         x->x_bbset = 0;
+         note_redraw(x);
+@@ -864,6 +877,8 @@
+         }
+         binbuf_clear(x->x_binbuf);
+         binbuf_restore(x->x_binbuf, n+ac, at);
++        if(x->x_buf)
++            freebytes(x->x_buf, x->x_bufsize);
+         binbuf_gettext(x->x_binbuf, &x->x_buf, &x->x_bufsize);
+         x->x_bbset = 0;
+         note_redraw(x);
+@@ -1208,7 +1223,7 @@
+     }
+     if(x->x_buf)
+         freebytes(x->x_buf, x->x_bufsize);
+-    x->x_proxy->p_cnv = NULL;
++    edit_proxy_free(x->x_proxy); // prdt: was never freed
+     gfxstub_deleteforkey(x);
+ }
+ 
+@@ -1253,7 +1268,7 @@
+     sprintf(symbuf, "note%lx", (unsigned long)x);
+     x->x_bindsym = gensym(symbuf);
+     pd_bind((t_pd *)x, x->x_bindsym);
+-    if(!notesink){
++    if(!notesink){ // prdt: made in note_setup(); two modules' first [note]s raced here
+ //        post("new: !notesink");
+         notesink = pd_new(notesink_class);
+     }
+@@ -1504,6 +1519,8 @@
+     edit_proxy_class = class_new(0, 0, 0, sizeof(t_edit_proxy), CLASS_NOINLET | CLASS_PD, 0);
+     class_addanything(edit_proxy_class, edit_proxy_any);
+     notesink_class = class_new(gensym("_notesink"), 0, 0, sizeof(t_pd), CLASS_PD, 0);
++    class_setfreefn(notesink_class, notesink_classfree);
++    notesink = pd_new(notesink_class);
+     class_addanything(notesink_class, notesink_anything);
+     class_addmethod(notesink_class, (t_method)notesink__bbox_callback, gensym("_bbox"), A_SYMBOL, 0); // <= ?????
+     
+--- a/Source/Control/osc.format.c
++++ b/Source/Control/osc.format.c
+@@ -543,7 +543,7 @@
+     t_float     f;
+     int         i;
+     t_symbol    s;
+-    static char buf[MAXPDSTRING];
++    static __thread char buf[MAXPDSTRING]; // prdt: per thread, two modules run at once
+ #ifdef DEBUG
+     atom_string(a, buf, MAXPDSTRING);
+     printf("oscformat: atom type %d (%s)\n", a->a_type, buf);
+--- a/Source/Control/osc.parse.c
++++ b/Source/Control/osc.parse.c
+@@ -49,6 +49,8 @@
+     int         x_recursion_level;/* number of times we reenter oscparse_list */
+     int         x_abort_bundle;/* non-zero if oscparse_list is not well formed */
+     int         x_reentry_count;
++    char        *x_raw;     // prdt: were statics, which two modules' threads shared
++    t_atom      *x_data_at;
+ }t_oscparse;
+ 
+ static void oscparse_PrintTypeTaggedArgs(t_atom *data_at, int *data_atc, void *v, int n);
+@@ -174,7 +176,7 @@
+     // done in the original implementation, wasting a lot of time and stack space.
+     int             i, j;
+     // This can be static as it's only read by the worker, never modified.
+-    static char     raw[MAX_MESG];/* bytes making up the entire OSC message */
++    char           *raw = x->x_raw;/* bytes making up the entire OSC message */
+     // preliminary checks
+     if ((argc%4) != 0)
+     {
+@@ -224,7 +226,7 @@
+     // reasonable limit here (as each element of an OSC message must consist of at least 4 bytes,
+     // MAX_MESG/4 should always be big enough), and we can also allocate the memory in static
+     // storage, since it is only used in the non-recursive part of the function.
+-    static t_atom   data_at[MAX_MESG/4] ={{0}};/* symbols making up the path + payload */
++    t_atom         *data_at = x->x_data_at;/* symbols making up the path + payload */
+     int             data_atc = 0;/* number of symbols to be output */
+ 
+ #ifdef DEBUG
+@@ -618,11 +620,18 @@
+     x->x_bundle_flag = 0;
+     x->x_recursion_level = 0;
+     x->x_abort_bundle = 0;
++    x->x_raw = getbytes(MAX_MESG);
++    x->x_data_at = getbytes(MAX_MESG/4 * sizeof(t_atom));
+     return(x);
+ }
+ 
++static void oscparse_free(t_oscparse *x){
++    freebytes(x->x_raw, MAX_MESG);
++    freebytes(x->x_data_at, MAX_MESG/4 * sizeof(t_atom));
++}
++
+ void setup_osc0x2eparse(void){
+     oscparse_class = class_new(gensym("osc.parse"), (t_newmethod)oscparse_new,
+-        0, sizeof(t_oscparse), 0, 0);
++        (t_method)oscparse_free, sizeof(t_oscparse), 0, 0);
+     class_addlist(oscparse_class, (t_method)oscparse_list);
+ }
+--- a/Source/Control/pad.c
++++ b/Source/Control/pad.c
+@@ -265,10 +265,11 @@
+     }
+ }
+ 
++static void edit_proxy_free(t_edit_proxy *p); // prdt
++
+ static void pad_free(t_pad *x){
+     pd_unbind(&x->x_obj.ob_pd, x->x_bindname);
+-    x->x_proxy->p_cnv = NULL;
+-    clock_delay(x->x_proxy->p_clock, 0);
++    edit_proxy_free(x->x_proxy); // prdt: freed at once; deferred, it outlived a freed instance, and libpd has no GUI to message it
+     pdgui_stub_deleteforkey(x);
+ }
+ 
+--- a/Source/Control/pic.c
++++ b/Source/Control/pic.c
+@@ -75,7 +75,7 @@
+ // --------------------------------------------------------------------------------------
+ // helper functions
+ static const t_symbol* pic_filepath(t_pic *x, const char *filename){
+-    static char fn[MAXPDSTRING];
++    static __thread char fn[MAXPDSTRING]; // prdt: per thread, two modules run at once
+     char *bufptr;
+     int fd = canvas_open(glist_getcanvas(x->x_glist),
+         filename, "", fn, &bufptr, MAXPDSTRING, 1);
+@@ -527,8 +527,7 @@
+     if(x->x_receive != &s_)
+         pd_unbind(&x->x_obj.ob_pd, x->x_receive);
+     pd_unbind(&x->x_obj.ob_pd, x->x_x);
+-    x->x_proxy->p_cnv = NULL;
+-    clock_delay(x->x_proxy->p_clock, 0);
++    edit_proxy_free(x->x_proxy); // prdt: freed at once; deferred, it outlived a freed instance, and libpd has no GUI to message it
+     gfxstub_deleteforkey(x);
+ }
+ 
+--- a/Source/Control/popmenu.c
++++ b/Source/Control/popmenu.c
+@@ -844,13 +844,15 @@
+         menu_bang(x);
+ }
+ 
++static void edit_proxy_free(t_edit_proxy *p); // prdt
++
+ static void menu_free(t_menu*x){
+     if(x->x_items)
+         freebytes(x->x_items, sizeof(t_symbol*)*x->x_maxitems);
+     pd_unbind(&x->x_obj.ob_pd, x->x_sym);
+     if(x->x_rcv != gensym("empty") && x->x_rcv != &s_)
+         pd_unbind(&x->x_obj.ob_pd, x->x_rcv);
+-    x->x_proxy->p_cnv = NULL;
++    edit_proxy_free(x->x_proxy); // prdt: was never freed
+     pdgui_stub_deleteforkey(x);
+     freebytes(x->x_options, MAX_ITEMS*sizeof(*(x->x_options)));
+ }
+--- a/Source/Control/routeall.c
++++ b/Source/Control/routeall.c
+@@ -173,9 +173,14 @@
+     return (x);
+ }
+ 
++static void routeall_free(t_routeall *x){ // prdt: was leaked
++    freebytes(x->x_av, x->x_bytes);
++    freebytes(x->x_outs, x->x_ac * sizeof(*x->x_outs));
++}
++
+ void routeall_setup(void){
+     routeall_class = class_new(gensym("routeall"), (t_newmethod)routeall_new,
+-        0, sizeof(t_routeall), 0, A_GIMME, 0);
++        (t_method)routeall_free, sizeof(t_routeall), 0, A_GIMME, 0);
+     class_addlist(routeall_class, routeall_list);
+     class_addanything(routeall_class, routeall_anything);
+ }
+--- a/Source/Control/separate.c
++++ b/Source/Control/separate.c
+@@ -155,9 +155,13 @@
+     return(x);
+ }
+ 
++static void separate_free(t_separate *x){ // prdt: was leaked
++    freebytes(x->x_av, x->x_arg_n * sizeof(t_atom));
++}
++
+ void separate_setup(void){
+     separate_class = class_new(gensym("separate"), (t_newmethod)separate_new,
+-        0, sizeof(t_separate), 0, A_GIMME, 0);
++        (t_method)separate_free, sizeof(t_separate), 0, A_GIMME, 0);
+     class_addanything(separate_class, separate_anything);
+     class_addfloat(separate_class, separate_float);
+     class_addsymbol(separate_class, separate_symbol);
+--- a/Source/Control/spread.c
++++ b/Source/Control/spread.c
+@@ -98,8 +98,13 @@
+     return(NULL);
+ }
+ 
++static void spread_free(t_spread *x){ // prdt: was leaked
++    freebytes(x->x_av, x->x_bytes);
++    freebytes(x->x_outs, x->x_ac * sizeof(*x->x_outs));
++}
++
+ void spread_setup(void){
+-    spread_class = class_new(gensym("spread"), (t_newmethod)spread_new, 0,
++    spread_class = class_new(gensym("spread"), (t_newmethod)spread_new, (t_method)spread_free,
+         sizeof(t_spread), 0, A_GIMME, 0);
+     class_addlist(spread_class, spread_list);
+     class_addmethod(spread_class, (t_method)spread_mode, gensym("mode"), A_FLOAT, 0);
+--- a/Source/Control/symbol2any.c
++++ b/Source/Control/symbol2any.c
+@@ -121,9 +121,13 @@
+     return(x);
+ }
+ 
++static void symbol2any_free(t_symbol2any *x){ // prdt: was leaked
++    freebytes(x->av, x->arg_n * sizeof(t_atom));
++}
++
+ void symbol2any_setup(void){
+     symbol2any_class = class_new(gensym("symbol2any"), (t_newmethod)symbol2any_new,
+-        0, sizeof(t_symbol2any), 0, 0);
++        (t_method)symbol2any_free, sizeof(t_symbol2any), 0, 0);
+     class_addbang(symbol2any_class, symbol2any_bang);
+     class_addsymbol(symbol2any_class, symbol2any_symbol);
+ }
+--- a/Source/Shared/buffer.c
++++ b/Source/Shared/buffer.c
+@@ -85,9 +85,41 @@
+ static double *tab_fade_quartic;
+ static double *tab_fade_sqrt;
+ 
++// prdt: freed with this class, which pd_freeprocess() frees when prdt.so unloads; each unload leaked them
++static t_class *buffer_tables_class;
++
++static void buffer_tables_free(t_class *c){
++    (void)c;
++    size_t gen = (ELSE_GEN_TABSIZE + 1) * sizeof(double), fade = (ELSE_FADE_TABSIZE + 1) * sizeof(double);
++    if(sintable) freebytes(sintable, gen);
++    if(costable) freebytes(costable, gen);
++    if(gausstable) freebytes(gausstable, gen);
++    if(partable) freebytes(partable, gen);
++    if(sinsqrtable) freebytes(sinsqrtable, (ELSE_GEN_TABSIZE / 2 + 1) * sizeof(double));
++    if(fadetables){
++        freebytes(tab_fade_quartic, fade);
++        freebytes(tab_fade_sqrt, fade);
++        freebytes(tab_fade_sin, fade);
++        freebytes(tab_fade_hann, fade);
++        freebytes(tab_fade_hannsin, fade);
++        freebytes(tab_fade_linsin, fade);
++    }
++    sintable = costable = gausstable = partable = sinsqrtable = 0;
++    fadetables = 0;
++    buffer_tables_class = 0;
++}
++
++static void buffer_tables_hold(void){
++    if(!buffer_tables_class){
++        buffer_tables_class = class_new(gensym("_else_tables"), 0, 0, sizeof(t_pd), CLASS_PD, 0);
++        class_setfreefn(buffer_tables_class, buffer_tables_free);
++    }
++}
++
+ void init_sine_table(void){
+     if(sintable)
+         return;
++    buffer_tables_hold();
+     sintable = getbytes((ELSE_GEN_TABSIZE + 1) * sizeof(*sintable));
+     double *tp = sintable;
+     double inc = TWO_PI / ELSE_GEN_TABSIZE, phase = 0;
+@@ -103,6 +135,7 @@
+ void init_cosine_table(void){
+     if(costable)
+         return;
++    buffer_tables_hold();
+     costable = getbytes((ELSE_GEN_TABSIZE + 1) * sizeof(*costable));
+     double *tp = costable;
+     double inc = TWO_PI / ELSE_GEN_TABSIZE, phase = 0;
+@@ -118,6 +151,7 @@
+ void init_gauss_table(void){
+     if(gausstable)
+         return;
++    buffer_tables_hold();
+     gausstable = getbytes((ELSE_GEN_TABSIZE + 1) * sizeof(*gausstable));
+     double step = GAUSS_WIDTH / ELSE_GEN_TABSIZE;
+     for(int i = 0; i <= ELSE_GEN_TABSIZE; i++){
+@@ -129,6 +163,7 @@
+ void init_parabolic_table(void){
+     if(partable)
+         return;
++    buffer_tables_hold();
+     partable = getbytes((ELSE_GEN_TABSIZE + 1) * sizeof(*partable));
+     double *tp = partable;
+     double inc = 1.0f / ELSE_GEN_TABSIZE, phase = 0;
+@@ -139,6 +174,7 @@
+ void init_sinsqr_table(void){
+     if(sinsqrtable)
+         return;
++    buffer_tables_hold();
+     int size = ELSE_GEN_TABSIZE / 2;
+     sinsqrtable = getbytes((size + 1) * sizeof(*sinsqrtable));
+     double *tp = sinsqrtable;
+@@ -151,6 +187,7 @@
+ void init_fade_tables(void){
+     if(fadetables)
+         return;
++    buffer_tables_hold();
+     fadetables = 1;
+     int i;
+     double *tp;
+--- a/Source/Shared/cJSON.c
++++ b/Source/Shared/cJSON.c
+@@ -89,7 +89,7 @@
+     const unsigned char *json;
+     size_t position;
+ } error;
+-static error global_error = { NULL, 0 };
++static __thread error global_error = { NULL, 0 }; // prdt: per thread, two modules run at once
+ 
+ CJSON_PUBLIC(const char *) cJSON_GetErrorPtr(void)
+ {
+--- a/Source/Shared/elsefile.c
++++ b/Source/Shared/elsefile.c
+@@ -19,6 +19,7 @@
+ #include <stdlib.h>
+ #include <stdio.h>
+ #include <string.h>
++#include <pthread.h>
+ #include "m_pd.h"
+ #include "g_canvas.h"
+ #include "elsefile.h"
+@@ -315,14 +316,16 @@
+ 
+ static t_class *elsefile_class = 0;
+ static t_elsefile *elsefile_proxies;
+-static t_symbol *ps__C;
++static pthread_mutex_t elsefile_proxies_lock = PTHREAD_MUTEX_INITIALIZER; // prdt: modules on other threads
+ 
+ static t_elsefile *elsefile_getproxy(t_pd *master){
+     t_elsefile *f;
++    pthread_mutex_lock(&elsefile_proxies_lock);
+     for(f = elsefile_proxies; f; f = f->f_next)
+         if(f->f_master == master)
+-            return(f);
+-    return(0);
++            break;
++    pthread_mutex_unlock(&elsefile_proxies_lock);
++    return(f);
+ }
+ 
+ static void elsefile_text_window_editor_guidefs(void){
+@@ -683,8 +686,9 @@
+ 	bug("embed_gc (%d garbage bindings)", count);
+ }
+ 
++// prdt: #C is looked up at each use; a symbol made at setup is the main Pd instance's, not the module's
+ static void else_embed_restore(t_pd *master){
+-    else_embed_gc(master, ps__C, 1);
++    else_embed_gc(master, gensym("#C"), 1);
+ }
+ 
+ void else_embed_save(t_gobj *master, t_binbuf *bb){
+@@ -694,8 +698,8 @@
+     binbuf_addbinbuf(bb, t->te_binbuf);
+     binbuf_addsemi(bb);
+     if(f && f->f_embedfn)
+-        (*f->f_embedfn)(f->f_master, bb, ps__C);
+-    binbuf_addv(bb, "ss;", ps__C, gensym("restore"));
++        (*f->f_embedfn)(f->f_master, bb, gensym("#C"));
++    binbuf_addv(bb, "ss;", gensym("#C"), gensym("restore"));
+ }
+ 
+ int elsefile_ismapped(t_elsefile *f){
+@@ -726,9 +730,10 @@
+     t_elsefile *prev, *next;
+     else_editor_close(f, 0);
+     if(f->f_embedfn) // in case of missing 'restore'
+-        else_embed_gc(f->f_master, ps__C, 0);
++        else_embed_gc(f->f_master, gensym("#C"), 0);
+     if(f->f_savepanel){
+         pd_unbind((t_pd *)f->f_savepanel, f->f_savepanel->f_bindname);
++        clock_free(f->f_savepanel->f_panelclock); // prdt: was leaked
+         pd_free((t_pd *)f->f_savepanel);
+     }
+     if(f->f_bindname)
+@@ -737,6 +742,7 @@
+         clock_free(f->f_panelclock);
+     if(f->f_editorclock)
+         clock_free(f->f_editorclock);
++    pthread_mutex_lock(&elsefile_proxies_lock);
+     for(prev = 0, next = elsefile_proxies; next; prev = next, next = next->f_next)
+         if(next == f)
+             break;
+@@ -744,6 +750,7 @@
+         prev->f_next = f->f_next;
+     else if(f == elsefile_proxies)
+         elsefile_proxies = f->f_next;
++    pthread_mutex_unlock(&elsefile_proxies_lock);
+     pd_free((t_pd *)f);
+ }
+ 
+@@ -751,16 +758,18 @@
+ t_elsefilefn writefn, t_elsefilefn updatefn){
+     t_elsefile *result = (t_elsefile *)pd_new(elsefile_class);
+     result->f_master = master;
++    pthread_mutex_lock(&elsefile_proxies_lock);
+     result->f_next = elsefile_proxies;
+     elsefile_proxies = result;
++    pthread_mutex_unlock(&elsefile_proxies_lock);
+     if(!(result->f_canvas = canvas_getcurrent())){
+         bug("elsefile_new: out of context");
+         return(result);
+     }
+     if((result->f_embedfn = embedfn)){ // embedding
+-        else_embed_gc(master, ps__C, 0); // in case of missing 'restore'
++        else_embed_gc(master, gensym("#C"), 0); // in case of missing 'restore'
+         if(elsefile_isloading(result) || elsefile_ispasting(result))
+-            pd_bind(master, ps__C);
++            pd_bind(master, gensym("#C"));
+     }
+     if(readfn || writefn){ // panels
+         t_elsefile *f;
+@@ -802,7 +811,6 @@
+         class_addmethod(c, (t_method)else_embed_restore, gensym("restore"), 0);
+     }
+     if(!elsefile_class){
+-        ps__C = gensym("#C");
+         elsefile_class = class_new(gensym("_elsefile"), 0, 0,sizeof(t_elsefile), CLASS_PD | CLASS_NOINLET, 0);
+         class_addmethod(elsefile_class, (t_method)panel_path,gensym("path"), A_SYMBOL, A_DEFSYM, 0);
+         class_addmethod(elsefile_class, (t_method)else_editor_clear, gensym("clear"), 0);
+--- a/Source/Shared/random.c
++++ b/Source/Shared/random.c
+@@ -8,7 +8,7 @@
+ static int instance_number = 0;
+ 
+ int random_get_id(void){
+-    return(++instance_number);
++    return(__atomic_add_fetch(&instance_number, 1, __ATOMIC_RELAXED)); // prdt: modules on other threads
+ }
+     
+ uint32_t random_trand(uint32_t *s1, uint32_t *s2, uint32_t *s3){

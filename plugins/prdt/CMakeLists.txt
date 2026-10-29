@@ -38,7 +38,7 @@ target_compile_definitions(PRDT
         SSP_TITLE_NO_MANUFACTURER=1
         SSP_VERSION_FROM_PROJECT=1)
 
-target_link_libraries(PRDT PRIVATE juce::juce_audio_utils pd_extra pd_cyclone)
+target_link_libraries(PRDT PRIVATE juce::juce_audio_utils pd_extra pd_cyclone pd_else)
 
 set_target_properties(${PROJECT_NAME}_VST3 PROPERTIES PREFIX "")
 # Only the entry points are exported: Pd's own names, such as error and post, stay inside prdt.so.

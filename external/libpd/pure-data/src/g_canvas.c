@@ -990,6 +990,11 @@ void canvas_free(t_canvas *x)
     if (x->gl_editor)
         canvas_destroy_editor(x);   /* bug workaround; should already be gone*/
     canvas_unbind(x);
+        /* prdt (ssp): canvas_popabstraction() binds an abstraction to #A and
+        nothing unbinds it, so one made after its patch loaded left #A pointing
+        here once freed, which garray_free() then read */
+    if (gensym("#A")->s_thing == &x->gl_pd)
+        gensym("#A")->s_thing = 0;
 
     if (x->gl_env)
     {

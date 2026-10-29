@@ -6,3 +6,17 @@ leak:voutlet_newsig
 leak:canvas_setargs
 # Pd's [table] gives its canvas a gstub (g_canvas.c:453) that is not freed: 16 bytes per [table], per load.
 leak:table_donew
+# Pd's [expr] keeps each function or table name it parses (x_vexp.c:2186): a few bytes per name, per load. Upstream.
+leak:getoken
+# Pd's [clone] connects each instance's outlets (g_clone.c:221) and does not free the connections: 16 bytes per
+# instance outlet, per load. Upstream.
+leak:clone_initinstance
+# A gstub that glist_init gives a canvas (g_canvas.c:453) outlives some canvases, such as [text define]'s: 16
+# bytes each, per load. Upstream.
+leak:glist_init
+# Pd's [text search] (x_text.c:1267) and [netreceive] (x_net.c:629) keep a few bytes past their free. Upstream.
+leak:text_search_new
+leak:netreceive_closeall
+# An abstraction's [declare -path /absolute] (g_canvas.c canvas_path) is not freed with the canvas: 16 bytes per
+# path, per load. Upstream.
+leak:canvas_declare
