@@ -69,7 +69,7 @@ Host:
 git submodule update --init   # not --recursive: ssp-sdk nests a JUCE clone the build does not use
 make deps     # once: the libraries and sources nine modules need
 make          # cross build for the SSP
-make test     # all tests
+make test     # all tests; MOD=prdt for one plugin's
 make release  # package releases/shakfu-ssp-plugins-<VERSION> and its zip
 ```
 

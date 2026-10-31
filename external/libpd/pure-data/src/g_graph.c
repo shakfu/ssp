@@ -146,7 +146,7 @@ void glist_delete(t_glist *x, t_gobj *y)
     }
     if (y->g_pd == scalar_class)
     {
-        x->gl_valid = ++glist_valid;
+        x->gl_valid = glist_newvalid();
         glist_deleteforscalar(x, (t_scalar *)y);
     }
     pd_free(&y->g_pd);

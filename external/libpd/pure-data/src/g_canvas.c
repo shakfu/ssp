@@ -451,7 +451,7 @@ void glist_init(t_glist *x)
         /* zero out everyone except "pd" field */
     memset(((char *)x) + sizeof(x->gl_pd), 0, sizeof(*x) - sizeof(x->gl_pd));
     x->gl_stub = gstub_new(x, 0);
-    x->gl_valid = ++glist_valid;
+    x->gl_valid = glist_newvalid();
     x->gl_xlabel = (t_symbol **)t_getbytes(0);
     x->gl_ylabel = (t_symbol **)t_getbytes(0);
     x->gl_privatedata = getbytes(sizeof(t_canvas_private));

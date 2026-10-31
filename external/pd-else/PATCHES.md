@@ -7,9 +7,10 @@ need other libraries (`plaits~`, `sfont~`, `sfz~`, `circuit~`, aubio, ffmpeg, op
 and runs one Pd instance per module (`PDINSTANCE`, `PDTHREADS`), with two modules' audio threads at once. Each
 change is marked `prdt:` in the source.
 
-`plugins/prdt/pd/else_prdt.h`, included before every source, does the rest without editing it: an `else_` prefix on
-the names cyclone also defines, `else/<name>` for every class, and Pd's MIDI byte output for `sys_putmidibyte`,
-which libpd lacks.
+`plugins/prdt/pd/else/` replaces `[sfload]`, `[sfinfo]` and `[play.file~]`, which need ffmpeg, with versions on Pd's
+sound-file reader. `plugins/prdt/pd/else_prdt.h`, included before every source, does the rest without editing it:
+an `else_` prefix on the names cyclone also defines, `else/<name>` for every class, and Pd's MIDI byte output for
+`sys_putmidibyte`, which libpd lacks.
 
 | File | Change | Why |
 |-|-|-|

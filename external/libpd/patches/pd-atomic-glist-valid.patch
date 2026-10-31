@@ -1,0 +1,75 @@
+--- a/pure-data/src/g_canvas.h	2026-10-29 23:27:33.406938661 +0300
++++ b/pure-data/src/g_canvas.h	2026-10-29 23:27:33.440118512 +0300
+@@ -388,6 +388,10 @@
+ extern t_canvas *canvas_whichfind;  /* last canvas we did a find in */
+ extern t_class *vinlet_class, *voutlet_class;
+ extern int glist_valid;         /* incremented when pointers might be stale */
++    /* prdt (ssp): the next glist_valid, atomically: instances on other threads
++    increment it too, and a lost increment could hand a container a number it
++    had before, so that a stale pointer to it would pass as valid */
++#define glist_newvalid() __atomic_add_fetch(&glist_valid, 1, __ATOMIC_RELAXED)
+ 
+ #define PLOTSTYLE_POINTS 0     /* plotting styles for arrays */
+ #define PLOTSTYLE_POLY 1
+--- a/pure-data/src/g_array.c	2026-10-29 23:27:33.399362966 +0300
++++ b/pure-data/src/g_array.c	2026-10-29 23:27:33.431820791 +0300
+@@ -80,7 +80,7 @@
+     if (n > oldn)
+         word_initvec((t_word *)(x->a_vec + elemsize * oldn), template,
+             &x->a_gp, n - oldn);
+-    x->a_valid = ++glist_valid;
++    x->a_valid = glist_newvalid();
+ }
+ 
+ void array_resize_and_redraw(t_array *array, t_glist *glist, int n)
+@@ -515,7 +515,7 @@
+                 gobj_vis(&x->x_glist->gl_gobj, x->x_glist->gl_owner, 1);
+             }
+                 /* see garray_rename() */
+-            garray_getarray(x)->a_valid = ++glist_valid;
++            garray_getarray(x)->a_valid = glist_newvalid();
+             canvas_update_dsp();
+         }
+         size = fsize;
+@@ -1251,7 +1251,7 @@
+         /* Invalidate any existing gpointers into this array. This will
+         trigger an error message in table DSP objects that are currently
+         bound to this array, see dsparray_get_array() in d_array.c */
+-    garray_getarray(x)->a_valid = ++glist_valid;
++    garray_getarray(x)->a_valid = glist_newvalid();
+     if (wasused)
+         canvas_update_dsp();
+ }
+--- a/pure-data/src/g_canvas.c	2026-10-29 23:27:33.400932301 +0300
++++ b/pure-data/src/g_canvas.c	2026-10-29 23:27:33.434201959 +0300
+@@ -451,7 +451,7 @@
+         /* zero out everyone except "pd" field */
+     memset(((char *)x) + sizeof(x->gl_pd), 0, sizeof(*x) - sizeof(x->gl_pd));
+     x->gl_stub = gstub_new(x, 0);
+-    x->gl_valid = ++glist_valid;
++    x->gl_valid = glist_newvalid();
+     x->gl_xlabel = (t_symbol **)t_getbytes(0);
+     x->gl_ylabel = (t_symbol **)t_getbytes(0);
+     x->gl_privatedata = getbytes(sizeof(t_canvas_private));
+--- a/pure-data/src/g_graph.c	2026-10-29 23:27:33.403009689 +0300
++++ b/pure-data/src/g_graph.c	2026-10-29 23:27:33.436493690 +0300
+@@ -146,7 +146,7 @@
+     }
+     if (y->g_pd == scalar_class)
+     {
+-        x->gl_valid = ++glist_valid;
++        x->gl_valid = glist_newvalid();
+         glist_deleteforscalar(x, (t_scalar *)y);
+     }
+     pd_free(&y->g_pd);
+--- a/pure-data/src/x_text.c	2026-10-29 23:27:33.405018709 +0300
++++ b/pure-data/src/x_text.c	2026-10-29 23:27:33.438232993 +0300
+@@ -609,7 +609,7 @@
+     gpointer_unset(&x->x_gp);
+     /* deleting the scalar will automatically free the binbuf */
+     pd_free(&x->x_scalar->sc_gobj.g_pd);
+-    x->x_canvas->gl_valid = ++glist_valid; /* invalidate pointers */
++    x->x_canvas->gl_valid = glist_newvalid(); /* invalidate pointers */
+ }
+ 
+ /* ---  text_client - common code for objects that refer to text buffers -- */

@@ -96,11 +96,13 @@ All Pd vanilla objects, including `[expr]` and `[expr~]`. Also, compiled in:
 - Pd's `extra/` objects: `bob~`, `bonk~`, `choice`, `fiddle~`, `loop~`, `lrshift~`, `pique`, `sigmund~`, `stdout`. `pd~` is left out.
 - [cyclone](https://github.com/porres/pd-cyclone) 0.9-5, the Max/MSP-compatible library: about 215 objects, such as `[coll]`, `[zl]`, `[counter]`, `[cycle~]` and `[svf~]`, by their plain names. Left out: `[loadmess]`, and `[mousestate]`, `[mousefilter]` and `[active]`, which read the mouse. `[scope~]` and `[comment]` create but draw nothing. `[coll]` reads and writes files on the thread its message arrives on, never on its own thread.
 - [ELSE](https://github.com/porres/pd-else) 1.0-0 RC-15: about 370 objects, by their plain names and as `[else/name]`, and 305 abstractions. Ten names are also cyclone's: `atan2~`, `cartopol`, `cartopol~`, `pink~`, `poltocar`, `poltocar~`, `scope~`, `tanh`, `tanh~` and `trunc~`. The plain name is cyclone's object; `[else/pink~]` is ELSE's. Left out:
-  - objects that need another library: `[plaits~]`, `[sfont~]`, `[sfz~]`, `[circuit~]`, `[beat~]`, `[play.file~]`, `[sfload]`, `[sfinfo]`, `[streamin~]`, `[streamout~]`, `[pdlink]`, `[pdlink~]`, and the Lua objects such as `[display]`;
+  - objects that need another library: `[plaits~]`, `[sfont~]`, `[sfz~]`, `[circuit~]`, `[beat~]`, `[streamin~]`, `[streamout~]`, `[pdlink]`, `[pdlink~]`, and the Lua objects such as `[display]`;
   - `[mouse]`, `[keycode]` and `[properties]`, which read the mouse or keyboard or open a dialog;
   - `[else]`, which prints the version.
 
-  21 abstractions need one of these, among them `[sample~]`, `[player~]`, `[sequencer]` and `[slider2d]`. GUI objects such as `[knob]` and `[note]` create but draw nothing. `[messcoll]` never uses its own thread.
+  `[sfload]`, `[sfinfo]` and `[play.file~]` read WAV, AIFF, CAF and NeXT files with Pd's own reader, not ffmpeg: 16 and 24-bit integer and 32 and 64-bit float samples, but not MP3, OGG or FLAC, and `[sfload]` has no `download`. `[play.file~]` reads on a thread of its own and has no file panel.
+
+  16 abstractions need one of the objects left out, among them `[sequencer]` and `[slider2d]`. GUI objects such as `[knob]` and `[note]` create but draw nothing. `[messcoll]` never uses its own thread.
 
 Externals cannot load from the card. `prdt.so` keeps Pd's functions private, so a compiled external (`.pd_linux`) fails to link, and its object cannot be created.
 

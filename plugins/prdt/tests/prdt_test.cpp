@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstdio>
+#include <cstring>
 #include <fstream>
 #include <initializer_list>
 #include <string>
@@ -267,6 +268,8 @@ static std::string examples() {
     return dir ? dir : EXAMPLES;
 }
 
+static void writeWav(const std::string& path, int frames);
+
 // Two modules' audio threads run while a third thread reloads both: each output is silence or a
 // patch's constant.
 static void testThreads(const std::string& dir) {
@@ -279,11 +282,13 @@ static void testThreads(const std::string& dir) {
                                         "obj 200 40 rand~ 100", "obj 200 70 +~", "obj 200 100 *~ 0", "obj 200 130 dac~ 2",
                                         "obj 300 10 coll", "obj 300 40 pv shared", "obj 400 10 osc.format",
                                         "obj 400 40 osc.parse", "obj 400 70 rand.f", "obj 400 100 pluck~ 440",
-                                        "obj 400 130 messcoll", "obj 400 160 knob" },
+                                        "obj 400 130 messcoll", "obj 400 160 knob", "obj 500 10 play.file~ -loop two.wav 1",
+                                        "obj 500 40 sfload -t sa", "obj 500 70 array define 0-sa", "msg 500 100 load two.wav" },
                                       { "0 0 1 0", "2 0 3 0", "3 0 4 0", "4 0 5 0", "5 0 6 0", "6 0 7 0", "4 0 8 0",
                                         "9 0 11 0", "10 0 11 1", "11 0 12 0", "12 0 13 0", "4 0 16 0", "16 0 17 0",
-                                        "3 0 18 0", "3 0 19 0", "19 0 12 0" }));
+                                        "3 0 18 0", "3 0 19 0", "19 0 12 0", "22 0 12 0", "2 0 25 0", "25 0 23 0" }));
     };
+    writeWav(dir + "/two.wav", 1000);
     std::string a = busy("a.pd", "0.25");
     std::string b = busy("b.pd", "0.5");
     Rig r1, r2;
@@ -437,6 +442,136 @@ static void testElse(const std::string& dir) {
     }
 }
 
+// A 16-bit stereo WAV at 48 kHz: channel 0 a ramp from 0 by 1/1024 a frame, channel 1 at -0.5
+static void writeWav(const std::string& path, int frames) {
+    auto u32 = [](std::ofstream& f, uint32_t v) { f.write(reinterpret_cast<const char*>(&v), 4); };
+    auto u16 = [](std::ofstream& f, uint16_t v) { f.write(reinterpret_cast<const char*>(&v), 2); };
+    std::ofstream f(path, std::ios::binary);
+    f.write("RIFF", 4);
+    u32(f, 36 + frames * 4);
+    f.write("WAVEfmt ", 8);
+    u32(f, 16);
+    u16(f, 1);  // PCM
+    u16(f, 2);
+    u32(f, 48000);
+    u32(f, 48000 * 4);
+    u16(f, 4);
+    u16(f, 16);
+    f.write("data", 4);
+    u32(f, frames * 4);
+    for (int i = 0; i < frames; i++) {
+        u16(f, uint16_t(int16_t((i % 1024) * 32)));  // (i % 1024) / 1024 of full scale
+        u16(f, uint16_t(int16_t(-16384)));
+    }
+}
+
+// runs r until its console has `text`, for up to a second
+static bool waitFor(Rig& r, const char* text) {
+    for (int k = 0; k < 100 && r.e.status().find(text) == std::string::npos; k++) {
+        r.run(4);
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    return r.e.status().find(text) != std::string::npos;
+}
+
+// ELSE's [sfload], [sfinfo] and [play.file~] on Pd's sound-file reader (pd/else/): the file's samples into arrays,
+// on Pd's thread and on [sfload]'s, files Pd's [soundfiler] wrote as 24-bit AIFF and float WAV, the channel count,
+// and playback to its end, and round again with -loop
+static void testSoundFiles(const std::string& dir) {
+    writeWav(dir + "/two.wav", 1000);
+    for (const char* sfload : { "sfload a", "sfload -t a" }) {
+        Rig r;
+        std::string load = std::string("obj 10 70 ") + sfload;
+        r.load(write(dir, "sfload.pd", patch({ "obj 10 10 loadbang", "msg 10 40 load two.wav", load.c_str(),
+                                               "obj 10 100 print info", "obj 200 10 array define 0-a",
+                                               "obj 200 40 array define 1-a", "obj 200 100 t b b",
+                                               "obj 200 130 array get 0-a 10 1", "obj 200 160 print ch0",
+                                               "obj 300 130 array get 1-a 500 1", "obj 300 160 print ch1" },
+                                             { "0 0 1 0", "1 0 2 0", "2 0 3 0", "2 0 6 0", "6 0 7 0", "7 0 8 0",
+                                               "6 1 9 0", "9 0 10 0" })));
+        CHECK(r.e.error().empty());
+        CHECK(waitFor(r, "info: 1000 48000 2 16"));
+        CHECK(r.e.status().find("ch0: 0.00976562") != std::string::npos);  // frame 10: 10 / 1024
+        CHECK(r.e.status().find("ch1: -0.5") != std::string::npos);
+    }
+    // vanilla's writer, then [sfload]: 24-bit big-endian and 32-bit float
+    for (const char* fmt : { "-aiff -bytes 3 w.aif", "-wave -bytes 4 w.wav" }) {
+        Rig r;
+        std::string write_ = std::string("msg 10 70 write ") + fmt + " src";
+        std::string load = std::string("msg 10 130 load ") + (std::strstr(fmt, "aif") ? "w.aif" : "w.wav");
+        r.load(write(dir, "round.pd", patch({ "obj 10 10 loadbang", "msg 10 40 0 0.25 -0.5 0.75", write_.c_str(),
+                                              "obj 10 100 soundfiler", load.c_str(), "obj 10 160 sfload dst",
+                                              "obj 10 190 t b", "obj 10 220 array get dst 0 4", "obj 10 250 print got",
+                                              "obj 200 10 array define src 4", "obj 200 40 array define dst",
+                                              "obj 200 70 array set src", "obj 10 300 t b b b" },
+                                            { "0 0 12 0", "12 2 1 0", "1 0 11 0", "12 1 2 0", "2 0 3 0", "12 0 4 0",
+                                              "4 0 5 0", "5 0 6 0", "6 0 7 0", "7 0 8 0" })));
+        CHECK(r.e.error().empty());
+        CHECK(r.e.status().find("got: 0 0.25 -0.5 0.75") != std::string::npos);
+    }
+    {
+        Rig r;
+        r.load(write(dir, "sfinfo.pd", patch({ "obj 10 10 loadbang", "msg 10 40 read two.wav \\, channels", "obj 10 70 sfinfo",
+                                               "obj 10 100 print sfinfo" },
+                                             { "0 0 1 0", "1 0 2 0", "2 0 3 0" })));
+        CHECK(r.e.error().empty());
+        CHECK(r.e.status().find("sfinfo: channels 2") != std::string::npos);
+    }
+    for (const char* play : { "play.file~ two.wav 1", "play.file~ -loop two.wav 1" }) {
+        Rig r;
+        std::string obj = std::string("obj 10 10 ") + play;
+        r.load(write(dir, "play.pd", patch({ obj.c_str(), "obj 10 40 dac~ 1 2", "obj 10 70 print end" },
+                                           { "0 0 1 0", "0 1 1 1", "0 2 2 0" })));
+        CHECK(r.e.error().empty());
+        float c0 = 0, c1 = 0;
+        int blocks = 0;
+        for (; blocks < 200 && c1 == 0; blocks++) {  // until the reader has filled the ring
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+            r.run(1);
+            c1 = r.out[1][BLOCK - 1], c0 = r.out[0][BLOCK - 1];
+        }
+        NEAR(c1, -0.5, 1e-6);
+        CHECK(c0 > 0 && c0 < 1);
+        bool loop = std::strstr(play, "-loop");
+        CHECK(waitFor(r, "end: bang"));
+        if (loop) {  // round again: another end, and still sound
+            std::string first = r.e.status();
+            for (int k = 0; k < 100 && r.e.status() == first; k++) r.run(4);
+            CHECK(r.e.status() != first);
+            NEAR(r.run(1, 1), -0.5, 1e-6);
+        } else {
+            r.run(4);
+            NEAR(r.out[1][BLOCK - 1], 0.0, 1e-6);  // stopped
+        }
+    }
+}
+
+// -loop loses, repeats and zeroes no sample across its loop points, in a file shorter than the reader's chunk and in
+// one longer. The ramp goes on from each frame to the next: 2048 frames wrap as the ramp does, at 1024.
+static void testLoopSeam(const std::string& dir) {
+    for (int frames : { 1000, 2048 }) {
+        const int wrap = frames < 1024 ? frames : 1024;
+        writeWav(dir + "/seam.wav", frames);
+        Rig r;
+        r.load(write(dir, "seam.pd", patch({ "obj 10 10 play.file~ -loop seam.wav 1", "obj 10 40 dac~ 1 2" },
+                                           { "0 0 1 0", "0 1 1 1" })));
+        CHECK(r.e.error().empty());
+        for (int k = 0; k < 200 && r.run(1, 1) == 0; k++) std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        float prev = r.out[0][BLOCK - 1];
+        int breaks = 0;
+        for (int f = 0; f < 5 * frames; f += BLOCK) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));  // about real time, so the reader keeps up
+            r.run(1);
+            for (int i = 0; i < BLOCK; i++) {
+                const int want = (int(std::lround(prev * 1024)) + 1) % wrap;
+                if (std::fabs(r.out[0][i] - want / 1024.0f) > 1e-5 || r.out[1][i] != -0.5f) breaks++;
+                prev = r.out[0][i];
+            }
+        }
+        CHECK(breaks == 0);
+    }
+}
+
 // test_prdt.py builds dir/hello.pd_linux: an external cannot find Pd's functions, so it fails to load
 static void testExternal(const std::string& dir) {
     Rig r;
@@ -503,6 +638,8 @@ int main(int argc, char** argv) {
         testCloneArray(dir);
         testCyclone(dir);
         testElse(dir);
+        testSoundFiles(dir);
+        testLoopSeam(dir);
         testRate(dir);
         testThreads(dir);
         testExamples();

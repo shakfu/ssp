@@ -14,6 +14,8 @@ Changes to the build, tools and presets. Each plugin keeps its own changelog in 
 
 ### Build and tools
 
+- `make test MOD=x` runs one plugin's tests. `x` is the module name or its folder (`scsy` or `scsynth`), as the two differ for 12 plugins.
+
 - `make install-prdt` copies `prdt`'s example patches and the Pd and cyclone abstractions to the card, mounted or over ssh.
 
 - libpd 0.16.1, with Pure Data 0.56-5, is vendored in `external/libpd` (BSD-3-Clause): a source copy, not a submodule, so the build needs no network and upstream libpd's nested `pure-data` submodule does not apply. `external/libpd/VERSION` names both commits; `external/libpd/PATCHES.md` lists one local patch, a Pd teardown for unloading. cyclone 0.9-5 is vendored in `external/pd-cyclone` (BSD-3-Clause) the same way, with patches for running one Pd instance per module, in `external/pd-cyclone/PATCHES.md`.

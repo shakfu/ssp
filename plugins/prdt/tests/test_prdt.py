@@ -98,7 +98,7 @@ def test_every_cyclone_object_creates(tmp_path):
 
 
 ELSE = ROOT / "external" / "pd-else"
-# the sources pd/CMakeLists.txt leaves out
+# the sources pd/CMakeLists.txt leaves out; [play.file~], [sfload] and [sfinfo] are pd/else/'s
 ELSE_SKIP = {"play.file~", "streamin~", "streamout~", "sfload", "sfinfo", "pdlink", "pdlink~", "beat~", "mouse",
              "keycode", "properties", "else"}
 
@@ -108,8 +108,10 @@ def else_classes():
     "del~ out", which [del~ in] and [del~ out] create"""
     src = ELSE / "Source"
     names = set()
-    for f in sorted([*(src / "Control").glob("*.c"), *(src / "Audio").glob("*.c"), *(src / "Extra/Aliases").glob("*.c")]):
-        if f.stem in ELSE_SKIP:
+    ours = HERE.parent / "pd" / "else"
+    for f in sorted([*(src / "Control").glob("*.c"), *(src / "Audio").glob("*.c"), *(src / "Extra/Aliases").glob("*.c"),
+                     *ours.glob("*.c")]):
+        if f.stem in ELSE_SKIP and f.parent != ours:
             continue
         names.update(re.findall(r'class_new\(gensym\("([^"]+)"', f.read_text(errors="replace")))
     return sorted(n for n in names if not n.startswith("_") and "proxy" not in n and "-inlet" not in n and " " not in n)
@@ -141,11 +143,11 @@ def test_every_else_object_creates(tmp_path):
     assert r.returncode == 0, r.stderr[-4000:]
 
 
-# ELSE abstractions that need an object prdt does not have: pdlua's [display], ffmpeg's [sfload] and [sfinfo],
-# [mouse], [keycode], [pd~], [plaits~] or [sfont~]
-ELSE_UNSUPPORTED = {"about.MERDA", "abs.pd~", "brane.m~", "gran.player~", "keymap", "multi.vsl", "pattern", "phaser~",
-                    "phaser.m~", "plaits.m~", "plaits.unit", "player~", "pvoc.player~", "range.hsl", "sample~",
-                    "sequencer", "sfont.m~", "slider2d", "superosc~", "superosc.m~", "superosc.unit"}
+# ELSE abstractions that need an object prdt does not have: pdlua's [display], [mouse], [keycode], [pd~], [plaits~]
+# or [sfont~]
+ELSE_UNSUPPORTED = {"about.MERDA", "abs.pd~", "keymap", "multi.vsl", "pattern", "phaser~", "phaser.m~", "plaits.m~",
+                    "plaits.unit", "range.hsl", "sequencer", "sfont.m~", "slider2d", "superosc~", "superosc.m~",
+                    "superosc.unit"}
 
 
 def test_every_else_abstraction_creates(tmp_path):

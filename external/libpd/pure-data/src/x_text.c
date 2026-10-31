@@ -609,7 +609,7 @@ static void text_define_free(t_text_define *x)
     gpointer_unset(&x->x_gp);
     /* deleting the scalar will automatically free the binbuf */
     pd_free(&x->x_scalar->sc_gobj.g_pd);
-    x->x_canvas->gl_valid = ++glist_valid; /* invalidate pointers */
+    x->x_canvas->gl_valid = glist_newvalid(); /* invalidate pointers */
 }
 
 /* ---  text_client - common code for objects that refer to text buffers -- */

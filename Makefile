@@ -46,7 +46,7 @@ help:
 	@echo "make midisend           build tools/midisend, copy it to SSP_HOST's /tmp and start it: a MIDI input for tests"
 	@echo "make mididump           build tools/mididump, copy it to SSP_HOST's /tmp: prints a port's MIDI"
 	@echo "make install-presets    check, then copy presets/ (or PRESETS=dir) to the card (SSP_PRESETS)"
-	@echo "make test               run the tools, scripts and plugin tests"
+	@echo "make test [MOD=x]       run the tools, scripts and plugin tests, or only plugin x's"
 	@echo "make clean              remove $(BUILD_DIR)"
 	@echo "variables: SSP_BUILDROOT, SSP_IP ($(SSP_IP)), SSP_HOST ($(SSP_HOST)), SSP_PLUGINS (/media/$$USER/BOOT/plugins), SSP_PRESETS (unset: the card), JOBS ($(JOBS))"
 
@@ -163,8 +163,11 @@ mididump: | $(BUILDROOT_DEP)
 install-presets:
 	scripts/install-presets.sh $(PRESETS)
 
+# MOD is a module's name (scsy) or its folder (scsynth)
+MOD_TESTS = $(sort $(wildcard plugins/$(MOD)/tests $(patsubst %/CMakeLists.txt,%/tests,$(shell grep -liE '^\s*PLUGIN_CODE\s+$(MOD)\b' plugins/*/CMakeLists.txt))))
+
 test:
-	uv run --quiet --with pytest pytest tools scripts $(wildcard plugins/*/tests) -q
+	uv run --quiet --with pytest pytest $(if $(MOD),$(or $(MOD_TESTS),$(error no tests for MOD=$(MOD))),tools scripts $(wildcard plugins/*/tests)) -q
 
 clean:
 	rm -rf $(BUILD_DIR)

@@ -388,6 +388,10 @@ EXTERN void canvas_setcursor(t_glist *x, unsigned int cursornum);
 extern t_canvas *canvas_whichfind;  /* last canvas we did a find in */
 extern t_class *vinlet_class, *voutlet_class;
 extern int glist_valid;         /* incremented when pointers might be stale */
+    /* prdt (ssp): the next glist_valid, atomically: instances on other threads
+    increment it too, and a lost increment could hand a container a number it
+    had before, so that a stale pointer to it would pass as valid */
+#define glist_newvalid() __atomic_add_fetch(&glist_valid, 1, __ATOMIC_RELAXED)
 
 #define PLOTSTYLE_POINTS 0     /* plotting styles for arrays */
 #define PLOTSTYLE_POLY 1
