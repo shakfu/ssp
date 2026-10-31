@@ -8,7 +8,9 @@ Changes to the build, tools and presets. Each plugin keeps its own changelog in 
 
 - `prdt`, new: a Pure Data patch from the card, run by libpd with one instance per module, with cyclone's objects built in. Encoders reach receivers the patch names in `@pN` comments, and MIDI reaches Pd's MIDI objects. See [plugins/prdt/CHANGELOG.md](plugins/prdt/CHANGELOG.md).
 
-- `gseq`: a 16 x 8 monome grid edits and shows the pattern. See [plugins/gseq/CHANGELOG.md](plugins/gseq/CHANGELOG.md).
+- `gseq`: a 16 x 8 monome grid edits and shows the pattern; in roll mode, encoders 1 and 2 move the cursor and either press adds or removes a note. See [plugins/gseq/CHANGELOG.md](plugins/gseq/CHANGELOG.md).
+
+- `brks`: Sample and Random change encoders. See [plugins/breaks/CHANGELOG.md](plugins/breaks/CHANGELOG.md).
 
 - `mlsp`, new and experimental: ModuLisp, the language of Emute Lab's uSEQ module, on uSEQ's signal engine, as four gates and four CVs. The program reads the eight inputs and sixteen encoders, and follows its own tempo, a clock on In 2 or MIDI clock. Releases leave it out until uSEQ's software licence is formally clarified. See [plugins/mlsp/CHANGELOG.md](plugins/mlsp/CHANGELOG.md).
 

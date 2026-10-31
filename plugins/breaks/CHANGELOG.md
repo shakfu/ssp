@@ -2,6 +2,10 @@
 
 brks follows [semantic versioning](https://semver.org). The version is set in `CMakeLists.txt` (`project(BREAKS VERSION ...)`).
 
+## [Unreleased]
+
+- Encoder order: `play` is Sample, Break, Grimoire, Amen and `sound` is Random, Volume, Filter, Gating. Only the pages changed, not the parameters, so presets still load.
+
 ## [0.1.0] - 2026-10-19
 
 First version: the breakbeat slicer firmware of `_core` v8.1.0 on the SSP, built through `_core`'s desktop engine with one hook added to its firmware. It plays sample-manager card folders: 16 banks of 16 sliced samples, one bank in RAM. The panel's five knobs, Tap, Mode, Clock, and the Amen, Break and Sample CVs work as on the hardware. Trig, Clock Out and stereo audio are its outputs. GPL-3.0-only; see [NOTICE.md](NOTICE.md).

@@ -4,6 +4,8 @@ gseq follows [semantic versioning](https://semver.org). The version is set in `C
 
 ## [Unreleased]
 
+- Roll mode: encoders 1 and 2 move the cursor by pitch and by step, and pressing either adds or removes a note. A note stays in the cell where it was made; encoder 1 used to carry it along, so a note could not be added and left. Velocity moves to encoder 3 held, by 5.
+
 - A 16 x 8 monome grid edits and shows the pattern: 8 rows by 16 steps, a page of the 32, following the cursor; a key switches a step on, with the last note played, or off. In roll mode the rows are pitches. Through libmonome's libftdi backend, as the SSP's kernel has no driver for the grid's FTDI chip (docs/dev/monome.md).
 
 ## [0.1.0] - 2026-10-24

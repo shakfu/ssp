@@ -60,9 +60,9 @@ The grid area is 336 px high. In roll mode it shows 12 pitch rows of 28 px: one 
 |-|-|
 | ROW-, ROW+ | the cursor's pitch, a semitone; held, an octave. The view scrolls to show it |
 | STP-, STP+ | the cursor's step |
-| Encoder 1 | moves the note under the cursor up or down in pitch, with the cursor; press: adds or removes a note at the cursor |
-| Encoder 2 | velocity of the note under the cursor (held: by 10) |
-| Encoder 3 | duration of the note under the cursor |
+| Encoder 1 | the cursor's pitch (held: by octaves); press: adds or removes a note at the cursor |
+| Encoder 2 | the cursor's step (held: by 8); press: adds or removes a note at the cursor |
+| Encoder 3 | duration of the note under the cursor; held: its velocity, by 5 |
 | Encoder 4 | the track's length; press: its division |
 
 | Button | Roll mode |

@@ -87,8 +87,9 @@ A piano roll of one track: pitch upward, steps to the right, a note per lit cell
 |-|-|
 | ROW-, ROW+ | the cursor's pitch, a semitone (held: an octave) |
 | STP-, STP+ | the cursor's step |
-| Encoder 1 | moves the note at the cursor to another pitch, with the cursor; with no note there, moves the cursor. Press: adds or removes a note |
-| Encoders 2, 3 | the note's velocity and duration |
+| Encoder 1 | the cursor's pitch; held: octaves. Press: adds or removes a note |
+| Encoder 2 | the cursor's step; held: 8 steps. Press: adds or removes a note |
+| Encoder 3 | the note's duration; held: its velocity, by 5 |
 | Encoder 4 | the track's length; press: next division |
 | Row | the track page: MIDI channel, CV on or off (press: poly or mono), velocity CV, division |
 | Mute, Clear | the whole track |

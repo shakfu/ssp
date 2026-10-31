@@ -123,9 +123,9 @@ std::vector<ssp::engine::ParamPage> PluginProcessor::pages() {
     using C = ssp::engine::ParamPage::Control;
     auto k = [this](int i) { return C{ knobs_[i], 0.05f, 0.01f }; };
     return { { "play", Colours::gold,
-               { k(Panel::K_BREAK), k(Panel::K_GRIMOIRE), k(Panel::K_AMEN), k(Panel::K_RANDOM) } },
+               { k(Panel::K_SAMPLE), k(Panel::K_BREAK), k(Panel::K_GRIMOIRE), k(Panel::K_AMEN) } },
              { "sound", Colours::orange,
-               { k(Panel::K_SAMPLE), C{ &volume_, 0.05f, 0.01f }, C{ &filter_, 0.05f, 0.01f },
+               { k(Panel::K_RANDOM), C{ &volume_, 0.05f, 0.01f }, C{ &filter_, 0.05f, 0.01f },
                  C{ &gating_, 0.05f, 0.01f } } },
              { "clock", Colours::cyan, { C{ &tempo_, 5.0f, 1.0f }, C{ &clockOut_, 1.0f, 1.0f } } } };
 }

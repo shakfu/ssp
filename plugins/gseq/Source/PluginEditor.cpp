@@ -301,7 +301,7 @@ String PluginEditor::legend() const {
                "   E4 ppqn " + String(int(value(processor_.ppqn()))) + "   E1 press: " + (roll() ? "roll" : "grid");
     default:
         if (roll())
-            return "E1 pitch, press on/off   E2 velocity   E3 duration   E4 length " + String(row.length) +
+            return "E1 pitch, E2 step, press on/off   E3 duration, held velocity   E4 length " + String(row.length) +
                    ", press " + DIVISION_NAMES[row.division];
         return "E1 note, press on/off   E2 velocity   E3 duration   E4 length " + String(row.length) +
                ", press " + DIVISION_NAMES[row.division];
@@ -420,8 +420,8 @@ void PluginEditor::eachRow(F f) {
     }
 }
 
-// 1 the note's pitch, with the cursor (held: octaves), or the cursor alone; 2 velocity (held: by 10);
-// 3 duration; 4 the track's length
+// 1 the cursor's pitch (held: octaves); 2 the cursor's step (held: by 8); a note stays where it was made.
+// 3 duration (held: velocity, by 5); 4 the track's length
 void PluginEditor::editRollNote(unsigned enc, int d, bool held) {
     auto& g = processor_.gseq();
     const int p = g.cursorPitch(), s = col_;
@@ -431,29 +431,20 @@ void PluginEditor::editRollNote(unsigned enc, int d, bool held) {
         moveTo(row_, col_);
         return;
     }
+    if (enc == 0) return movePitch(p + d * (held ? 12 : 1));
+    if (enc == 1) return moveTo(row_, s + d * (held ? 8 : 1));
     const int r = g.findNote(s, p);
-    if (enc == 0) {
-        const int to = std::clamp(p + d * (held ? 12 : 1), 0, 127);
-        if (r >= 0 && to != p) {
-            if (g.findNote(s, to) >= 0) return note(noteName(to) + " already plays at this step");
-            auto st = g.step(r, s);
-            g.removeNote(s, p);
-            st.note = uint8_t(to);
-            g.addNote(s, st);  // its own row is free again, so a row is found
-        }
-        return movePitch(to);
-    }
     if (r < 0) return;
     auto st = g.step(r, s);
-    if (enc == 1) {
-        st.velocity = uint8_t(std::clamp(st.velocity + d * (held ? 10 : 1), 1, 127));
+    if (held) {
+        st.velocity = uint8_t(std::clamp(st.velocity + d * 5, 1, 127));
         g.setStep(r, s, st);
     } else {
         g.setNoteDuration(s, p, uint8_t(std::clamp(st.duration + d, 0, Engine::DURATIONS - 1)));
     }
 }
 
-// 1 adds or removes the note at the cursor; 4 cycles the track's division
+// 1 and 2 add or remove the note at the cursor; 4 cycles the track's division
 void PluginEditor::pressedRoll(unsigned enc) {
     auto& g = processor_.gseq();
     if (enc == 3) {
@@ -461,7 +452,7 @@ void PluginEditor::pressedRoll(unsigned enc) {
         eachRow([&](Engine::Row& x) { x.division = uint8_t(division); });
         return;
     }
-    if (enc != 0) return;
+    if (enc > 1) return;
     const int p = g.cursorPitch();
     if (g.removeNote(col_, p) >= 0) return;
     Engine::Step st;

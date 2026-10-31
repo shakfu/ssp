@@ -70,11 +70,13 @@ Up and Down step through the pages; see [Using](../../docs/USING.md#buttons).
 
 | Page | Encoder 1 | Encoder 2 | Encoder 3 | Encoder 4 |
 |-|-|-|-|-|
-| play | Break | Grimoire | Amen | Random |
-| sound | Sample | Volume | Filter | Gating |
+| play | Sample | Break | Grimoire | Amen |
+| sound | Random | Volume | Filter | Gating |
 | clock | Tempo | Clock Out | | |
 
-The **play** page holds the effects and the sequencer, each as a pair:
+The **play** page holds the sample, the effects and the sequencer:
+
+- **Sample**: the sample in the bank.
 
 - **Break**: how often effects play. It rises with the cube of the knob. Below about a quarter, no effect plays.
 
@@ -82,11 +84,9 @@ The **play** page holds the effects and the sequencer, each as a pair:
 
 - **Amen**: the slice sequencer. Fully left plays straight through. Positions between play sequences of 1 to 32 slices. Fully right plays random slices and changes them every two bars.
 
+The **sound** page holds Random and the functions the hardware reaches with Tap held:
+
 - **Random**: the jump probability. Left of centre, jumps continue from where they land. Right of centre, they return to the beat. With Amen CV patched, Amen and Random set the start and end of the slice range the CV covers.
-
-The **sound** page holds Sample and the functions the hardware reaches with Tap held:
-
-- **Sample**: the sample in the bank.
 
 - **Volume**: up to the middle, the volume. Past it, saturation, then fuzz. A new instance keeps the firmware's start-up volume (234 of 244, with saturation) until Volume moves.
 
