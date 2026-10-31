@@ -119,7 +119,7 @@ The modules have sixteen controls, `p1`..`p16`. Each exists for presets, MIDI le
 
 - Turning moves a control 5% of its range a detent. On a `log` range each detent is the same interval.
 - Turning while pressing moves it 0.5% a detent.
-- Pressing and releasing without turning sets the control to the start of its range, not the program's default.
+- Pressing and releasing without turning returns the control to the program's default: `fstr`'s slider value, `scsy`'s def value, or the start value of `sapf`'s and `alda`'s own controls. A control without a default, such as an `@pN` control or `alda`'s Clock, goes to the start of its range.
 - A control with named choices, such as `alda`'s Clock, moves one choice a detent.
 
 ## CV

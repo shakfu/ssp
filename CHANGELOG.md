@@ -4,11 +4,23 @@ Changes to the build, tools and presets. Each plugin keeps its own changelog in 
 
 ## [Unreleased]
 
+## [0.6.0]
+
+One module is new since 0.5.0: `prdt`, so the release ships 20. `mlsp` is built from source only.
+
+### Known issues
+
+- `scsy`: adding or deleting a module crashed Synthor once in 26 cycles. It has no trace and did not recur in the last 10.
+- `fstr`: the same cycle crashed Synthor once in 22, inside `libLLVM-9.so`. It did not recur in the last 10. Those 10 ran under gdb, as did the crash.
+- `chuk`: each module added and deleted leaves about 2.9 MB allocated until Synthor restarts, as ChucK does not free a deleted VM's types.
+
 ### Plugins
 
-- `prdt`, new: a Pure Data patch from the card, run by libpd with one instance per module, with cyclone's objects built in. Encoders reach receivers the patch names in `@pN` comments, and MIDI reaches Pd's MIDI objects. See [plugins/prdt/CHANGELOG.md](plugins/prdt/CHANGELOG.md).
+- `prdt`, new: a Pure Data patch from the card, run by libpd with one instance per module, with cyclone's and ELSE's objects built in. Encoders reach receivers the patch names in `@pN` comments, and MIDI reaches Pd's MIDI objects. See [plugins/prdt/CHANGELOG.md](plugins/prdt/CHANGELOG.md).
 
 - `gseq`: a 16 x 8 monome grid edits and shows the pattern; in roll mode, encoders 1 and 2 move the cursor and either press adds or removes a note. See [plugins/gseq/CHANGELOG.md](plugins/gseq/CHANGELOG.md).
+
+- `fstr`, `scsy`, `sapf`, `alda`: pressing an encoder returns a control to the program's default; it went to the start of the range, because the controls were built before any program declared a default. A control without a default still goes to the start. See [docs/script-editor.md](docs/script-editor.md#encoders).
 
 - `brks`: Sample and Random change encoders. See [plugins/breaks/CHANGELOG.md](plugins/breaks/CHANGELOG.md).
 

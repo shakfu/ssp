@@ -2,7 +2,7 @@
 
 brks follows [semantic versioning](https://semver.org). The version is set in `CMakeLists.txt` (`project(BREAKS VERSION ...)`).
 
-## [Unreleased]
+## [0.1.1] - 2026-10-31
 
 - Encoder order: `play` is Sample, Break, Grimoire, Amen and `sound` is Random, Volume, Filter, Gating. Only the pages changed, not the parameters, so presets still load.
 

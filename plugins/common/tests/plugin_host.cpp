@@ -151,6 +151,11 @@ int main(int argc, char** argv) {
         } else if (cmd == "encoder") {
             p->encoderTurned(std::atoi(argv[a + 1]), std::atoi(argv[a + 2]));
             a += 2;
+        } else if (cmd == "press") {  // pressed and released without turning
+            p->getEditor();
+            p->encoderPressed(std::atoi(argv[a + 1]), true);
+            p->encoderPressed(std::atoi(argv[a + 1]), false);
+            a += 1;
         } else if (cmd == "render") {
             static constexpr int W = 1600, H = 480;
             auto* editor = p->getEditor();

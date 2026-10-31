@@ -351,6 +351,41 @@ static void testExamples() {
     }
     CHECK(crossings >= 79 && crossings <= 81);
 
+    Rig jacks;
+    jacks.load(dir + "/jacks.pd");
+    CHECK(jacks.e.error().empty());
+    jacks.e.setParam(0, 0.5f);  // gain 0.5
+    jacks.e.setParam(1, 0.4f);  // 2 V
+    jacks.input(0, 0.5f);
+    CHECK(std::fabs(jacks.run(8, 0) - 0.25f) < 1e-5f);
+    CHECK(std::fabs(jacks.run(1, 1) - 0.4f) < 1e-5f);
+    CHECK(jacks.run(1, 2) == 0.0f);
+    jacks.input(2, 1.0f);  // a gate on In 3 opens Out 3 and fires one 5 ms pulse on Out 4
+    int pulse = 0;
+    for (int b = 0; b < 40; b++) {
+        jacks.e.process(jacks.ip, jacks.op, BLOCK);
+        for (float v : jacks.out[3]) pulse += v > 0.5f;
+    }
+    CHECK(pulse == 240);
+    CHECK(jacks.out[2][BLOCK - 1] == 1.0f);
+    jacks.input(2, 0.0f);
+    CHECK(jacks.run(8, 2) == 0.0f);
+
+    Rig midicv;
+    midicv.load(dir + "/midicv.pd");
+    CHECK(midicv.e.error().empty());
+    midicv.e.midi(0x90, 72, 100);  // C5: 1 V, gate open
+    midicv.run(4);
+    CHECK(std::fabs(midicv.out[0][BLOCK - 1] - 0.2f) < 1e-5f);
+    CHECK(midicv.out[1][BLOCK - 1] == 1.0f);
+    midicv.e.midi(0x80, 72, 0);  // the gate closes; the pitch holds
+    midicv.run(4);
+    CHECK(std::fabs(midicv.out[0][BLOCK - 1] - 0.2f) < 1e-5f);
+    CHECK(midicv.out[1][BLOCK - 1] == 0.0f);
+    midicv.e.midi(0x90, 60, 100);  // C4: 0 V
+    midicv.run(4);
+    CHECK(std::fabs(midicv.out[0][BLOCK - 1]) < 1e-5f);
+
     // the notes come from [coll]'s embedded data: silence would mean they did not restore
     Rig arp;
     arp.load(dir + "/arp.pd");

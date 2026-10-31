@@ -92,7 +92,7 @@ The score's own tempo sets the speed, `(tempo! 120)` by default, unless it follo
 
 ## Controls
 
-The control pages hold `alda`'s own controls; `@pN` comments in a score are ignored. Each starts neutral, and loading a score with Load returns them there, except Clock, which keeps its setting. Pressing an encoder sets its control to the start of its range, such as -24 semitones, not to neutral ([Encoders](../../docs/script-editor.md#encoders)).
+The control pages hold `alda`'s own controls; `@pN` comments in a score are ignored. Each starts neutral, and loading a score with Load returns them there, except Clock, which keeps its setting. Pressing an encoder returns its control to neutral; Clock goes to its first choice ([Encoders](../../docs/script-editor.md#encoders)).
 
 | Page | Control | Range | Does |
 |-|-|-|-|

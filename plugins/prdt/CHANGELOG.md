@@ -2,7 +2,7 @@
 
 prdt follows [semantic versioning](https://semver.org). The version is set in `CMakeLists.txt` (`project(PRDT VERSION ...)`).
 
-## [Unreleased]
+## [0.1.0] - 2026-10-31
 
 First version. A Pure Data patch from the card, run by libpd 0.16.1 (Pd 0.56-5), vendored in `external/libpd`. Tested on the SSP.
 
@@ -22,4 +22,4 @@ First version. A Pure Data patch from the card, run by libpd 0.16.1 (Pd 0.56-5),
 
 - Memory: a load frees the previous Pd instance, including the sound buffers, path lists, symbol names and instance struct that Pd's `pdinstance_free` leaves. Unloading `prdt.so`, when the last `prdt` module is deleted, frees Pd's process-wide state through a local Pd patch, `pd_freeprocess()`; before, each unload left about 210 kB.
 
-- Examples in `examples/`: `delay.pd`, `synth.pd` (MIDI), `cv.pd` (1 V/oct), `arp.pd`, which uses cyclone's `[counter]`, `[coll]` with embedded notes, `[cycle~]` and `[onepole~]`, and `pluck.pd`, which uses ELSE's `[rand.i]`, `[pluck~]` and `[echo.rev~]`. `make install-prdt` copies them, with Pd's `extra/` and cyclone's abstractions, to `BOOT/prdt`.
+- Examples in `examples/`: `delay.pd`, `synth.pd` (MIDI), `cv.pd` (1 V/oct), `jacks.pd` (one jack of each kind), `midicv.pd` (MIDI to pitch CV and gate), `arp.pd`, which uses cyclone's `[counter]`, `[coll]` with embedded notes, `[cycle~]` and `[onepole~]`, and `pluck.pd`, which uses ELSE's `[rand.i]`, `[pluck~]` and `[echo.rev~]`. `make install-prdt` copies them, with Pd's `extra/` and cyclone's abstractions, to `BOOT/prdt`.

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(SAPF VERSION 0.2.0)  # see CHANGELOG.md
+project(SAPF VERSION 0.2.1)  # see CHANGELOG.md
 
 # The sapf fork's engine and FFTW, from scripts/fetch_sapf.sh (SAPF_DIR); libsndfile from scripts/build_deps.sh,
 # whose copy is PIC; see docs/BUILDING.md

@@ -4,6 +4,10 @@ scsynth follows [semantic versioning](https://semver.org). Until 1.0.0, a minor 
 
 The version is set in `CMakeLists.txt` (`project(SCSYNTH VERSION ...)`) and shown at the top right of the screen.
 
+## [0.2.2] - 2026-10-31
+
+- Pressing an encoder returns a control to the def's value; it went to the start of the range.
+
 ## [0.2.1] - 2026-10-24
 
 - scsynth's print function, which `Poll` calls on the audio thread, could allocate: the log's capacity is now reserved.

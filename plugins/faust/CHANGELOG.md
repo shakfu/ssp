@@ -4,6 +4,10 @@ faust follows [semantic versioning](https://semver.org). Until 1.0.0, a minor ve
 
 The version is set in `CMakeLists.txt` (`project(FAUST VERSION ...)`) and shown at the top right of the screen.
 
+## [0.3.2] - 2026-10-31
+
+- Pressing an encoder returns a control to the slider's default; it went to the start of the range.
+
 ## [0.3.1] - 2026-10-24
 
 - The Code view's status line listed Ctrl-E, which `fstr` does not support.

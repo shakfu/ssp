@@ -201,7 +201,7 @@ The right panel shows the page (`1/1 controls`), the DSP load, the file name, an
 
 Turn encoder 1 to sweep the cutoff and encoder 2 for resonance. `si.smoo` smooths each change, so even a fast turn does not click.
 
-[Encoders](../../docs/script-editor.md#encoders) gives the step sizes. `cutoff` spans about 8.6 octaves, so a detent is about 0.4 octave. Pressing returns a control to the bottom of its range, not to the slider's default.
+[Encoders](../../docs/script-editor.md#encoders) gives the step sizes. `cutoff` spans about 8.6 octaves, so a detent is about 0.4 octave. Pressing returns a control to the slider's default.
 
 ### 6. Add CV
 
@@ -224,3 +224,7 @@ process(l, r, cv) = (l : fi.resonlp(fc(cv), q, 1)), (r : fi.resonlp(fc(cv), q, 1
 ### 7. Save it
 
 Save a Synthor preset as usual. It stores the file's path and the encoder positions; loading the preset compiles `filter.dsp` again and restores the positions.
+
+## Known issues
+
+Adding or deleting a module crashed Synthor once in 22 cycles, inside `libLLVM-9.so`. Synthor restarts by itself; save presets first.

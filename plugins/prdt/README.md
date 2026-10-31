@@ -46,9 +46,9 @@ In 1 through a lowpass filter to Out 1, with its cutoff on encoder 1:
 | Audio in | `[adc~ 1]` .. `[adc~ 8]` are In 1..In 8 |
 | Audio out | `[dac~ 1]` .. `[dac~ 8]` are Out 1..Out 8 |
 | Encoders | `[r name]` for a control declared `@pN name`; `[r p1]` .. `[r p16]` otherwise. [Controls](#controls) |
-| CV in | `[adc~ N]`, 0.2 per volt; or `cv N` on an `@pN` comment |
-| CV out | `[dac~ N]`, 0.2 per volt |
-| Gates and triggers | in: `[threshold~]` on `[adc~ N]`; out: `[dac~ N]` at 1.0 (5 V) |
+| CV in | `[adc~ N]`, 0.2 per volt; or `cv N` on an `@pN` comment. [Recipes](#recipes) |
+| CV out | `[sig~]` into `[dac~ N]`, 0.2 per volt. [Recipes](#recipes) |
+| Gates and triggers | in: `[threshold~]` on `[adc~ N]`; out: `[dac~ N]` at 1.0 (5 V). [Recipes](#recipes) |
 | MIDI in | `[notein]`, `[ctlin]`, `[bendin]`, `[pgmin]`, `[touchin]`, `[polytouchin]`. [MIDI](#midi) |
 | MIDI out | n/a: `[noteout]` and the other outputs go nowhere |
 | Clock and tempo | n/a: no clock from Synthor; patch one to an input |
@@ -81,9 +81,129 @@ Receivers belong to one module: two `prdt` modules with `[r cutoff]` do not hear
 
 MIDI comes from the device chosen in the general panel (LS + RS, see [Using](../../docs/USING.md#the-general-panel)). All channel messages reach the patch, on their own channels. Once a note has arrived, the status panel counts them: `MIDI notes: 12`.
 
-## Inputs and outputs
+## Mapping a patch to the jacks
 
-In 1..In 8 and Out 1..Out 8 carry audio and CV alike, at 0.2 per volt. Output is one Pd block (64 frames, 1.3 ms) late.
+`[adc~]` and `[dac~]` arguments are jack numbers: `[adc~ 3]` reads In 3 and `[dac~ 5]` writes Out 5. In 1..In 8 and Out 1..Out 8 carry audio, CV, gates and triggers alike. A signal of 1.0 is 5 V, so 0.2 is 1 V.
+
+- `[dac~ 1 2]` has one inlet per jack; `[adc~ 1 2]` has one outlet per jack.
+- With no argument, `[adc~]` and `[dac~]` mean jacks 1 and 2.
+- A number above 8 loads, but connects to nothing.
+- Output is one Pd block (64 frames, 1.3 ms) late.
+
+A patch's jacks are live only if they are patched in Synthor too, In and Out alike.
+
+### Make a patch
+
+1. In Pd on a computer, choose File > New, then Put > Object (Ctrl-1). Type `adc~ 1`, and click away.
+2. Add the other objects, and drag from an outlet to an inlet to wire them.
+3. Choose Put > Comment (Ctrl-5) and type each `@pN` line. Keep each in a comment of its own.
+4. Save it as a `.pd`, and copy it to `BOOT/prdt`.
+5. On the SSP, press Load (button 5), select it, and press Load again. A missing object shows as an error on the screen.
+
+To try a patch in Pd first, set Media > Audio Settings to 8 channels, so that `[dac~ 5]` and above exist. Pd ignores the `@pN` comments, so send a test value with a message box: `[; cutoff 1000(`.
+
+### Recipes
+
+`jacks.pd` and `midicv.pd` in `examples/` hold these patches.
+
+**Audio in to audio out, scaled by an encoder.** A control starts at the bottom of its range, here silence. Turn encoder 1 up.
+
+```text
+[adc~ 1]  [r gain]
+|         |
+[*~ 0     ]
+|
+[dac~ 1]
+
+@p1 gain 0 1
+```
+
+**CV in, on a control.** Add `cv N` to the `@pN` comment. `[r gain]` then gets the encoder's value moved by In 2: 1 V adds 10% of a linear range, or an octave on a `log` range. The CV is read once per block. See [CV on a control](../../docs/script-editor.md#cv-on-a-control).
+
+```text
+@p1 gain 0 1 cv 2
+```
+
+**CV in, as a signal.** Read the jack for audio-rate modulation or your own scaling. `cv.pd` uses 1 V/oct pitch: 0.2 per volt is 5 octaves per 1.0.
+
+```text
+[adc~ 1]       [r base]
+|              |
+[expr~ $f2 * pow(2, $v1 * 5)]
+|
+[osc~]
+|
+[*~ 0.5]
+|
+[dac~ 1]
+
+@p1 base 20 2000 Hz log
+```
+
+**CV out.** Multiply volts by 0.2. Here encoder 2 sets 0..5 V on Out 2:
+
+```text
+[r volts]
+|
+[* 0.2]
+|
+[sig~]
+|
+[dac~ 2]
+
+@p2 volts 0 5 V
+```
+
+**Gate in and out.** `[threshold~ 0.4 1 0.1 1]` bangs its left outlet when In 3 rises above 2 V, and its right outlet when it falls below 0.5 V. Each debounces for 1 ms.
+
+```text
+[adc~ 3]
+|
+[threshold~ 0.4 1 0.1 1]
+|             |
+[1(           [0(
+|             |
+[sig~          ]
+|
+[dac~ 3]
+```
+
+**Trigger out.** A 5 ms, 5 V pulse from any bang: `[vline~]` jumps to 1, and returns to 0 after 5 ms.
+
+```text
+[1, 0 0 5(
+|
+[vline~]
+|
+[dac~ 4]
+```
+
+**MIDI to pitch CV and gate.** `midicv.pd` plays one voice: 1 V/oct on Out 1, with C4 at 0 V, and a gate on Out 2. `[stripnote]` holds the pitch through the note off. Any note off closes the gate.
+
+```text
+[notein]
+|      |\
+|      | \
+[stripnote]  [> 0]
+|            |
+[- 60]       |
+|            |
+[/ 12]       |
+|            |
+[* 0.2]      |
+|            |
+[sig~]       [sig~]
+|            |
+[dac~ 1]     [dac~ 2]
+```
+
+### Timing
+
+Pd computes 64 frames at a time, 1.3 ms at 48 kHz. Message objects run between those blocks.
+
+- `[threshold~]` sees an edge, and `[sig~]` changes value, on a block boundary. A pulse shorter than a block can be missed.
+- `[vline~]` is sample-accurate from a message, but the message itself still arrives on a block boundary.
+- A signal path such as `[adc~ 1]` to `[*~]` to `[dac~ 1]` follows every sample.
 
 ## Abstractions
 
@@ -116,6 +236,8 @@ Externals cannot load from the card. `prdt.so` keeps Pd's functions private, so 
 | `synth.pd` | mono MIDI synth: a saw through a lowpass; any note off ends the note | cutoff, release |
 | `cv.pd` | sine on Out 1; In 1 is pitch CV, 1 V/oct above base | base |
 | `arp.pd` | arpeggio on Out 1 and Out 2, from cyclone's `[counter]`, `[coll]` with embedded notes, `[cycle~]` and `[onepole~]` | rate, cutoff |
+| `jacks.pd` | one jack of each kind: In 1 to Out 1, CV on In 2, CV on Out 2, a gate from In 3 to Out 3, a trigger on Out 4 | gain, volts |
+| `midicv.pd` | one MIDI voice as 1 V/oct on Out 1 and a gate on Out 2 | none |
 | `pluck.pd` | random notes from a pentatonic scale on Out 1 and Out 2, from ELSE's `[rand.i]` and `[pluck~]`, through its `[echo.rev~]` abstraction | rate, decay, size |
 
 ## Licence

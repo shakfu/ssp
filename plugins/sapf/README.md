@@ -58,7 +58,7 @@ sapf is a Forth-like stack language for audio. Words take arguments from a stack
 
 The module opens on its pages: the mouse page and sapf's output on the left, its state and render load on the right, and meters below them. Load (button 5) opens a browser; choose a `.sapf` or `.txt` file and press Load again to run it. With no file, a built-in sends In 1-2 to Out 1-2.
 
-The SSP has no mouse, so encoders 1 and 2 are sapf's: Mouse X and Mouse Y (p1 and p2), each 0 to 1, start in the middle. Pressing an encoder sets it to 0, not the middle ([Encoders](../../docs/script-editor.md#encoders)). `mousex`, `mousey`, `xmousex`, `xmousey` and their `1` forms read them, as sapf's examples do. Code reads the inputs with `adc` (see [Evaluating](#evaluating)).
+The SSP has no mouse, so encoders 1 and 2 are sapf's: Mouse X and Mouse Y (p1 and p2), each 0 to 1, start in the middle. Pressing an encoder returns it to the middle ([Encoders](../../docs/script-editor.md#encoders)). `mousex`, `mousey`, `xmousex`, `xmousey` and their `1` forms read them, as sapf's examples do. Code reads the inputs with `adc` (see [Evaluating](#evaluating)).
 
 ## Keyboard
 

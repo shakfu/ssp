@@ -272,6 +272,19 @@ def test_faust(plugins, tmp_path):
     assert f'program="{dsp}"' in state
 
 
+def test_encoder_press_returns_to_default(plugins, tmp_path):
+    def pressed(plugin, *load):
+        _, state = run(plugins, plugin, *load, "set", "p1", 0.9, "prepare", 48000, 128, "run", 0.1, 128,
+                       "press", 0, "state")
+        return float(re.search(r'id="p1" value="([^"]+)"', state)[1])
+
+    dsp = tmp_path / "prog.dsp"
+    dsp.write_text('process = _ * hslider("gain", 0.5, 0, 2, 0.01), _;\n')
+    assert pressed("faust", "set", "program", dsp) == pytest.approx(0.25)  # 0.5 of 0..2
+    assert pressed("alda") == pytest.approx(0.5)  # Transpose: 0 of -24..24
+    assert pressed("csound") == 0.0  # no default: the start of the range
+
+
 def test_svca(plugins):
     # the plugin guide's example: Level 0.5 is a gain of 0.5; a CV of 0.25 adds 0.25
     levels, _ = run(plugins, "svca", "set", "level", 0.5, "prepare", 48000, 128, "in", 0, 0.4, "in", 1, -0.2,

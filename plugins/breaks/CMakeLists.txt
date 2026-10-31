@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(BREAKS VERSION 0.1.0)  # see CHANGELOG.md
+project(BREAKS VERSION 0.1.1)  # see CHANGELOG.md
 
 set(COMMON "${PROJECT_SOURCE_DIR}/../common")
 include_directories("${COMMON}")

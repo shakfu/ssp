@@ -247,3 +247,7 @@ Both controls start at the bottom of their ranges: the cutoff at 40 Hz, which pa
 ### 7. Save it
 
 Save a Synthor preset as usual. It stores the file's path and the encoder positions; loading the preset compiles `filter.ck` again and restores the positions.
+
+## Known issues
+
+Each module added and deleted leaves about 2.9 MB allocated until Synthor restarts, as ChucK does not free a deleted VM's types. The SSP has about 1.5 GB free, so this matters only after hundreds of cycles.

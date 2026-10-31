@@ -2,6 +2,10 @@
 
 sapf follows [semantic versioning](https://semver.org). The version is set in `CMakeLists.txt` (`project(SAPF VERSION ...)`).
 
+## [0.2.1] - 2026-10-31
+
+- Pressing an encoder returns a control to the middle; it went to the start of the range.
+
 ## [0.2.0] - 2026-10-24
 
 sapf uses the script editor of `chuk`, `csnd`, `fstr` and `alda`, so its keys and views match theirs. It opens on its pages, with Load, and the first key typed opens the Code view. Ctrl-Enter now stops every sound and evaluates the whole code; Ctrl-E evaluates the block, which Ctrl-Enter did before. Esc returns to the pages and no longer stops. The preset's code runs when the patch loads; with none, a built-in sends inputs 1-2 to outputs 1-2. Ctrl-O's own file list is gone: it opens the browser. sapf's output shows on the pages and in three rows of the Code view; the meters moved to the pages. A 0.1.0 patch brings its text back unrun. The rack's compact view no longer takes keys, as for the other script modules.

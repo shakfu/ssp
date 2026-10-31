@@ -30,6 +30,8 @@ public:
                                 : juce::String(sp.label).substring(0, maxLength);
     }
     juce::String getLabel() const override { return spec().unit; }
+    // what an encoder press returns to: the program's default, else the start of the range
+    float getDefaultValue() const override { return std::max(spec().def, 0.0f); }
     float modulatedValue() const override {
         auto sp = spec();
         return engine_ && sp.cv >= 0 ? sp.unmap(engine_->value(index_)) : -1.0f;

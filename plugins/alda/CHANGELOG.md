@@ -2,6 +2,10 @@
 
 alda follows [semantic versioning](https://semver.org). The version is set in `CMakeLists.txt` (`project(ALDA VERSION ...)`).
 
+## [0.1.2] - 2026-10-31
+
+- Pressing an encoder returns a control to neutral; it went to the start of the range.
+
 ## [0.1.1] - 2026-10-24
 
 - The clock (tempo, In 2, MIDI clock, reset, swing) moved to `plugins/common/engine/Clock`, which `gseq` shares. No change in behaviour.

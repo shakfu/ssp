@@ -218,6 +218,10 @@ A score is an NRT command file (scsynth's non-real-time format): timed bundles o
 
 - At most 900 SynthDefs besides the main one.
 
+## Known issues
+
+Adding or deleting a module crashed Synthor once in 26 cycles, with no trace. Synthor restarts by itself; save presets first.
+
 ## Licence
 
 GPL-3.0, for SuperCollider; the repo is AGPL-3.0.

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(ALDA VERSION 0.1.1)  # see CHANGELOG.md
+project(ALDA VERSION 0.1.2)  # see CHANGELOG.md
 
 # psnd's Alda core, from scripts/fetch_alda.sh (ALDA_DIR): the parser, interpreter and event list, without
 # psnd's playback and MIDI backends. Its own library, so its include path, whose headers have names such as

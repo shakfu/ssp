@@ -2,7 +2,7 @@
 
 gseq follows [semantic versioning](https://semver.org). The version is set in `CMakeLists.txt` (`project(GSEQ VERSION ...)`).
 
-## [Unreleased]
+## [0.2.0] - 2026-10-31
 
 - Roll mode: encoders 1 and 2 move the cursor by pitch and by step, and pressing either adds or removes a note. A note stays in the cell where it was made; encoder 1 used to carry it along, so a note could not be added and left. Velocity moves to encoder 3 held, by 5.
 
